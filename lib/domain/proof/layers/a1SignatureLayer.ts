@@ -1,5 +1,6 @@
 export type A1LayerInput = {
-  hash: string
+  hash?: string
+  event_hash?: string
   [key: string]: unknown
 }
 
