@@ -1,6 +1,25 @@
 import fs from "fs";
 
-export function loadA1Certificate() {
+export type A1CertificateInfo = {
+  subject: string
+  issuer: string
+  serialNumber: string
+  fingerprintSha256: string
+  validFrom: string
+  validTo: string
+  daysRemaining: number
+}
+
+export type A1Certificate = {
+  pfxBuffer: Buffer
+  passphrase: string
+  mode: "REAL" | "MOCK"
+  privateKey: unknown
+  cert: { publicKey: unknown } | null
+  info: A1CertificateInfo
+}
+
+export function loadA1Certificate(): A1Certificate {
   const certPath = process.env.A1_CERT_PATH;
   const certPassword = process.env.A1_CERT_PASSWORD;
 
@@ -13,6 +32,18 @@ export function loadA1Certificate() {
   return {
     pfxBuffer,
     passphrase: certPassword,
+    mode: "REAL",
+    privateKey: null,
+    cert: null,
+    info: {
+      subject: "",
+      issuer: "",
+      serialNumber: "",
+      fingerprintSha256: "",
+      validFrom: "",
+      validTo: "",
+      daysRemaining: 0,
+    },
   };
 }
 
