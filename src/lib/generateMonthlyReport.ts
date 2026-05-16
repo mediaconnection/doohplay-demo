@@ -3,7 +3,7 @@ import { getHashableReport } from "@/lib/getHashableReport";
 import { sha256FromObject } from "@/lib/hash";
 
 export function generateMonthlyReport(params: {
-  logs: Array<{ playerId: string; mediaId: string; durationSeconds: number }>
+  logs: Array<{ player_id: string; duration_seconds: number; started_at: string }>
   periodStart: string
   periodEnd: string
 }) {
