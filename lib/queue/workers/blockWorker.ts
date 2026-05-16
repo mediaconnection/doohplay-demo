@@ -82,7 +82,7 @@ export const blockWorker = new Worker(
         }
       }
 
-      const eventHashes = events.map((event) => event.event_hash)
+      const eventHashes = events.map((event: Record<string, unknown>) => event.event_hash)
       const tree = buildMerkleTree(eventHashes)
       const merkleRoot = tree.root
 
