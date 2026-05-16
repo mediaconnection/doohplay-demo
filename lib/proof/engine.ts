@@ -262,7 +262,7 @@ export async function runProofEngine(input: ProofInput | Record<string, unknown>
   const startedAt = Date.now()
   const requestId = randomUUID()
 
-  if (!isValidEngineInput(input)) {
+  if (!isValidEngineInput(input as ProofInput | null | undefined)) {
     const reasons: LocalFailureReason[] = ["INVALID_INPUT"]
     const layers: LayerResult[] = []
 

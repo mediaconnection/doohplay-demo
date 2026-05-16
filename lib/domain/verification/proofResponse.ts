@@ -1,8 +1,9 @@
 export type RateLimitResult = {
-  limited: boolean
+  limited?: boolean
   allowed: boolean
   remaining: number
-  resetAt: number
+  resetAt?: number
+  reset?: number
 }
 
 export type ProofResponse = {

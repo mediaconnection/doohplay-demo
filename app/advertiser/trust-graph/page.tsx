@@ -363,7 +363,7 @@ export default function TrustGraphPage() {
   const positions = useMemo<Record<string, NodePosition>>(() => {
     if (filteredNodes.length === 0) return {}
 
-    return buildForceGraph(filteredNodes, filteredEdges) as Record<
+    return buildForceGraph(filteredNodes, filteredEdges) as unknown as Record<
       string,
       NodePosition
     >

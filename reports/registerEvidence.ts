@@ -11,7 +11,7 @@ export async function registerEvidence(data: {
     .from("evidences")
     .select("hash")
 
-  const hashes = (all || []).map((e: Record<string, unknown>) => e.hash)
+  const hashes = (all || []).map((e: Record<string, unknown>) => String(e.hash ?? "")).filter(Boolean)
 
   hashes.push(data.hash)
 
