@@ -1,15 +1,27 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model PdfCertification {
+  id            String   @id @default(uuid())
+  pdfHash       String   @unique
+  signature     String
+  algorithm     String
+  certifiedAt   DateTime @default(now())
+
+  // 🔐 Jurídico
+  generatedBy   String
+  environment   String
+  ipAddress     String?
+  userAgent     String?
+
+  // 🔗 Verificação futura
+  publicKeyId   String
+
+  createdAt    DateTime @default(now())
 }
