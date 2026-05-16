@@ -21,3 +21,12 @@ export function buildProofResponse(data: Partial<ProofResponse>): ProofResponse 
     error: data.error,
   }
 }
+
+export const queuedProofResponse = (hash: string): ProofResponse =>
+  buildProofResponse({ hash, status: "PENDING" })
+
+export const liveProofResponse = (hash: string, score?: number): ProofResponse =>
+  buildProofResponse({ hash, status: "VERIFIED", score })
+
+export const cachedProofResponse = (hash: string, score?: number): ProofResponse =>
+  buildProofResponse({ hash, status: "VERIFIED", score })
