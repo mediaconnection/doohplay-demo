@@ -1,6 +1,8 @@
 export { buildBatchMerkleProofs } from "./batchMerkle"
 export type { BatchMerkleProof } from "./batchMerkle"
 export { normalizeHash } from "../../proof/chain"
+export { buildMerkleRoot } from "../../../src/core/audit/merkleRoot"
+export { generateMerkleProof as buildMerkleProof } from "../../crypto/merkleRoot"
 export { type MerkleProofItem } from "../../proof/merkle/verifyMerkleProof"
 export { isHex64 } from "../../merkle/index"
 
