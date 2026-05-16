@@ -1,4 +1,5 @@
 import { generateMerkleProof } from "./generateMerkleProof"
+import { supabase } from "@/lib/supabase"
 
 export async function registerEvidence(data: {
   hash: string
