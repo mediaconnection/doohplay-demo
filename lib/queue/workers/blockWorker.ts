@@ -57,7 +57,7 @@ export const blockWorker = new Worker(
         add column if not exists merkle_proof jsonb
       `)
 
-      const res = await client.query<EventRow>(`
+      const res = await client.query(`
         select id::text, event_id::text, event_hash
         from public.event_chain
         where block_id is null
@@ -86,14 +86,12 @@ export const blockWorker = new Worker(
       const tree = buildMerkleTree(eventHashes)
       const merkleRoot = tree.root
 
-      const lastBlock = await client.query<{
-        block_hash: string | null
-      }>(`
+      const lastBlock = await client.query(`
         select block_hash
         from public.event_blocks
         order by created_at desc, id desc
         limit 1
-      `)
+      `) as { rows: Array<{ block_hash: string | null }> }
 
       const previousHash = lastBlock.rows[0]?.block_hash ?? null
 
@@ -105,7 +103,7 @@ export const blockWorker = new Worker(
         eventCount: events.length
       })
 
-      const existing = await client.query<{ id: string }>(
+      const existing = await client.query(
         `
         select id::text
         from public.event_blocks
@@ -153,7 +151,7 @@ export const blockWorker = new Worker(
         console.warn("BLOCK_SIGNATURE_SKIPPED", err)
       }
 
-      const inserted = await client.query<{ id: string }>(
+      const inserted = await client.query(
         `
         insert into public.event_blocks (
           merkle_root,
