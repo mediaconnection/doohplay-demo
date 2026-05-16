@@ -7,7 +7,16 @@ const BASE_DELAY = 2_000;
 const MAX_DELAY = 60_000;
 
 export async function processNotificationRetry(notificationId: string) {
-  const { rows } = await db.query(
+  type NotificationRow = {
+    attempt: number
+    alert_id: string
+    channel: "email" | "whatsapp" | "webhook"
+    target: string
+    message: string
+    idempotency_key: string
+  }
+
+  const { rows } = await db.query<NotificationRow>(
     `
     SELECT *
     FROM notifications
@@ -41,11 +50,11 @@ export async function processNotificationRetry(notificationId: string) {
 
   try {
     await notifyAlert({
-      alertId: n.alert_id as string,
-      channel: n.channel as "email" | "whatsapp" | "webhook",
-      target: n.target as string,
-      message: n.message as string,
-      idempotencyKey: n.idempotency_key as string,
+      alertId: n.alert_id,
+      channel: n.channel,
+      target: n.target,
+      message: n.message,
+      idempotencyKey: n.idempotency_key,
     });
 
     await db.query(

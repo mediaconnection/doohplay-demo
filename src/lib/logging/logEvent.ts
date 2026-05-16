@@ -10,6 +10,11 @@ import { db } from "@/lib/db"; // ajuste para seu client real
 export type LogEventInput = {
   event_type?: LogEventType;
   type?: string;
+  level?: string;
+  message?: string;
+  entity_id?: string;
+  entity_type?: string;
+  source?: string;
   campaign_id?: string | null;
   player_id?: string | null;
   execution_id?: string | null;

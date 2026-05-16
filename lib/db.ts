@@ -1,7 +1,6 @@
 import { Pool } from "pg"
-import type { Pool as PgPool } from "pg"
 
-type PgPoolInstance = PgPool
+type PgPoolInstance = Pool
 
 type PgQueryResultRow = Record<string, unknown>
 
