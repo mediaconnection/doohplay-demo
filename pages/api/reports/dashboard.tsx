@@ -95,17 +95,12 @@ export default async function handler(
     /* ======================================================
        5️⃣ PDF FINAL ASSINADO
     ====================================================== */
-    const signedStream = (await renderToStream(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const signedStream = (await (renderToStream as any)(
       React.createElement(DashboardReport, {
-        start,
-        end,
-        kpis,
-        integrityHash,
-        signedAt,
-        signature,
-        qrCode,
-      }) as React.ReactElement<any>
-    )) as unknown as NodeJS.ReadableStream;
+        start, end, kpis, integrityHash, signedAt, signature, qrCode,
+      })
+    )) as NodeJS.ReadableStream;
 
     const signedBuffer = await streamToBuffer(signedStream as any);
 

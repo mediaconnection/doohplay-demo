@@ -9,7 +9,8 @@ import { ReportDocument } from "./reportDocument";
 export async function generatePdfInWorker(
   data: Record<string, any>
 ): Promise<Buffer> {
-  const buffer = await pdf(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buffer = await (pdf as any)(
     <ReportDocument data={data} />
   ).toBuffer();
 
