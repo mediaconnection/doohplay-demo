@@ -17,6 +17,7 @@ export type VerifyMerkleProofInput = {
   leaf: string
   proof: MerkleProofItem[]
   root: string
+  mode?: "auto" | "strict"
 }
 
 export type VerifyMerkleProofResult = {

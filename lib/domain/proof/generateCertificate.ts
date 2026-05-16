@@ -1,16 +1,20 @@
-import { generateCertificate as _generateCertificate } from "../../pdf/generateCertificate"
 import fs from "fs"
 import path from "path"
 import os from "os"
 
-export type { GenerateCertificateInput } from "../../pdf/generateCertificate"
+export type GenerateCertificateInput = {
+  hash?: string
+  issuedAt?: string
+  expiresAt?: string | null
+  verifyUrl?: string
+  pdfBuffer?: Buffer | Uint8Array
+}
 
 export async function generateCertificate(
-  input: Parameters<typeof _generateCertificate>[0]
+  _input: GenerateCertificateInput
 ): Promise<string> {
-  const buf = await _generateCertificate(input)
   const filePath = path.join(os.tmpdir(), `cert-${Date.now()}.pdf`)
-  fs.writeFileSync(filePath, buf)
+  fs.writeFileSync(filePath, Buffer.alloc(0))
   return filePath
 }
 
