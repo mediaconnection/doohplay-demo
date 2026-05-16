@@ -1,95 +1,129 @@
-import { Pool } from "pg";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"
 
-/* ---------- Banco ---------- */
+import { pool } from "@/lib/db"
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
-/* ---------- Util ---------- */
+type Period = "today" | "7d" | "30d"
 
-function resolvePeriod(period?: string) {
-  const end = new Date();
-  const start = new Date(end);
+type CampaignExportRow = {
+  campaign: string | null
+  executions: number | string | null
+  seconds: number | string | null
+  cpm: number | string | null
+  gross_amount: number | string | null
+}
 
-  switch (period) {
+function resolvePeriod(period?: string): { start: string; end: string } {
+  const end = new Date()
+  const start = new Date(end)
+
+  switch (period as Period) {
     case "today":
-      start.setHours(0, 0, 0, 0);
-      break;
+      start.setHours(0, 0, 0, 0)
+      break
     case "7d":
-      start.setDate(end.getDate() - 7);
-      break;
+      start.setDate(end.getDate() - 7)
+      break
     case "30d":
     default:
-      start.setDate(end.getDate() - 30);
+      start.setDate(end.getDate() - 30)
+      break
   }
 
   return {
     start: start.toISOString(),
-    end: end.toISOString(),
-  };
+    end: end.toISOString()
+  }
 }
 
-/* ---------- GET ---------- */
+function safeCsvValue(value: unknown): string {
+  if (value === null || value === undefined) return ""
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  const text = String(value).replace(/"/g, '""')
 
-  const period = searchParams.get("period") ?? undefined;
-  const campaign = searchParams.get("campaign") ?? undefined;
+  if (/[;"\n\r]/.test(text)) {
+    return `"${text}"`
+  }
 
-  const { start, end } = resolvePeriod(period);
+  return text
+}
 
-  const query = `
-    SELECT
-      c.name AS campaign,
-      COUNT(pl.id) AS executions,
-      COALESCE(SUM(pl.duration_seconds), 0) AS seconds,
-      25.00::numeric AS cpm,
-      ROUND((COUNT(pl.id)::numeric / 1000) * 25.00, 2) AS gross_amount
-    FROM public.campaigns c
-    LEFT JOIN public.play_logs_certified pl
-      ON pl.campaign_id = c.id
-     AND pl.created_at >= $1
-     AND pl.created_at <  $2
-    WHERE ($3::uuid IS NULL OR c.id = $3::uuid)
-    GROUP BY c.name
-    ORDER BY c.name;
-  `;
+function normalizeUuid(value: string | null): string | null {
+  if (!value) return null
 
-  const { rows } = await pool.query(query, [
-    start,
-    end,
-    campaign ?? null,
-  ]);
+  const trimmed = value.trim()
 
-  /* ---------- CSV ---------- */
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(
+    trimmed
+  )
+    ? trimmed
+    : null
+}
 
-  const header = [
-    "Campanha",
-    "Execuções",
-    "Tempo (s)",
-    "CPM",
-    "Valor (R$)",
-  ];
+export async function GET(req: NextRequest) {
+  try {
+    const period = req.nextUrl.searchParams.get("period") ?? undefined
+    const campaign = normalizeUuid(req.nextUrl.searchParams.get("campaign"))
 
-  const lines = rows.map((r) =>
-    [
-      r.campaign,
-      r.executions,
-      r.seconds,
-      r.cpm,
-      r.gross_amount,
-    ].join(";")
-  );
+    const { start, end } = resolvePeriod(period)
 
-  const csv = [header.join(";"), ...lines].join("\n");
+    const result = await pool.query(
+      `
+      SELECT
+        c.name AS campaign,
+        COUNT(pl.id)::int AS executions,
+        COALESCE(SUM(pl.duration_seconds), 0)::int AS seconds,
+        25.00::numeric AS cpm,
+        ROUND((COUNT(pl.id)::numeric / 1000) * 25.00, 2) AS gross_amount
+      FROM public.campaigns c
+      LEFT JOIN public.play_logs_certified pl
+        ON pl.campaign_id = c.id
+       AND pl.created_at >= $1
+       AND pl.created_at <  $2
+      WHERE ($3::uuid IS NULL OR c.id = $3::uuid)
+      GROUP BY c.name
+      ORDER BY c.name ASC
+      `,
+      [start, end, campaign]
+    )
 
-  return new NextResponse(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="relatorio-campanhas.csv"`,
-    },
-  });
+    const rows = result.rows as CampaignExportRow[]
+
+    const header = ["Campanha", "Execuções", "Tempo (s)", "CPM", "Valor (R$)"]
+
+    const lines = rows.map((row) =>
+      [
+        row.campaign,
+        row.executions,
+        row.seconds,
+        row.cpm,
+        row.gross_amount
+      ]
+        .map(safeCsvValue)
+        .join(";")
+    )
+
+    const csv = [header.join(";"), ...lines].join("\n")
+
+    return new NextResponse(csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="relatorio-campanhas.csv"`,
+        "Cache-Control": "no-store"
+      }
+    })
+  } catch (error) {
+    console.error("CAMPAIGN_EXPORT_ROUTE_ERROR", error)
+
+    return NextResponse.json(
+      {
+        error: "CAMPAIGN_EXPORT_FAILED",
+        detail: error instanceof Error ? error.message : String(error)
+      },
+      { status: 500 }
+    )
+  }
 }

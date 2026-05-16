@@ -1,13 +1,23 @@
 # =====================================
 # 🔐 Security (CRITICAL)
 # =====================================
-/private.pem
-/keys/private.pem
-*.pem
-!/keys/public.pem
-.env*
 
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ❌ nunca subir chave privada
+private.pem
+keys/private.pem
+
+# ❌ outros formatos sensíveis (prevenção)
+*.key
+*.crt
+
+# 🌐 permitir chave pública
+!public.pem
+!keys/public.pem
+
+# ❌ env files
+.env
+.env.*
+!.env.example
 
 # =====================================
 # Dependencies

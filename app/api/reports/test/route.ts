@@ -1,25 +1,40 @@
-import { NextResponse } from "next/server";
-import { generateReportPdf } from "@/services/pdf/generateReportPdf";
-import { generatePdfHash } from "@/services/pdf/generatePdfHash";
+import { NextResponse } from "next/server"
+
+import { generateCertifiedReportPdf } from "@/services/pdf/generateCertifiedReportPdf"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+function toArrayBuffer(bytes: Uint8Array | ArrayBuffer): ArrayBuffer {
+  if (bytes instanceof ArrayBuffer) return bytes
+
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer
+}
 
 export async function GET() {
   try {
-    const pdfBuffer = await generateReportPdf();
+    const pdf = await generateCertifiedReportPdf()
 
-    const pdfHash = generatePdfHash(pdfBuffer);
-
-    return NextResponse.json({
-      step: "pdf + hash generated",
-      pdfSize: pdfBuffer.length,
-      hash: pdfHash,
-    });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
+    return new Response(toArrayBuffer(pdf), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="report-certified.pdf"',
+        "Cache-Control": "no-store"
+      }
+    })
+  } catch (error) {
+    console.error("REPORT_TEST_ROUTE_ERROR", error)
 
     return NextResponse.json(
-      { error: message },
+      {
+        error: "REPORT_TEST_FAILED",
+        detail: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
-    );
+    )
   }
 }

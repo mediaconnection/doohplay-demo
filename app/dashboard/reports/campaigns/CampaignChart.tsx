@@ -1,53 +1,64 @@
-"use client";
+"use client"
 
 import {
-  ResponsiveContainer,
-  BarChart,
   Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
+  BarChart,
   CartesianGrid,
-} from "recharts";
-
-/* ---------- Tipos ---------- */
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts"
+import type {
+  NameType,
+  ValueType
+} from "recharts/types/component/DefaultTooltipContent"
 
 type ChartRow = {
-  campaign_name: string;
-  executions_done: number;
-  gross_amount: number;
-};
+  campaign_name: string
+  executions_done: number
+  gross_amount: number
+}
 
-/* ---------- Formatadores ---------- */
+function toNumber(value: unknown): number {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
+}
 
-const formatCurrency = (value: number) =>
-  value.toLocaleString("pt-BR", {
+function formatCurrency(value: unknown): string {
+  return toNumber(value).toLocaleString("pt-BR", {
     style: "currency",
-    currency: "BRL",
-  });
+    currency: "BRL"
+  })
+}
 
-/* ---------- Componente ---------- */
+function formatTooltipCurrency(
+  value: ValueType | undefined,
+  name?: NameType
+): [string, string] {
+  return [formatCurrency(value), String(name ?? "Valor")]
+}
 
 export default function CampaignChart({ data }: { data: ChartRow[] }) {
-  if (!data || data.length === 0) {
+  if (!Array.isArray(data) || data.length === 0) {
     return (
       <div className="text-sm text-gray-500">
         Nenhum dado disponível para o período selecionado.
       </div>
-    );
+    )
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Execuções */}
-      <div className="border rounded-lg p-4">
-        <h2 className="font-medium mb-2">📊 Execuções por campanha</h2>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="rounded-lg border p-4">
+        <h2 className="mb-2 font-medium">📊 Execuções por campanha</h2>
 
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
+
             <XAxis
               dataKey="campaign_name"
               tick={{ fontSize: 12 }}
@@ -55,20 +66,23 @@ export default function CampaignChart({ data }: { data: ChartRow[] }) {
               angle={-20}
               textAnchor="end"
             />
+
             <YAxis allowDecimals={false} />
+
             <Tooltip />
+
             <Bar dataKey="executions_done" />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Receita */}
-      <div className="border rounded-lg p-4">
-        <h2 className="font-medium mb-2">📈 Receita por campanha (R$)</h2>
+      <div className="rounded-lg border p-4">
+        <h2 className="mb-2 font-medium">📈 Receita por campanha (R$)</h2>
 
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
+
             <XAxis
               dataKey="campaign_name"
               tick={{ fontSize: 12 }}
@@ -76,10 +90,11 @@ export default function CampaignChart({ data }: { data: ChartRow[] }) {
               angle={-20}
               textAnchor="end"
             />
-            <YAxis tickFormatter={(v) => formatCurrency(v)} />
-            <Tooltip
-              formatter={(value: number) => formatCurrency(value)}
-            />
+
+            <YAxis tickFormatter={formatCurrency} />
+
+            <Tooltip formatter={formatTooltipCurrency} />
+
             <Line
               type="monotone"
               dataKey="gross_amount"
@@ -90,5 +105,5 @@ export default function CampaignChart({ data }: { data: ChartRow[] }) {
         </ResponsiveContainer>
       </div>
     </div>
-  );
+  )
 }

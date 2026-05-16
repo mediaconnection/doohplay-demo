@@ -1,104 +1,163 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { useCallback, useEffect, useState } from "react"
+import type { ReactNode } from "react"
+
+import { supabase } from "@/lib/supabase/client"
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh"
+
 import {
-  LineChart,
   Line,
-  XAxis,
-  YAxis,
-  Tooltip,
+  LineChart,
   ResponsiveContainer,
-} from "recharts";
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts"
 
 type Row = {
-  period: string; // ISO timestamp
-  executions: number;
-};
+  period: string
+  executions: number
+}
 
-// 🔹 Formatadores pt-BR
-const formatTick = (value: string) =>
-  new Date(value).toLocaleString("pt-BR", {
+type Props = {
+  startDate: string
+  endDate: string
+}
+
+function formatDateLabel(value: unknown): string {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return "—"
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  })
+}
+
+function formatTick(value: string | number): string {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  return date.toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
-    minute: "2-digit",
-  });
+    minute: "2-digit"
+  })
+}
 
-const formatTooltipLabel = (value: string) =>
-  new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+function formatTooltipLabel(label: ReactNode): ReactNode {
+  return formatDateLabel(label)
+}
 
-export default function ExecutionsChart() {
-  const [data, setData] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function ExecutionsChart({ startDate, endDate }: Props) {
+  const [data, setData] = useState<Row[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchExecutions = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) setLoading(true)
+        setError(null)
+
+        const { data: rows, error: rpcError } = await supabase.rpc(
+          "dashboard_executions_over_time",
+          {
+            start_date: startDate,
+            end_date: endDate
+          }
+        )
+
+        if (rpcError) throw rpcError
+
+        setData(Array.isArray(rows) ? (rows as Row[]) : [])
+      } catch (err) {
+        console.error("EXECUTIONS_CHART_ERROR", err)
+        setError("Erro ao carregar execuções")
+        setData([])
+      } finally {
+        if (!silent) setLoading(false)
+      }
+    },
+    [startDate, endDate]
+  )
 
   useEffect(() => {
-    let mounted = true;
+    void fetchExecutions()
+  }, [fetchExecutions])
 
-    async function loadData() {
-      const { data, error } = await supabase.rpc(
-        "dashboard_executions_over_time",
-        {
-          start_date: "2024-01-01T00:00:00Z",
-          end_date: "2030-12-31T23:59:59Z",
-        }
-      );
-
-      if (!mounted) return;
-
-      if (error) {
-        console.error("Erro ao carregar execuções:", error);
-        setData([]);
-      } else if (Array.isArray(data)) {
-        setData(data as Row[]);
-      }
-
-      setLoading(false);
-    }
-
-    loadData();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useAutoRefresh(() => {
+    void fetchExecutions(true)
+  }, 15000)
 
   if (loading) {
     return (
-      <div className="h-80 bg-white rounded-xl p-4 shadow flex items-center justify-center text-sm text-gray-400">
-        Carregando gráfico…
+      <div className="h-80 animate-pulse rounded-xl border border-gray-800 bg-gray-900 p-4" />
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-80 items-center justify-center text-sm text-red-500">
+        {error}
       </div>
-    );
+    )
   }
 
   if (data.length === 0) {
     return (
-      <div className="h-80 bg-white rounded-xl p-4 shadow flex items-center justify-center text-sm text-gray-400">
+      <div className="flex h-80 items-center justify-center text-sm text-gray-400">
         Sem dados no período
       </div>
-    );
+    )
   }
 
   return (
-    <div className="h-80 bg-white rounded-xl p-4 shadow">
-      <h2 className="font-semibold mb-4">
+    <div className="h-80 rounded-xl border border-gray-800 bg-gray-900 p-4">
+      <h2 className="mb-4 font-semibold text-gray-300">
         Execuções ao longo do tempo
       </h2>
 
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="90%">
         <LineChart data={data}>
           <XAxis
             dataKey="period"
             tickFormatter={formatTick}
             minTickGap={20}
+            stroke="#9CA3AF"
           />
-          <YAxis allowDecimals={false} />
-          <Tooltip labelFormatter={formatTooltipLabel} />
-          <Line type="monotone" dataKey="executions" />
+
+          <YAxis allowDecimals={false} stroke="#9CA3AF" />
+
+          <Tooltip
+            labelFormatter={formatTooltipLabel}
+            contentStyle={{
+              backgroundColor: "#111827",
+              border: "1px solid #374151"
+            }}
+          />
+
+          <Line
+            type="monotone"
+            dataKey="executions"
+            stroke="#6366F1"
+            strokeWidth={2}
+            dot={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
-  );
+  )
 }

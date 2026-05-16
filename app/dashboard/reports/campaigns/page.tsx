@@ -1,92 +1,83 @@
-import { Pool } from "pg";
-
-/* ---------- Tipos ---------- */
+import { pool } from "@/lib/db"
 
 type CampaignOption = {
-  id: string;
-  name: string;
-};
+  id: string
+  name: string
+}
 
 type CampaignReportRow = {
-  campaign_id: string;
-  campaign_name: string;
-  executions_done: string;
-  total_seconds: string;
-  cpm: string;
-  gross_amount: string;
-};
+  campaign_id: string
+  campaign_name: string
+  executions_done: string | number
+  total_seconds: string | number
+  cpm: string | number
+  gross_amount: string | number
+}
 
 type CampaignReport = {
-  campaign_id: string;
-  campaign_name: string;
-  executions_done: number;
-  total_seconds: number;
-  cpm: number;
-  gross_amount: number;
-};
-
-/* ---------- Pool singleton ---------- */
-
-declare global {
-  // eslint-disable-next-line no-var
-  var pgPool: Pool | undefined;
+  campaign_id: string
+  campaign_name: string
+  executions_done: number
+  total_seconds: number
+  cpm: number
+  gross_amount: number
 }
 
-const pool =
-  global.pgPool ??
-  new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  global.pgPool = pool;
+type SearchParams = {
+  period?: string
+  campaign?: string
 }
-
-/* ---------- Período ---------- */
 
 function resolvePeriod(period?: string) {
-  const end = new Date();
-  const start = new Date(end);
+  const end = new Date()
+  const start = new Date(end)
 
   switch (period) {
     case "today":
-      start.setHours(0, 0, 0, 0);
-      break;
+      start.setHours(0, 0, 0, 0)
+      break
     case "7d":
-      start.setDate(end.getDate() - 7);
-      break;
+      start.setDate(end.getDate() - 7)
+      break
     case "30d":
     default:
-      start.setDate(end.getDate() - 30);
+      start.setDate(end.getDate() - 30)
+      break
   }
 
   return {
     start: start.toISOString(),
-    end: end.toISOString(),
-  };
+    end: end.toISOString()
+  }
 }
 
-/* ---------- Queries ---------- */
+function toNumber(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
 
 async function getCampaignOptions(): Promise<CampaignOption[]> {
-  const { rows } = await pool.query<CampaignOption>(`
-    SELECT id, name
+  const result = await pool.query(`
+    SELECT
+      id::text AS id,
+      name
     FROM public.campaigns
-    ORDER BY name;
-  `);
+    ORDER BY name ASC
+  `)
 
-  return rows;
+  return result.rows as CampaignOption[]
 }
 
 async function getCampaignReports(
   period?: string,
   campaignId?: string
 ): Promise<CampaignReport[]> {
-  const { start, end } = resolvePeriod(period);
+  const { start, end } = resolvePeriod(period)
 
-  const query = `
+  const result = await pool.query(
+    `
     SELECT
-      c.id AS campaign_id,
+      c.id::text AS campaign_id,
       c.name AS campaign_name,
       COUNT(pl.id) AS executions_done,
       COALESCE(SUM(pl.duration_seconds), 0) AS total_seconds,
@@ -99,141 +90,148 @@ async function getCampaignReports(
      AND pl.created_at <  $2
     WHERE ($3::uuid IS NULL OR c.id = $3::uuid)
     GROUP BY c.id, c.name
-    ORDER BY c.name;
-  `;
+    ORDER BY c.name ASC
+    `,
+    [start, end, campaignId ?? null]
+  )
 
-  const params = [start, end, campaignId ?? null];
+  const rows = result.rows as CampaignReportRow[]
 
-  const { rows } = await pool.query<CampaignReportRow>(query, params);
-
-  return rows.map((r) => ({
-    campaign_id: r.campaign_id,
-    campaign_name: r.campaign_name,
-    executions_done: Number(r.executions_done),
-    total_seconds: Number(r.total_seconds),
-    cpm: Number(r.cpm),
-    gross_amount: Number(r.gross_amount),
-  }));
+  return rows.map((row) => ({
+    campaign_id: row.campaign_id,
+    campaign_name: row.campaign_name,
+    executions_done: toNumber(row.executions_done),
+    total_seconds: toNumber(row.total_seconds),
+    cpm: toNumber(row.cpm),
+    gross_amount: toNumber(row.gross_amount)
+  }))
 }
 
-/* ---------- Página ---------- */
-
 export default async function CampaignReportsPage({
-  searchParams,
+  searchParams
 }: {
-  searchParams: { period?: string; campaign?: string };
+  searchParams: Promise<SearchParams>
 }) {
-  const campaigns = await getCampaignOptions();
-  const data = await getCampaignReports(
-    searchParams.period,
-    searchParams.campaign
-  );
+  const params = await searchParams
 
-  const totalExecutions = data.reduce((s, c) => s + c.executions_done, 0);
-  const totalSeconds = data.reduce((s, c) => s + c.total_seconds, 0);
-  const totalGross = data.reduce((s, c) => s + c.gross_amount, 0);
+  const campaigns = await getCampaignOptions()
+  const data = await getCampaignReports(params.period, params.campaign)
+
+  const totalExecutions = data.reduce(
+    (sum, row) => sum + row.executions_done,
+    0
+  )
+
+  const totalSeconds = data.reduce(
+    (sum, row) => sum + row.total_seconds,
+    0
+  )
+
+  const totalGross = data.reduce(
+    (sum, row) => sum + row.gross_amount,
+    0
+  )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       <h1 className="text-2xl font-semibold">📊 Relatório de Campanhas</h1>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <FilterButton label="Hoje" period="today" campaign={searchParams.campaign} />
-        <FilterButton label="7 dias" period="7d" campaign={searchParams.campaign} />
-        <FilterButton label="30 dias" period="30d" campaign={searchParams.campaign} />
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterButton label="Hoje" period="today" campaign={params.campaign} />
+        <FilterButton label="7 dias" period="7d" campaign={params.campaign} />
+        <FilterButton label="30 dias" period="30d" campaign={params.campaign} />
 
         <form method="GET" className="flex gap-2">
-          <input type="hidden" name="period" value={searchParams.period ?? ""} />
+          <input type="hidden" name="period" value={params.period ?? ""} />
 
           <select
             name="campaign"
-            defaultValue={searchParams.campaign ?? ""}
-            className="border rounded-md px-2 py-1 text-sm"
+            defaultValue={params.campaign ?? ""}
+            className="rounded-md border px-2 py-1 text-sm"
           >
             <option value="">Todas as campanhas</option>
-            {campaigns.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+
+            {campaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name}
               </option>
             ))}
           </select>
 
           <button
             type="submit"
-            className="px-3 py-1 border rounded-md text-sm hover:bg-gray-100"
+            className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
           >
             Filtrar
           </button>
         </form>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Kpi title="Execuções" value={totalExecutions} />
         <Kpi title="Tempo (s)" value={totalSeconds} />
         <Kpi title="Valor (R$)" value={totalGross.toFixed(2)} />
       </div>
 
-      {/* Tabela */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="text-left p-3">Campanha</th>
-              <th className="text-right p-3">Execuções</th>
-              <th className="text-right p-3">Tempo (s)</th>
-              <th className="text-right p-3">Valor (R$)</th>
+              <th className="p-3 text-left">Campanha</th>
+              <th className="p-3 text-right">Execuções</th>
+              <th className="p-3 text-right">Tempo (s)</th>
+              <th className="p-3 text-right">Valor (R$)</th>
             </tr>
           </thead>
+
           <tbody>
             {data.map((row) => (
               <tr key={row.campaign_id} className="border-t">
                 <td className="p-3">{row.campaign_name}</td>
                 <td className="p-3 text-right">{row.executions_done}</td>
                 <td className="p-3 text-right">{row.total_seconds}</td>
-                <td className="p-3 text-right">
-                  {row.gross_amount.toFixed(2)}
-                </td>
+                <td className="p-3 text-right">{row.gross_amount.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </div>
-  );
+  )
 }
-
-/* ---------- Componentes ---------- */
 
 function Kpi({ title, value }: { title: string; value: number | string }) {
   return (
-    <div className="bg-black text-white rounded-lg p-4">
+    <div className="rounded-lg bg-black p-4 text-white">
       <div className="text-sm opacity-80">{title}</div>
       <div className="text-2xl font-bold">{value}</div>
     </div>
-  );
+  )
 }
 
 function FilterButton({
   label,
   period,
-  campaign,
+  campaign
 }: {
-  label: string;
-  period: string;
-  campaign?: string;
+  label: string
+  period: string
+  campaign?: string
 }) {
-  const params = new URLSearchParams();
-  params.set("period", period);
-  if (campaign) params.set("campaign", campaign);
+  const params = new URLSearchParams()
+
+  params.set("period", period)
+
+  if (campaign) {
+    params.set("campaign", campaign)
+  }
 
   return (
     <a
       href={`?${params.toString()}`}
-      className="px-3 py-1 border rounded-md text-sm hover:bg-gray-100"
+      className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
     >
       {label}
     </a>
-  );
+  )
 }
