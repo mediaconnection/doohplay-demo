@@ -2,8 +2,8 @@ export function createRequestId(): string {
   return crypto.randomUUID()
 }
 
-export function getIP(req: Request): string | null {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null
+export function getIP(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? ""
 }
 
 export function isJsonRequest(req: Request): boolean {

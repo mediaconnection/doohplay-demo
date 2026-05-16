@@ -15,7 +15,7 @@ const Doc = () => (
 );
 
 async function run() {
-  const buffer = await pdf(<Doc />).toBuffer();
+  const buffer = await pdf(<Doc />).toBuffer() as unknown as Buffer;
   fs.writeFileSync(outputPath, buffer);
 }
 

@@ -56,7 +56,7 @@ export function verifyMerkleProof(
         ? { hash: rawStep, position: "right" as const }
         : rawStep as { hash?: string; position?: "left" | "right" }
 
-      if (!step || !isValidHash(step.hash)) {
+      if (!step || !isValidHash(step.hash ?? "")) {
         return false
       }
 

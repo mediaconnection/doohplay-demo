@@ -24,19 +24,19 @@ export function buildProofResponse(data: Partial<ProofResponse>): ProofResponse 
 }
 
 export const queuedProofResponse = (
-  hash: string,
-  _requestId?: string,
+  _hashOrId: unknown,
+  _requestId?: unknown,
   _meta?: unknown
-): ProofResponse => buildProofResponse({ hash, status: "PENDING" })
+): ProofResponse => buildProofResponse({ status: "PENDING" })
 
 export const liveProofResponse = (
-  hash: string,
-  _requestId?: string,
+  _result: unknown,
+  _requestId?: unknown,
   _meta?: unknown
-): ProofResponse => buildProofResponse({ hash, status: "VERIFIED" })
+): ProofResponse => buildProofResponse({ status: "VERIFIED" })
 
 export const cachedProofResponse = (
-  hash: string,
-  _requestId?: string,
+  _cached: unknown,
+  _requestId?: unknown,
   _meta?: unknown
-): ProofResponse => buildProofResponse({ hash, status: "VERIFIED" })
+): ProofResponse => buildProofResponse({ status: "VERIFIED" })

@@ -37,10 +37,10 @@ export default async function handler(
         start,
         end,
         kpis,
-      })
-    )) as NodeJS.ReadableStream;
+      }) as React.ReactElement<any>
+    )) as unknown as NodeJS.ReadableStream;
 
-    const unsignedBuffer = await streamToBuffer(unsignedStream);
+    const unsignedBuffer = await streamToBuffer(unsignedStream as any);
 
     /* ======================================================
        2️⃣ HASH SHA-256 (INTEGRIDADE)
@@ -104,10 +104,10 @@ export default async function handler(
         signedAt,
         signature,
         qrCode,
-      })
-    )) as NodeJS.ReadableStream;
+      }) as React.ReactElement<any>
+    )) as unknown as NodeJS.ReadableStream;
 
-    const signedBuffer = await streamToBuffer(signedStream);
+    const signedBuffer = await streamToBuffer(signedStream as any);
 
     /* ======================================================
        6️⃣ RESPONSE
