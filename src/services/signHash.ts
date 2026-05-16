@@ -60,9 +60,9 @@ export function signHash(contentHashHex: string): SignedHashResult {
 
   const hashBytes = forge.util.hexToBytes(contentHashHex);
 
-  const signatureBinary = privateKey.sign({
-    digestAlgorithm: forge.pki.oids.sha256,
-  }, hashBytes);
+  const md = forge.md.sha256.create()
+  md.update(hashBytes)
+  const signatureBinary = privateKey.sign(md);
 
   const signedHash = forge.util.encode64(signatureBinary);
 
