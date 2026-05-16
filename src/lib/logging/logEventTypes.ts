@@ -8,6 +8,8 @@ export const LogEventType = {
 
   PLAYER_ONLINE: "PLAYER_ONLINE",
   PLAYER_OFFLINE: "PLAYER_OFFLINE",
+
+  AUDIT_EVENT_EMITTED: "AUDIT_EVENT_EMITTED",
 } as const;
 
 export type LogEventType =

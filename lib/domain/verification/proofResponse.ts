@@ -1,5 +1,6 @@
 export type RateLimitResult = {
   limited: boolean
+  allowed: boolean
   remaining: number
   resetAt: number
 }
