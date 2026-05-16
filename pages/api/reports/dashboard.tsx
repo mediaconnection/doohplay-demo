@@ -99,7 +99,7 @@ export default async function handler(
     const signedStream = (await (renderToStream as any)(
       React.createElement(DashboardReport, {
         start, end, kpis, integrityHash, signedAt, signature, qrCode,
-      })
+      } as any)
     )) as NodeJS.ReadableStream;
 
     const signedBuffer = await streamToBuffer(signedStream as any);

@@ -1,30 +1,25 @@
-import { db } from "@/lib/db";
+import { prisma as db } from "@/lib/prisma";
 
-/**
- * Salva a certificação do PDF
- */
-export async function storePdfCertification(data: {
+type StorePdfCertificationInput = {
   pdfHash: string;
   signature: string;
   algorithm: string;
-}) {
-  return db.pdf_signatures.create({
+};
+
+export async function storePdfCertification(
+  data: StorePdfCertificationInput
+) {
+  return db.pdfCertification.create({
     data: {
-      pdf_hash: data.pdfHash,
+      pdfHash: data.pdfHash,
       signature: data.signature,
       algorithm: data.algorithm,
     },
   });
 }
 
-/**
- * Busca a certificação mais recente (para TESTE)
- * ⚠️ depois você pode buscar por reportId, hash, etc
- */
-export async function getPdfCertification() {
-  return db.pdf_signatures.findFirst({
-    orderBy: {
-      created_at: "desc",
-    },
+export async function getPdfCertificationByHash(pdfHash: string) {
+  return db.pdfCertification.findUnique({
+    where: { pdfHash },
   });
 }
