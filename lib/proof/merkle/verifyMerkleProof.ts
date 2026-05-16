@@ -23,6 +23,8 @@ export type VerifyMerkleProofResult = {
   valid: boolean
   computedRoot: string
   expectedRoot: string
+  depth?: number
+  error?: string | null
 }
 
 /* =========================
@@ -178,5 +180,14 @@ export function verifyMerkleProof(
 
 export default verifyMerkleProof
 
-export const verifyMerkleProofDetailed = verifyMerkleProof
+export function verifyMerkleProofDetailed(
+  input: VerifyMerkleProofInput
+): VerifyMerkleProofResult {
+  const result = verifyMerkleProof(input)
+  if (typeof result === "boolean") {
+    return { valid: result, computedRoot: "", expectedRoot: input.root }
+  }
+  return result
+}
+
 export type MerkleProofNode = MerkleProofItem
