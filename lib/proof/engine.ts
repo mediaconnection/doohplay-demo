@@ -285,7 +285,7 @@ export async function runProofEngine(input: ProofInput | Record<string, unknown>
     } as unknown as ProofResult
   }
 
-  const normalizedInput = normalizeInput(input)
+  const normalizedInput = normalizeInput(input as ProofInput)
   const cert = await getCertification(normalizedInput)
 
   if (!cert) {
