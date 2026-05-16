@@ -39,7 +39,7 @@ function getCertificateCount(p7: Pkcs7MessageLike): number {
   return Array.isArray(p7.certificates) ? p7.certificates.length : 0
 }
 
-export function verifyPkcs7(signatureBase64: string): VerifyPkcs7Result {
+export function verifyPkcs7(signatureBase64: string, _contentHash?: string): VerifyPkcs7Result {
   try {
     if (!signatureBase64 || typeof signatureBase64 !== "string") {
       return {

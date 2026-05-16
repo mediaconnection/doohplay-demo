@@ -29,4 +29,4 @@ export function buildMerkleTree(hashes: string[]) {
 }
 
 export const buildMerkleRoot = buildMerkleTree
-export const buildMerkleProof = buildMerkleTree
+export { generateMerkleProof as buildMerkleProof } from "../../../lib/crypto/merkleRoot"

@@ -1,6 +1,8 @@
 export function errorResponse(
   message: string,
-  status = 500
+  status = 500,
+  _requestId?: string,
+  _meta?: unknown
 ): Response {
   return Response.json({ error: message }, { status })
 }
