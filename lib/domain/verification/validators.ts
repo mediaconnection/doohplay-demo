@@ -2,6 +2,10 @@ export function isValidSha256(hash: unknown): hash is string {
   return typeof hash === "string" && /^[a-f0-9]{64}$/i.test(hash)
 }
 
+export function isValidHash(hash: unknown): hash is string {
+  return isValidSha256(hash)
+}
+
 export function isValidUuid(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -9,4 +13,11 @@ export function isValidUuid(value: unknown): value is string {
       value
     )
   )
+}
+
+export function normalizeInput<T extends Record<string, unknown>>(
+  input: unknown
+): T | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null
+  return input as T
 }

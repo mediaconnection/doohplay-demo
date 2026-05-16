@@ -1,3 +1,10 @@
+export function errorResponse(
+  message: string,
+  status = 500
+): Response {
+  return Response.json({ error: message }, { status })
+}
+
 export class VerificationError extends Error {
   constructor(
     message: string,

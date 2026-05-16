@@ -1,3 +1,9 @@
+export type RateLimitResult = {
+  limited: boolean
+  remaining: number
+  resetAt: number
+}
+
 export type ProofResponse = {
   hash: string
   status: "VERIFIED" | "WARNING" | "FAILED" | "PENDING"
