@@ -1,7 +1,8 @@
-import { Suspense } from "react"
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { headers } from "next/headers"
-import { notFound } from "next/navigation"
+import { useParams, notFound } from "next/navigation"
 
 import TrustScoreBreakdown from "./components/TrustScoreBreakdown"
 import EnterpriseExplanation from "./components/EnterpriseExplanation"
@@ -15,8 +16,9 @@ import type {
   VerificationResult
 } from "./components/types"
 
-export const dynamic = "force-dynamic"
-export const revalidate = 0
+/* =========================
+   TYPES
+========================= */
 
 type VerifyResponse = {
   hash?: string | null
@@ -299,6 +301,10 @@ type VerifyResponse = {
     errors?: string[]
   } | null
 }
+
+/* =========================
+   HELPERS
+========================= */
 
 function normalizeHash(hash: string): string {
   return hash.trim().toLowerCase().replace(/^0x/, "")
@@ -937,22 +943,6 @@ function normalizeUiResult(data: VerifyResponse): VerificationResult {
   }
 }
 
-async function getBaseUrl(): Promise<string> {
-  const h = await headers()
-
-  const proto =
-    h.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
-    (process.env.NODE_ENV === "production" ? "https" : "http")
-
-  const host =
-    h.get("x-forwarded-host")?.split(",")[0]?.trim() ||
-    h.get("host")?.trim() ||
-    process.env.NEXT_PUBLIC_BASE_URL?.replace(/^https?:\/\//, "") ||
-    "localhost:3000"
-
-  return `${proto}://${host}`
-}
-
 function renderErrorCard(message: string) {
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
@@ -963,65 +953,78 @@ function renderErrorCard(message: string) {
   )
 }
 
-export default async function VerifyPage({
-  params
-}: {
-  params: Promise<{ hash: string }>
-}) {
-  const { hash: rawHash } = await params
+/* =========================
+   PAGE
+========================= */
+
+export default function VerifyPage() {
+  const params = useParams<{ hash: string }>()
+  const rawHash = params?.hash ?? ""
   const hash = normalizeHash(rawHash)
 
-  if (!hash || !isValidHash(hash)) {
-    return renderErrorCard("Formato de hash inválido.")
-  }
+  const [data, setData] = useState<VerifyResponse | null>(null)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [isNotFound, setIsNotFound] = useState(false)
 
-  const baseUrl = await getBaseUrl()
-
-  let res: Response
-
-  try {
-    res = await fetch(`${baseUrl}/api/verify/${hash}`, {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json"
-      }
-    })
-  } catch (err) {
-    console.error("VERIFY_FETCH_ERROR", err)
-    return renderErrorCard("Erro ao consultar a verificação.")
-  }
-
-  if (res.status === 404) {
-    notFound()
-  }
-
-  let data: VerifyResponse
-
-  try {
-    data = (await res.json()) as VerifyResponse
-  } catch (err) {
-    console.error("VERIFY_JSON_ERROR", err)
-    return renderErrorCard("Erro ao interpretar a resposta da verificação.")
-  }
-
-  if (!res.ok) {
-    console.error("VERIFY_API_ERROR", {
-      status: res.status,
-      data
-    })
-
-    if (data.error === "PROOF_NOT_FOUND") {
-      notFound()
+  useEffect(() => {
+    if (!hash || !isValidHash(hash)) {
+      setFetchError("Formato de hash inválido.")
+      setLoading(false)
+      return
     }
 
-    return renderErrorCard(
-      data.message || data.error || "Erro ao consultar a verificação."
+    let cancelled = false
+
+    fetch(`/api/verify/${hash}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    })
+      .then(async (res) => {
+        if (cancelled) return
+
+        if (res.status === 404) {
+          setIsNotFound(true)
+          return
+        }
+
+        const json = (await res.json()) as VerifyResponse
+
+        if (!res.ok || (json.ok === false && json.error === "PROOF_NOT_FOUND")) {
+          if (json.error === "PROOF_NOT_FOUND") {
+            setIsNotFound(true)
+            return
+          }
+          setFetchError(json.message || json.error || "Erro ao consultar a verificação.")
+          return
+        }
+
+        setData(json)
+      })
+      .catch(() => {
+        if (!cancelled) setFetchError("Erro ao consultar a verificação.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [hash])
+
+  // Trigger Next.js not-found boundary after state is set
+  if (isNotFound) notFound()
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-sm text-slate-500">A verificar...</p>
+      </main>
     )
   }
 
-  if (data.ok === false && data.error === "PROOF_NOT_FOUND") {
-    notFound()
-  }
+  if (fetchError) return renderErrorCard(fetchError)
+
+  if (!data) return renderErrorCard("Sem dados de verificação disponíveis.")
 
   const normalized = normalizeUiResult(data)
 
@@ -1039,7 +1042,6 @@ export default async function VerifyPage({
     null
 
   return (
-    <Suspense fallback={null}>
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-4">
@@ -1065,25 +1067,19 @@ export default async function VerifyPage({
 
             <div className="flex flex-wrap items-center gap-3">
               <span
-                className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${statusClasses(
-                  status
-                )}`}
+                className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${statusClasses(status)}`}
               >
                 {status}
               </span>
 
               <span
-                className={`inline-flex rounded-full border px-4 py-2 text-sm font-semibold ${trustClasses(
-                  trustLevel
-                )}`}
+                className={`inline-flex rounded-full border px-4 py-2 text-sm font-semibold ${trustClasses(trustLevel)}`}
               >
                 Trust {trustLevel}
               </span>
 
               <span
-                className={`inline-flex rounded-full border px-4 py-2 text-sm font-semibold ${riskClasses(
-                  riskLevel
-                )}`}
+                className={`inline-flex rounded-full border px-4 py-2 text-sm font-semibold ${riskClasses(riskLevel)}`}
               >
                 Risk {riskLevel ?? "—"}
               </span>
@@ -1174,6 +1170,5 @@ export default async function VerifyPage({
         </div>
       </div>
     </main>
-    </Suspense>
   )
 }
