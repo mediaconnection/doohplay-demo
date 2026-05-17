@@ -4,6 +4,13 @@
  * Processa eventos da fila (BullMQ)
  */
 
+// Must be the first import — loads .env.local into process.env.
+// Note: static imports are hoisted by esbuild/tsx, so this config() call runs
+// after module-level code in imported files. The --env-file=.env.local flag in
+// the npm script is what guarantees DATABASE_URL is available at import time.
+import { config as loadEnv } from "dotenv"
+loadEnv({ path: ".env.local" })
+
 import { eventWorker } from "./src/lib/queue/eventWorker"
 import { aggregatorWorker, scheduleAggregatorJob } from "./lib/queue/workers/aggregatorWorker"
 

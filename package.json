@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "worker": "tsx worker.ts",
-    "worker:prod": "node dist/worker.js",
+    "worker": "tsx --env-file=.env.local worker.ts",
+    "worker:prod": "node --env-file=.env.local dist/worker.js",
     "lint": "eslint ."
   },
   "dependencies": {
