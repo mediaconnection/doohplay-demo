@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useParams, notFound } from "next/navigation"
 
 import TrustScoreBreakdown from "./components/TrustScoreBreakdown"
 import EnterpriseExplanation from "./components/EnterpriseExplanation"
@@ -958,25 +957,29 @@ function renderErrorCard(message: string) {
 ========================= */
 
 export default function VerifyPage() {
-  const params = useParams<{ hash: string }>()
-  const rawHash = params?.hash ?? ""
-  const hash = normalizeHash(rawHash)
-
+  const [hash, setHash] = useState("")
   const [data, setData] = useState<VerifyResponse | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isNotFound, setIsNotFound] = useState(false)
 
   useEffect(() => {
-    if (!hash || !isValidHash(hash)) {
+    // Read hash from the URL directly — avoids any router context dependency
+    const parts = window.location.pathname.split("/")
+    const rawHash = parts[parts.length - 1] ?? ""
+    const h = normalizeHash(rawHash)
+
+    if (!h || !isValidHash(h)) {
       setFetchError("Formato de hash inválido.")
       setLoading(false)
       return
     }
 
+    setHash(h)
+
     let cancelled = false
 
-    fetch(`/api/verify/${hash}`, {
+    fetch(`/api/verify/${h}`, {
       cache: "no-store",
       headers: { Accept: "application/json" }
     })
@@ -1009,10 +1012,26 @@ export default function VerifyPage() {
       })
 
     return () => { cancelled = true }
-  }, [hash])
+  }, []) // runs once on mount — hash is read from window.location, not router context
 
-  // Trigger Next.js not-found boundary after state is set
-  if (isNotFound) notFound()
+  if (isNotFound) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <p className="font-semibold text-amber-800">Prova não encontrada</p>
+          <p className="mt-2 text-sm text-amber-700">
+            Nenhum registro foi localizado no ledger público para este hash.
+          </p>
+          <Link
+            href="/verify"
+            className="mt-4 inline-block text-sm text-amber-800 underline hover:text-amber-900"
+          >
+            ← Voltar para verificação
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
