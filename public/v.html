@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>DOOHPLAY Verificador</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;background:#f8fafc}
+h1{color:#1e293b}
+.card{background:white;border-radius:8px;padding:20px;margin:16px 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+input{width:98%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+button{background:#2563eb;color:white;padding:10px 24px;border:none;border-radius:6px;cursor:pointer;margin-top:10px;font-size:14px}
+pre{background:#1e293b;color:#e2e8f0;padding:16px;border-radius:6px;overflow-x:auto;font-size:11px;white-space:pre-wrap}
+.ok{color:#16a34a;font-weight:bold}
+.fail{color:#dc2626;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>🔐 DOOHPLAY — Verificador de Prova</h1>
+<div class="card">
+  <label><b>Hash do evento:</b></label><br><br>
+  <input type="text" id="hashInput" value="94fad950c0c3a78fec10b2f12fe3c60eb5798d3e6e914bb2257b2bab43351ef3">
+  <br>
+  <button onclick="verificar()">Verificar</button>
+</div>
+<div id="resultado"></div>
+<script>
+async function verificar(){
+  var hash = document.getElementById('hashInput').value.trim();
+  if(!/^[a-f0-9]{64}$/i.test(hash)){alert('Hash inválido');return;}
+  document.getElementById('resultado').innerHTML='<div class="card">🔄 Verificando...</div>';
+  try{
+    var res = await fetch('/api/verify/'+hash,{headers:{Accept:'application/json'}});
+    var d = await res.json();
+    var score = d.score||0;
+    var status = d.status||'?';
+    var trust = d.trust_level||d.trust||'—';
+    var layers = d.layers||[];
+    var html = '<div class="card">';
+    html += '<h2 style="font-size:36px;margin:0">'+score+'/100</h2>';
+    html += '<p><b>Status:</b> <span class="'+(status==='VERIFIED'?'ok':'fail')+'">'+status+'</span></p>';
+    html += '<p><b>Trust:</b> '+trust+'</p>';
+    html += '<hr>';
+    layers.forEach(function(l){
+      html += '<p>'+(l.valid?'✅':'❌')+' <b>'+l.name.toUpperCase()+'</b> ('+l.weight+'pts) — '+l.message+'</p>';
+    });
+    html += '</div>';
+    html += '<div class="card"><b>JSON completo:</b><pre>'+JSON.stringify(d,null,2)+'</pre></div>';
+    document.getElementById('resultado').innerHTML=html;
+  }catch(e){
+    document.getElementById('resultado').innerHTML='<div class="card fail">Erro: '+e.message+'</div>';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+// /lib/queue/riskQueue.ts
+
+import { Queue } from "bullmq"
+import IORedis from "ioredis"
+
+const connection = new IORedis(process.env.REDIS_URL!, {
+  maxRetriesPerRequest: null
+})
+
+export const riskQueue = new Queue("risk-processing", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 2000
+    },
+    removeOnComplete: true,
+    removeOnFail: false
+  }
+})

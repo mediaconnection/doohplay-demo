@@ -1,0 +1,19 @@
+{
+  "sistema": "DOOHPLAY",
+  "tipo": "Assinatura Digital em Lote",
+  "algoritmo_hash": "SHA-256",
+  "data_geracao": "2026-02-09T00:42:47.574Z",
+  "total_documentos": 2,
+  "documentos": [
+    {
+      "timestamp": "2026-02-08T20:52:26.237Z",
+      "arquivo": "relatorio-assinado.pdf",
+      "sha256": "b223eb49b6b8d0bd7715bfb91a13d4aade355690dc296b3b66e3ce7e88cfb8be"
+    },
+    {
+      "timestamp": "2026-02-08T20:52:26.580Z",
+      "arquivo": "relatorio.pdf",
+      "sha256": "88814fa5971f050e4b3b6700cf5ed8a36cc5481b70330223344da256dfb6fb2c"
+    }
+  ]
+}

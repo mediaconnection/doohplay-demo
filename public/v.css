@@ -1,0 +1,15 @@
+document.getElementById('btn').addEventListener('click', async function() {
+  var hash = document.getElementById('h').value.trim();
+  if (!/^[a-f0-9]{64}$/i.test(hash)) { alert('Hash inválido'); return; }
+  document.getElementById('r').innerHTML = '<p>Verificando...</p>';
+  try {
+    var res = await fetch('/api/verify/' + hash);
+    var d = await res.json();
+    document.getElementById('r').innerHTML = 
+      '<div class="card"><h2>' + (d.status||'?') + ' — ' + (d.score||0) + '/100</h2>' +
+      '<p>Trust: ' + (d.trust_level||d.trust||'—') + '</p>' +
+      '<pre>' + JSON.stringify(d, null, 2) + '</pre></div>';
+  } catch(e) {
+    document.getElementById('r').innerHTML = '<p>Erro: ' + e.message + '</p>';
+  }
+});
