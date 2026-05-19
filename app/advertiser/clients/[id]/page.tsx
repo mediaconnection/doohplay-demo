@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import {
   LineChart,
@@ -24,9 +24,9 @@ type DataPoint = {
 export default function ClientDetail({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const clientId = params.id
+  const { id: clientId } = use(params)
 
   const [data, setData] = useState<DataPoint[]>([])
   const [forecast, setForecast] = useState<number[]>([])
