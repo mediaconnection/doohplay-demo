@@ -20,13 +20,14 @@ type Client = {
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams?: {
+  searchParams?: Promise<{
     q?: string
     page?: string
-  }
+  }>
 }) {
-  const query = searchParams?.q || ""
-  const page = parseInt(searchParams?.page || "1")
+  const resolvedParams = await searchParams
+  const query = resolvedParams?.q || ""
+  const page = parseInt(resolvedParams?.page || "1")
   const limit = 20
   const offset = (page - 1) * limit
 
