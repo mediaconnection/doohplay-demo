@@ -5,7 +5,7 @@ import Link from "next/link"
 import { pool } from "@/lib/db"
 
 interface Props {
-  searchParams: { q?: string } | Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string }>
 }
 
 type EventRow = {
