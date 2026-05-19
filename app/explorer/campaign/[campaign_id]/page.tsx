@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 
 type Data = {
   campaign_id: string
@@ -18,8 +18,9 @@ type Data = {
 export default function ExplorerPage({
   params
 }: {
-  params: { campaign_id: string }
+  params: Promise<{ campaign_id: string }>
 }) {
+  const { campaign_id } = use(params)
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -27,7 +28,7 @@ export default function ExplorerPage({
     const start = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const end = new Date().toISOString()
 
-    fetch(`/api/public/campaign/${params.campaign_id}?start=${start}&end=${end}`, {
+    fetch(`/api/public/campaign/${campaign_id}?start=${start}&end=${end}`, {
       headers: {
         "x-api-key": "SUA_CHAVE"
       }
@@ -35,7 +36,7 @@ export default function ExplorerPage({
       .then(res => res.json())
       .then(setData)
       .finally(() => setLoading(false))
-  }, [params.campaign_id])
+  }, [campaign_id])
 
   if (loading) return <div style={{ padding: 40 }}>Loading...</div>
   if (!data) return <div style={{ padding: 40 }}>No data</div>

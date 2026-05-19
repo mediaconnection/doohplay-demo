@@ -5,9 +5,9 @@ import Link from "next/link"
 import { pool } from "@/lib/db"
 
 interface Props {
-  params: {
+  params: Promise<{
     height: string
-  }
+  }>
 }
 
 type Block = {
@@ -34,7 +34,8 @@ function shortHash(hash?: string | null) {
 }
 
 export default async function BlockPage({ params }: Props) {
-  const height = Number(params.height)
+  const { height: heightStr } = await params
+  const height = Number(heightStr)
 
   if (Number.isNaN(height)) {
     return <div style={{ padding: 40 }}>Invalid block height</div>

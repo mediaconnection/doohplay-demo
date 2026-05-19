@@ -1,14 +1,14 @@
 import { pool } from "@/lib/db"
 
 type BlockPageProps = {
-  params: {
+  params: Promise<{
     block_id: string
-  }
+  }>
 }
 
 export default async function BlockAuditPage({ params }: BlockPageProps) {
 
-  const blockId = params.block_id
+  const { block_id: blockId } = await params
 
   /* =========================
      FETCH BLOCK

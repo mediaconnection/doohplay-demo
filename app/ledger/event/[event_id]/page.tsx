@@ -39,11 +39,12 @@ function formatTimestamp(value?: string | Date | null) {
 export default async function EventPage({
   params
 }: {
-  params: { event_id: string };
+  params: Promise<{ event_id: string }>;
 }) {
 
+  const { event_id } = await params
   const event = await getLedgerEvent(
-    params.event_id
+    event_id
   );
 
   if (!event) {
