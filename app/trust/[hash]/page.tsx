@@ -21,10 +21,11 @@ async function getGraph(hash: string) {
 export default async function TrustPage({
   params
 }: {
-  params: { hash: string }
+  params: Promise<{ hash: string }>
 }) {
 
-  const graph = await getGraph(params.hash)
+  const { hash } = await params
+  const graph = await getGraph(hash)
 
   if (!graph) {
     notFound()

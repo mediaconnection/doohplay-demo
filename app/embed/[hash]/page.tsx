@@ -3,10 +3,11 @@ import { verifyHash } from "@/lib/domain/proof/service"
 export default async function EmbedPage({
   params,
 }: {
-  params: { hash: string }
+  params: Promise<{ hash: string }>
 }) {
 
-  const data = await verifyHash(params.hash)
+  const { hash } = await params
+  const data = await verifyHash(hash)
   const valid = data?.valid
 
   return (
@@ -19,7 +20,7 @@ export default async function EmbedPage({
       height: "100vh"
     }}>
       <a
-        href={`/proof/${params.hash}`}
+        href={`/proof/${hash}`}
         target="_blank"
         rel="noopener noreferrer"
         style={{
