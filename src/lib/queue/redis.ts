@@ -5,3 +5,7 @@ export const redis = new IORedis({
   port: 6379,
   maxRetriesPerRequest: null,
 });
+
+redis.on("error", (err) => {
+  console.warn("[Redis] connection error (non-fatal):", err.message)
+});
