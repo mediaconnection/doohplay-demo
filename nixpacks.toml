@@ -1,0 +1,5 @@
+[variables]
+NODE_OPTIONS = "--max-old-space-size=450"
+
+[phases.build]
+cmds = ["npm install", "npm run build"]
