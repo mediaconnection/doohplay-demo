@@ -24,12 +24,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./src/*",
         "./*"
       ],
       "@/components/*": [
-        "./components/*",
-        "./src/components/*"
+        "./components/*"
       ]
     },
     "plugins": [
