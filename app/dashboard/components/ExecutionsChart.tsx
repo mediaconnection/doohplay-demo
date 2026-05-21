@@ -3,11 +3,6 @@
 import { useCallback, useEffect, useState } from "react"
 import type { ReactNode } from "react"
 
-import { createClient } from "@/lib/supabase/client"
-import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh"
-
-const supabase = createClient()
-
 import {
   Line,
   LineChart,
@@ -16,6 +11,11 @@ import {
   XAxis,
   YAxis
 } from "recharts"
+
+import { createClient } from "../../../lib/supabase/client"
+import { useAutoRefresh } from "../../../lib/hooks/useAutoRefresh"
+
+const supabase = createClient()
 
 type Row = {
   period: string
