@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react"
 import type { ReactNode } from "react"
 
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
+
+const supabase = createClient()
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh"
 
 import {

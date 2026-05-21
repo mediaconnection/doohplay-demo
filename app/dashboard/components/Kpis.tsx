@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 import KpiCard from "./KpiCard";
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
