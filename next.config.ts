@@ -1,4 +1,5 @@
 import type { NextConfig } from "next"
+import path from "path"
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -11,6 +12,8 @@ const nextConfig: NextConfig = {
   },
 
   webpack(config, { dev }) {
+    config.resolve.alias["@"] = path.resolve(__dirname)
+
     if (dev) {
       // Disable parallel builds and source maps in dev to save memory
       config.parallelism = 1
