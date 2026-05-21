@@ -28,7 +28,8 @@
         "./src/*"
       ],
       "@/components/*": [
-        "./components/*"
+        "./components/*",
+        "./src/components/*"
       ]
     },
     "plugins": [
