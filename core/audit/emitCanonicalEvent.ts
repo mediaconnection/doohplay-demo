@@ -1,131 +1,123 @@
-import { createSignedEventRecord } from "@/lib/domain/proof/createSignedEventRecord"
-import { pool } from "@/lib/db"
-import { logEvent } from "@/lib/logging/logEvent"
-import { LOG_EVENT_TYPES } from "@/lib/logging/logEventTypes"
+import crypto from "crypto";
+import { CanonicalEvent } from "./canonicalEvent";
+import { hashPayload, hashEvent } from "./eventHasher";
+import {
+  getLastEventHash,
+  saveEvent
+} from "./eventChainRepository";
 
-export type EmitCanonicalEventInput = {
-  event_type: string
-  source_table: string
-  source_id: string
-  device_id?: string | null
-  campaign_id?: string | null
-  occurred_at?: string | null
-  payload?: Record<string, unknown> | null
-  previous_event_hash?: string | null
-}
+/**
+ * Parâmetros canônicos para emissão de evento auditável
+ */
+type EmitCanonicalEventParams = {
+  event_type: string;
+  source_table: string;
+  source_id: string;
 
-type InsertedRow = {
-  id: number
-}
+  device_id?: string | null;
+  campaign_id?: string | null;
 
-export async function emitCanonicalEvent(input: EmitCanonicalEventInput) {
-  const record = await createSignedEventRecord({
-    eventType: input.event_type,
-    sourceTable: input.source_table,
-    sourceId: input.source_id,
-    deviceId: input.device_id,
-    campaignId: input.campaign_id,
-    occurredAt: input.occurred_at,
-    previousEventHash: input.previous_event_hash,
-    payload: input.payload ?? {}
-  })
+  /**
+   * Permite idempotência
+   */
+  event_id?: string;
 
-  const result = await pool.query(
-    `
-    INSERT INTO public.event_chain (
-      event_type,
-      source_table,
-      source_id,
-      device_id,
-      campaign_id,
-      occurred_at,
-      payload,
-      payload_hash,
-      previous_event_hash,
-      event_hash,
+  /**
+   * Timestamp opcional
+   */
+  occurred_at?: string;
 
-      signature,
-      signature_algorithm,
-      signature_encoding,
-      digest_algorithm,
+  /**
+   * Payload usado apenas para gerar payload_hash
+   */
+  payload: Record<string, unknown>;
+};
 
-      certificate_fingerprint,
-      certificate_subject,
-      certificate_issuer,
-      certificate_serial_number,
-      certificate_valid_from,
-      certificate_valid_to,
-      certificate_days_remaining,
+/**
+ * Emite um evento canônico imutável e o anexa à cadeia
+ */
+export async function emitCanonicalEvent(
+  params: EmitCanonicalEventParams
+): Promise<CanonicalEvent> {
 
-      proof_payload_hash,
-      proof_payload_canonical,
-      signed_at
-    )
-    VALUES (
-      $1,  $2,  $3,  $4,  $5,  $6::timestamptz, $7::jsonb, $8,  $9,  $10,
-      $11, $12, $13, $14,
-      $15, $16, $17, $18, $19::timestamptz, $20::timestamptz, $21,
-      $22, $23, $24::timestamptz
-    )
-    RETURNING id
-    `,
-    [
-      record.event_type,
-      record.source_table,
-      record.source_id,
-      record.device_id,
-      record.campaign_id,
-      record.occurred_at,
-      JSON.stringify(record.payload),
-      record.payload_hash,
-      record.previous_event_hash,
-      record.event_hash,
+  console.log("🔥 emitCanonicalEvent START", params.event_type);
 
-      record.signature,
-      record.signature_algorithm,
-      record.signature_encoding,
-      record.digest_algorithm,
+  /**
+   * Timestamp canônico
+   */
+  const occurred_at =
+    params.occurred_at ?? new Date().toISOString();
 
-      record.certificate_fingerprint,
-      record.certificate_subject,
-      record.certificate_issuer,
-      record.certificate_serial_number,
-      record.certificate_valid_from,
-      record.certificate_valid_to,
-      record.certificate_days_remaining,
+  /**
+   * Event ID idempotente
+   */
+  const event_id =
+    params.event_id ??
+    crypto
+      .createHash("sha256")
+      .update(
+        `${params.event_type}:${params.source_table}:${params.source_id}:${occurred_at}`
+      )
+      .digest("hex");
 
-      record.proof_payload_hash,
-      record.proof_payload_canonical,
-      record.signed_at
-    ]
-  )
+  /**
+   * Hash do evento anterior
+   */
+  let previous_event_hash: string | null = null;
 
-  const rows = result.rows as InsertedRow[]
-  const inserted = rows[0] ?? null
-  const id = inserted?.id ?? null
-
-  await logEvent({
-    type: LOG_EVENT_TYPES.AUDIT_EVENT_EMITTED,
-    level: "INFO",
-    message: "Canonical event emitted",
-    entity_id: id !== null ? String(id) : "",
-    entity_type: "event",
-    source: "emitCanonicalEvent",
-    metadata: {
-      event_hash: record.event_hash,
-      source_table: record.source_table,
-      source_id: record.source_id,
-      signature_algorithm: record.signature_algorithm
-    }
-  })
-
-  return {
-    ok: true,
-    id,
-    event_hash: record.event_hash,
-    payload_hash: record.payload_hash,
-    proof_payload_hash: record.proof_payload_hash,
-    signature_algorithm: record.signature_algorithm,
-    signed_at: record.signed_at
+  try {
+    previous_event_hash = await getLastEventHash();
+  } catch (err) {
+    console.warn(
+      "⚠️ getLastEventHash failed, starting new chain",
+      err
+    );
   }
+
+  /**
+   * Hash determinístico do payload
+   */
+  const payload_hash = hashPayload(params.payload);
+
+  /**
+   * Hash do evento
+   */
+  const event_hash = hashEvent({
+    event_type: params.event_type,
+    source_table: params.source_table,
+    source_id: params.source_id,
+    payload_hash,
+    previous_event_hash,
+    occurred_at
+  });
+
+  /**
+   * Evento final
+   */
+  const event: CanonicalEvent = {
+    event_id,
+
+    event_type: params.event_type,
+    source_table: params.source_table,
+    source_id: params.source_id,
+
+    device_id: params.device_id ?? null,
+    campaign_id: params.campaign_id ?? null,
+
+    occurred_at,
+    payload_hash,
+    previous_event_hash,
+    event_hash,
+
+    signature: "DOOHPLAY_SYSTEM_v1"
+  };
+
+  /**
+   * Persistência
+   */
+  await saveEvent(event);
+
+  console.log("✅ emitCanonicalEvent OK", event.event_id);
+
+  return event;
 }
