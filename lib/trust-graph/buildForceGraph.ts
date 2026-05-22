@@ -3,4 +3,4 @@ export {
   type ForceNode,
   type ForceEdge,
   type ForceGraphResult,
-} from "../domain/trust-graph/buildForceGraph"
+} from "../../../lib/domain/trust-graph/buildForceGraph"

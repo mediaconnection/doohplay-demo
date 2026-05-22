@@ -1,5 +1,1 @@
-export {
-  fraudScore,
-  fraudScoreBreakdown,
-  fraudLabel,
-} from "../../src/lib/trust-graph/fraudScore"
+export { fraudScore, fraudScoreBreakdown, fraudLabel } from "./fraudScore"

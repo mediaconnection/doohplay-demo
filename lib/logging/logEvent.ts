@@ -1,132 +1,52 @@
-import { pool } from "@/lib/db"
+// src/lib/logging/logEvent.ts
 
-/* =========================
-   TYPES
-========================= */
+import { LOG_EVENT_TYPES, LogEventType } from "./logEventTypes";
+import { db } from "@/lib/db"; // ajuste para seu client real
 
-export type LogEventLevel = "INFO" | "WARN" | "ERROR" | "DEBUG"
-
+/**
+ * Entrada mínima para um evento de log.
+ * Log é fato histórico: nunca será alterado.
+ */
 export type LogEventInput = {
-  type: string
-  level?: LogEventLevel
-  message?: string
-  metadata?: Record<string, unknown> | null
-  entity_id?: string | null
-  entity_type?: string | null
-  source?: string | null
-}
+  event_type?: LogEventType;
+  type?: string;
+  level?: string;
+  message?: string;
+  entity_id?: string;
+  entity_type?: string;
+  source?: string;
+  campaign_id?: string | null;
+  player_id?: string | null;
+  execution_id?: string | null;
+  metadata?: Record<string, any> | null;
+};
 
-/* =========================
-   HELPERS
-========================= */
-
-function safeJson(value: unknown): string {
-  try {
-    return JSON.stringify(value ?? {})
-  } catch {
-    return "{}"
-  }
-}
-
-function nowIso(): string {
-  return new Date().toISOString()
-}
-
-/* =========================
-   MAIN LOGGER
-========================= */
-
-export async function logEvent(input: LogEventInput) {
-  const {
-    type,
-    level = "INFO",
-    message = "",
-    metadata = null,
-    entity_id = null,
-    entity_type = null,
-    source = null
-  } = input
-
-  const timestamp = nowIso()
-
-  /* =========================
-     CONSOLE (ALWAYS)
-  ========================= */
-
-  const logPayload = {
-    ts: timestamp,
-    level,
-    type,
-    message,
-    entity_id,
-    entity_type,
-    source,
-    metadata
+/**
+ * Registra um evento imutável no sistema.
+ * INSERT ONLY. Nunca atualizar ou deletar.
+ */
+export async function logEvent(input: LogEventInput): Promise<void> {
+  if (!input.event_type) {
+    throw new Error("logEvent: event_type é obrigatório");
   }
 
-  if (level === "ERROR") {
-    console.error("LOG_EVENT", logPayload)
-  } else if (level === "WARN") {
-    console.warn("LOG_EVENT", logPayload)
-  } else {
-    console.log("LOG_EVENT", logPayload)
-  }
-
-  /* =========================
-     DB (OPTIONAL)
-  ========================= */
-
-  try {
-    await pool.query(
-      `
-      insert into public.event_logs (
-        event_type,
-        level,
-        message,
-        metadata,
-        entity_id,
-        entity_type,
-        source,
-        created_at
-      )
-      values ($1,$2,$3,$4::jsonb,$5,$6,$7,$8)
-      `,
-      [
-        type,
-        level,
-        message,
-        safeJson(metadata),
-        entity_id,
-        entity_type,
-        source,
-        timestamp
-      ]
+  await db.query(
+    `
+    INSERT INTO log_events (
+      event_type,
+      campaign_id,
+      player_id,
+      execution_id,
+      metadata
     )
-  } catch (err) {
-    // NÃO quebra o sistema por causa de log
-    console.warn("LOG_EVENT_DB_FAIL", {
-      error: err instanceof Error ? err.message : String(err)
-    })
-  }
-
-  return {
-    ok: true,
-    timestamp
-  }
+    VALUES ($1, $2, $3, $4, $5)
+    `,
+    [
+      input.event_type,
+      input.campaign_id ?? null,
+      input.player_id ?? null,
+      input.execution_id ?? null,
+      input.metadata ?? null,
+    ]
+  );
 }
-
-/* =========================
-   SHORTCUTS
-========================= */
-
-export const logInfo = (type: string, message?: string, metadata?: any) =>
-  logEvent({ type, level: "INFO", message, metadata })
-
-export const logWarn = (type: string, message?: string, metadata?: any) =>
-  logEvent({ type, level: "WARN", message, metadata })
-
-export const logError = (type: string, message?: string, metadata?: any) =>
-  logEvent({ type, level: "ERROR", message, metadata })
-
-export const logDebug = (type: string, metadata?: any) =>
-  logEvent({ type, level: "DEBUG", metadata })

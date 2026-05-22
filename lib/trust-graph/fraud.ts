@@ -1,4 +1,1 @@
-export {
-  detectFraudClusters,
-  type FraudCluster,
-} from "../../src/lib/trust-graph/detectFraudClusters"
+export { detectFraudClusters, type FraudCluster } from "./detectFraudClusters"
