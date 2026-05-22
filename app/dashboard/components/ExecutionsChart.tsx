@@ -13,7 +13,7 @@ import {
 } from "recharts"
 
 import { createClient } from "../../../lib/supabase/client"
-import { useAutoRefresh } from "../../../lib/hooks/useAutoRefresh"
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh"
 
 const supabase = createClient()
 
