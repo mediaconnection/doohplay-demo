@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node --max-old-space-size=4096 node_modules/next/dist/bin/next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=3072 next build",
     "start": "next start",
     "worker": "tsx --env-file=.env.local worker.ts",
     "worker:prod": "node --env-file=.env.local dist/worker.js",
