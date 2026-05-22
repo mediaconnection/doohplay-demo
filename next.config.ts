@@ -11,9 +11,8 @@ const nextConfig: NextConfig = {
   webpack(config, { dev }) {
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@": path.resolve(__dirname, "src"),
-      "@/lib/supabase": path.resolve(__dirname, "lib/supabase"),
-      "@/lib/hooks": path.resolve(__dirname, "lib/hooks"),
+      "@": path.resolve(__dirname),
+      "@/src": path.resolve(__dirname, "src"),
     }
     if (dev) {
       config.parallelism = 1
