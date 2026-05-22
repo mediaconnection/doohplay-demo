@@ -118,7 +118,28 @@
       "PowerShell(npm run *)",
       "PowerShell(Start-Sleep 2; \\(Invoke-WebRequest \"http://localhost:3000/verify/94fad950c0c3a78fec10b2f12fe3c60eb5798d3e6e914bb2257b2bab43351ef3\" -UseBasicParsing -TimeoutSec 20\\).StatusCode)",
       "PowerShell(Start-Sleep 2; \\(Invoke-WebRequest \"http://localhost:3000/verify/94fad950c0c3a78fec10b2f12fe3c60eb5798d3e6e914bb2257b2bab43351ef3\" -UseBasicParsing -TimeoutSec 30\\).StatusCode)",
-      "Bash(findstr /i \"SUPABASE\\\\|NEXT_PUBLIC\\\\|BLOCKCHAIN\\\\|ANCHOR\\\\|POLYGON\\\\|TSA\\\\|REDIS\")"
+      "Bash(findstr /i \"SUPABASE\\\\|NEXT_PUBLIC\\\\|BLOCKCHAIN\\\\|ANCHOR\\\\|POLYGON\\\\|TSA\\\\|REDIS\")",
+      "Bash(dir C:\\\\doohplay\\\\dashboard-web\\\\components\\\\ui *)",
+      "Bash(cat lib/trust-graph/fraud.ts)",
+      "Bash(cat src/lib/trust-graph/fraud.ts)",
+      "Bash(find . -path ./node_modules -prune -o -name \"fraud.ts\" -print)",
+      "Bash(cat src/lib/trust-graph/detectFraudClusters.ts)",
+      "Bash(cat lib/trust-graph/metrics.ts)",
+      "Bash(cat src/lib/trust-graph/metrics.ts)",
+      "Bash(cat lib/alerts/alertPolicy.ts)",
+      "Bash(cat app/api/alerts/alertPolicy.ts)",
+      "Bash(cat src/lib/trust-graph/types.ts)",
+      "Bash(cat src/lib/trust-graph/fraudScore.ts)",
+      "Bash(cat lib/trust-graph/layout.ts)",
+      "Bash(ls lib/alerts/)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('compilerOptions',{}\\).get\\('paths',{}\\), indent=2\\)\\)\")",
+      "Bash(grep -r \"next/document\" . --include=\"*.tsx\" --include=\"*.ts\" -l --exclude-dir=node_modules --exclude-dir=.next)",
+      "Bash(dir /s /b \"app\\\\not-found.tsx\" \"app\\\\404.tsx\")",
+      "Bash(find pages/ -type f)",
+      "Bash(cat pages/api)",
+      "Bash(ls pages/api/)",
+      "Bash(npm i *)",
+      "Bash(claude doctor *)"
     ]
   }
 }
