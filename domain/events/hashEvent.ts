@@ -1,8 +1,13 @@
-import crypto from "crypto"
+import { createHash } from "crypto";
+import stringify from "json-stable-stringify";
+import type { CanonicalEvent } from "./createEvent";
 
-export function gerarHashEvento(event: unknown) {
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(event))
-    .digest("hex")
+export function gerarHashEvento(evento: CanonicalEvent): string {
+  const canonical = stringify(evento);
+
+  if (typeof canonical !== "string") {
+    throw new Error("Falha ao canonicalizar o evento");
+  }
+
+  return createHash("sha256").update(canonical).digest("hex");
 }
