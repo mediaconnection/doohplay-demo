@@ -1,6 +1,6 @@
-import { Queue } from "bullmq"
-import { connection } from "./connection"
+import { Queue } from "bullmq";
+import { redis } from "./redis";
 
 export const alertQueue = new Queue("alerts", {
-  connection
-})
+  connection: redis,
+});

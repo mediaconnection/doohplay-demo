@@ -1,58 +1,36 @@
-/* =========================
-   ALERT POLICY TYPES
-========================= */
+export type AlertSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+export type AlertStatus = "OPEN" | "ESCALATED" | "RESOLVED"
+export type TrustLabel = "SAFE" | "WATCH" | "HIGH_RISK"
 
-export type AlertSeverity =
-  | "LOW"
-  | "MEDIUM"
-  | "HIGH"
-  | "CRITICAL"
+export type AlertInput = {
+  type: string
+  severity?: string
+  sourceId?: string
+  metadata?: Record<string, unknown>
+}
 
 export type AlertContext = {
-  input: {
-    type: string
-    sourceId?: string
-    metadata?: Record<string, unknown>
-  }
-
+  input: AlertInput
   now: Date
-
-  /* opcional (preparado para enterprise) */
-  trust?: {
-    score?: number
-    label?: "SAFE" | "WATCH" | "HIGH_RISK"
-  }
-
   history?: {
     occurrences?: number
-    last_seen_at?: string
+    last_seen_at?: string | null
+  }
+  trust?: {
+    score?: number
+    label?: TrustLabel
   }
 }
 
-/* =========================
-   POLICY DEFINITION
-========================= */
-
 export type AlertPolicy = {
   type: string
-
   severity: AlertSeverity
-
-  /**
-   * Define se a policy deve ser aplicada
-   */
+  priority: number
+  threshold_seconds?: number
   condition: (ctx: AlertContext) => boolean
-
-  /**
-   * Base de risco
-   */
   risk: {
     base: number
     multiplier?: number
   }
-
-  /**
-   * Enriquecimento (Trust Graph, metadata, etc)
-   */
   enrich?: (ctx: AlertContext) => Record<string, unknown>
 }

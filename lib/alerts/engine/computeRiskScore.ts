@@ -1,109 +1,161 @@
 import type {
+  AlertContext,
   AlertPolicy,
-  AlertPolicySeverity
-} from "./evaluatePolicies"
+  AlertSeverity,
+  AlertStatus
+} from "../policies/types"
+import type { EnrichedAlert } from "./enrichAlert"
 
-export type AlertInput = {
-  type: string
-  sourceId?: string
-  metadata?: Record<string, unknown>
-}
-
-export type EnrichedAlertData = {
-  trust_score?: number | null
-  risk?: string | null
-  previous_alerts?: number | null
-  source_status?: string | null
-  [key: string]: unknown
-}
-
-export type ComputeRiskScoreInput = {
-  input: AlertInput
-  now: Date
-  policy: AlertPolicy
-  enriched?: EnrichedAlertData | null
-}
-
-export type AlertRiskSeverity = AlertPolicySeverity
-
-export type AlertRiskScore = {
+export type AlertRiskResult = {
   score: number
-  severity: AlertRiskSeverity
-  reasons: string[]
+  severity: AlertSeverity
+  status: AlertStatus
+  factors: string[]
+  policy_severity: AlertSeverity
 }
 
-function clampScore(value: number): number {
+const SEVERITY_FLOOR: Record<AlertSeverity, number> = {
+  LOW: 20,
+  MEDIUM: 40,
+  HIGH: 70,
+  CRITICAL: 90
+}
+
+function clamp(value: number): number {
+  if (!Number.isFinite(value)) return 0
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-function severityBaseScore(severity: AlertPolicySeverity): number {
-  if (severity === "CRITICAL") return 90
-  if (severity === "HIGH") return 75
-  if (severity === "MEDIUM") return 50
-
-  return 25
-}
-
-function severityFromScore(score: number): AlertRiskSeverity {
-  if (score >= 90) return "CRITICAL"
-  if (score >= 70) return "HIGH"
-  if (score >= 40) return "MEDIUM"
-
+function normalizeSeverity(value: unknown): AlertSeverity {
+  if (value === "CRITICAL") return "CRITICAL"
+  if (value === "HIGH") return "HIGH"
+  if (value === "MEDIUM") return "MEDIUM"
   return "LOW"
 }
 
-function safeNumber(value: unknown): number | null {
-  const numeric = Number(value)
-
-  return Number.isFinite(numeric) ? numeric : null
+function severityFromScore(score: number): AlertSeverity {
+  if (score >= 90) return "CRITICAL"
+  if (score >= 70) return "HIGH"
+  if (score >= 40) return "MEDIUM"
+  return "LOW"
 }
 
-export function computeRiskScore(
-  input: ComputeRiskScoreInput
-): AlertRiskScore {
-  const reasons: string[] = []
+function maxSeverity(a: AlertSeverity, b: AlertSeverity): AlertSeverity {
+  return SEVERITY_FLOOR[a] >= SEVERITY_FLOOR[b] ? a : b
+}
 
-  let score = severityBaseScore(input.policy.severity)
+function statusFromScore(score: number): AlertStatus {
+  if (score >= 85) return "ESCALATED"
+  return "OPEN"
+}
 
-  reasons.push(`POLICY_${input.policy.severity}`)
+function getOccurrenceBoost(occurrences: number): {
+  boost: number
+  factor: string | null
+} {
+  if (occurrences >= 10) {
+    return { boost: 18, factor: "RECURRENCE_CRITICAL" }
+  }
 
-  const trustScore = safeNumber(input.enriched?.trust_score)
+  if (occurrences >= 5) {
+    return { boost: 12, factor: "RECURRENCE_HIGH" }
+  }
 
-  if (trustScore !== null) {
-    if (trustScore < 40) {
-      score += 20
-      reasons.push("LOW_TRUST_SCORE")
-    } else if (trustScore < 70) {
-      score += 10
-      reasons.push("MEDIUM_TRUST_SCORE")
-    } else {
-      score -= 5
-      reasons.push("HIGH_TRUST_SCORE")
+  if (occurrences >= 2) {
+    return { boost: 6, factor: "RECURRENCE_MEDIUM" }
+  }
+
+  if (occurrences >= 1) {
+    return { boost: 3, factor: "RECURRENCE_LOW" }
+  }
+
+  return { boost: 0, factor: null }
+}
+
+function getTrustBoost(enriched: EnrichedAlert): {
+  boost: number
+  factors: string[]
+} {
+  const factors: string[] = []
+  let boost = 0
+
+  if (typeof enriched.trust_score === "number") {
+    if (enriched.trust_score >= 90) {
+      boost += 18
+      factors.push("TRUST_GRAPH_CRITICAL")
+    } else if (enriched.trust_score >= 80) {
+      boost += 14
+      factors.push("TRUST_GRAPH_HIGH_RISK")
+    } else if (enriched.trust_score >= 50) {
+      boost += 7
+      factors.push("TRUST_GRAPH_WATCH")
     }
   }
 
-  const previousAlerts = safeNumber(input.enriched?.previous_alerts)
-
-  if (previousAlerts !== null && previousAlerts >= 3) {
-    score += 10
-    reasons.push("REPEATED_ALERT_SOURCE")
+  if (enriched.trust_label === "HIGH_RISK") {
+    boost += 12
+    factors.push("TRUST_LABEL_HIGH_RISK")
+  } else if (enriched.trust_label === "WATCH") {
+    boost += 6
+    factors.push("TRUST_LABEL_WATCH")
   }
 
-  if (input.enriched?.risk === "HIGH_RISK") {
-    score += 15
-    reasons.push("HIGH_RISK_SOURCE")
+  return { boost, factors }
+}
+
+export function computeRiskScore(params: {
+  ctx: AlertContext
+  policy: AlertPolicy
+  enriched: EnrichedAlert
+}): AlertRiskResult {
+  const { ctx, policy, enriched } = params
+
+  const factors: string[] = []
+
+  const policySeverity = normalizeSeverity(policy.severity)
+  const policyFloor = SEVERITY_FLOOR[policySeverity]
+
+  let score = Math.max(policy.risk.base, policyFloor)
+  factors.push(`POLICY_${policy.type}`)
+  factors.push(`POLICY_SEVERITY_${policySeverity}`)
+  factors.push(`POLICY_BASE_${policy.risk.base}`)
+
+  if (typeof policy.priority === "number") {
+    factors.push(`POLICY_PRIORITY_${policy.priority}`)
   }
 
-  if (input.enriched?.source_status === "offline") {
-    score += 10
-    reasons.push("SOURCE_OFFLINE")
+  if (policy.risk.multiplier && policy.risk.multiplier > 0) {
+    score *= policy.risk.multiplier
+    factors.push(`POLICY_MULTIPLIER_${policy.risk.multiplier}`)
   }
 
-  const finalScore = clampScore(score)
+  const occurrences = ctx.history?.occurrences ?? 0
+  const recurrence = getOccurrenceBoost(occurrences)
+
+  if (recurrence.boost > 0) {
+    score += recurrence.boost
+  }
+
+  if (recurrence.factor) {
+    factors.push(recurrence.factor)
+  }
+
+  const trust = getTrustBoost(enriched)
+
+  if (trust.boost > 0) {
+    score += trust.boost
+    factors.push(...trust.factors)
+  }
+
+  const finalScore = clamp(score)
+  const scoreSeverity = severityFromScore(finalScore)
+  const finalSeverity = maxSeverity(policySeverity, scoreSeverity)
 
   return {
     score: finalScore,
-    severity: severityFromScore(finalScore),
-    reasons
+    severity: finalSeverity,
+    status: statusFromScore(finalScore),
+    factors,
+    policy_severity: policySeverity
   }
 }

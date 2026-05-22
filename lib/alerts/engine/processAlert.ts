@@ -1,98 +1,131 @@
-import type { AlertPolicy, AlertPolicySeverity } from "./evaluatePolicies"
+import type { AlertInput, AlertContext } from "../policies/types"
+import { evaluatePolicies } from "./evaluatePolicies"
+import { enrichAlert } from "./enrichAlert"
+import { computeRiskScore } from "./computeRiskScore"
+import { persistAlert } from "./persistAlert"
+import { auditAlert } from "./auditAlert"
 
-type AlertInput = {
-  type: string
-  sourceId?: string
-  metadata?: Record<string, unknown>
+export type ProcessAlertResult =
+  | {
+      ok: true
+      alert_id: number | string
+      type: string
+      severity: string
+      status: string
+      risk_score: number
+      trust_score: number | null
+      source_id: string | null
+      occurrences: number
+      factors: string[]
+      updated_at: string
+    }
+  | {
+      ok: false
+      reason: "INVALID_ALERT_TYPE" | "NO_POLICY_MATCH" | "ALERT_PROCESSING_FAILED"
+      type?: string
+      error?: string
+    }
+
+function safeString(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length ? trimmed : null
 }
 
-export type EnrichedAlertData = {
-  trust_score?: number | null
-  risk?: string | null
-  previous_alerts?: number | null
-  source_status?: string | null
-  [key: string]: unknown
+function normalizeInput(input: AlertInput): AlertInput | null {
+  const type = safeString(input.type)
+
+  if (!type) return null
+
+  return {
+    ...input,
+    type,
+    sourceId: safeString(input.sourceId) ?? undefined,
+    metadata:
+      input.metadata && typeof input.metadata === "object"
+        ? input.metadata
+        : undefined
+  }
 }
 
-export type ComputeRiskScoreInput = {
+export async function processAlert(
   input: AlertInput
-  now: Date
-  policy: AlertPolicy
-  enriched?: EnrichedAlertData | null
-}
+): Promise<ProcessAlertResult> {
+  const normalizedInput = normalizeInput(input)
 
-export type AlertRiskScore = {
-  score: number
-  severity: AlertPolicySeverity
-  reasons: string[]
-}
-
-function clampScore(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)))
-}
-
-function severityBaseScore(severity: AlertPolicySeverity): number {
-  if (severity === "CRITICAL") return 90
-  if (severity === "HIGH") return 75
-  if (severity === "MEDIUM") return 50
-  return 25
-}
-
-function severityFromScore(score: number): AlertPolicySeverity {
-  if (score >= 90) return "CRITICAL"
-  if (score >= 70) return "HIGH"
-  if (score >= 40) return "MEDIUM"
-  return "LOW"
-}
-
-function safeNumber(value: unknown): number | null {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : null
-}
-
-export function computeRiskScore(input: ComputeRiskScoreInput): AlertRiskScore {
-  const reasons: string[] = []
-  let score = severityBaseScore(input.policy.severity)
-
-  reasons.push(`POLICY_${input.policy.severity}`)
-
-  const trustScore = safeNumber(input.enriched?.trust_score)
-
-  if (trustScore !== null) {
-    if (trustScore < 40) {
-      score += 20
-      reasons.push("LOW_TRUST_SCORE")
-    } else if (trustScore < 70) {
-      score += 10
-      reasons.push("MEDIUM_TRUST_SCORE")
-    } else {
-      score -= 5
-      reasons.push("HIGH_TRUST_SCORE")
+  if (!normalizedInput) {
+    return {
+      ok: false,
+      reason: "INVALID_ALERT_TYPE"
     }
   }
 
-  const previousAlerts = safeNumber(input.enriched?.previous_alerts)
-
-  if (previousAlerts !== null && previousAlerts >= 3) {
-    score += 10
-    reasons.push("REPEATED_ALERT_SOURCE")
+  const ctx: AlertContext = {
+    input: normalizedInput,
+    now: new Date()
   }
 
-  if (input.enriched?.risk === "HIGH_RISK") {
-    score += 15
-    reasons.push("HIGH_RISK_SOURCE")
-  }
+  try {
+    const evaluation = evaluatePolicies(ctx)
 
-  if (input.enriched?.source_status === "offline") {
-    score += 10
-    reasons.push("SOURCE_OFFLINE")
-  }
+    if (!evaluation.matched) {
+      return {
+        ok: false,
+        reason: evaluation.reason,
+        type: normalizedInput.type
+      }
+    }
 
-  const finalScore = clampScore(score)
+    const enriched = await enrichAlert({
+      ctx,
+      policy: evaluation.policy
+    })
 
-  return {
-    score: finalScore,
-    severity: severityFromScore(finalScore),
-    reasons
+    const risk = computeRiskScore({
+      ctx,
+      policy: evaluation.policy,
+      enriched
+    })
+
+    const alert = await persistAlert({
+      ctx,
+      policy: evaluation.policy,
+      enriched,
+      risk
+    })
+
+    try {
+      await auditAlert({
+        alert,
+        ctx,
+        enriched,
+        risk
+      })
+    } catch (error) {
+      console.warn("ALERT_AUDIT_NON_BLOCKING_FAILURE", error)
+    }
+
+    return {
+      ok: true,
+      alert_id: alert.id,
+      type: alert.type,
+      severity: alert.severity,
+      status: alert.status,
+      risk_score: risk.score,
+      trust_score: enriched.trust_score,
+      source_id: alert.source_id,
+      occurrences: alert.occurrences,
+      factors: risk.factors,
+      updated_at: alert.last_seen_at
+    }
+  } catch (error) {
+    console.error("ALERT_PROCESSING_FAILED", error)
+
+    return {
+      ok: false,
+      reason: "ALERT_PROCESSING_FAILED",
+      type: normalizedInput.type,
+      error: error instanceof Error ? error.message : "UNKNOWN_ERROR"
+    }
   }
 }

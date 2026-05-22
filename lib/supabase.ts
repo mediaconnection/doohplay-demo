@@ -1,33 +1,19 @@
-import { createClient } from "@supabase/supabase-js"
+// src/lib/supabaseServer.ts
+// ⚠️ USO EXCLUSIVO SERVER-SIDE (SERVICE ROLE)
 
-/* =========================
-   HELPERS
-========================= */
+import { createClient } from "@supabase/supabase-js";
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name]?.trim()
+/**
+ * Cliente Supabase com SERVICE ROLE.
+ * - Ignora RLS
+ * - Usado APENAS para operações internas:
+ *   evidences, invoices, jobs, auditoria
+ */
+export { supabase } from "../../lib/supabase"
 
-  if (!value) {
-    throw new Error(`${name}_NOT_CONFIGURED`)
-  }
-
-  return value
-}
-
-/* =========================
-   CONFIG
-========================= */
-
-const SUPABASE_URL = getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL")
-const SUPABASE_ANON_KEY = getRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-
-/* =========================
-   CLIENT
-========================= */
-
-export const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+export const supabaseServer = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
       persistSession: false,
@@ -35,4 +21,4 @@ export const supabase = createClient(
       detectSessionInUrl: false
     }
   }
-)
+);
