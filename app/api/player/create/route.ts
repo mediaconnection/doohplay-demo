@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createPairingToken } from "@/src/core/players/pairingService";
+import { createPairingToken } from "@/core/players/pairingService";
 
 export async function POST(req: Request) {
   const { player_id } = await req.json();
