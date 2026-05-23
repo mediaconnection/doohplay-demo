@@ -14,8 +14,9 @@ const nextConfig: NextConfig = {
       "@/lib": path.resolve(__dirname, "lib"),
       "@/components": path.resolve(__dirname, "src/components"),
       "@/core": path.resolve(__dirname, "src/core"),
-      "@/services": path.resolve(__dirname, "src/services"),
-      "@": path.resolve(__dirname, "src"),
+       "@/services": path.resolve(__dirname, "src/services"),
+       "@/reports": path.resolve(__dirname, "reports"),
+       "@": path.resolve(__dirname, "src"),
     }
     if (dev) {
       config.parallelism = 1
