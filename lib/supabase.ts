@@ -9,7 +9,7 @@ import { createClient } from "@supabase/supabase-js";
  * - Usado APENAS para operações internas:
  *   evidences, invoices, jobs, auditoria
  */
-export { supabase } from "../../lib/supabase"
+export { supabase } from "@/lib/supabase"
 
 export const supabaseServer = createClient(
   process.env.SUPABASE_URL!,
