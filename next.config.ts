@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       "@/components/proof": path.resolve(__dirname, "components/proof"),
       "@/components/trust": path.resolve(__dirname, "components/trust"),
       "@/components/merkle": path.resolve(__dirname, "components/merkle"),
+      "@/components/ledger": path.resolve(__dirname, "components/ledger"),
       "@/components": path.resolve(__dirname, "src/components"),
       "@/core": path.resolve(__dirname, "core"),
       "@/services": path.resolve(__dirname, "src/services"),
