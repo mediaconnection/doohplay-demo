@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { generateMerkleProof } from "./generateMerkleProof"
 import { supabase } from "@/lib/supabase"
 

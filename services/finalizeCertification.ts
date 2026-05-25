@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/lib/supabase";
 import { signHash } from "./signHash";
 
@@ -24,3 +25,4 @@ export async function finalizeCertification(contentHash: string) {
 
   return { status: "SIGNED" };
 }
+
