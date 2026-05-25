@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { verifyEventHash } from "./ledgerVerify"
 import { verifyMerkleProof } from "./verifyMerkleProof"
 

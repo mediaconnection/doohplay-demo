@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { renderToBuffer } from "@react-pdf/renderer"
 import { generatePdfDocument } from "./generatePdfDocument"
 

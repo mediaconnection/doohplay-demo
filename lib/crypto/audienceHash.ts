@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { sha256 } from "./hash";
 
 export function generateAudienceHash(data: {

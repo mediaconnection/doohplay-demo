@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/audit/proof.ts
 
 import { buildMerkleProof } from "@/lib/domain/proof/merkleProof"

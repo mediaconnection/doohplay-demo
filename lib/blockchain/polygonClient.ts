@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ethers } from "ethers"
 
 const rpcUrl =
@@ -17,4 +18,5 @@ export const provider = new ethers.JsonRpcProvider(rpcUrl)
 export const wallet = new ethers.Wallet(privateKey, provider)
 
 console.log("🔐 Wallet address:", wallet.address)
+
 

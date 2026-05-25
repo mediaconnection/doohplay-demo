@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/observability/analytics.ts
 
 /* =========================

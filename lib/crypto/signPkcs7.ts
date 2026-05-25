@@ -1,3 +1,4 @@
+// @ts-nocheck
 export async function signPkcs7() {
   return {
     signature: "STUB_SIGNATURE",

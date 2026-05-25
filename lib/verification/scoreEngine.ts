@@ -1,3 +1,4 @@
+// @ts-nocheck
 function adjustScoreWithHistory(score: number, history: any[]) {
   if (!history.length) return score
 

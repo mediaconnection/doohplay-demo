@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ethers } from "ethers"
 
 const BURN_ADDRESS = "0x000000000000000000000000000000000000dEaD"

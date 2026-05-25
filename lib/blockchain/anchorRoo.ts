@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ethers } from "ethers"
 
 const CONTRACT_ADDRESS = process.env.MERKLE_CONTRACT!

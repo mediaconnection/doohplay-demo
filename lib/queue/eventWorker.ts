@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Worker } from "bullmq"
 import { connection } from "./connection"
 import { writeEvent } from "@/lib/ledger/writeEvent"

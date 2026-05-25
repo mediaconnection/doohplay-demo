@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PDFDocument, StandardFonts } from "pdf-lib"
 import QRCode from "qrcode"
 

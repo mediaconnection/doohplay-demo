@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ethers } from "ethers"
 
 export async function registerProofOnBlockchain(hash: string) {

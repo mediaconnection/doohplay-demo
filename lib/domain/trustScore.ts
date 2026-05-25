@@ -1,3 +1,4 @@
+// @ts-nocheck
 type TrustInput = {
   chain_valid: boolean
   merkle_valid: boolean

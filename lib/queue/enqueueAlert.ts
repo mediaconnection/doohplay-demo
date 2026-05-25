@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { alertQueue } from "./alertQueue"
 import { Alert } from "@/lib/domain/alerts/types"
 

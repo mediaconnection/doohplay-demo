@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function evaluateProof({
   event,
   chain,

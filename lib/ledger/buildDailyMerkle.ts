@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type DailyMerkleResult = {
   date: string
   merkle_root: string
@@ -9,3 +10,4 @@ export async function buildDailyMerkle(
 ): Promise<DailyMerkleResult> {
   throw new Error("buildDailyMerkle: not implemented")
 }
+

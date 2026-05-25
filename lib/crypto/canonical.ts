@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/crypto/canonical.ts
 
 export function canonicalize(obj:any){

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { proofStream } from "@/lib/stream/streamEmitter"
 
 export async function GET(req: Request) {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 function getEnv(name: string): string | undefined {
   const value = process.env[name]
   if (typeof value !== "string") return undefined

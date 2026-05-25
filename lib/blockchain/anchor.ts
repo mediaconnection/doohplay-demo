@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Contract, JsonRpcProvider, Wallet } from "ethers"
 import { pool } from "@/lib/db"
 

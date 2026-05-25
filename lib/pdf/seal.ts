@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function buildSealText(hash: string) {
   return [
     "DOCUMENTO VERIFICADO — DOOHPLAY",

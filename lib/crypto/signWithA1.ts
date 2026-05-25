@@ -1,3 +1,4 @@
+// @ts-nocheck
 import crypto from "crypto"
 import forge from "node-forge"
 

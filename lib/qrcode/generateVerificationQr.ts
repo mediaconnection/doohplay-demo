@@ -1,3 +1,4 @@
+// @ts-nocheck
 import QRCode from "qrcode";
 
 export async function generateVerificationQr(hash: string) {

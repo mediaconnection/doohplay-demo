@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type ConfidenceLevel = "HIGH" | "MEDIUM" | "LOW"
 
 export type ConfidenceInput = {

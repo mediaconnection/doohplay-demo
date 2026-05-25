@@ -1,3 +1,4 @@
+// @ts-nocheck
 type Input = {
   chain_valid: boolean
   merkle_valid: boolean

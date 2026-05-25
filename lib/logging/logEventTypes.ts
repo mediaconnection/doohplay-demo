@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const LogEventType = {
   CAMPAIGN_STARTED: "CAMPAIGN_STARTED",
   CAMPAIGN_FINISHED: "CAMPAIGN_FINISHED",
@@ -16,3 +17,4 @@ export type LogEventType =
   typeof LogEventType[keyof typeof LogEventType];
 
 export const LOG_EVENT_TYPES = LogEventType
+

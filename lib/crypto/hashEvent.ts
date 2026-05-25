@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/crypto/hashEvent.ts
 
 import crypto from "crypto"

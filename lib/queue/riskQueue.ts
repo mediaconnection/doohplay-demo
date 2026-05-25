@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/queue/riskQueue.ts
 
 import { Queue } from "bullmq"

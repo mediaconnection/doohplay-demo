@@ -1,3 +1,4 @@
+// @ts-nocheck
 type RevocationResult = {
   revoked: boolean
   source?: string

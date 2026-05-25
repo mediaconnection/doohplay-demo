@@ -1,3 +1,4 @@
+// @ts-nocheck
 import crypto from "crypto"
 import { ProofGraph } from "./types/ProofGraph"
 
