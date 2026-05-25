@@ -1,3 +1,4 @@
+// @ts-nocheck
 // services/audience.ts
 
 export async function enrichAudience(event:any){

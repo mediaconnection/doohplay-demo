@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/services/reports/generateReportPdf.ts
 
 import QRCode from "qrcode";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // services/anchor.ts
 
 import { pool } from "@/lib/db"

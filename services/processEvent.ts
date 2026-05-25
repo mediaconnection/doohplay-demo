@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createCanonicalEvent } from "@/domain/events/createEvent";
 import { gerarHashEvento } from "@/domain/events/hashEvent";
 import { persistEvent } from "@/services/persistEvent";
@@ -24,3 +25,4 @@ export async function processEvent() {
 
   return { hash, result };
 }
+

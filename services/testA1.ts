@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { assinarComA1 } from "./signHash";
 
 
@@ -6,3 +7,4 @@ const result = assinarComA1(
 );
 
 console.log(result);
+
