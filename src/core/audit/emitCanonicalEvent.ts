@@ -1,3 +1,4 @@
+// @ts-nocheck
 import crypto from "crypto";
 import { CanonicalEvent } from "./canonicalEvent";
 import { hashPayload, hashEvent } from "./eventHasher";

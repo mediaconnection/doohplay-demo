@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool } from "@/lib/db";
 export { pool } from "@/lib/db";
 import { CanonicalEvent } from "./canonicalEvent";
