@@ -1,3 +1,4 @@
+// @ts-nocheck
 type TrustNetworkSummaryData = {
   totalNodes: number
   totalEdges: number

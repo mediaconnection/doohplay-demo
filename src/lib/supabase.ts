@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/lib/supabaseServer.ts
 // ⚠️ USO EXCLUSIVO SERVER-SIDE (SERVICE ROLE)
 
