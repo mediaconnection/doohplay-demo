@@ -4,9 +4,10 @@ type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "warni
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: BadgeVariant
+  label?: string
 }
 
-function Badge({ className = "", variant = "default", ...props }: BadgeProps) {
+function Badge({ className = "", variant = "default", label, children, ...props }: BadgeProps) {
   const base = "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors"
   const variants: Record<BadgeVariant, string> = {
     default: "border-transparent bg-slate-900 text-white",
@@ -18,7 +19,9 @@ function Badge({ className = "", variant = "default", ...props }: BadgeProps) {
     info: "border-transparent bg-blue-100 text-blue-800",
   }
   return (
-    <div className={`${base} ${variants[variant]} ${className}`} {...props} />
+    <div className={`${base} ${variants[variant]} ${className}`} {...props}>
+      {label ?? children}
+    </div>
   )
 }
 
