@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server"
 import { runProofEngine } from "@/lib/proof/engine"
 import { pool } from "@/lib/db"

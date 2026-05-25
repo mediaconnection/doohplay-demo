@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { createCanonicalEvent } from "@/domain/events/createEvent";
 import { gerarHashEvento } from "@/domain/events/hashEvent";
@@ -77,3 +78,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

@@ -6,6 +6,9 @@ import { generateCertificatePdf } from "@/lib/proof/generateCertificatePdf"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+export async function GET() {
+  return new Response("Method Not Allowed", { status: 405 })
+}
 
 const MAX_BODY = 10_000
 

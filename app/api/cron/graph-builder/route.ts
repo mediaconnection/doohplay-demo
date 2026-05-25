@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { autoBuildGraph } from "@/lib/proof/graph/autoBuildGraph"
 
 export async function GET() {

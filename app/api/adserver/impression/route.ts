@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { registerImpression } from "@/lib/adserver/registerImpression"
 
 export async function POST(req: Request) {

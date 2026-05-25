@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { db } from "@/lib/db";
 
 export async function GET() {
@@ -17,3 +18,4 @@ export async function GET() {
 
   return Response.json(result.rows);
 }
+

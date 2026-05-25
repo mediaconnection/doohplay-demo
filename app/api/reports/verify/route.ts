@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { generatePdfHash } from "@/services/pdf/generatePdfHash";
 import { verifySignature } from "@/services/pdf/verifySignature.node";
 import { getPdfCertificationByHash } from "@/services/pdf/pdfCertification";
@@ -53,3 +54,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

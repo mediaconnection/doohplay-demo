@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server"
 import { createBlock } from "@/lib/domain/block/createBlock"
 

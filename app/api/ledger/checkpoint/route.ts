@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { createCheckpoint } from "@/lib/ledger/createCheckpoint"
 import { NextResponse } from "next/server"
 

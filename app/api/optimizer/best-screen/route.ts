@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { selectBestScreen } from "@/lib/optimizer/selectBestScreen"
 
 export async function GET() {

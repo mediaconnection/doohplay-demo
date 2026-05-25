@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { selectCreative } from "@/lib/adserver/selectCreative"
 
 export async function POST(req: Request) {

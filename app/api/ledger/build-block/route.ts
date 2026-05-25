@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { createBlock } from "@/lib/ledger/createBlock";
 
 export async function POST() {

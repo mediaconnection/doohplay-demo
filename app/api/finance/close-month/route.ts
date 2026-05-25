@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
@@ -60,3 +61,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ success: true });
 }
+

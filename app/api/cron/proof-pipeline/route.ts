@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { runProofPipeline } from "@/lib/proof/scheduler/runProofPipeline"
 
 export async function GET() {
