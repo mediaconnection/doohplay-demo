@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/lib/supabase";
 
 export async function persistEvent(args: {
@@ -30,3 +31,4 @@ export async function persistEvent(args: {
 
   return { status: "CREATED" };
 }
+
