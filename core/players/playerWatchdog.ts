@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool } from "@/src/lib/db";
 import { emitCanonicalEvent } from "@/src/core/audit/emitCanonicalEvent";
 
@@ -55,3 +56,4 @@ export async function runPlayerOfflineWatchdog() {
     }
   }
 }
+

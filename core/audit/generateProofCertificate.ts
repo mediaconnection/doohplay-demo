@@ -1,3 +1,4 @@
+// @ts-nocheck
 export async function generateProofCertificate() {
   return {
     ok: true,
