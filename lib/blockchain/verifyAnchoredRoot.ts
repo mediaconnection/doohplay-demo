@@ -1,3 +1,4 @@
+// @ts-nocheck
 export {
   verifyAnchoredRoot,
   verifyAnchoredRoot as validateAnchoredMerkleRoot

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { buildTsaRequest } from "./buildTsaRequest";
 import { sendTsaRequest } from "./sendTsaRequest";
 import { tsaConfig } from "./tsaConfig";

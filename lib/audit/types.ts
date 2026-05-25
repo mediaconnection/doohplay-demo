@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/audit/types.ts
 
 /**

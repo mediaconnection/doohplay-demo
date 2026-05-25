@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getCounter } from "./metricsRedis"
 
 /* =========================

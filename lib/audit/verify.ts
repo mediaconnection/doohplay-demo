@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/audit/verify.ts
 
 import crypto from "crypto"

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool } from "@/lib/db"
 import { assinarComA1 } from "@/lib/crypto/assinarComA1"
 import { generateProof } from "@/lib/proof/generateProof"

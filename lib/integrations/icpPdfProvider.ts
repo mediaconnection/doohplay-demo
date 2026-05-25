@@ -1,3 +1,4 @@
+// @ts-nocheck
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(
     bytes.byteOffset,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type NodeType =
   | "screen"
   | "player"

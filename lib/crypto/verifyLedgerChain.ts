@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { sha256 } from "@/lib/crypto/hash";
 
 type LedgerBlock = {

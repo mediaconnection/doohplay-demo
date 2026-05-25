@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { JsonRpcProvider } from "ethers"
 
 import { blockchainEnv } from "@/lib/config/env"

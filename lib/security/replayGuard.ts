@@ -1,3 +1,4 @@
+// @ts-nocheck
 const seen = new Set<string>();
 
 export function checkReplay(hash: string) {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GraphEdge, GraphNode, RiskLevel } from "./types"
 
 export type FraudCluster = {

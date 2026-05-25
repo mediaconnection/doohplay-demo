@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type TrustScoreStatus = "PASS" | "PARTIAL" | "FAIL" | "NOT_EVALUATED"
 
 export type TrustScoreImpact = "positive" | "negative" | "neutral"

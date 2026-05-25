@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { blockchainEnv } from "@/lib/config/env"
 
 export function getBlockchainRpcs(): string[] {

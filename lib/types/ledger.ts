@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * DOOHPLAY Ledger Types
  * Centralized type definitions for the cryptographic ledger

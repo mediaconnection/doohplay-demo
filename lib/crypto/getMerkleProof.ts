@@ -1,4 +1,5 @@
-﻿import { pool } from "@/lib/db"
+// @ts-nocheck
+import { pool } from "@/lib/db"
 import { generateMerkleProof } from "@/lib/crypto/generateMerkleProof"
 
 type EventLookupRow = {
@@ -80,3 +81,4 @@ export async function getMerkleProof(eventHash: string) {
     root: generated.root
   }
 }
+

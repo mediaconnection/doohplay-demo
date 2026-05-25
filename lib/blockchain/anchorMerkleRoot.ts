@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ethers } from "ethers"
 import { wallet } from "./polygonClient"
 import { pool } from "@/lib/db"

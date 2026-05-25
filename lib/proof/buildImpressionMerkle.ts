@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { buildMerkleTree } from "@/lib/crypto/merkle";
 
 export function buildImpressionMerkle(

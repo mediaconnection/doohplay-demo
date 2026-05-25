@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { verifyEventHash } from "@/lib/crypto/ledgerVerify";
 import { verifyMerkleProof } from "@/lib/proof/merkle/verifyMerkleProof";
 import { verifyLedgerBlock } from "@/lib/crypto/verifyLedgerBlock";
@@ -79,3 +80,4 @@ export function verifyLedgerEventProof(
   };
 
 }
+

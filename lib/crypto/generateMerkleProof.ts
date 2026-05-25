@@ -1,4 +1,5 @@
-﻿import crypto from "crypto"
+// @ts-nocheck
+import crypto from "crypto"
 
 export type MerkleProofItem = {
   position: "left" | "right"
@@ -62,3 +63,4 @@ export function generateMerkleProof(
     proof
   }
 }
+

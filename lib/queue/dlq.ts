@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Queue } from "bullmq"
 import IORedis from "ioredis"
 

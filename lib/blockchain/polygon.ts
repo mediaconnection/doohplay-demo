@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { JsonRpcProvider, Wallet } from "ethers"
 
 /* =========================

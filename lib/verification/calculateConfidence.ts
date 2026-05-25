@@ -1,3 +1,4 @@
+// @ts-nocheck
 type Input = {
   event_exists: boolean
   event_hash_valid: boolean

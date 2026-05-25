@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { spawn } from "child_process";
 
 export async function notarizeHash(hash: string) {

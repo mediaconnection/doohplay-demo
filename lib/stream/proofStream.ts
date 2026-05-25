@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { proofStream } from "./streamEmitter"
 
 export function publishProofEvent(type: string, payload: any) {

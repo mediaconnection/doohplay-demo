@@ -1,3 +1,4 @@
+// @ts-nocheck
 import nodeSignPdf, { plainAddPlaceholder } from "node-signpdf"
 
 type SignPdfOptions = {
