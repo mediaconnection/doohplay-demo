@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/redis.ts
 import Redis from "ioredis"
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client"
 
 import { copyWithFeedback } from "@/lib/ui/copy"

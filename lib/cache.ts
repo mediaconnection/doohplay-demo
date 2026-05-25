@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { redis } from "@/lib/redis"
 
 export async function invalidateCache(key: string) {

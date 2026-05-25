@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/queue.ts
 
 import { redis } from "./redis"

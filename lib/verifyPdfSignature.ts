@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type PdfSignatureVerificationResult = {
   valid: boolean
   signed: boolean

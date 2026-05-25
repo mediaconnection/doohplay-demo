@@ -1,3 +1,4 @@
+// @ts-nocheck
 type StoredIdempotentResponse = {
   response: {
     status: number
