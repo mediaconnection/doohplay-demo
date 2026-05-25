@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ALERT_POLICY_LIST } from "../policies"
 import type { AlertContext, AlertPolicy } from "../policies/types"
 

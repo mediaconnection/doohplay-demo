@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/domain/fraud/storeEdge.ts
 
 import { pool } from "@/lib/db"

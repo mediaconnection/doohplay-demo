@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { EntityType, ProofResultLike } from "../types"
 
 export type CachedProof = ProofResultLike

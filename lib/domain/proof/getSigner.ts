@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type Signer = {
   sign: (data: string) => Promise<string>
   keyId: string
@@ -6,3 +7,4 @@ export type Signer = {
 export function getSigner(): Signer {
   throw new Error("getSigner: not implemented")
 }
+

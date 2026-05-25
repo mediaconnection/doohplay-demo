@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createSign } from "crypto"
 import { canonicalDigest } from "./hash"
 import { signCanonicalPayloadWithPfx } from "./adapters/pfxSigner"

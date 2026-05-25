@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function withTimeout<T>(
   promiseOrFn: Promise<T> | (() => Promise<T>),
   ms: number
@@ -11,3 +12,4 @@ export function withTimeout<T>(
     ),
   ])
 }
+

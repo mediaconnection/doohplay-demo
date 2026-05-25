@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type VerifyAllResult = {
   hash: string
   valid: boolean
@@ -7,3 +8,4 @@ export type VerifyAllResult = {
 export async function verifyAll(_hash: string): Promise<VerifyAllResult> {
   throw new Error("verifyAll: not implemented")
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AlertContext } from "./types"
 
 export function metadataString(

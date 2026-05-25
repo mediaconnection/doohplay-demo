@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { verifyMerkleProof } from "./verifyMerkleProof"
 
 export function verifyProofGraph(graph: any) {

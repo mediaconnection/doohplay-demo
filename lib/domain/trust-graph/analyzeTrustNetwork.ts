@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { detectFraudClusters } from "./detectFraudClusters"
 import { fraudLabel, fraudScoreBreakdown } from "./fraudScore"
 

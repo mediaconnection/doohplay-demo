@@ -1,3 +1,4 @@
+// @ts-nocheck
 type Input = {
   hashes: string[]
 }

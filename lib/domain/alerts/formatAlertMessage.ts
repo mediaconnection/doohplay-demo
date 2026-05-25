@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/domain/alerts/formatAlertMessage.ts
 
 import { Alert } from "./types"

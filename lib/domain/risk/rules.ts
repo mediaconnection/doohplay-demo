@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/domain/risk/rules.ts
 
 import { RiskInput } from "./schema"

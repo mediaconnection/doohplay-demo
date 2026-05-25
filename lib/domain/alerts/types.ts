@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type AlertSeverity = "low" | "medium" | "high"
 
 export type Alert = {

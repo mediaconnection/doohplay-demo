@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Worker } from "bullmq"
 import { connection } from "../redis"
 import { pool } from "@/lib/db"

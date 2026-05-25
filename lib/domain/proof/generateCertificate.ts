@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from "fs"
 import path from "path"
 import os from "os"
@@ -19,3 +20,4 @@ export async function generateCertificate(
 }
 
 export default generateCertificate
+

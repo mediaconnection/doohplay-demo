@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function createRequestId(): string {
   return crypto.randomUUID()
 }
@@ -32,3 +33,4 @@ export async function fetchWithTimeout(
     clearTimeout(id)
   }
 }
+

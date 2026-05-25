@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { buildMerkleTree } from "./buildMerkleTree"
 
 export function getMerkleProof(

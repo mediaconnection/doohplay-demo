@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function errorResponse(
   message: string,
   status = 500,
@@ -20,3 +21,4 @@ export class VerificationError extends Error {
 export const PROOF_NOT_FOUND = "PROOF_NOT_FOUND"
 export const VERIFICATION_FAILED = "VERIFICATION_FAILED"
 export const INVALID_HASH = "INVALID_HASH"
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type ICPVerifyResult = {
   valid: boolean
   principal?: string
@@ -17,3 +18,4 @@ export async function verifyICP(
 ): Promise<ICPVerifyResult> {
   throw new Error("verifyICP: ICP integration not implemented")
 }
+

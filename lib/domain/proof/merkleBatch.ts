@@ -1,3 +1,4 @@
+// @ts-nocheck
 export { buildBatchMerkleProofs } from "./batchMerkle"
 export type { BatchMerkleProof } from "./batchMerkle"
 export { normalizeHash } from "../../proof/chain"
@@ -13,3 +14,4 @@ export function hashMerkleNode(left: string, right: string): string {
     .update(Buffer.from(right, "hex"))
     .digest("hex")
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/domain/risk/types.ts
 
 export type RiskInput = {

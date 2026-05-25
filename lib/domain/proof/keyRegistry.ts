@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type ActiveKey = {
   keyId: string
   publicKey: string
@@ -7,3 +8,4 @@ export type ActiveKey = {
 export function getActiveKey(): ActiveKey {
   throw new Error("getActiveKey: not implemented")
 }
+

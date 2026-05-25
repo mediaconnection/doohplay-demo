@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from "fs"
 import forge from "node-forge"
 

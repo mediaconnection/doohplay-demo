@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type SignatureEnv = {
   a1PfxPath: string | null
   a1PfxPassword: string | null

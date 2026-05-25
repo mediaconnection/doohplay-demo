@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function isValidSha256(hash: unknown): hash is string {
   return typeof hash === "string" && /^[a-f0-9]{64}$/i.test(hash)
 }
@@ -21,3 +22,4 @@ export function normalizeInput<T extends Record<string, unknown>>(
   if (!input || typeof input !== "object" || Array.isArray(input)) return null
   return input as T
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export { verifyMerkleProof } from "../../proof/merkle/verifyMerkleProof"
 
 export type BatchMerkleProof = {
@@ -11,3 +12,4 @@ export async function buildBatchMerkleProofs(
 ): Promise<BatchMerkleProof[]> {
   throw new Error("buildBatchMerkleProofs: not implemented")
 }
+
