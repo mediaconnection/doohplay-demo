@@ -1,18 +1,12 @@
-// src/lib/supabaseServer.ts
-// ⚠️ USO EXCLUSIVO SERVER-SIDE (SERVICE ROLE)
+import { createClient } from "@supabase/supabase-js"
 
-import { createClient } from "@supabase/supabase-js";
-
-/**
- * Cliente Supabase com SERVICE ROLE.
- * - Ignora RLS
- * - Usado APENAS para operações internas:
- *   evidences, invoices, jobs, auditoria
- */
-export { supabase } from "@/lib/supabase"
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export const supabaseServer = createClient(
-  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
@@ -21,4 +15,4 @@ export const supabaseServer = createClient(
       detectSessionInUrl: false
     }
   }
-);
+)
