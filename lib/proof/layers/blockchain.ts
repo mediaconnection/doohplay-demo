@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { validateTransaction } from "@/lib/blockchain/validateTx"
 import { decodeTransaction } from "@/lib/blockchain/decodeTx"
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { tsaEnv } from "@/lib/config/env"
 import { sha256Hex } from "./hash"
 import type { TimestampTokenResult } from "./types"

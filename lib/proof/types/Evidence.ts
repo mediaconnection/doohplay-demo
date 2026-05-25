@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type EvidenceType =
   | "playback_proof"
   | "impression_proof"

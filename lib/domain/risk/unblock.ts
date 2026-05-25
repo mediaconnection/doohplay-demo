@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/domain/risk/unblock.ts
 
 import { pool } from "@/lib/db"

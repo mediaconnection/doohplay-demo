@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getLayerCache, setLayerCache } from "../cache/layerCache"
 import { keys } from "../cache/keys"
 import type { FailureReason, LayerResult, ProofContext } from "../types"

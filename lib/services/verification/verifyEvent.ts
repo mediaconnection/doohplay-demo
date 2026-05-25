@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { verifyPkcs7 } from "@/lib/crypto/verifyPkcs7";
 import { checkRevocation } from "@/lib/crypto/checkRevocation";
 

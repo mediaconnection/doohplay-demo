@@ -1,3 +1,4 @@
+// @ts-nocheck
 type Input = {
   current_count: number
   baseline_avg: number

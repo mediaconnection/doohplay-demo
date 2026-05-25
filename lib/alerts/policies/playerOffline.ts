@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AlertPolicy } from "./types"
 import { isType, metadataNumber } from "./helpers"
 

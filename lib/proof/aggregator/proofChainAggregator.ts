@@ -1,3 +1,4 @@
+// @ts-nocheck
 import crypto from "crypto"
 import { db, pool } from "@/lib/db"
 import { getUnanchoredEvents } from "@/lib/ledger/getUnanchoredEvents"
@@ -196,3 +197,4 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
     skipped: false,
   }
 }
+

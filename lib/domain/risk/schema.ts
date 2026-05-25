@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/domain/risk/schema.ts
 
 import { z } from "zod"

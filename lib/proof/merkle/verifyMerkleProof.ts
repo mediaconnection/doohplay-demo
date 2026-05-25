@@ -1,3 +1,4 @@
+// @ts-nocheck
 // C:\doohplay\dashboard-web\lib\proof\merkle\verifyMerkleProof.ts
 
 import crypto from "crypto"

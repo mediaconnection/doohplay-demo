@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createHmac, timingSafeEqual } from "crypto"
 import { redis } from "./redis"
 

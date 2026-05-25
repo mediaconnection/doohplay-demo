@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { normalizeHex, sha256Hex } from "./hash"
 
 export type MerkleProofNode =

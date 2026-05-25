@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type AlertSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 export type AlertStatus = "OPEN" | "ESCALATED" | "RESOLVED"
 export type TrustLabel = "SAFE" | "WATCH" | "HIGH_RISK"

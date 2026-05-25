@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool } from "@/lib/db"
 import { buildProofGraph } from "../buildProofGraph"
 

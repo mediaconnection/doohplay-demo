@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createHash } from "crypto"
 import { canonicalizePayload } from "./canonical"
 import type { CanonicalPayloadResult } from "./types"

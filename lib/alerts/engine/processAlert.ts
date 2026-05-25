@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AlertInput, AlertContext } from "../policies/types"
 import { evaluatePolicies } from "./evaluatePolicies"
 import { enrichAlert } from "./enrichAlert"

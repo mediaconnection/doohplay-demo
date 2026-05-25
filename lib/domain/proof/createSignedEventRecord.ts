@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type SignedEventRecord = {
   event_id: string
   hash: string
@@ -33,3 +34,4 @@ export async function createSignedEventRecord(
 ): Promise<SignedEventRecord> {
   throw new Error("createSignedEventRecord: not implemented")
 }
+

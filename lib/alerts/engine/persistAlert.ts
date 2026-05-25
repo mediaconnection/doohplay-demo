@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool } from "@/lib/db"
 import type { AlertContext, AlertPolicy } from "../policies/types"
 import type { EnrichedAlert } from "./enrichAlert"

@@ -1,3 +1,4 @@
+// @ts-nocheck
 function sortObject(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortObject)

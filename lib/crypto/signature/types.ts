@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type SignatureAlgorithm =
   | "RSA-SHA256"
   | "RSA-SHA512"

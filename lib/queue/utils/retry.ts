@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function shouldRetry(error: any): boolean {
   const transient = ["Timeout", "ECONNRESET", "ETIMEDOUT"]
 

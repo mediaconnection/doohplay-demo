@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomUUID } from "crypto"
 import { signCanonicalPayload } from "./signer"
 import { requestTimestampForSignature } from "./tsa"

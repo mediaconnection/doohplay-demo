@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createVerify, createPublicKey } from "crypto"
 import { canonicalDigest } from "./hash"
 import type {

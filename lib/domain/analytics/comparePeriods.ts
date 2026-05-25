@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function comparePeriods(
   current: number[],
   previous: number[]

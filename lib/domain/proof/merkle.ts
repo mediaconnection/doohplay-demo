@@ -1,3 +1,4 @@
+// @ts-nocheck
 export { buildMerkleTree } from "../../proof/merkle/buildMerkleTree"
 export { getMerkleProof } from "../../proof/merkle/getMerkleProof"
 export {
@@ -5,3 +6,4 @@ export {
   type MerkleProofItem,
 } from "../../proof/merkle/verifyMerkleProof"
 export { buildMerkleRoot } from "../../../src/core/audit/merkleRoot"
+

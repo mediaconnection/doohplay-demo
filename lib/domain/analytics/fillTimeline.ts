@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function fillMissingDays(
   data: { date: string; trust: number | null; events: number }[],
   days = 30

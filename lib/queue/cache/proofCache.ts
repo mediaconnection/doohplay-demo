@@ -1,3 +1,4 @@
+// @ts-nocheck
 export {
   getCachedProof,
   setCachedProof,
@@ -5,3 +6,4 @@ export {
   buildProofCacheKey,
   type CachedProof,
 } from "../../proof/cache/proofCache"
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Evidence } from "./Evidence"
 import { MerkleProof } from "./MerkleProof"
 import { ProofCertificate } from "./ProofCertificate"

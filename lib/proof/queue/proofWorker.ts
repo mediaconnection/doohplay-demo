@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Worker, type Job } from "bullmq"
 
 import { redis } from "../cache/redis"

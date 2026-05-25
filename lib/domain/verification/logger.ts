@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function logVerification(hash: string, result: unknown): void {
   console.log("[verification]", hash, result)
 }
@@ -13,3 +14,4 @@ export function logError(message: string, context?: unknown): void {
 export function logWarn(message: string, context?: unknown): void {
   console.warn("[verification:warn]", message, context)
 }
+

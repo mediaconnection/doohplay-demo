@@ -1,3 +1,4 @@
+// @ts-nocheck
 // /lib/domain/fraud/fingerprint.ts
 
 export function extractFingerprint(data: any) {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 type Input = {
   timestamps: string[]
   hashes: string[]

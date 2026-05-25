@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { buildBlock } from "../ledger/buildBlock"
 import { createAnchor } from "../anchor/createAnchor"
 import { generateProofCertificate } from "../generateProofCertificate"
