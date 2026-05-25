@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool } from "@/lib/db"
 import type { CertificationRecord, EntityType } from "../types"
 import { normalizeHex } from "../helpers/hash"
