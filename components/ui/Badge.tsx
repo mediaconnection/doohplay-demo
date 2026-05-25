@@ -1,6 +1,6 @@
 import * as React from "react"
 
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline"
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "warning" | "success" | "info"
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: BadgeVariant
@@ -13,6 +13,9 @@ function Badge({ className = "", variant = "default", ...props }: BadgeProps) {
     secondary: "border-transparent bg-slate-100 text-slate-900",
     destructive: "border-transparent bg-red-500 text-white",
     outline: "text-slate-900",
+    warning: "border-transparent bg-amber-100 text-amber-800",
+    success: "border-transparent bg-green-100 text-green-800",
+    info: "border-transparent bg-blue-100 text-blue-800",
   }
   return (
     <div className={`${base} ${variants[variant]} ${className}`} {...props} />
