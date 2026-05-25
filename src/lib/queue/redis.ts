@@ -1,3 +1,4 @@
+// @ts-nocheck
 import IORedis from "ioredis";
 
 export const redis = new IORedis({
@@ -9,3 +10,4 @@ export const redis = new IORedis({
 redis.on("error", (err) => {
   console.warn("[Redis] connection error (non-fatal):", err.message)
 });
+

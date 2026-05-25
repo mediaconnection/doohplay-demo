@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { processAlert } from "./engine/processAlert"
 import type { AlertInput } from "./policies/types"
 

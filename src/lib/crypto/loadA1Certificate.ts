@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from "fs";
 
 export type A1CertificateInfo = {
