@@ -1,3 +1,2 @@
 // @ts-nocheck
-export { default } from "../../../components/ui/Badge
-
+export { default } from "../../../components/ui/Badge"
