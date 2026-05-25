@@ -2,37 +2,23 @@
 import IORedis from "ioredis"
 
 const DEFAULT_REDIS_URL = "redis://127.0.0.1:6379"
+let _redis = null
 
-let _redis: IORedis | null = null
-
-export function getRedis(): IORedis {
+export function getRedis() {
   if (!_redis) {
-    const REDIS_URL = process.env.REDIS_URL?.trim() || DEFAULT_REDIS_URL
-    const isProd = process.env.NODE_ENV === "production"
-
-    _redis = new IORedis(REDIS_URL, {
+    const url = process.env.REDIS_URL?.trim() || DEFAULT_REDIS_URL
+    _redis = new IORedis(url, {
       maxRetriesPerRequest: null,
-      enableReadyCheck: true,
+      enableReadyCheck: false,
       lazyConnect: true,
-      connectTimeout: 10_000,
-      commandTimeout: 5_000,
-      keepAlive: 30_000,
-      retryStrategy(times) {
-        return Math.min(times * 100, 2_000)
-      },
-      reconnectOnError(err) {
-        const msg = err.message.toUpperCase()
-        return msg.includes("READONLY") || msg.includes("ECONNRESET") || msg.includes("ETIMEDOUT")
-      }
+      connectTimeout: 10000,
+      commandTimeout: 5000,
+      keepAlive: 30000,
+      retryStrategy(times) { return Math.min(times * 100, 2000) }
     })
-
     _redis.on("error", (err) => console.error("[Redis proof/cache] error:", err.message))
   }
   return _redis
 }
 
-export const redis = new Proxy({} as IORedis, {
-  get(_, prop) {
-    return (getRedis() as any)[prop]
-  }
-})
+export const redis = new Proxy({}, { get(_, prop) { return getRedis()[prop] } })
