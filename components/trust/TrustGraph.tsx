@@ -393,9 +393,9 @@ export default function TrustGraph({
       .data(simulationNodes)
       .enter()
       .append("circle")
-      .attr("r", (d) => getNodeRadius(d))
-      .attr("fill", (d) => getNodeColor(d.score))
-      .attr("stroke", (d) => getNodeStroke(d.score))
+      .attr("r", (d: ForceNode) => getNodeRadius(d))
+      .attr("fill", (d: ForceNode) => getNodeColor(d.score))
+      .attr("stroke", (d: ForceNode) => getNodeStroke(d.score))
       .attr("stroke-width", 2)
       .attr("tabindex", 0)
       .attr("role", "button")
@@ -435,7 +435,7 @@ export default function TrustGraph({
       .attr("fill", "#0f172a")
       .attr("text-anchor", "middle")
       .attr("pointer-events", "none")
-      .attr("dy", (d) => -(getNodeRadius(d) + 8))
+      .attr("dy", (d: ForceNode) => -(getNodeRadius(d) + 8))
 
     const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = zoom<
       SVGSVGElement,
@@ -485,7 +485,7 @@ export default function TrustGraph({
         nodeSelection
           .attr("opacity", 1)
           .attr("stroke-width", 2)
-          .attr("r", (d) => getNodeRadius(d))
+          .attr("r", (d: ForceNode) => getNodeRadius(d))
 
         edgeSelection
           .attr("opacity", (d) => getEdgeOpacity(d.weight))
