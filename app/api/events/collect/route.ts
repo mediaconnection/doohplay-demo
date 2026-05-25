@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // app/api/events/collect/route.ts
 
 import { pool } from "@/lib/db"

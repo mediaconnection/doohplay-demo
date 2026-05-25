@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // /app/api/risk/evaluate/route.ts
 
 import { NextRequest, NextResponse } from "next/server"

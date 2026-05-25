@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { emitCanonicalEvent } from "@/core/audit/emitCanonicalEvent";
 

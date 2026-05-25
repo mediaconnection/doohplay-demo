@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import "@/app/api/_bootstrap";
 
 import { NextRequest, NextResponse } from "next/server";

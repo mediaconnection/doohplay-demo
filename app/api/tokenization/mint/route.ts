@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { mintMediaToken } from "@/lib/tokenization/mintMediaToken"
 
 export async function POST(req: Request) {

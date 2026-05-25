@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { pool } from "@/lib/db"
 import { generateAlerts, summarizeAlerts } from "@/lib/domain/fraud/alerts"
 

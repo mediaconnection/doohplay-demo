@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { createPairingToken } from "@/core/players/pairingService";
 
@@ -15,3 +16,4 @@ export async function POST(req: Request) {
     expires_at: pairing.expires_at
   });
 }
+
