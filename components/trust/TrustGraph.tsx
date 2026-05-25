@@ -384,9 +384,9 @@ export default function TrustGraph({
       .data(simulationEdges)
       .enter()
       .append("line")
-      .attr("stroke", (d) => getEdgeColor(d.weight))
-      .attr("stroke-opacity", (d) => getEdgeOpacity(d.weight))
-      .attr("stroke-width", (d) => getEdgeStrokeWidth(d.weight))
+      .attr("stroke", (d: ForceEdge) => getEdgeColor(d.weight))
+      .attr("stroke-opacity", (d: ForceEdge) => getEdgeOpacity(d.weight))
+      .attr("stroke-width", (d: ForceEdge) => getEdgeStrokeWidth(d.weight))
 
     const nodeSelection = nodeLayer
       .selectAll<SVGCircleElement, ForceNode>("circle")
@@ -489,7 +489,7 @@ export default function TrustGraph({
 
         edgeSelection
           .attr("opacity", (d) => getEdgeOpacity(d.weight))
-          .attr("stroke-width", (d) => getEdgeStrokeWidth(d.weight))
+          .attr("stroke-width", (d: ForceEdge) => getEdgeStrokeWidth(d.weight))
 
         labelSelection.attr("opacity", 1)
         return
