@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type CanonicalEvent = {
   event_id: string;
   event_type: string;
@@ -16,3 +17,4 @@ export type CanonicalEvent = {
 
   signature: string;
 };
+

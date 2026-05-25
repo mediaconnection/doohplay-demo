@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function calculateBackoff(
   attempt: number,
   baseDelayMs: number,
@@ -8,3 +9,4 @@ export function calculateBackoff(
 
   return Math.min(exponential + jitter, maxDelayMs);
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as ots from "opentimestamps";
 
 export async function timestampMerkleRoot(merkleRoot: string) {

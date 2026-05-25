@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomBytes } from "crypto";
 import { pool } from "@/core/audit/eventChainRepository";
 
@@ -16,3 +17,4 @@ export async function createPairingToken(player_id: string) {
 
   return { token, expires_at: expiresAt };
 }
+

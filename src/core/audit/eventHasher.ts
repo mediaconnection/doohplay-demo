@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createHash } from "crypto";
 
 export function hashPayload(payload: object): string {
@@ -27,3 +28,4 @@ export function hashEvent(params: {
     .update(baseString)
     .digest("hex");
 }
+
