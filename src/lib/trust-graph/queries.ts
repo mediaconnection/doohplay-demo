@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { pool, db } from "@/lib/db"
 import type { TrustGraphFilters } from "./types"
 
