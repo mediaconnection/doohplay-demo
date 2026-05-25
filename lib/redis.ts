@@ -1,9 +1,20 @@
 // @ts-nocheck
-// lib/redis.ts
 import Redis from "ioredis"
 
-export const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379")
+let _redis: Redis | null = null
 
-redis.on("error", (err) => {
-  console.warn("[Redis] error (non-fatal):", err.message)
+export function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379")
+    _redis.on("error", (err) => {
+      console.warn("[Redis] error (non-fatal):", err.message)
+    })
+  }
+  return _redis
+}
+
+export const redis = new Proxy({} as Redis, {
+  get(_, prop) {
+    return (getRedis() as any)[prop]
+  }
 })
