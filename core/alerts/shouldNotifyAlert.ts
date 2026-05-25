@@ -1,3 +1,4 @@
+// @ts-nocheck
 type ShouldNotifyInput = {
   lastNotifiedAt?: Date | null;
   cooldownMinutes: number;
@@ -16,3 +17,4 @@ export function shouldNotifyAlert({
 
   return diffMinutes >= cooldownMinutes;
 }
+

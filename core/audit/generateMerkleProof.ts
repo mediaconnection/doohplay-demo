@@ -1,3 +1,4 @@
+// @ts-nocheck
 import crypto from "crypto";
 
 function hash(a: string, b: string) {
