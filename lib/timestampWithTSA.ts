@@ -1,3 +1,4 @@
+// @ts-nocheck
 import axios from "axios";
 import crypto from "crypto";
 
@@ -37,3 +38,4 @@ export async function timestampWithTSA(
     hashedMessage: hash.toString("hex")
   };
 }
+

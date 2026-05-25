@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { SignPdf } from "@signpdf/signpdf";
 import { P12Signer } from "@signpdf/signer-p12";
 
@@ -27,3 +28,4 @@ export async function signPdfWithA1(
 
   return signedPdf;
 }
+

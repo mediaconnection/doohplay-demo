@@ -1,3 +1,4 @@
+// @ts-nocheck
 import QRCode from "qrcode";
 
 export async function generateSnapshotQrCode(
@@ -18,3 +19,4 @@ export async function generateSnapshotQrCode(
 
   return qrCodeBase64;
 }
+

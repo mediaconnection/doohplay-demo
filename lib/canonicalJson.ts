@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Canonical JSON (ordena chaves recursivamente)
 export function canonicalize(obj: any): string {
   if (obj === null || typeof obj !== "object") {

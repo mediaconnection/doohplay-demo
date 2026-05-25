@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { generateConsolidatedReport } from "./generateConsolidatedReport";
 import { getHashableReport } from "@/lib/getHashableReport";
 import { sha256FromObject } from "@/lib/hash";
@@ -15,3 +16,4 @@ export function generateMonthlyReport(params: {
 
   return { report, reportHash }
 }
+

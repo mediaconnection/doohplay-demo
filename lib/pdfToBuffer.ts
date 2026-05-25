@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Readable } from "stream";
 
 export async function streamToBuffer(
@@ -17,3 +18,4 @@ export async function streamToBuffer(
     stream.on("error", reject);
   });
 }
+

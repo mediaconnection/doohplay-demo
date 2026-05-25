@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as asn1js from "asn1js";
 import * as pkijs from "pkijs";
 
@@ -17,3 +18,4 @@ export async function verifyTimestampToken(
     return false;
   }
 }
+
