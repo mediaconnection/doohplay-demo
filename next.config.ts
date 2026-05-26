@@ -6,8 +6,22 @@ const nextConfig: NextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   serverExternalPackages: ["ioredis", "bullmq", "pg", "pdfkit", "puppeteer"],
-  experimental: { cpus: 1 },
-  webpack(config, { dev }) {
+  experimental: {
+    cpus: 1,
+    isrFlushToDisk: false,
+  },
+  webpack(config, { dev, isServer }) {
+    // Prevent Redis/BullMQ from being bundled client-side
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        fs: false,
+        dns: false,
+      }
+    }
+
     config.resolve.alias = {
       ...config.resolve.alias,
       "@/lib": path.resolve(__dirname, "lib"),
@@ -30,7 +44,12 @@ const nextConfig: NextConfig = {
       "@/workers": path.resolve(__dirname, "workers"),
       "@": path.resolve(__dirname, "src"),
     }
-    if (dev) { config.parallelism = 1; config.cache = false }
+
+    if (dev) {
+      config.parallelism = 1
+      config.cache = false
+    }
+
     return config
   },
 }
