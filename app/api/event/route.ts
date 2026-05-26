@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
@@ -6,7 +6,6 @@ import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
-import { createSignedEventRecord } from "@/lib/domain/proof/createSignedEventRecord"
 
 export const runtime = "nodejs"
 
@@ -53,6 +52,8 @@ function normalizePreviousEventHash(value?: string | null): string | null {
 }
 
 export async function POST(req: NextRequest) {
+    const { createSignedEventRecord } = await import("@/lib/domain/proof/createSignedEventRecord")
+
   const client = await pool.connect()
 
   try {

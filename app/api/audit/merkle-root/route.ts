@@ -1,11 +1,10 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
-import { buildMerkleRoot } from "@/lib/proof/merkle"
 
 export const runtime = "nodejs"
 
@@ -21,6 +20,8 @@ function normalizeHash(value: unknown): string | null {
 }
 
 export async function GET() {
+    const { buildMerkleRoot } = await import("@/lib/proof/merkle")
+
   try {
     const res = await pool.query(
       `

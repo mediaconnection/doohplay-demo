@@ -1,9 +1,8 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
-import { runProofEngine } from "@/lib/proof/engine"
 import { pool } from "@/lib/db"
 
 /* =========================
@@ -19,6 +18,8 @@ type DashboardItem = {
 ========================= */
 
 export async function GET() {
+    const { runProofEngine } = await import("@/lib/proof/engine")
+
   try {
     /* =========================
        BUSCAR EVENTOS RECENTES
