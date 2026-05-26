@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextRequest, NextResponse } from "next/server"
 import { getTrustGraph } from "@/lib/trust-graph/service"
 import type {
@@ -8,7 +12,6 @@ import type {
 } from "@/lib/trust-graph/types"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 const DEFAULT_HOURS = 24

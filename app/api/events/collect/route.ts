@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 // app/api/events/collect/route.ts
 
 import { pool } from "@/lib/db"
@@ -22,3 +25,4 @@ export async function POST(req:Request){
 
   return Response.json({ ok:true, id })
 }
+

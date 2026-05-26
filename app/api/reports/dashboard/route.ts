@@ -1,5 +1,8 @@
-export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
+export const runtime = "nodejs"
 
 import crypto from "crypto"
 import React from "react"
@@ -85,3 +88,4 @@ export async function GET() {
     return Response.json({ error: "Failed to generate PDF" }, { status: 500 })
   }
 }
+

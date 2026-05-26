@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import crypto from "crypto"
 import React from "react"
 import { NextRequest, NextResponse } from "next/server"
@@ -12,7 +16,6 @@ import {
 } from "@/lib/idempotency"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type JsonRecord = Record<string, unknown>
 

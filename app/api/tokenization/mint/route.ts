@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { mintMediaToken } from "@/lib/tokenization/mintMediaToken"
 
 export async function POST(req: Request) {
@@ -18,3 +21,4 @@ export async function POST(req: Request) {
   })
 
 }
+

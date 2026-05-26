@@ -1,8 +1,11 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { logEvent } from "@/lib/logging/logEvent"
 import { LOG_EVENT_TYPES } from "@/lib/logging/logEventTypes"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type ExecutionFinishedBody = {
   campaign_id?: unknown

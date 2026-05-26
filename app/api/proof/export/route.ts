@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import path from "path"
 import * as fs from "fs"
 import { NextResponse } from "next/server"
@@ -6,7 +10,6 @@ import PDFDocument from "pdfkit"
 import QRCode from "qrcode"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type DisplayEventRow = {
   campaign_id?: string | null

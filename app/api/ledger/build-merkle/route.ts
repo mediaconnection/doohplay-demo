@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 import { buildDailyMerkle } from "@/lib/ledger/buildDailyMerkle"
 
@@ -13,3 +16,4 @@ export async function POST(){
   merkle_root: root
  })
 }
+

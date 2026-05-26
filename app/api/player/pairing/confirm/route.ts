@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server";
 import { pool } from "@/core/audit/eventChainRepository";
 import { emitCanonicalEvent } from "@/core/audit/emitCanonicalEvent";
@@ -60,4 +63,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
 

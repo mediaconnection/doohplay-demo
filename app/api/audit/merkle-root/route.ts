@@ -1,10 +1,13 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
 import { buildMerkleRoot } from "@/lib/proof/merkle"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type EventHashRow = {
   event_hash: string | null

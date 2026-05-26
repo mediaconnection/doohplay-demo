@@ -1,8 +1,11 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 export async function GET(req: Request) {
   try {

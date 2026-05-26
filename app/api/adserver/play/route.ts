@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { selectCreative } from "@/lib/adserver/selectCreative"
 
 export async function POST(req: Request) {
@@ -23,3 +26,4 @@ export async function POST(req: Request) {
   })
 
 }
+

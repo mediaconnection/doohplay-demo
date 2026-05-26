@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 // /app/api/proof/verify/route.ts
 
 import { NextRequest, NextResponse } from "next/server"
@@ -65,3 +68,4 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+

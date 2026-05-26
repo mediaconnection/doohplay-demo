@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextRequest } from "next/server"
 import { validateTransaction } from "@/lib/blockchain/validateTx"
 
@@ -57,3 +60,4 @@ export async function GET(req: NextRequest) {
     }
   })
 }
+
