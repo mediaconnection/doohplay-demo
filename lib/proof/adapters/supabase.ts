@@ -24,6 +24,29 @@ type CertificationRow = {
   updated_at?: string | null
 }
 
+type DigitalCertificationRow = {
+  id?: string | null
+  content_hash?: string | null
+  signed_hash?: string | null
+  certificate_serial?: string | null
+  certificate_authority?: string | null
+  timestamp_token?: string | null
+  issued_at?: string | null
+  expires_at?: string | null
+  proof_url?: string | null
+  immutable?: boolean | null
+  is_public?: boolean | null
+  event?: {
+    event_id?: string | null
+    event_type?: string | null
+    occurred_at?: string | null
+    payload?: unknown
+    actor?: unknown
+    context?: unknown
+    schema_version?: string | null
+  } | null
+}
+
 type LedgerEventRow = {
   event_id: string
   event_hash: string
@@ -148,6 +171,39 @@ function mapCertification(row: CertificationRow): CertificationRecord | null {
   }
 }
 
+// Mapeia digital_certifications (schema diferente — entity_id está dentro do campo event jsonb)
+function mapDigitalCertification(
+  row: DigitalCertificationRow
+): CertificationRecord | null {
+  const contentHash = normalizeHash(row.content_hash)
+  if (!contentHash || !isHex64(contentHash)) return null
+
+  // entity_id e entity_type estão dentro do campo event jsonb
+  const eventData = row.event ?? {}
+  const entityId =
+    normalizeString(eventData.event_id) ??
+    normalizeString(row.id) // fallback para o id da certificação
+
+  const entityType: EntityType = "event" // digital_certifications são sempre eventos
+
+  if (!entityId) return null
+
+  return {
+    id: normalizeString(row.id) ?? undefined,
+    content_hash: contentHash,
+    entity_id: entityId,
+    entity_type: entityType,
+    merkle_root: null,
+    merkle_proof: null,
+    blockchain_tx: null,
+    tx_hash: null,
+    signature: normalizeString(row.signed_hash),
+    certificate_url: normalizeString(row.proof_url),
+    created_at: normalizeString(row.issued_at) ?? undefined,
+    updated_at: normalizeString(row.issued_at) ?? undefined
+  }
+}
+
 async function getLedgerEventCertification(
   hash: string,
   entityId?: string
@@ -260,6 +316,7 @@ async function getCertificationByHashFromSupabase(
   if (!normalizedHash || !isHex64(normalizedHash)) return null
 
   try {
+    // 1. Busca primeiro na tabela certifications (schema original)
     const query = supabaseAdmin
       .from("certifications")
       .select(`
@@ -287,13 +344,40 @@ async function getCertificationByHashFromSupabase(
       .order("created_at", { ascending: false })
       .limit(20)
 
-    if (error || !Array.isArray(data) || data.length === 0) return null
+    if (!error && Array.isArray(data) && data.length > 0) {
+      for (const row of data) {
+        if (!isCertificationRow(row)) continue
+        const mapped = mapCertification(row)
+        if (mapped) return mapped
+      }
+    }
 
-    for (const row of data) {
-      if (!isCertificationRow(row)) continue
+    // 2. Fallback: busca em digital_certifications (schema novo, entity_id dentro do jsonb event)
+    const { data: digitalData, error: digitalError } = await supabaseAdmin
+      .from("digital_certifications")
+      .select(`
+        id,
+        content_hash,
+        signed_hash,
+        certificate_serial,
+        certificate_authority,
+        timestamp_token,
+        issued_at,
+        expires_at,
+        proof_url,
+        immutable,
+        is_public,
+        event
+      `)
+      .eq("content_hash", normalizedHash)
+      .eq("is_public", true)
+      .limit(5)
 
-      const mapped = mapCertification(row)
-      if (mapped) return mapped
+    if (!digitalError && Array.isArray(digitalData) && digitalData.length > 0) {
+      for (const row of digitalData) {
+        const mapped = mapDigitalCertification(row as DigitalCertificationRow)
+        if (mapped) return mapped
+      }
     }
 
     return null
