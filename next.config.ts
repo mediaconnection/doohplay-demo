@@ -3,15 +3,10 @@ import path from "path"
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  experimental: {
-    cpus: 1,
-  },
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+  serverExternalPackages: ["ioredis", "bullmq", "pg", "pdfkit", "puppeteer"],
+  experimental: { cpus: 1 },
   webpack(config, { dev }) {
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -35,10 +30,7 @@ const nextConfig: NextConfig = {
       "@/workers": path.resolve(__dirname, "workers"),
       "@": path.resolve(__dirname, "src"),
     }
-    if (dev) {
-      config.parallelism = 1
-      config.cache = false
-    }
+    if (dev) { config.parallelism = 1; config.cache = false }
     return config
   },
 }
