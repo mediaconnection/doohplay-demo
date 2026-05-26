@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Pool } from "pg"
 
 let _pool: Pool | null = null
@@ -13,8 +12,14 @@ export function getPool(): Pool {
   return _pool
 }
 
+// Proxy com .bind() — garante que o `this` correto é preservado nos métodos
 export const pool = new Proxy({} as Pool, {
   get(_, prop) {
-    return (getPool() as any)[prop]
-  }
+    const client = getPool()
+    const value = client[prop as keyof Pool]
+    return typeof value === "function" ? (value as Function).bind(client) : value
+  },
 })
+
+// Alias para compatibilidade com imports existentes: import { db } from "@/lib/db"
+export const db = pool
