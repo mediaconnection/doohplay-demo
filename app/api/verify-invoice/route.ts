@@ -1,16 +1,17 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { supabase } from "@/lib/supabase";
 
 /**
  * POST /api/verify-invoice
  * Validação pública de fatura (A1 + TSA)
  */
 export async function POST(req: NextRequest) {
+    const { supabase } = await import("@/lib/supabase")
+
   try {
     const { invoice_id, hash } = await req.json();
 

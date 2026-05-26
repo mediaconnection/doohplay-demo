@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { pool } from "@/lib/db"
 import crypto from "crypto"
 
 export async function POST(req: Request) {
+    const { pool } = await import("@/lib/db")
+
 
   const body = await req.json()
 

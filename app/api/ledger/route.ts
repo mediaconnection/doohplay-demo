@@ -1,9 +1,8 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -14,6 +13,8 @@ type LedgerRow = {
 }
 
 export async function GET(_req: NextRequest) {
+    const { pool } = await import("@/lib/db")
+
   try {
     const result = await pool.query(
       `

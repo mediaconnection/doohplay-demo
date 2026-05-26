@@ -5,7 +5,6 @@ export const revalidate = 0
 import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -52,6 +51,8 @@ function normalizePreviousEventHash(value?: string | null): string | null {
 }
 
 export async function POST(req: NextRequest) {
+    const { pool } = await import("@/lib/db")
+
     const { createSignedEventRecord } = await import("@/lib/domain/proof/createSignedEventRecord")
 
   const client = await pool.connect()

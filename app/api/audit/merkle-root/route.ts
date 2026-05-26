@@ -4,7 +4,6 @@ export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -20,6 +19,8 @@ function normalizeHash(value: unknown): string | null {
 }
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+
     const { buildMerkleRoot } = await import("@/lib/proof/merkle")
 
   try {

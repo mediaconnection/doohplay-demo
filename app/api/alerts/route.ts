@@ -1,10 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -71,6 +70,8 @@ function normalizeAlert(row: AlertRow) {
 }
 
 export async function GET(req: NextRequest) {
+    const { pool } = await import("@/lib/db")
+
   try {
     const { searchParams } = new URL(req.url)
 

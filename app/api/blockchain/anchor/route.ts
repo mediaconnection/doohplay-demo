@@ -1,11 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
-import { anchorMerkleRoot } from "@/lib/blockchain/anchor"
 
 export const runtime = "nodejs"
 
@@ -119,6 +117,9 @@ async function saveAnchorResult(result: AnchorResult): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+    const { pool } = await import("@/lib/db")
+    const { anchorMerkleRoot } = await import("@/lib/blockchain/anchor")
+
   try {
     if (!isAuthorized(req)) {
       return NextResponse.json(

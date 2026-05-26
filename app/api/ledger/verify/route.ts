@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { pool } from "@/lib/db";
-import { verifyLedgerChain } from "@/lib/crypto/ledgerVerify";
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+    const { verifyLedgerChain } = await import("@/lib/crypto/ledgerVerify")
+
 
   const res = await pool.query(`
     SELECT *

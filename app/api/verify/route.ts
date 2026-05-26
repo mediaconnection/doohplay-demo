@@ -1,10 +1,8 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
-import { pool } from "@/lib/db"
-import { analyzeTrustNetwork } from "@/lib/trust-graph/analyzeTrustNetwork"
 import type {
   GraphEdge,
   GraphNode,
@@ -138,6 +136,9 @@ function buildGraphEdges(rows: EdgeRow[]): GraphEdge[] {
 }
 
 export async function GET(req: NextRequest) {
+    const { pool } = await import("@/lib/db")
+    const { analyzeTrustNetwork } = await import("@/lib/trust-graph/analyzeTrustNetwork")
+
   try {
     const { searchParams } = new URL(req.url)
 

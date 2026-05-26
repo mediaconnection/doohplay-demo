@@ -3,7 +3,6 @@ export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
-import { pool } from "@/lib/db"
 
 /* =========================
    TYPES
@@ -18,6 +17,8 @@ type DashboardItem = {
 ========================= */
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+
     const { runProofEngine } = await import("@/lib/proof/engine")
 
   try {
