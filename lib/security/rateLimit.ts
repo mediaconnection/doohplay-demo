@@ -1,6 +1,6 @@
-// @ts-nocheck
+// lib/security/rateLimit.ts
 import type { NextRequest } from "next/server"
-import Redis from "ioredis"
+import type { Redis as RedisType } from "ioredis"
 
 export const runtime = "nodejs"
 
@@ -13,19 +13,19 @@ export type RateLimitResult = {
 const WINDOW_SECONDS = Number(process.env.VERIFY_RATE_LIMIT_WINDOW_SECONDS ?? 60)
 const LIMIT = Number(process.env.VERIFY_RATE_LIMIT ?? 30)
 
-const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379"
+let redis: RedisType | null = null
 
-let redis: Redis | null = null
-
-function getRedis(): Redis {
+function getRedis(): RedisType {
   if (!redis) {
+    const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379"
+    // import dinâmico via require para evitar top-level module evaluation
+    const Redis = require("ioredis")
     redis = new Redis(REDIS_URL, {
       maxRetriesPerRequest: 2,
-      enableReadyCheck: true,
-      lazyConnect: false
-    })
+      enableReadyCheck: false, // ← false evita conexão eagerly no require()
+      lazyConnect: true,       // ← só conecta quando o primeiro comando rodar
+    }) as RedisType
   }
-
   return redis
 }
 
@@ -41,7 +41,6 @@ function normalizeKey(input: string | NextRequest): string {
   if (typeof input === "string") {
     return input.trim() || "unknown"
   }
-
   return getIpFromRequest(input)
 }
 
@@ -55,6 +54,11 @@ export async function rateLimit(
   try {
     const client = getRedis()
 
+    // Com lazyConnect: true, garantimos que está conectado antes do primeiro comando
+    if (client.status === "wait") {
+      await client.connect()
+    }
+
     const count = await client.incr(key)
 
     if (count === 1) {
@@ -67,17 +71,17 @@ export async function rateLimit(
     return {
       allowed: count <= LIMIT,
       remaining: Math.max(0, LIMIT - count),
-      reset: resetAt
+      reset: resetAt,
     }
   } catch (error) {
     console.warn("RATE_LIMIT_REDIS_ERROR", {
-      error: error instanceof Error ? error.message : "UNKNOWN_ERROR"
+      error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
     })
-
+    // Fail open: se Redis cair, não bloqueia o usuário
     return {
       allowed: true,
       remaining: LIMIT,
-      reset
+      reset,
     }
   }
 }

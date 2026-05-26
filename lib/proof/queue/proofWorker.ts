@@ -1,276 +1,112 @@
-// @ts-nocheck
 import { Worker, type Job } from "bullmq"
-
-import { redis } from "../cache/redis"
-import {
-  buildProofCacheKey,
-  setCachedProof
-} from "../cache/proofCache"
+import { getRedis } from "@/lib/redis"
 import { runProofEngine } from "../engine"
-import { buildExplanation } from "../explanation"
-import {
-  computeScore,
-  getTrustLevel,
-  getVerificationStatus
-} from "../score"
-import type {
-  EntityType,
-  FailureReason,
-  LayerResult,
-  ProofInput,
-  ProofResultLike,
-  TrustLevel,
-  VerificationStatus
-} from "../types"
+import { setCachedProof } from "../cache/proofCache"
+import { log } from "@/lib/observability/logger"
+import { increment, observe } from "@/lib/observability/metrics"
 
 /* =========================
-   CONFIG
+   TYPES
 ========================= */
 
-const WORKER_NAME = "proof-queue"
-const WORKER_CONCURRENCY = 5
-
-const VALID_FAILURE_REASONS: readonly FailureReason[] = [
-  "ICP_FAIL",
-  "MERKLE_FAIL",
-  "BLOCKCHAIN_FAIL",
-  "INVALID_SIGNATURE",
-  "CHAIN_INVALID",
-  "CERT_REVOKED",
-  "CERT_EXPIRED",
-  "HASH_MISMATCH",
-  "PROOF_NOT_FOUND",
-  "INVALID_INPUT",
-  "INVALID_MERKLE_ROOT",
-  "INVALID_MERKLE_PROOF",
-  "INVALID_BLOCKCHAIN_TX",
-  "RPC_UNAVAILABLE",
-  "LAYER_TIMEOUT"
-]
-
-const ALLOWED_ENTITY_TYPES: readonly EntityType[] = [
-  "event",
-  "campaign",
-  "block"
-]
+type ProofJobData = {
+  input: Record<string, unknown>
+  traceId?: string
+}
 
 /* =========================
-   HELPERS
+   VALIDATION
 ========================= */
 
-function isFailureReason(value: unknown): value is FailureReason {
+function isValidJob(data: unknown): data is ProofJobData {
   return (
-    typeof value === "string" &&
-    (VALID_FAILURE_REASONS as readonly string[]).includes(value)
+    data !== null &&
+    typeof data === "object" &&
+    "input" in data &&
+    (data as ProofJobData).input !== undefined
   )
 }
 
-function isEntityType(value: unknown): value is EntityType {
-  return (
-    typeof value === "string" &&
-    (ALLOWED_ENTITY_TYPES as readonly string[]).includes(value)
-  )
-}
+/* =========================
+   WORKER (lazy)
+========================= */
 
-function normalizeHash(value: string): string {
-  return value.trim().toLowerCase().replace(/^0x/, "")
-}
+let _proofWorker: Worker | null = null
 
-function isValidHash(value: string): boolean {
-  return /^[a-f0-9]{64}$/i.test(normalizeHash(value))
-}
+export function getProofWorker(): Worker {
+  if (!_proofWorker) {
+    _proofWorker = new Worker(
+      "proof-queue",
+      async (job: Job<ProofJobData>) => {
+        const start = Date.now()
+        const traceId = job.data?.traceId ?? `proof-${job.id}`
 
-function isValidProofInput(input: unknown): input is ProofInput {
-  if (!input || typeof input !== "object") {
-    return false
-  }
+        log("PROOF_JOB_START", { traceId, jobId: job.id })
 
-  const candidate = input as Partial<ProofInput>
+        try {
+          if (!isValidJob(job.data)) {
+            throw new Error("Invalid proof job payload")
+          }
 
-  return (
-    typeof candidate.hash === "string" &&
-    candidate.hash.trim().length > 0 &&
-    isValidHash(candidate.hash) &&
-    typeof candidate.entity_id === "string" &&
-    candidate.entity_id.trim().length > 0 &&
-    isEntityType(candidate.entity_type)
-  )
-}
+          const { input } = job.data
 
-function normalizeProofInput(input: ProofInput): ProofInput {
-  return {
-    hash: normalizeHash(input.hash),
-    entity_id: String(input.entity_id).trim(),
-    entity_type: input.entity_type,
-    payload: input.payload
-  }
-}
+          increment("proof_jobs_started")
 
-function normalizeLayers(layers: unknown): LayerResult[] {
-  if (!Array.isArray(layers)) return []
+          const result = await runProofEngine(input)
 
-  return layers.filter(
-    (layer): layer is LayerResult =>
-      !!layer &&
-      typeof layer === "object" &&
-      typeof (layer as LayerResult).name === "string" &&
-      typeof (layer as LayerResult).valid === "boolean"
-  )
-}
+          await setCachedProof(input, result)
 
-function normalizeReasons(reasons: unknown): FailureReason[] {
-  if (!Array.isArray(reasons)) return []
+          increment("proof_jobs_success")
+          log("PROOF_JOB_SUCCESS", { traceId, jobId: job.id })
 
-  return [
-    ...new Set(
-      reasons
-        .filter(isFailureReason)
-        .map((reason) => reason.trim() as FailureReason)
+          return result
+        } catch (err: unknown) {
+          const error = err instanceof Error ? err : new Error(String(err))
+
+          increment("proof_jobs_failed")
+          log("PROOF_JOB_ERROR", {
+            traceId,
+            jobId: job.id,
+            error: error.message,
+            stack: error.stack,
+          })
+
+          throw err
+        } finally {
+          observe("proof_job_duration_ms", Date.now() - start)
+        }
+      },
+      {
+        connection: getRedis(),
+        concurrency: 5,
+        limiter: {
+          max: 50,
+          duration: 1000,
+        },
+      }
     )
-  ]
-}
 
-function inferValidFromStatus(status: VerificationStatus): boolean {
-  return status !== "FAILED"
-}
-
-function enrichProofResult(result: ProofResultLike): ProofResultLike {
-  const layers = normalizeLayers(result.layers)
-  const reasons = normalizeReasons(result.reasons)
-
-  const score =
-    typeof result.score === "number" && Number.isFinite(result.score)
-      ? result.score
-      : computeScore(layers, reasons)
-
-  const status: VerificationStatus =
-    result.status === "VERIFIED" ||
-    result.status === "WARNING" ||
-    result.status === "FAILED"
-      ? result.status
-      : getVerificationStatus(score)
-
-  const valid =
-    typeof result.valid === "boolean"
-      ? result.valid
-      : inferValidFromStatus(status)
-
-  const trust: TrustLevel =
-    result.trust === "HIGH" ||
-    result.trust === "MEDIUM" ||
-    result.trust === "LOW"
-      ? result.trust
-      : getTrustLevel(score)
-
-  const explanation =
-    result.explanation ??
-    buildExplanation({
-      status,
-      score,
-      reasons,
-      layers
+    _proofWorker.on("completed", (job) => {
+      log("PROOF_JOB_COMPLETED", { jobId: job.id })
     })
 
-  return {
-    ...result,
-    valid,
-    layers,
-    reasons,
-    score,
-    trust,
-    status,
-    explanation
+    _proofWorker.on("failed", (job, err) => {
+      log("PROOF_JOB_FAILED", { jobId: job?.id, error: err.message })
+    })
+
+    _proofWorker.on("error", (err) => {
+      console.error("PROOF_WORKER_ERROR:", err)
+    })
   }
+
+  return _proofWorker
 }
 
-function sanitizeJobDataForLog(data: unknown): Record<string, unknown> | null {
-  if (!data || typeof data !== "object") {
-    return null
-  }
-
-  const candidate = data as Partial<ProofInput>
-
-  return {
-    hash: typeof candidate.hash === "string" ? normalizeHash(candidate.hash) : null,
-    entity_id:
-      typeof candidate.entity_id === "string" ? candidate.entity_id.trim() : null,
-    entity_type: isEntityType(candidate.entity_type) ? candidate.entity_type : null
-  }
-}
-
-/* =========================
-   WORKER
-========================= */
-
-async function processProofJob(job: Job<ProofInput>) {
-  const startedAt = Date.now()
-
-  if (!isValidProofInput(job.data)) {
-    throw new Error("INVALID_QUEUE_JOB_INPUT")
-  }
-
-  const input = normalizeProofInput(job.data)
-
-  const result = await runProofEngine(input)
-  const enriched = enrichProofResult(result)
-
-  const cacheKey = buildProofCacheKey({
-    hash: input.hash,
-    entity_id: input.entity_id,
-    entity_type: input.entity_type
-  })
-
-  await setCachedProof(cacheKey, enriched)
-
-  return {
-    ok: true,
-    cache_key: cacheKey,
-    entity_id: input.entity_id,
-    entity_type: input.entity_type,
-    hash: input.hash,
-    status: enriched.status ?? "FAILED",
-    score:
-      typeof enriched.score === "number" && Number.isFinite(enriched.score)
-        ? enriched.score
-        : 0,
-    execution_ms: Date.now() - startedAt
-  }
-}
-
-export const proofWorker = new Worker<ProofInput>(
-  WORKER_NAME,
-  async (job) => {
-    return processProofJob(job)
+// Proxy para compatibilidade com imports existentes
+export const proofWorker = new Proxy({} as Worker, {
+  get(_, prop) {
+    const w = getProofWorker()
+    const value = w[prop as keyof Worker]
+    return typeof value === "function" ? (value as Function).bind(w) : value
   },
-  {
-    connection: redis,
-    concurrency: WORKER_CONCURRENCY
-  }
-)
-
-/* =========================
-   EVENTS
-========================= */
-
-proofWorker.on("completed", (job, result) => {
-  console.log("PROOF_WORKER_COMPLETED", {
-    jobId: job.id,
-    name: job.name,
-    result
-  })
-})
-
-proofWorker.on("failed", (job, error) => {
-  console.error("PROOF_WORKER_FAILED", {
-    jobId: job?.id,
-    name: job?.name,
-    data: sanitizeJobDataForLog(job?.data),
-    error: error instanceof Error ? error.message : "UNKNOWN_ERROR"
-  })
-})
-
-proofWorker.on("error", (error) => {
-  console.error("PROOF_WORKER_ERROR", {
-    error: error instanceof Error ? error.message : "UNKNOWN_ERROR"
-  })
 })

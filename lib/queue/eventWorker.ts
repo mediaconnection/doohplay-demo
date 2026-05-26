@@ -1,27 +1,35 @@
-// @ts-nocheck
 import { Worker } from "bullmq"
-import { connection } from "./connection"
+import { getRedis } from "@/lib/redis"
 import { writeEvent } from "@/lib/ledger/writeEvent"
 
-export const eventWorker = new Worker(
-  "event-queue",
+let _eventWorker: Worker | null = null
 
-  async (job) => {
-
-    if (job.name === "write-event") {
-
-      console.log("⚡ Processing event:", job.id)
-
-      await writeEvent({
-        payload: job.data.payload
-      })
-
-    }
-
-  },
-
-  {
-    connection,
-    concurrency: 5
+export function getEventWorker(): Worker {
+  if (!_eventWorker) {
+    _eventWorker = new Worker(
+      "event-queue",
+      async (job) => {
+        if (job.name === "write-event") {
+          console.log("⚡ Processing event:", job.id)
+          await writeEvent({
+            payload: job.data.payload,
+          })
+        }
+      },
+      {
+        connection: getRedis(),
+        concurrency: 5,
+      }
+    )
   }
-)
+  return _eventWorker
+}
+
+// Proxy para compatibilidade com imports existentes
+export const eventWorker = new Proxy({} as Worker, {
+  get(_, prop) {
+    const w = getEventWorker()
+    const value = w[prop as keyof Worker]
+    return typeof value === "function" ? (value as Function).bind(w) : value
+  },
+})

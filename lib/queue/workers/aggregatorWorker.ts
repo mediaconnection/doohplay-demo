@@ -1,33 +1,31 @@
-// @ts-nocheck
-import { Queue, Worker } from "bullmq"
-import { connection } from "../connection"
-import { runProofChainAggregator } from "@/lib/proof/aggregator/proofChainAggregator"
+import { Queue } from "bullmq"
+import { getRedis } from "@/lib/redis"
 
-const QUEUE_NAME = "proofchain-aggregator"
-const REPEAT_EVERY_MS = 5 * 60 * 1000 // 5 minutes
+let _riskQueue: Queue | null = null
 
-export const aggregatorQueue = new Queue(QUEUE_NAME, { connection })
-
-export const aggregatorWorker = new Worker(
-  QUEUE_NAME,
-  async (job) => {
-    console.log(`[proofchain] Job ${job.id} started`)
-    const result = await runProofChainAggregator()
-    console.log("[proofchain] Done:", result)
-    return result
-  },
-  { connection, concurrency: 1 }
-)
-
-export async function scheduleAggregatorJob(): Promise<void> {
-  await aggregatorQueue.add(
-    "aggregate",
-    {},
-    {
-      repeat: { every: REPEAT_EVERY_MS },
-      jobId: "proofchain-aggregator-repeat",
-    }
-  )
-  console.log(`[proofchain] Scheduled repeat job every ${REPEAT_EVERY_MS / 1000}s`)
+export function getRiskQueue(): Queue {
+  if (!_riskQueue) {
+    _riskQueue = new Queue("risk-processing", {
+      connection: getRedis(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    })
+  }
+  return _riskQueue
 }
 
+// Proxy para compatibilidade com imports existentes
+export const riskQueue = new Proxy({} as Queue, {
+  get(_, prop) {
+    const q = getRiskQueue()
+    const value = q[prop as keyof Queue]
+    return typeof value === "function" ? (value as Function).bind(q) : value
+  },
+})

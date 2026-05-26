@@ -1,56 +1,72 @@
-// @ts-nocheck
-import { Worker, Job } from "bullmq"
-import { connection } from "../connection"
+import { Queue, Worker } from "bullmq"
+import { getRedis } from "@/lib/redis"
+import { runProofChainAggregator } from "@/lib/proof/aggregator/proofChainAggregator"
 
-import { shouldSendAlerts } from "@/lib/domain/alerts/shouldSendAlert"
-import { saveAlerts } from "@/lib/domain/alerts/saveAlerts"
-import { sendSlackAlert } from "@/lib/integrations/slack/sendAlert"
-import { formatAlertMessage } from "@/lib/domain/alerts/formatAlertMessage"
+const QUEUE_NAME = "proofchain-aggregator"
+const REPEAT_EVERY_MS = 5 * 60 * 1000 // 5 minutes
 
-type JobData = {
-  campaignId: string
-  alerts: any[]
+// ─── Queue ───────────────────────────────────────────────────────────────────
+
+let _aggregatorQueue: Queue | null = null
+
+export function getAggregatorQueue(): Queue {
+  if (!_aggregatorQueue) {
+    _aggregatorQueue = new Queue(QUEUE_NAME, {
+      connection: getRedis(),
+    })
+  }
+  return _aggregatorQueue
 }
 
-export const alertWorker = new Worker(
-  "alerts",
-  async (job: Job<JobData>) => {
-    const { campaignId, alerts } = job.data
-
-    if (!alerts?.length) return
-
-    const newAlerts = await shouldSendAlerts(
-      campaignId,
-      alerts
-    )
-
-    if (newAlerts.length === 0) return
-
-    await saveAlerts(campaignId, newAlerts)
-
-    const message = formatAlertMessage(
-      campaignId,
-      newAlerts
-    )
-
-    await sendSlackAlert(message)
-
-    console.log("✅ Alerts processed:", {
-      campaignId,
-      count: newAlerts.length
-    })
+export const aggregatorQueue = new Proxy({} as Queue, {
+  get(_, prop) {
+    const q = getAggregatorQueue()
+    const value = q[prop as keyof Queue]
+    return typeof value === "function" ? (value as Function).bind(q) : value
   },
-  {
-    connection,
-    concurrency: 5, // 🔥 escala
+})
+
+// ─── Worker ──────────────────────────────────────────────────────────────────
+
+let _aggregatorWorker: Worker | null = null
+
+export function getAggregatorWorker(): Worker {
+  if (!_aggregatorWorker) {
+    _aggregatorWorker = new Worker(
+      QUEUE_NAME,
+      async (job) => {
+        console.log(`[proofchain] Job ${job.id} started`)
+        const result = await runProofChainAggregator()
+        console.log("[proofchain] Done:", result)
+        return result
+      },
+      {
+        connection: getRedis(),
+        concurrency: 1,
+      }
+    )
   }
-)
+  return _aggregatorWorker
+}
 
-// 🔴 logs úteis
-alertWorker.on("failed", (job, err) => {
-  console.error("❌ Job failed:", job?.id, err)
+export const aggregatorWorker = new Proxy({} as Worker, {
+  get(_, prop) {
+    const w = getAggregatorWorker()
+    const value = w[prop as keyof Worker]
+    return typeof value === "function" ? (value as Function).bind(w) : value
+  },
 })
 
-alertWorker.on("completed", job => {
-  console.log("🎉 Job done:", job.id)
-})
+// ─── Scheduler ───────────────────────────────────────────────────────────────
+
+export async function scheduleAggregatorJob(): Promise<void> {
+  await getAggregatorQueue().add(
+    "aggregate",
+    {},
+    {
+      repeat: { every: REPEAT_EVERY_MS },
+      jobId: "proofchain-aggregator-repeat",
+    }
+  )
+  console.log(`[proofchain] Scheduled repeat job every ${REPEAT_EVERY_MS / 1000}s`)
+}

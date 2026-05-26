@@ -1,39 +1,55 @@
-// @ts-nocheck
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
-/* =========================
-   HELPERS
-========================= */
+// ─── Cliente público (anon key) ───────────────────────────────────────────────
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name]?.trim()
+let _supabase: SupabaseClient | null = null
 
-  if (!value) {
-    throw new Error(`${name}_NOT_CONFIGURED`)
+export function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   }
-
-  return value
+  return _supabase
 }
 
-/* =========================
-   CONFIG
-========================= */
+// ─── Cliente server-side (service role) ──────────────────────────────────────
 
-const SUPABASE_URL = getRequiredEnv("SUPABASE_URL")
-const SUPABASE_SERVICE_ROLE_KEY = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY")
+let _supabaseServer: SupabaseClient | null = null
 
-/* =========================
-   CLIENT
-========================= */
-
-export const supabaseAdmin = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
-    }
+export function getSupabaseServer(): SupabaseClient {
+  if (!_supabaseServer) {
+    _supabaseServer = createClient(
+      process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      }
+    )
   }
-)
+  return _supabaseServer
+}
+
+// ─── Proxies para compatibilidade com imports existentes ─────────────────────
+// Permitem continuar usando `supabase.from(...)` sem alterar todos os arquivos.
+
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    const client = getSupabase()
+    const value = client[prop as keyof SupabaseClient]
+    return typeof value === "function" ? value.bind(client) : value
+  },
+})
+
+export const supabaseServer = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    const client = getSupabaseServer()
+    const value = client[prop as keyof SupabaseClient]
+    return typeof value === "function" ? value.bind(client) : value
+  },
+})

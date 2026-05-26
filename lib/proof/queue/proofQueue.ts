@@ -1,9 +1,7 @@
-// @ts-nocheck
 import { createHash } from "crypto"
 import { Queue } from "bullmq"
-
 import type { EntityType, ProofInput } from "../types"
-import { redis } from "../cache/redis"
+import { getRedis } from "@/lib/redis"
 
 /* =========================
    TYPES
@@ -23,29 +21,44 @@ const JOB_BACKOFF_DELAY_MS = 2_000
 const REMOVE_ON_COMPLETE_COUNT = 100
 const REMOVE_ON_FAIL_COUNT = 500
 
-const ALLOWED_ENTITY_TYPES: readonly EntityType[] = [
-  "event",
-  "campaign",
-  "block"
-]
+const ALLOWED_ENTITY_TYPES: readonly EntityType[] = ["event", "campaign", "block"]
 
 /* =========================
-   QUEUE
+   QUEUE (lazy)
 ========================= */
 
-export const proofQueue = new Queue<ProofQueuePayload, void, ProofQueueJobName>(
-  QUEUE_NAME,
+let _proofQueue: Queue<ProofQueuePayload, void, ProofQueueJobName> | null = null
+
+export function getProofQueue(): Queue<ProofQueuePayload, void, ProofQueueJobName> {
+  if (!_proofQueue) {
+    _proofQueue = new Queue<ProofQueuePayload, void, ProofQueueJobName>(
+      QUEUE_NAME,
+      {
+        connection: getRedis(),
+        defaultJobOptions: {
+          attempts: JOB_ATTEMPTS,
+          backoff: {
+            type: "exponential",
+            delay: JOB_BACKOFF_DELAY_MS,
+          },
+          removeOnComplete: REMOVE_ON_COMPLETE_COUNT,
+          removeOnFail: REMOVE_ON_FAIL_COUNT,
+        },
+      }
+    )
+  }
+  return _proofQueue
+}
+
+// Proxy para compatibilidade com imports existentes
+export const proofQueue = new Proxy(
+  {} as Queue<ProofQueuePayload, void, ProofQueueJobName>,
   {
-    connection: redis,
-    defaultJobOptions: {
-      attempts: JOB_ATTEMPTS,
-      backoff: {
-        type: "exponential",
-        delay: JOB_BACKOFF_DELAY_MS
-      },
-      removeOnComplete: REMOVE_ON_COMPLETE_COUNT,
-      removeOnFail: REMOVE_ON_FAIL_COUNT
-    }
+    get(_, prop) {
+      const q = getProofQueue()
+      const value = q[prop as keyof typeof q]
+      return typeof value === "function" ? (value as Function).bind(q) : value
+    },
   }
 )
 
@@ -73,9 +86,7 @@ function isEntityType(value: unknown): value is EntityType {
 }
 
 function isValidInput(input: unknown): input is ProofInput {
-  if (!input || typeof input !== "object") {
-    return false
-  }
+  if (!input || typeof input !== "object") return false
 
   const candidate = input as Partial<ProofInput>
 
@@ -94,21 +105,18 @@ function normalizeInput(input: ProofInput): ProofInput {
     hash: normalizeHash(input.hash),
     entity_id: normalizeEntityId(input.entity_id),
     entity_type: input.entity_type,
-    payload: input.payload
+    payload: input.payload,
   }
 }
 
 function buildJobId(input: ProofInput): string {
   const normalized = normalizeInput(input)
   const raw = `${normalized.entity_type}:${normalized.entity_id}:${normalized.hash}`
-
   return createHash("sha256").update(raw).digest("hex")
 }
 
 function isDuplicateJobError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false
-  }
+  if (!error || typeof error !== "object") return false
 
   const message =
     "message" in error && typeof error.message === "string"
@@ -135,14 +143,12 @@ export async function enqueueProof(input: unknown): Promise<void> {
   const jobId = buildJobId(normalized)
 
   try {
-    await proofQueue.add("verify", normalized, {
+    await getProofQueue().add("verify", normalized, {
       jobId,
-      priority: JOB_PRIORITY
+      priority: JOB_PRIORITY,
     })
   } catch (error) {
-    if (isDuplicateJobError(error)) {
-      return
-    }
+    if (isDuplicateJobError(error)) return
 
     console.error("QUEUE_ENQUEUE_ERROR", {
       queue: QUEUE_NAME,
@@ -150,7 +156,7 @@ export async function enqueueProof(input: unknown): Promise<void> {
       hash: normalized.hash,
       entity_id: normalized.entity_id,
       entity_type: normalized.entity_type,
-      error: error instanceof Error ? error.message : "UNKNOWN_ERROR"
+      error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
     })
 
     throw error

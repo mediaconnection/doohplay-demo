@@ -1,28 +1,47 @@
-// @ts-nocheck
-import { Worker, Job } from "bullmq"
-import { connection } from "../redis"
+import { Worker, type Job } from "bullmq"
+import { getRedis } from "@/lib/redis"
+import { writeEvent } from "@/lib/ledger/writeEvent"
 
-import { buildCanonicalEvent } from "@/lib/domain/event/canonicalEvent"
-import { appendEventToLedger } from "@/lib/domain/ledger/appendEvent"
-import { buildProof } from "@/lib/domain/proof/buildProof"
+type EventJobData = {
+  payload: Record<string, unknown>
+}
 
-export const eventWorker = new Worker(
-  "event-processing",
-  async (job: Job) => {
-    const { eventId } = job.data
+let _eventWorker: Worker | null = null
 
-    console.log("🔄 Processing event:", eventId)
+export function getEventWorker(): Worker {
+  if (!_eventWorker) {
+    _eventWorker = new Worker(
+      "event-queue",
+      async (job: Job<EventJobData>) => {
+        if (job.name === "write-event") {
+          console.log(`[eventWorker] ⚡ Processing event: ${job.id}`)
+          await writeEvent({ payload: job.data.payload })
+          console.log(`[eventWorker] ✅ Event processed: ${job.id}`)
+        }
+      },
+      {
+        connection: getRedis(),
+        concurrency: 5,
+      }
+    )
 
-    // 1. canonicalização
-    const canonical = await buildCanonicalEvent(eventId)
+    _eventWorker.on("failed", (job, err) => {
+      console.error(`[eventWorker] ❌ Job failed: ${job?.id}`, err)
+    })
 
-    // 2. append no ledger (hash chain)
-    const ledgerEntry = await appendEventToLedger(canonical)
+    _eventWorker.on("completed", (job) => {
+      console.log(`[eventWorker] 🎉 Job done: ${job.id}`)
+    })
+  }
 
-    // 3. gerar prova criptográfica
-    await buildProof(ledgerEntry)
+  return _eventWorker
+}
 
-    return { success: true }
+// Proxy para compatibilidade com imports existentes
+export const eventWorker = new Proxy({} as Worker, {
+  get(_, prop) {
+    const w = getEventWorker()
+    const value = w[prop as keyof Worker]
+    return typeof value === "function" ? (value as Function).bind(w) : value
   },
-  { connection }
-)
+})
