@@ -12,7 +12,6 @@ import type {
 } from "@/lib/trust-graph/types"
 
 export const runtime = "nodejs"
-export const revalidate = 0
 
 const DEFAULT_HOURS = 24
 const MAX_HOURS = 24 * 30

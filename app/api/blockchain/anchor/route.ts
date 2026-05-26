@@ -8,7 +8,6 @@ import { pool } from "@/lib/db"
 import { anchorMerkleRoot } from "@/lib/blockchain/anchor"
 
 export const runtime = "nodejs"
-export const revalidate = 0
 
 const NETWORK = "polygon"
 const API_KEY = process.env.BLOCKCHAIN_API_KEY
