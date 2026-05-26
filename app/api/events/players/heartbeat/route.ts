@@ -1,11 +1,8 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { logEvent } from "@/lib/logging/logEvent"
-import { LOG_EVENT_TYPES } from "@/lib/logging/logEventTypes"
 import { resolveAlert } from "@/core/alerts/resolveAlert"
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -45,6 +42,10 @@ function getClientIp(req: Request, fallbackIp: string | null): string | null {
 }
 
 export async function POST(req: Request) {
+    const { logEvent } = await import("@/lib/logging/logEvent")
+    const { LOG_EVENT_TYPES } = await import("@/lib/logging/logEventTypes")
+    const { pool } = await import("@/lib/db")
+
   try {
     const body = (await req.json().catch(() => null)) as HeartbeatBody | null
 

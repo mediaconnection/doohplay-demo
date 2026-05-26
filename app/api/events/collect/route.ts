@@ -1,13 +1,14 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 // app/api/events/collect/route.ts
 
-import { pool } from "@/lib/db"
-import { publishEvent } from "@/lib/queue"
 
 export async function POST(req:Request){
+    const { pool } = await import("@/lib/db")
+    const { publishEvent } = await import("@/lib/queue")
+
 
   const body = await req.json()
 

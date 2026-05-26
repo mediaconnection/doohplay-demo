@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
@@ -9,7 +9,6 @@ import { renderToBuffer } from "@react-pdf/renderer"
 import QRCode from "qrcode"
 
 import DashboardReport from "@/reports/DashboardReport"
-import { prisma } from "@/lib/prisma"
 import {
   getIdempotentResponse,
   storeIdempotentResponse
@@ -43,6 +42,8 @@ function getClientIp(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+    const { prisma } = await import("@/lib/prisma")
+
   try {
     const body = (await req.json().catch(() => null)) as unknown
 

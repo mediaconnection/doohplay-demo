@@ -1,10 +1,11 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { db } from "@/lib/db";
 
 export async function GET() {
+    const { db } = await import("@/lib/db")
+
   try {
     const { rows } = await db.query(`
       WITH last_status AS (

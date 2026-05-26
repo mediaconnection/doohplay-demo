@@ -1,12 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
-import { ALERT_POLICIES } from "@/lib/alerts/alertPolicy"
-import { openOrUpdateAlert } from "@/lib/alerts/openOrUpdateAlert"
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -22,6 +19,10 @@ function toNumber(value: unknown): number {
 }
 
 export async function POST() {
+    const { ALERT_POLICIES } = await import("@/lib/alerts/alertPolicy")
+    const { openOrUpdateAlert } = await import("@/lib/alerts/openOrUpdateAlert")
+    const { pool } = await import("@/lib/db")
+
   try {
     const policy = ALERT_POLICIES.PLAYER_OFFLINE
 

@@ -1,10 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -134,6 +133,8 @@ function hasValidCoordinates(item: NetworkMapItem): boolean {
 }
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+
   try {
     const res = await pool.query(`
       WITH latest_heartbeat AS (

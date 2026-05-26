@@ -1,15 +1,13 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 import {
   buildBatchMerkleProofs,
   verifyMerkleProof
 } from "@/lib/domain/proof/batchMerkle"
-import { verifyAnchoredRoot } from "@/lib/blockchain/verifyAnchoredRoot"
 
 export const runtime = "nodejs"
 
@@ -40,6 +38,9 @@ function isValidHash(value: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+    const { pool } = await import("@/lib/db")
+    const { verifyAnchoredRoot } = await import("@/lib/blockchain/verifyAnchoredRoot")
+
   try {
     const body = (await req.json()) as Body
 

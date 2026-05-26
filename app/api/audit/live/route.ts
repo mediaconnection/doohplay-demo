@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { pool } from "@/lib/db";
 
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+
 
   const encoder = new TextEncoder();
 

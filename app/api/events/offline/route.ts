@@ -1,10 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -43,6 +42,8 @@ function formatOfflineTime(lastSeen: string | Date | null, now: number) {
 }
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+
   try {
     const result = await pool.query(
       `

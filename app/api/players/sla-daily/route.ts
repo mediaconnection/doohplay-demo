@@ -1,10 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -55,6 +54,8 @@ function calculateOnlineSeconds(
 }
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+
   try {
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)

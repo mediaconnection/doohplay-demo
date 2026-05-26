@@ -1,11 +1,9 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 
-import { pool } from "@/lib/db"
-import { redis } from "@/lib/redis"
 
 export const runtime = "nodejs"
 
@@ -55,6 +53,9 @@ function toIsoDate(value: string | Date | null): string | null {
 }
 
 export async function GET() {
+    const { pool } = await import("@/lib/db")
+    const { redis } = await import("@/lib/redis")
+
   try {
     const cacheKey = "trust:summary"
 
