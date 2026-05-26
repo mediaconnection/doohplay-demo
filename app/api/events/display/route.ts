@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
@@ -127,3 +130,4 @@ export async function POST(req: Request) {
   }
 
 }
+

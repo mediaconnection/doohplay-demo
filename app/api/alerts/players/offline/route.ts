@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 
 import { ALERT_POLICIES } from "@/lib/alerts/alertPolicy"
@@ -5,7 +9,6 @@ import { openOrUpdateAlert } from "@/lib/alerts/openOrUpdateAlert"
 import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type OfflinePlayerRow = {
   id: string

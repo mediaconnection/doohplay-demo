@@ -1,7 +1,10 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { runProofChainAggregator } from "@/lib/proof/aggregator/proofChainAggregator"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
@@ -15,3 +18,4 @@ export async function GET() {
     )
   }
 }
+

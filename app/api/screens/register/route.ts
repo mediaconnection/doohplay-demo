@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { pool } from "@/lib/db"
 
 export async function POST(req: Request) {
@@ -31,3 +34,4 @@ export async function POST(req: Request) {
   })
 
 }
+

@@ -1,9 +1,12 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 
 import { generateCertifiedReportPdf } from "@/services/pdf/generateCertifiedReportPdf"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 function toArrayBuffer(bytes: Uint8Array | ArrayBuffer): ArrayBuffer {
   if (bytes instanceof ArrayBuffer) return bytes

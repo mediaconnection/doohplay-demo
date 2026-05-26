@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { pool } from "@/lib/db"
 import { NextResponse } from "next/server"
 
@@ -30,3 +33,4 @@ export async function GET(req: Request) {
 
   return NextResponse.json(result.rows)
 }
+

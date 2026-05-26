@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextRequest, NextResponse } from "next/server"
 
 import { runProofEngine } from "@/lib/proof/engine"
@@ -7,7 +11,6 @@ import { checkLimit } from "@/lib/api/checkLimit"
 import { trackUsage } from "@/lib/api/trackUsage"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type EntityType = "event" | "campaign" | "block"
 

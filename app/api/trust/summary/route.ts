@@ -1,10 +1,13 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
 import { redis } from "@/lib/redis"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type CountRow = {
   total: number | string | null

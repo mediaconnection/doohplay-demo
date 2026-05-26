@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
@@ -23,3 +26,4 @@ export async function GET() {
     )
   }
 }
+

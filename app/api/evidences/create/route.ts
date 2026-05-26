@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import "@/app/api/_bootstrap";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,3 +17,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(evidence);
 }
+

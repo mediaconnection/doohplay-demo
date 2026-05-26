@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { db } from "@/lib/db";
 
 export async function GET() {
@@ -18,4 +21,5 @@ export async function GET() {
 
   return Response.json(result.rows);
 }
+
 

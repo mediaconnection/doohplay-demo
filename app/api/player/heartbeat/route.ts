@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import crypto from "crypto"
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
@@ -5,7 +9,6 @@ import { createClient } from "@supabase/supabase-js"
 import { emitCanonicalEvent } from "@/core/audit/emitCanonicalEvent"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type HeartbeatBody = {
   screen_id?: unknown

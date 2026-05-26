@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -5,7 +9,6 @@ import { pool } from "@/lib/db"
 import { createSignedEventRecord } from "@/lib/domain/proof/createSignedEventRecord"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type LatestEventRow = {
   event_hash: string | null

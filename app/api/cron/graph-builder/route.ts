@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { autoBuildGraph } from "@/lib/proof/graph/autoBuildGraph"
 
 export async function GET() {
@@ -22,3 +25,4 @@ export async function GET() {
   }
 
 }
+

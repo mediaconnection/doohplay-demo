@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
@@ -11,7 +15,6 @@ import type {
 } from "@/lib/trust-graph/types"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type EdgeRow = {
   edge_id: string | null

@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
@@ -8,7 +12,6 @@ import { increment } from "@/lib/observability/metrics"
 import { log } from "@/lib/observability/logger"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 const EventSchema = z.object({
   clientId: z.coerce.number().int().positive(),

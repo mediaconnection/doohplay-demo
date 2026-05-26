@@ -1,9 +1,12 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 
 type NodeType = "event" | "device" | "campaign" | string
 type NodeRisk = "SAFE" | "WATCH" | "HIGH_RISK" | string

@@ -1,10 +1,13 @@
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
 import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
 import { anchorMerkleRoot } from "@/lib/blockchain/anchor"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 const NETWORK = "polygon"
