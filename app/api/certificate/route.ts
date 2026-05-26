@@ -1,14 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
-
-import { runProofEngine } from "@/lib/proof/engine"
-import { computeScore, getScoreLabel } from "@/lib/proof/score"
-import { generateCertificatePdf } from "@/lib/proof/generateCertificatePdf"
-
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export async function GET() {
-  return new Response("Method Not Allowed", { status: 405 })
-}
+export const fetchCache = "force-no-store"
+export const revalidate = 0
+
+import { NextRequest, NextResponse } from "next/server"
 
 const MAX_BODY = 10_000
 
@@ -50,7 +45,7 @@ function normalize(body: RawCertificateInput): CertificateInput {
   return {
     hash: body.hash.trim().toLowerCase(),
     entity_id: body.entity_id.trim(),
-    entity_type: normalizeEntityType(body.entity_type)
+    entity_type: normalizeEntityType(body.entity_type),
   }
 }
 
@@ -69,7 +64,6 @@ function safeSize(obj: unknown): number {
 
 function toArrayBuffer(bytes: Uint8Array | ArrayBuffer): ArrayBuffer {
   if (bytes instanceof ArrayBuffer) return bytes
-
   return bytes.buffer.slice(
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength
@@ -78,19 +72,27 @@ function toArrayBuffer(bytes: Uint8Array | ArrayBuffer): ArrayBuffer {
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timeout: NodeJS.Timeout | undefined
-
   return Promise.race([
     promise.finally(() => {
       if (timeout) clearTimeout(timeout)
     }),
     new Promise<T>((_, reject) => {
       timeout = setTimeout(() => reject(new Error("TIMEOUT")), ms)
-    })
+    }),
   ])
+}
+
+export async function GET() {
+  return new Response("Method Not Allowed", { status: 405 })
 }
 
 export async function POST(req: NextRequest) {
   try {
+    // Imports dinâmicos — evitam que o Next.js execute os módulos durante o build
+    const { runProofEngine } = await import("@/lib/proof/engine")
+    const { computeScore, getScoreLabel } = await import("@/lib/proof/score")
+    const { generateCertificatePdf } = await import("@/lib/proof/generateCertificatePdf")
+
     const raw: unknown = await req.json()
 
     if (!isValidInput(raw)) {
@@ -107,10 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "PAYLOAD_TOO_LARGE" }, { status: 413 })
     }
 
-    const body = normalize({
-      ...raw,
-      hash: rawHash
-    })
+    const body = normalize({ ...raw, hash: rawHash })
 
     const result = await withTimeout(runProofEngine(body), 5000)
 
@@ -122,9 +121,7 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "") ||
       "http://localhost:3000"
 
-    const verifyUrl = `${baseUrl}/explorer/event/${encodeURIComponent(
-      body.entity_id
-    )}`
+    const verifyUrl = `${baseUrl}/explorer/event/${encodeURIComponent(body.entity_id)}`
 
     const pdfBuffer = await generateCertificatePdf({
       status: result.valid ? "VALID" : "INVALID",
@@ -132,18 +129,16 @@ export async function POST(req: NextRequest) {
       label,
       eventId: body.entity_id,
       hash: body.hash,
-      verifyUrl
+      verifyUrl,
     })
 
     return new NextResponse(toArrayBuffer(pdfBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="certificate-${safeFilename(
-          body.entity_id
-        )}.pdf"`,
-        "Cache-Control": "no-store"
-      }
+        "Content-Disposition": `attachment; filename="certificate-${safeFilename(body.entity_id)}.pdf"`,
+        "Cache-Control": "no-store",
+      },
     })
   } catch (error) {
     console.error("CERTIFICATE_ROUTE_ERROR", error)
@@ -155,7 +150,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: "CERTIFICATE_FAILED",
-        detail: error instanceof Error ? error.message : String(error)
+        detail: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
     )
