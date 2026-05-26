@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAll } from "@/lib/domain/proof/verifyAll"
 
 export async function POST(req: NextRequest) {
+    const { verifyAll } = await import("@/lib/domain/proof/verifyAll")
+
   try {
     const body = await req.json()
 

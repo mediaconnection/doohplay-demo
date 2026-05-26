@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
@@ -6,7 +6,6 @@ import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { ingestEvent } from "@/lib/domain/event/ingestEvent"
 import { enqueueEventProcessing } from "@/lib/queue/addEventJob"
 import { increment } from "@/lib/observability/metrics"
 import { log } from "@/lib/observability/logger"
@@ -24,6 +23,8 @@ function getErrorMessage(error: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
+    const { ingestEvent } = await import("@/lib/domain/event/ingestEvent")
+
   const traceId = randomUUID()
 
   try {

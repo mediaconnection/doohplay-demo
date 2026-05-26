@@ -1,9 +1,8 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { pool } from "@/lib/db"
-import { generateAlerts, summarizeAlerts } from "@/lib/domain/fraud/alerts"
 
 /* =========================
    TYPES
@@ -22,6 +21,8 @@ type DbRow = {
 ========================= */
 
 export async function GET() {
+    const { generateAlerts, summarizeAlerts } = await import("@/lib/domain/fraud/alerts")
+
   try {
     const res = await pool.query(`
       SELECT 

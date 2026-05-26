@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
@@ -7,7 +7,6 @@ export const revalidate = 0
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { verifyMerkleProof } from "@/lib/domain/proof/verifyProof"
 
 /* =========================
    SCHEMA
@@ -29,6 +28,8 @@ const ProofSchema = z.object({
 ========================= */
 
 export async function POST(req: NextRequest) {
+    const { verifyMerkleProof } = await import("@/lib/domain/proof/verifyProof")
+
   try {
     const body = await req.json().catch(() => null)
 

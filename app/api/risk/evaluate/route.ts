@@ -1,12 +1,10 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 // /app/api/risk/evaluate/route.ts
 
 import { NextRequest, NextResponse } from "next/server"
-import { RiskSchema } from "@/lib/domain/risk/schema"
-import { autoBlockClient } from "@/lib/domain/risk/engine"
 import { z } from "zod"
 
 /* =========================
@@ -19,6 +17,9 @@ const BodySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+    const { RiskSchema } = await import("@/lib/domain/risk/schema")
+    const { autoBlockClient } = await import("@/lib/domain/risk/engine")
+
   try {
     const body = await req.json().catch(() => null)
 

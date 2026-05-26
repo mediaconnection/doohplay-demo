@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
@@ -6,7 +6,6 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { reviewBlockedClient } from "@/lib/domain/risk/unblock"
 
 /* =========================
    SCHEMA
@@ -20,6 +19,8 @@ const ReviewSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+    const { reviewBlockedClient } = await import("@/lib/domain/risk/unblock")
+
   try {
     const body = await req.json().catch(() => null)
 

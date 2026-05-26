@@ -1,10 +1,11 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { runProofPipeline } from "@/lib/proof/scheduler/runProofPipeline"
 
 export async function GET() {
+    const { runProofPipeline } = await import("@/lib/proof/scheduler/runProofPipeline")
+
 
   try {
 

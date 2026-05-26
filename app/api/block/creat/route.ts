@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
-import { createBlock } from "@/lib/domain/block/createBlock"
 
 export async function GET() {
+    const { createBlock } = await import("@/lib/domain/block/createBlock")
+
   try {
     const result = await createBlock()
 
