@@ -1,9 +1,8 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
-import { getTrustGraph } from "@/lib/trust-graph/service"
 import type {
   TrustGraphFilters,
   TrustGraphResponse,
@@ -118,6 +117,8 @@ function buildErrorResponse(error: unknown): TrustGraphRouteError {
 }
 
 export async function GET(req: NextRequest) {
+    const { getTrustGraph } = await import("@/lib/trust-graph/service")
+
   try {
     const filters = buildFilters(req)
     const data = await getTrustGraph(filters)

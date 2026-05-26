@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server";
-import { verifyEventChain } from "@/core/audit/verifyEventChain";
 
 export async function GET() {
+    const { verifyEventChain } = await import("@/core/audit/verifyEventChain")
+
   try {
     console.log("🔎 VERIFY-CHAIN API CALLED");
 

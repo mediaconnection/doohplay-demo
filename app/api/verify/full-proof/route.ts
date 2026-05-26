@@ -1,13 +1,14 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
-import { getSupabaseServer } from "@/lib/supabaseServer"
 
 export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
+    const { getSupabaseServer } = await import("@/lib/supabaseServer")
+
   const hash = request.nextUrl.searchParams.get("hash")
 
   if (!hash) {

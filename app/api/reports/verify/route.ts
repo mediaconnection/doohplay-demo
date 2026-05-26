@@ -1,12 +1,13 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { generatePdfHash } from "@/services/pdf/generatePdfHash";
-import { verifySignature } from "@/services/pdf/verifySignature.node";
-import { getPdfCertificationByHash } from "@/services/pdf/pdfCertification";
 
 export async function POST(request: Request) {
+    const { generatePdfHash } = await import("@/services/pdf/generatePdfHash")
+    const { verifySignature } = await import("@/services/pdf/verifySignature.node")
+    const { getPdfCertificationByHash } = await import("@/services/pdf/pdfCertification")
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");

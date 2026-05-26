@@ -2,7 +2,6 @@
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { resolveAlert } from "@/core/alerts/resolveAlert"
 
 export const runtime = "nodejs"
 
@@ -42,6 +41,8 @@ function getClientIp(req: Request, fallbackIp: string | null): string | null {
 }
 
 export async function POST(req: Request) {
+    const { resolveAlert } = await import("@/core/alerts/resolveAlert")
+
     const { logEvent } = await import("@/lib/logging/logEvent")
     const { LOG_EVENT_TYPES } = await import("@/lib/logging/logEventTypes")
     const { pool } = await import("@/lib/db")

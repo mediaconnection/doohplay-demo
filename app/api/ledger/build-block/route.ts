@@ -1,10 +1,11 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { createBlock } from "@/lib/ledger/createBlock";
 
 export async function POST() {
+    const { createBlock } = await import("@/lib/ledger/createBlock")
+
 
   const block = await createBlock();
 

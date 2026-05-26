@@ -1,13 +1,14 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import "@/app/api/_bootstrap";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createEvidence } from "@/services/evidences/createEvidence";
 
 export async function POST(req: NextRequest) {
+    const { createEvidence } = await import("@/services/evidences/createEvidence")
+
   const body = await req.json();
 
   const evidence = await createEvidence({
