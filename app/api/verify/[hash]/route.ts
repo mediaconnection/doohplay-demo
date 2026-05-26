@@ -1,27 +1,11 @@
-import { randomUUID } from "crypto"
+﻿import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 
-import { verifyEnv } from "@/lib/config/env"
-import { rateLimit } from "@/lib/security/rateLimit"
 
-import {
-  buildProofCacheKey,
-  getCachedProof,
-  setCachedProof
-} from "@/lib/proof/cache/proofCache"
 
-import { enqueueProof } from "@/lib/proof/queue/proofQueue"
-import { runProofEngine } from "@/lib/proof/engine"
 
-import { buildExplanation } from "@/lib/proof/explanation"
 
-import {
-  computeScore,
-  getTrustLevel,
-  getVerificationStatus
-} from "@/lib/proof/score"
 
-import { resolveProofInputByHash } from "@/lib/proof/adapters/supabase"
 
 import type {
   EntityType,
@@ -41,7 +25,6 @@ export const dynamic = "force-dynamic"
    CONFIG
 ========================= */
 
-const ENGINE_TIMEOUT_MS = verifyEnv.engineTimeoutMs
 
 const ENTITY_TYPES: readonly EntityType[] = [
   "event",
@@ -797,6 +780,20 @@ export async function GET(
     params: Promise<VerifyHashParams>
   }
 ) {
+  const ENGINE_TIMEOUT_MS = (await import("@/lib/config/env")).verifyEnv.engineTimeoutMs
+  const { verifyEnv } = await import("@/lib/config/env")
+  const { rateLimit } = await import("@/lib/security/rateLimit")
+  const { buildProofCacheKey,
+  getCachedProof,
+  setCachedProof } = await import("@/lib/proof/cache/proofCache")
+  const { enqueueProof } = await import("@/lib/proof/queue/proofQueue")
+  const { runProofEngine } = await import("@/lib/proof/engine")
+  const { buildExplanation } = await import("@/lib/proof/explanation")
+  const { computeScore,
+  getTrustLevel,
+  getVerificationStatus } = await import("@/lib/proof/score")
+  const { resolveProofInputByHash } = await import("@/lib/proof/adapters/supabase")
+
   const requestId = randomUUID()
 
   try {
