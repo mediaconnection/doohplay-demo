@@ -1,13 +1,14 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest } from "next/server"
-import { validateTransaction } from "@/lib/blockchain/validateTx"
 
 export const runtime = "nodejs"
 
 export async function GET(req: NextRequest) {
+    const { validateTransaction } = await import("@/lib/blockchain/validateTx")
+
   const { searchParams } = new URL(req.url)
 
   const txHash = searchParams.get("tx")

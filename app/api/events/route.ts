@@ -6,9 +6,6 @@ import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { enqueueEventProcessing } from "@/lib/queue/addEventJob"
-import { increment } from "@/lib/observability/metrics"
-import { log } from "@/lib/observability/logger"
 
 export const runtime = "nodejs"
 
@@ -23,6 +20,10 @@ function getErrorMessage(error: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
+    const { enqueueEventProcessing } = await import("@/lib/queue/addEventJob")
+    const { increment } = await import("@/lib/observability/metrics")
+    const { log } = await import("@/lib/observability/logger")
+
     const { ingestEvent } = await import("@/lib/domain/event/ingestEvent")
 
   const traceId = randomUUID()

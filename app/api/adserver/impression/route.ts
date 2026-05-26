@@ -1,10 +1,11 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { registerImpression } from "@/lib/adserver/registerImpression"
 
 export async function POST(req: Request) {
+    const { registerImpression } = await import("@/lib/adserver/registerImpression")
+
 
   const body = await req.json()
 

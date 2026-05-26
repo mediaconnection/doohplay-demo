@@ -1,15 +1,16 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server";
 import { createCanonicalEvent } from "@/domain/events/createEvent";
 import { gerarHashEvento } from "@/domain/events/hashEvent";
-import { persistEvent } from "@/services/persistEvent";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+    const { persistEvent } = await import("@/services/persistEvent")
+
   try {
     console.log("PROCESS EVENT: START");
 

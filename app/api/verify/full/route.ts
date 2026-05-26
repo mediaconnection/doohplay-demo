@@ -3,9 +3,10 @@ export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAuditProof } from "@/lib/audit/verify"
 
 export async function POST(req: NextRequest) {
+    const { verifyAuditProof } = await import("@/lib/audit/verify")
+
     const { verifyICP } = await import("@/lib/domain/proof/verifyICP")
 
   try {

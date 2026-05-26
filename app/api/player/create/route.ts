@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server";
-import { createPairingToken } from "@/core/players/pairingService";
 
 export async function POST(req: Request) {
+    const { createPairingToken } = await import("@/core/players/pairingService")
+
   const { player_id } = await req.json();
 
   if (!player_id) {

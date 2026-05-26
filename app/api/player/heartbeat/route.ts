@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
@@ -6,7 +6,6 @@ import crypto from "crypto"
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-import { emitCanonicalEvent } from "@/core/audit/emitCanonicalEvent"
 
 export const runtime = "nodejs"
 
@@ -47,6 +46,8 @@ function deterministicHeartbeatEventId(screenId: string, date: Date): string {
 }
 
 export async function POST(req: Request) {
+    const { emitCanonicalEvent } = await import("@/core/audit/emitCanonicalEvent")
+
   try {
     const body = (await req.json().catch(() => null)) as HeartbeatBody | null
 

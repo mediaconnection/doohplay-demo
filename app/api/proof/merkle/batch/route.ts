@@ -1,11 +1,10 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-import { buildMerkleRoot, normalizeHash, isHex64 } from "@/lib/merkle"
 
 export const runtime = "nodejs"
 
@@ -37,6 +36,8 @@ async function requestTSATimestamp(hash: string) {
 }
 
 export async function POST() {
+    const { buildMerkleRoot, normalizeHash, isHex64 } = await import("@/lib/merkle")
+
   try {
     const supabase = createClient(
       getEnv("NEXT_PUBLIC_SUPABASE_URL"),

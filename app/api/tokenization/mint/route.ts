@@ -1,10 +1,11 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { mintMediaToken } from "@/lib/tokenization/mintMediaToken"
 
 export async function POST(req: Request) {
+    const { mintMediaToken } = await import("@/lib/tokenization/mintMediaToken")
+
 
   const body = await req.json()
 

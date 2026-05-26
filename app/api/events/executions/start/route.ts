@@ -1,9 +1,7 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { logEvent } from "@/lib/logging/logEvent"
-import { LOG_EVENT_TYPES } from "@/lib/logging/logEventTypes"
 
 export const runtime = "nodejs"
 
@@ -41,6 +39,9 @@ function resolveExecutionStartedType(): string {
 }
 
 export async function POST(req: Request) {
+    const { logEvent } = await import("@/lib/logging/logEvent")
+    const { LOG_EVENT_TYPES } = await import("@/lib/logging/logEventTypes")
+
   try {
     const body = (await req.json().catch(() => null)) as
       | ExecutionStartedBody

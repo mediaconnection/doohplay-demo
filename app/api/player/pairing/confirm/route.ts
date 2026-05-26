@@ -1,12 +1,13 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server";
-import { pool } from "@/core/audit/eventChainRepository";
-import { emitCanonicalEvent } from "@/core/audit/emitCanonicalEvent";
 
 export async function POST(req: Request) {
+    const { pool } = await import("@/core/audit/eventChainRepository")
+    const { emitCanonicalEvent } = await import("@/core/audit/emitCanonicalEvent")
+
   const { token, tenant_id } = await req.json();
 
   const res = await pool.query(
