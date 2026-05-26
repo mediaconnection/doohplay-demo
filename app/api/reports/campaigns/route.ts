@@ -1,33 +1,28 @@
-import { NextResponse } from "next/server";
-import { Pool } from "pg";
+import { NextResponse } from "next/server"
+import { getPool } from "@/lib/db"
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url)
+    const start = searchParams.get("start")
+    const end = searchParams.get("end")
+    const player = searchParams.get("player")
 
-    const start = searchParams.get("start");
-    const end = searchParams.get("end");
-    const player = searchParams.get("player");
-
-    const params: any[] = [];
-    let where = "WHERE 1=1";
+    const params: string[] = []
+    let where = "WHERE 1=1"
 
     if (start && end) {
-      params.push(start, end);
+      params.push(start, end)
       where += ` AND pl.started_at >= $${params.length - 1}
-                 AND pl.started_at <= $${params.length}`;
+                 AND pl.started_at <= $${params.length}`
     }
 
     if (player) {
-      params.push(player);
-      where += ` AND pl.player_id = $${params.length}`;
+      params.push(player)
+      where += ` AND pl.player_id = $${params.length}`
     }
 
     const query = `
@@ -42,15 +37,17 @@ export async function GET(req: Request) {
       ${where}
       GROUP BY c.id, c.name
       ORDER BY c.name;
-    `;
+    `
 
-    const { rows } = await pool.query(query, params);
-    return NextResponse.json(rows);
+    // getPool() é lazy — não conecta durante o build
+    const { rows } = await getPool().query(query, params)
+
+    return NextResponse.json(rows)
   } catch (error) {
-    console.error("[REPORTS_CAMPAIGNS]", error);
+    console.error("[REPORTS_CAMPAIGNS]", error)
     return NextResponse.json(
       { error: "Erro ao carregar relatório" },
       { status: 500 }
-    );
+    )
   }
 }

@@ -1,53 +1,11 @@
-// @ts-nocheck
-// /lib/queue/workers/riskWorker.ts
-
-import { Worker, Job } from "bullmq"
-import IORedis from "ioredis"
-
+import { Worker, type Job } from "bullmq"
+import { getRedis } from "@/lib/redis"
 import { computeRisk } from "@/lib/domain/analytics/computeRisk"
 import { autoBlockClient } from "@/lib/domain/risk/engine"
 import { updateClientRiskStats } from "@/lib/domain/risk/fraudIntelligence"
 import { checkAlerts } from "@/lib/observability/alerts"
-
 import { increment, observe } from "@/lib/observability/metrics"
 import { log } from "@/lib/observability/logger"
-
-/* =========================
-   REDIS CONNECTION
-========================= */
-
-if (!process.env.REDIS_URL) {
-  throw new Error("REDIS_URL is not defined")
-}
-
-const connection = new IORedis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null
-})
-
-/* =========================
-   IDEMPOTENCY (TTL SAFE)
-========================= */
-
-const processedEvents = new Map<number, number>() // eventId → timestamp
-const IDEMPOTENCY_TTL = 60 * 60 * 1000 // 1h
-
-function isDuplicate(eventId: number) {
-  const now = Date.now()
-
-  // cleanup antigo
-  for (const [id, ts] of processedEvents.entries()) {
-    if (now - ts > IDEMPOTENCY_TTL) {
-      processedEvents.delete(id)
-    }
-  }
-
-  if (processedEvents.has(eventId)) {
-    return true
-  }
-
-  processedEvents.set(eventId, now)
-  return false
-}
 
 /* =========================
    TYPES
@@ -56,38 +14,56 @@ function isDuplicate(eventId: number) {
 type JobData = {
   eventId: number
   clientId: number
-  data: any
+  data: Record<string, unknown>
   traceId?: string
+}
+
+/* =========================
+   IDEMPOTENCY (TTL SAFE)
+========================= */
+
+const processedEvents = new Map<number, number>() // eventId → timestamp
+const IDEMPOTENCY_TTL = 60 * 60 * 1000 // 1h
+
+function isDuplicate(eventId: number): boolean {
+  const now = Date.now()
+
+  // cleanup expirados
+  for (const [id, ts] of processedEvents.entries()) {
+    if (now - ts > IDEMPOTENCY_TTL) {
+      processedEvents.delete(id)
+    }
+  }
+
+  if (processedEvents.has(eventId)) return true
+
+  processedEvents.set(eventId, now)
+  return false
 }
 
 /* =========================
    VALIDATION
 ========================= */
 
-function isValidJobData(data: any): data is JobData {
+function isValidJobData(data: unknown): data is JobData {
   return (
-    data &&
-    typeof data.eventId === "number" &&
-    typeof data.clientId === "number" &&
-    data.data !== undefined
+    data !== null &&
+    typeof data === "object" &&
+    typeof (data as JobData).eventId === "number" &&
+    typeof (data as JobData).clientId === "number" &&
+    (data as JobData).data !== undefined
   )
 }
 
 /* =========================
-   TIMEOUT (SAFE)
+   TIMEOUT
 ========================= */
 
-async function withTimeout<T>(
-  fn: () => Promise<T>,
-  ms: number
-): Promise<T> {
-
+async function withTimeout<T>(fn: () => Promise<T>, ms: number): Promise<T> {
   let timeout: NodeJS.Timeout
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => {
-      reject(new Error("Timeout"))
-    }, ms)
+    timeout = setTimeout(() => reject(new Error("Timeout")), ms)
   })
 
   try {
@@ -101,137 +77,122 @@ async function withTimeout<T>(
    WORKER
 ========================= */
 
-export const riskWorker = new Worker(
-  "risk-processing",
-  async (job: Job<JobData>) => {
+let _riskWorker: Worker | null = null
 
-    const start = Date.now()
-    const traceId = job.data?.traceId || `job-${job.id}`
+export function getRiskWorker(): Worker {
+  if (!_riskWorker) {
+    _riskWorker = new Worker(
+      "risk-processing",
+      async (job: Job<JobData>) => {
+        const start = Date.now()
+        const traceId = job.data?.traceId ?? `job-${job.id}`
 
-    try {
+        try {
+          if (!isValidJobData(job.data)) {
+            throw new Error("Invalid job payload")
+          }
 
-      if (!isValidJobData(job.data)) {
-        throw new Error("Invalid job payload")
+          const { eventId, clientId, data } = job.data
+
+          /* ── Idempotency ── */
+
+          if (isDuplicate(eventId)) {
+            log("JOB_SKIPPED_DUPLICATE", { traceId, eventId })
+            return { skipped: true }
+          }
+
+          log("JOB_START", { traceId, jobId: job.id, eventId, clientId })
+          increment("jobs_started")
+
+          /* ── Risk compute ── */
+
+          const risk = computeRisk(data)
+
+          /* ── Block engine ── */
+
+          const result = await withTimeout(
+            () => autoBlockClient(clientId, risk),
+            3000
+          )
+
+          if (result.blocked) {
+            increment("clients_blocked")
+          }
+
+          /* ── Fraud intelligence ── */
+
+          await updateClientRiskStats(clientId, risk, result.blocked)
+
+          /* ── Alerts ── */
+
+          if (result.blocked || risk.riskLevel === "critical") {
+            await checkAlerts()
+          }
+
+          increment("jobs_success")
+          log("JOB_SUCCESS", {
+            traceId,
+            clientId,
+            riskLevel: risk.riskLevel,
+            blocked: result.blocked,
+          })
+
+          return {
+            success: true,
+            riskLevel: risk.riskLevel,
+            blocked: result.blocked,
+          }
+        } catch (err: unknown) {
+          const error = err instanceof Error ? err : new Error(String(err))
+          const isTimeout = error.message === "Timeout"
+
+          increment("jobs_failed")
+          log("JOB_ERROR", {
+            traceId,
+            jobId: job.id,
+            type: isTimeout ? "timeout" : "error",
+            error: error.message,
+            stack: error.stack,
+          })
+
+          throw err
+        } finally {
+          observe("job_duration_ms", Date.now() - start)
+        }
+      },
+      {
+        connection: getRedis(),
+        concurrency: 10,
+        limiter: {
+          max: 100,
+          duration: 1000,
+        },
       }
+    )
 
-      const { eventId, clientId, data } = job.data
+    /* ── Events ── */
 
-      /* =========================
-         IDEMPOTENCY
-      ========================= */
+    _riskWorker.on("completed", (job) => {
+      log("JOB_COMPLETED", { jobId: job.id })
+    })
 
-      if (isDuplicate(eventId)) {
-        log("JOB_SKIPPED_DUPLICATE", { traceId, eventId })
-        return { skipped: true }
-      }
+    _riskWorker.on("failed", (job, err) => {
+      log("JOB_FAILED", { jobId: job?.id, error: err.message })
+    })
 
-      log("JOB_START", {
-        traceId,
-        jobId: job.id,
-        eventId,
-        clientId
-      })
-
-      increment("jobs_started")
-
-      /* =========================
-         RISK COMPUTE
-      ========================= */
-
-      const risk = computeRisk(data)
-
-      /* =========================
-         BLOCK ENGINE (timeout)
-      ========================= */
-
-      const result = await withTimeout(
-        () => autoBlockClient(clientId, risk),
-        3000
-      )
-
-      if (result.blocked) {
-        increment("clients_blocked")
-      }
-
-      /* =========================
-         FRAUD INTELLIGENCE
-      ========================= */
-
-      await updateClientRiskStats(
-        clientId,
-        risk,
-        result.blocked
-      )
-
-      /* =========================
-         ALERTS
-      ========================= */
-
-      if (result.blocked || risk.riskLevel === "critical") {
-        await checkAlerts()
-      }
-
-      increment("jobs_success")
-
-      log("JOB_SUCCESS", {
-        traceId,
-        clientId,
-        riskLevel: risk.riskLevel,
-        blocked: result.blocked
-      })
-
-      return {
-        success: true,
-        riskLevel: risk.riskLevel,
-        blocked: result.blocked
-      }
-
-    } catch (err: any) {
-
-      increment("jobs_failed")
-
-      const isTimeout = err.message === "Timeout"
-
-      log("JOB_ERROR", {
-        traceId,
-        jobId: job.id,
-        type: isTimeout ? "timeout" : "error",
-        error: err.message,
-        stack: err.stack
-      })
-
-      throw err
-
-    } finally {
-
-      observe("job_duration_ms", Date.now() - start)
-    }
-  },
-  {
-    connection,
-    concurrency: 10,
-    limiter: {
-      max: 100,
-      duration: 1000
-    }
+    _riskWorker.on("error", (err) => {
+      console.error("WORKER_ERROR:", err)
+    })
   }
-)
 
-/* =========================
-   EVENTS
-========================= */
+  return _riskWorker
+}
 
-riskWorker.on("completed", (job) => {
-  log("JOB_COMPLETED", { jobId: job.id })
-})
-
-riskWorker.on("failed", (job, err) => {
-  log("JOB_FAILED", {
-    jobId: job?.id,
-    error: err.message
-  })
-})
-
-riskWorker.on("error", (err) => {
-  console.error("WORKER_ERROR:", err)
+// Proxy para compatibilidade com imports existentes
+export const riskWorker = new Proxy({} as Worker, {
+  get(_, prop) {
+    const w = getRiskWorker()
+    const value = w[prop as keyof Worker]
+    return typeof value === "function" ? (value as Function).bind(w) : value
+  },
 })

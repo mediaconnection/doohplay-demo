@@ -1,9 +1,22 @@
-// @ts-nocheck
 import { Queue } from "bullmq"
-import IORedis from "ioredis"
+import { getRedis } from "@/lib/redis"
 
-const connection = new IORedis(process.env.REDIS_URL!)
+let _dlq: Queue | null = null
 
-export const dlq = new Queue("risk-dlq", {
-  connection
+export function getDlq(): Queue {
+  if (!_dlq) {
+    _dlq = new Queue("risk-dlq", {
+      connection: getRedis(),
+    })
+  }
+  return _dlq
+}
+
+// Proxy para compatibilidade com imports existentes
+export const dlq = new Proxy({} as Queue, {
+  get(_, prop) {
+    const q = getDlq()
+    const value = q[prop as keyof Queue]
+    return typeof value === "function" ? (value as Function).bind(q) : value
+  },
 })

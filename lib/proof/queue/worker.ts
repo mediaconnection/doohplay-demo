@@ -1,12 +1,7 @@
-// @ts-nocheck
-// /lib/queue/workers/proofWorker.ts
-
-import { Worker, Job } from "bullmq"
-import { redis } from "../cache/redis"
-
+import { Worker, type Job } from "bullmq"
+import { getRedis } from "@/lib/redis"
 import { runProofEngine } from "../engine"
 import { setCachedProof } from "../cache/proofCache"
-
 import { log } from "@/lib/observability/logger"
 import { increment, observe } from "@/lib/observability/metrics"
 
@@ -15,7 +10,7 @@ import { increment, observe } from "@/lib/observability/metrics"
 ========================= */
 
 type ProofJobData = {
-  input: any
+  input: Record<string, unknown>
   traceId?: string
 }
 
@@ -23,106 +18,95 @@ type ProofJobData = {
    VALIDATION
 ========================= */
 
-function isValidJob(data: any): data is ProofJobData {
-  return data && typeof data === "object" && data.input !== undefined
+function isValidJob(data: unknown): data is ProofJobData {
+  return (
+    data !== null &&
+    typeof data === "object" &&
+    "input" in data &&
+    (data as ProofJobData).input !== undefined
+  )
 }
 
 /* =========================
-   WORKER
+   WORKER (lazy)
 ========================= */
 
-export const proofWorker = new Worker(
-  "proof-queue",
-  async (job: Job<ProofJobData>) => {
+let _proofWorker: Worker | null = null
 
-    const start = Date.now()
-    const traceId = job.data?.traceId || `proof-${job.id}`
+export function getProofWorker(): Worker {
+  if (!_proofWorker) {
+    _proofWorker = new Worker(
+      "proof-queue",
+      async (job: Job<ProofJobData>) => {
+        const start = Date.now()
+        const traceId = job.data?.traceId ?? `proof-${job.id}`
 
-    log("PROOF_JOB_START", {
-      traceId,
-      jobId: job.id
+        log("PROOF_JOB_START", { traceId, jobId: job.id })
+
+        try {
+          if (!isValidJob(job.data)) {
+            throw new Error("Invalid proof job payload")
+          }
+
+          const { input } = job.data
+
+          increment("proof_jobs_started")
+
+          const result = await runProofEngine(input)
+
+          await setCachedProof(input, result)
+
+          increment("proof_jobs_success")
+          log("PROOF_JOB_SUCCESS", { traceId, jobId: job.id })
+
+          return result
+        } catch (err: unknown) {
+          const error = err instanceof Error ? err : new Error(String(err))
+
+          increment("proof_jobs_failed")
+          log("PROOF_JOB_ERROR", {
+            traceId,
+            jobId: job.id,
+            error: error.message,
+            stack: error.stack,
+          })
+
+          throw err
+        } finally {
+          observe("proof_job_duration_ms", Date.now() - start)
+        }
+      },
+      {
+        connection: getRedis(),
+        concurrency: 5,
+        limiter: {
+          max: 50,
+          duration: 1000,
+        },
+      }
+    )
+
+    _proofWorker.on("completed", (job) => {
+      log("PROOF_JOB_COMPLETED", { jobId: job.id })
     })
 
-    try {
+    _proofWorker.on("failed", (job, err) => {
+      log("PROOF_JOB_FAILED", { jobId: job?.id, error: err.message })
+    })
 
-      /* =========================
-         VALIDATION
-      ========================= */
-
-      if (!isValidJob(job.data)) {
-        throw new Error("Invalid proof job payload")
-      }
-
-      const { input } = job.data
-
-      increment("proof_jobs_started")
-
-      /* =========================
-         EXECUTION
-      ========================= */
-
-      const result = await runProofEngine(input)
-
-      /* =========================
-         CACHE
-      ========================= */
-
-      await setCachedProof(input, result)
-
-      increment("proof_jobs_success")
-
-      log("PROOF_JOB_SUCCESS", {
-        traceId,
-        jobId: job.id
-      })
-
-      return result
-
-    } catch (err: any) {
-
-      increment("proof_jobs_failed")
-
-      log("PROOF_JOB_ERROR", {
-        traceId,
-        jobId: job.id,
-        error: err.message,
-        stack: err.stack
-      })
-
-      throw err
-
-    } finally {
-
-      observe("proof_job_duration_ms", Date.now() - start)
-    }
-  },
-  {
-    connection: redis,
-    concurrency: 5,
-    limiter: {
-      max: 50,
-      duration: 1000
-    }
+    _proofWorker.on("error", (err) => {
+      console.error("PROOF_WORKER_ERROR:", err)
+    })
   }
-)
 
-/* =========================
-   EVENTS
-========================= */
+  return _proofWorker
+}
 
-proofWorker.on("completed", (job) => {
-  log("PROOF_JOB_COMPLETED", {
-    jobId: job.id
-  })
-})
-
-proofWorker.on("failed", (job, err) => {
-  log("PROOF_JOB_FAILED", {
-    jobId: job?.id,
-    error: err.message
-  })
-})
-
-proofWorker.on("error", (err) => {
-  console.error("PROOF_WORKER_ERROR:", err)
+// Proxy para compatibilidade com imports existentes
+export const proofWorker = new Proxy({} as Worker, {
+  get(_, prop) {
+    const w = getProofWorker()
+    const value = w[prop as keyof Worker]
+    return typeof value === "function" ? (value as Function).bind(w) : value
+  },
 })
