@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  serverExternalPackages: ["ioredis", "bullmq", "pg", "pdfkit", "puppeteer"],
+  serverExternalPackages: ["ioredis", "bullmq", "pg", "pdfkit", "puppeteer", "pdf-lib", "qrcode"],
   experimental: {
     cpus: 1,
     isrFlushToDisk: false,
@@ -24,7 +24,12 @@ const nextConfig: NextConfig = {
 
     config.resolve.alias = {
       ...config.resolve.alias,
+
+      // ── lib aliases (raiz) ─────────────────────────────────────────────────
+      // IMPORTANTE: "@/lib" deve vir ANTES de "@" para ter precedência
       "@/lib": path.resolve(__dirname, "lib"),
+
+      // ── component aliases ──────────────────────────────────────────────────
       "@/components/block": path.resolve(__dirname, "components/block"),
       "@/components/explorer": path.resolve(__dirname, "components/explorer"),
       "@/components/ledger": path.resolve(__dirname, "components/ledger"),
@@ -35,6 +40,8 @@ const nextConfig: NextConfig = {
       "@/components/trust": path.resolve(__dirname, "components/trust"),
       "@/components/ui": path.resolve(__dirname, "components/ui"),
       "@/components": path.resolve(__dirname, "src/components"),
+
+      // ── other aliases ──────────────────────────────────────────────────────
       "@/core": path.resolve(__dirname, "core"),
       "@/services": path.resolve(__dirname, "src/services"),
       "@/reports": path.resolve(__dirname, "reports"),
@@ -42,7 +49,10 @@ const nextConfig: NextConfig = {
       "@/supabase": path.resolve(__dirname, "supabase"),
       "@/types": path.resolve(__dirname, "types"),
       "@/workers": path.resolve(__dirname, "workers"),
-      "@": path.resolve(__dirname, "src"),
+
+      // ── fallback @ → raiz (não src/) ───────────────────────────────────────
+      // Alinhado com tsconfig "paths": { "@/*": ["./*", "./src/*"] }
+      "@": path.resolve(__dirname, "."),
     }
 
     if (dev) {
