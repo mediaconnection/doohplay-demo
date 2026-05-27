@@ -13,7 +13,6 @@ function stableStringify(obj: any): string {
 
 function sortObject(obj: any): any {
   if (Array.isArray(obj)) return obj.map(sortObject)
-
   if (obj !== null && typeof obj === "object") {
     return Object.keys(obj)
       .sort()
@@ -22,7 +21,6 @@ function sortObject(obj: any): any {
         return acc
       }, {})
   }
-
   return obj
 }
 
@@ -31,7 +29,6 @@ function computeHash(payload: any, previousHash: string | null) {
     payload,
     previous_hash: previousHash
   })
-
   return crypto
     .createHash("sha256")
     .update(data)
@@ -39,7 +36,6 @@ function computeHash(payload: any, previousHash: string | null) {
 }
 
 export async function writeEvent({ payload }: WriteEventInput) {
-
   if (!payload || typeof payload !== "object") {
     throw new Error("invalid payload")
   }
@@ -47,73 +43,69 @@ export async function writeEvent({ payload }: WriteEventInput) {
   const client = await pool.connect()
 
   try {
-
     await client.query("BEGIN")
-
     await client.query("SET LOCAL statement_timeout = 5000")
 
-    // 🔗 último hash
+    // 🔗 último hash encadeado
     const prevRes = await client.query(`
       SELECT event_hash
       FROM event_chain
       ORDER BY id DESC
       LIMIT 1
     `)
-
-    const previousHash =
-      prevRes.rows[0]?.event_hash || null
+    const previousHash = prevRes.rows[0]?.event_hash || null
 
     // 🧠 idempotência
-    const eventId = payload.event_id || crypto.randomUUID()
+    const eventId = payload.event_id || payload.id || crypto.randomUUID()
+    const eventType = payload.event_type || "AD_PLAY"
 
     const enrichedPayload = {
       ...payload,
       event_id: eventId,
+      event_type: eventType,
       timestamp: payload.timestamp || new Date().toISOString()
     }
 
-    const event_hash = computeHash(
-      enrichedPayload,
-      previousHash
-    )
+    const event_hash = computeHash(enrichedPayload, previousHash)
 
-    // 🔥 🔒 REGISTRO GLOBAL (CORREÇÃO CRÍTICA)
+    // 🔥 🔒 REGISTRO GLOBAL — evita duplicatas
     try {
       await client.query(`
         INSERT INTO event_hash_registry (event_hash)
         VALUES ($1)
       `, [event_hash])
     } catch (err: any) {
-
       if (err.code === "23505") {
-        // duplicado → ignorar com segurança
         await client.query("ROLLBACK")
-
         console.warn("⚠️ Duplicate event blocked:", event_hash)
-
         return null
       }
-
       throw err
     }
 
-    // 💾 INSERT real
+    // 💾 INSERT com colunas corretas da event_chain
     const insertRes = await client.query(`
       INSERT INTO event_chain (
+        event_id,
+        event_type,
         event_hash,
-        previous_hash,
-        payload
+        previous_event_hash,
+        payload,
+        occurred_at
       )
-      VALUES ($1, $2, $3)
+      VALUES ($1, $2, $3, $4, $5, NOW())
       RETURNING *
-    `,
-    [
+    `, [
+      eventId,
+      eventType,
       event_hash,
       previousHash,
       enrichedPayload
     ])
 
     await client.query("COMMIT")
+
+    console.log("✅ writeEvent OK:", { event_hash, eventId, eventType })
 
     // 🔥 cache resiliente
     try {
@@ -128,16 +120,9 @@ export async function writeEvent({ payload }: WriteEventInput) {
     return insertRes.rows[0]
 
   } catch (error) {
-
     await client.query("ROLLBACK")
-
-    console.error("writeEvent error", {
-      payload,
-      error
-    })
-
+    console.error("writeEvent error", { payload, error })
     throw new Error("failed to write event")
-
   } finally {
     client.release()
   }
