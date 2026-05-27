@@ -13,7 +13,7 @@ export async function getUnanchoredEvents(limit = 500): Promise<UnanchoredEvent[
     `
     SELECT id::text, event_hash, event_id::text, signature
     FROM public.event_chain
-    WHERE block_id IS NULL AND event_hash IS NOT NULL AND length(event_hash) = 64
+    WHERE block_id IS NULL AND event_hash IS NOT NULL AND length(event_hash) = 64 AND event_hash != 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     ORDER BY created_at ASC
     LIMIT $1
     `,
@@ -21,5 +21,6 @@ export async function getUnanchoredEvents(limit = 500): Promise<UnanchoredEvent[
   )
   return rows
 }
+
 
 
