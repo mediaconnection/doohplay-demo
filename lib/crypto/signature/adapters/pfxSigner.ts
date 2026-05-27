@@ -37,7 +37,16 @@ function readPfxFile(filePath: string): Buffer {
     throw new Error("CERT_PFX_FILE_NOT_FOUND")
   }
 
-  return fs.readFileSync(filePath)
+  const raw = fs.readFileSync(filePath)
+
+  // Auto-detect base64 encoding (Render Secret Files armazena como texto plano)
+  // PFX/PKCS12 binário começa com 0x30 (ASN.1 SEQUENCE tag)
+  // Base64 começa com letra maiúscula (ex: 'M' = 0x4D para "MIIl...")
+  if (raw.length > 0 && raw[0] !== 0x30 && raw[0] >= 0x41) {
+    return Buffer.from(raw.toString("utf-8").trim(), "base64")
+  }
+
+  return raw
 }
 
 function extractPfxMaterial(
