@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DOOHPLAY Event Worker
  * ---------------------
  * Processa eventos da fila (BullMQ)
@@ -7,76 +7,48 @@
 import { config as loadEnv } from "dotenv"
 loadEnv({ path: ".env.local" })
 
-import { eventWorker } from "./lib/queue/eventWorker"
+import { getEventWorker } from "./lib/queue/workers/eventWorker"
 import { getProofWorker } from "./lib/queue/workers/proofWorker"
-import { getAlertWorker } from "./lib/queue/workers/alertWorker"
+import { getAggregatorWorker } from "./lib/queue/workers/alertWorker"
 import { getRiskWorker } from "./lib/queue/workers/riskWorker"
-import { getBlockWorker } from "./lib/queue/workers/blockWorker"
+import { getAlertWorker } from "./lib/queue/workers/blockWorker"
 
-// 🔥 START
 console.log("🟢 DOOHPLAY Event Worker started")
 
-// Inicializa todos os workers
+const eventWorker = getEventWorker()
+console.log("✅ eventWorker started")
+
 const proofWorker = getProofWorker()
 console.log("✅ proofWorker started")
 
-const alertWorker = getAlertWorker()
-console.log("✅ alertWorker started")
+const aggregatorWorker = getAggregatorWorker()
+console.log("✅ aggregatorWorker started")
 
 const riskWorker = getRiskWorker()
 console.log("✅ riskWorker started")
 
-const blockWorker = getBlockWorker()
-console.log("✅ blockWorker started")
+const alertWorker = getAlertWorker()
+console.log("✅ alertWorker started")
 
-// 📊 LOGS DE PROCESSAMENTO — eventWorker
-eventWorker.on("completed", (job) => {
-  console.log(`✅ eventWorker job completed: ${job.name} (${job.id})`)
-})
+eventWorker.on("completed", (job) => console.log(`✅ eventWorker completed: ${job.id}`))
+eventWorker.on("failed", (job, err) => console.error(`❌ eventWorker failed: ${job?.id}`, err.message))
+proofWorker.on("completed", (job) => console.log(`✅ proofWorker completed: ${job.id}`))
+proofWorker.on("failed", (job, err) => console.error(`❌ proofWorker failed: ${job?.id}`, err.message))
 
-eventWorker.on("failed", (job, err) => {
-  console.error(`❌ eventWorker job failed: ${job?.name} (${job?.id})`, err)
-})
-
-eventWorker.on("active", (job) => {
-  console.log(`⚡ eventWorker processing job: ${job.name} (${job.id})`)
-})
-
-// 📊 LOGS — proofWorker
-proofWorker.on("completed", (job) => {
-  console.log(`✅ proofWorker job completed: ${job.id}`)
-})
-
-proofWorker.on("failed", (job, err) => {
-  console.error(`❌ proofWorker job failed: ${job?.id}`, err.message)
-})
-
-// 🛑 GRACEFUL SHUTDOWN
 async function shutdown(signal: string) {
-  console.log(`\n🛑 Received ${signal}. Shutting down workers...`)
-  try {
-    await Promise.allSettled([
-      eventWorker.close(),
-      proofWorker.close(),
-      alertWorker.close(),
-      riskWorker.close(),
-      blockWorker.close(),
-    ])
-    console.log("✅ Workers closed gracefully")
-    process.exit(0)
-  } catch (err) {
-    console.error("❌ Error during shutdown", err)
-    process.exit(1)
-  }
+  console.log(`🛑 Received ${signal}. Shutting down...`)
+  await Promise.allSettled([
+    eventWorker.close(),
+    proofWorker.close(),
+    aggregatorWorker.close(),
+    riskWorker.close(),
+    alertWorker.close(),
+  ])
+  console.log("✅ Workers closed")
+  process.exit(0)
 }
 
 process.on("SIGINT", () => shutdown("SIGINT"))
 process.on("SIGTERM", () => shutdown("SIGTERM"))
-
-process.on("uncaughtException", (err) => {
-  console.error("💥 Uncaught Exception:", err)
-})
-
-process.on("unhandledRejection", (reason) => {
-  console.error("💥 Unhandled Rejection:", reason)
-})
+process.on("uncaughtException", (err) => console.error("💥 Uncaught Exception:", err))
+process.on("unhandledRejection", (reason) => console.error("💥 Unhandled Rejection:", reason))
