@@ -1,4 +1,4 @@
-import fs from "fs"
+﻿import fs from "fs"
 import forge from "node-forge"
 import { createSign, createPrivateKey, X509Certificate } from "crypto"
 
