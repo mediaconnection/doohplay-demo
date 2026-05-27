@@ -4,43 +4,64 @@
  * Processa eventos da fila (BullMQ)
  */
 
-// Must be the first import — loads .env.local into process.env.
-// Note: static imports are hoisted by esbuild/tsx, so this config() call runs
-// after module-level code in imported files. The --env-file=.env.local flag in
-// the npm script is what guarantees DATABASE_URL is available at import time.
 import { config as loadEnv } from "dotenv"
 loadEnv({ path: ".env.local" })
 
-import { eventWorker } from "./src/lib/queue/eventWorker"
-import { aggregatorWorker, scheduleAggregatorJob } from "./lib/queue/workers/aggregatorWorker"
+import { eventWorker } from "./lib/queue/eventWorker"
+import { getProofWorker } from "./lib/queue/workers/proofWorker"
+import { getAlertWorker } from "./lib/queue/workers/alertWorker"
+import { getRiskWorker } from "./lib/queue/workers/riskWorker"
+import { getBlockWorker } from "./lib/queue/workers/blockWorker"
 
 // 🔥 START
 console.log("🟢 DOOHPLAY Event Worker started")
 
-// 🔗 PROOFCHAIN AGGREGATOR — schedule periodic proof pipeline (every 5 min)
-scheduleAggregatorJob().catch((err) => {
-  console.error("❌ Failed to schedule proofchain aggregator:", err)
-})
+// Inicializa todos os workers
+const proofWorker = getProofWorker()
+console.log("✅ proofWorker started")
 
-// 📊 LOGS DE PROCESSAMENTO
+const alertWorker = getAlertWorker()
+console.log("✅ alertWorker started")
+
+const riskWorker = getRiskWorker()
+console.log("✅ riskWorker started")
+
+const blockWorker = getBlockWorker()
+console.log("✅ blockWorker started")
+
+// 📊 LOGS DE PROCESSAMENTO — eventWorker
 eventWorker.on("completed", (job) => {
-  console.log(`✅ Job completed: ${job.name} (${job.id})`)
+  console.log(`✅ eventWorker job completed: ${job.name} (${job.id})`)
 })
 
 eventWorker.on("failed", (job, err) => {
-  console.error(`❌ Job failed: ${job?.name} (${job?.id})`, err)
+  console.error(`❌ eventWorker job failed: ${job?.name} (${job?.id})`, err)
 })
 
 eventWorker.on("active", (job) => {
-  console.log(`⚡ Processing job: ${job.name} (${job.id})`)
+  console.log(`⚡ eventWorker processing job: ${job.name} (${job.id})`)
 })
 
-// 🛑 GRACEFUL SHUTDOWN (CRÍTICO)
-async function shutdown(signal: string) {
-  console.log(`\n🛑 Received ${signal}. Shutting down worker...`)
+// 📊 LOGS — proofWorker
+proofWorker.on("completed", (job) => {
+  console.log(`✅ proofWorker job completed: ${job.id}`)
+})
 
+proofWorker.on("failed", (job, err) => {
+  console.error(`❌ proofWorker job failed: ${job?.id}`, err.message)
+})
+
+// 🛑 GRACEFUL SHUTDOWN
+async function shutdown(signal: string) {
+  console.log(`\n🛑 Received ${signal}. Shutting down workers...`)
   try {
-    await Promise.all([eventWorker.close(), aggregatorWorker.close()])
+    await Promise.allSettled([
+      eventWorker.close(),
+      proofWorker.close(),
+      alertWorker.close(),
+      riskWorker.close(),
+      blockWorker.close(),
+    ])
     console.log("✅ Workers closed gracefully")
     process.exit(0)
   } catch (err) {
@@ -49,11 +70,9 @@ async function shutdown(signal: string) {
   }
 }
 
-// 🔥 CAPTURA SINAIS DO SISTEMA
-process.on("SIGINT", shutdown)
-process.on("SIGTERM", shutdown)
+process.on("SIGINT", () => shutdown("SIGINT"))
+process.on("SIGTERM", () => shutdown("SIGTERM"))
 
-// 🔥 CAPTURA ERROS GLOBAIS
 process.on("uncaughtException", (err) => {
   console.error("💥 Uncaught Exception:", err)
 })
