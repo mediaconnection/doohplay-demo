@@ -1,4 +1,5 @@
 import { Worker, type Job } from "bullmq"
+import { createHash } from "crypto"
 import { getRedis } from "@/lib/redis"
 import { runProofEngine } from "../engine"
 import { setCachedProof, getCachedProof } from "../cache/proofCache"
@@ -17,7 +18,14 @@ type ProofJobData = {
 }
 
 type ProofResult = {
-  root: string
+  score: number
+  valid: boolean
+  status: string
+  trust: string
+  reasons: string[]
+  layers: unknown[]
+  explanation?: unknown
+  meta?: unknown
   [key: string]: unknown
 }
 
@@ -25,6 +33,7 @@ type ProofBundle = ProofResult & {
   signature: unknown
   keyId: string
   timestamp: number
+  root: string
 }
 
 /* =========================
@@ -40,8 +49,12 @@ function isValidJob(data: unknown): data is ProofJobData {
   )
 }
 
-function isValidHash(value: string): boolean {
-  return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value)
+function isValidProofResult(result: unknown): result is ProofResult {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    typeof (result as ProofResult).score === "number"
+  )
 }
 
 /* =========================
@@ -50,6 +63,12 @@ function isValidHash(value: string): boolean {
 
 function buildPayload(root: string, timestamp: number): string {
   return JSON.stringify({ root, timestamp })
+}
+
+function buildScoreHash(score: number, timestamp: number): string {
+  return createHash("sha256")
+    .update(String(score) + String(timestamp))
+    .digest("hex")
 }
 
 /* =========================
@@ -86,19 +105,23 @@ export function getProofWorker(): Worker {
 
           /* ── Engine ── */
 
-          const result = await runProofEngine(input) as ProofResult
+          const result = await runProofEngine(input)
 
-          if (!result?.root || !isValidHash(result.root)) {
-            throw new Error("Invalid Merkle root generated")
+          if (!isValidProofResult(result)) {
+            throw new Error("Invalid proof engine result")
           }
 
           /* ── Timestamp ── */
 
           const timestamp = Math.floor(Date.now() / 1000)
 
+          /* ── Root hash derivado do score + timestamp ── */
+
+          const root = buildScoreHash(result.score, timestamp)
+
           /* ── Signature ── */
 
-          const payload = buildPayload(result.root, timestamp)
+          const payload = buildPayload(root, timestamp)
           const signer = getSigner()
           const { keyId } = getActiveKey()
           const signature = await signer.sign(payload)
@@ -107,6 +130,7 @@ export function getProofWorker(): Worker {
 
           const proofBundle: ProofBundle = {
             ...result,
+            root,
             signature,
             keyId,
             timestamp,
@@ -120,7 +144,8 @@ export function getProofWorker(): Worker {
           log("PROOF_JOB_SUCCESS", {
             traceId,
             jobId: job.id,
-            root: result.root,
+            score: result.score,
+            root,
             keyId,
           })
 
@@ -144,6 +169,8 @@ export function getProofWorker(): Worker {
       {
         connection: getRedis(),
         concurrency: 5,
+        stalledInterval: 60_000,
+        lockDuration: 60_000,
         limiter: {
           max: 50,
           duration: 1000,
