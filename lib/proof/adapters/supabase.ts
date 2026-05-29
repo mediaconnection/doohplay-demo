@@ -1,6 +1,12 @@
 // @ts-nocheck
 import { pool } from "@/lib/db"
-import { supabaseAdmin } from "@/lib/supabaseAdmin"
+import { createClient as _sbCreate } from "@supabase/supabase-js"
+
+const supabaseAdmin = _sbCreate(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+)
 
 import type {
   CertificationRecord,
@@ -171,20 +177,18 @@ function mapCertification(row: CertificationRow): CertificationRecord | null {
   }
 }
 
-// Mapeia digital_certifications (schema diferente — entity_id está dentro do campo event jsonb)
 function mapDigitalCertification(
   row: DigitalCertificationRow
 ): CertificationRecord | null {
   const contentHash = normalizeHash(row.content_hash)
   if (!contentHash || !isHex64(contentHash)) return null
 
-  // entity_id e entity_type estão dentro do campo event jsonb
   const eventData = row.event ?? {}
   const entityId =
     normalizeString(eventData.event_id) ??
-    normalizeString(row.id) // fallback para o id da certificação
+    normalizeString(row.id)
 
-  const entityType: EntityType = "event" // digital_certifications são sempre eventos
+  const entityType: EntityType = "event"
 
   if (!entityId) return null
 
@@ -316,7 +320,6 @@ async function getCertificationByHashFromSupabase(
   if (!normalizedHash || !isHex64(normalizedHash)) return null
 
   try {
-    // 1. Busca primeiro na tabela certifications (schema original)
     const query = supabaseAdmin
       .from("certifications")
       .select(`
@@ -352,7 +355,6 @@ async function getCertificationByHashFromSupabase(
       }
     }
 
-    // 2. Fallback: busca em digital_certifications (schema novo, entity_id dentro do jsonb event)
     const { data: digitalData, error: digitalError } = await supabaseAdmin
       .from("digital_certifications")
       .select(`
@@ -406,7 +408,6 @@ export async function getCertification(
       normalizedHash,
       normalizedEntityId
     )
-
     if (ledger) return ledger
   }
 
@@ -415,7 +416,6 @@ export async function getCertification(
       normalizedHash,
       normalizedEntityId
     )
-
     if (ledger) return ledger
   }
 
@@ -439,7 +439,6 @@ export async function getCertificationByHash(
   options?: PublicLookupOptions
 ): Promise<CertificationRecord | null> {
   const normalizedHash = normalizeHash(hash)
-
   if (!normalizedHash || !isHex64(normalizedHash)) return null
 
   if (!options?.entity_type || options.entity_type === "event") {
@@ -460,9 +459,7 @@ export async function resolveProofInputByHash(
   options?: PublicLookupOptions
 ): Promise<ProofInput | null> {
   const certification = await getCertificationByHash(hash, options)
-
   if (!certification) return null
-
   return {
     hash: certification.content_hash,
     entity_id: certification.entity_id,
