@@ -1,9 +1,6 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-
-// ─── Cliente público (anon key) ───────────────────────────────────────────────
+﻿import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 let _supabase: SupabaseClient | null = null
-
 export function getSupabase(): SupabaseClient {
   if (!_supabase) {
     _supabase = createClient(
@@ -14,29 +11,17 @@ export function getSupabase(): SupabaseClient {
   return _supabase
 }
 
-// ─── Cliente server-side (service role) ──────────────────────────────────────
-
 let _supabaseServer: SupabaseClient | null = null
-
 export function getSupabaseServer(): SupabaseClient {
   if (!_supabaseServer) {
     _supabaseServer = createClient(
       process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
-      }
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
     )
   }
   return _supabaseServer
 }
-
-// ─── Proxies para compatibilidade com imports existentes ─────────────────────
-// Permitem continuar usando `supabase.from(...)` sem alterar todos os arquivos.
 
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_, prop) {
@@ -53,3 +38,5 @@ export const supabaseServer = new Proxy({} as SupabaseClient, {
     return typeof value === "function" ? value.bind(client) : value
   },
 })
+
+export const supabaseAdmin = supabaseServer
