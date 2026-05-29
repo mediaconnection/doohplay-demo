@@ -8,10 +8,6 @@ import { getActiveKey } from "@/lib/domain/proof/keyRegistry"
 import { increment, observe } from "@/lib/observability/metrics"
 import { log } from "@/lib/observability/logger"
 
-/* =========================
-   TYPES
-========================= */
-
 type ProofJobData = {
   input: Record<string, unknown>
   traceId?: string
@@ -36,10 +32,6 @@ type ProofBundle = ProofResult & {
   root: string
 }
 
-/* =========================
-   HELPERS
-========================= */
-
 function isValidJob(data: unknown): data is ProofJobData {
   return (
     data !== null &&
@@ -57,10 +49,6 @@ function isValidProofResult(result: unknown): result is ProofResult {
   )
 }
 
-/* =========================
-   CANONICAL PAYLOAD
-========================= */
-
 function buildPayload(root: string, timestamp: number): string {
   return JSON.stringify({ root, timestamp })
 }
@@ -71,9 +59,9 @@ function buildScoreHash(score: number, timestamp: number): string {
     .digest("hex")
 }
 
-/* =========================
-   WORKER
-========================= */
+function getCacheKey(input: Record<string, unknown>): string {
+  return String(input?.hash ?? "")
+}
 
 let _proofWorker: Worker | null = null
 
@@ -96,15 +84,14 @@ export function getProofWorker(): Worker {
           increment("proof_jobs_started")
 
           /* ── Cache check ── */
-
-          const cached = await getCachedProof(input)
+          const cacheKey = getCacheKey(input)
+          const cached = await getCachedProof(cacheKey)
           if (cached) {
             log("PROOF_CACHE_HIT", { traceId })
             return cached
           }
 
           /* ── Engine ── */
-
           const result = await runProofEngine(input)
 
           if (!isValidProofResult(result)) {
@@ -112,22 +99,18 @@ export function getProofWorker(): Worker {
           }
 
           /* ── Timestamp ── */
-
           const timestamp = Math.floor(Date.now() / 1000)
 
-          /* ── Root hash derivado do score + timestamp ── */
-
+          /* ── Root hash ── */
           const root = buildScoreHash(result.score, timestamp)
 
           /* ── Signature ── */
-
           const payload = buildPayload(root, timestamp)
           const signer = getSigner()
           const { keyId } = getActiveKey()
           const signature = await signer.sign(payload)
 
           /* ── Proof bundle ── */
-
           const proofBundle: ProofBundle = {
             ...result,
             root,
@@ -137,8 +120,7 @@ export function getProofWorker(): Worker {
           }
 
           /* ── Cache write ── */
-
-          await setCachedProof(input, proofBundle)
+          await setCachedProof(cacheKey, proofBundle)
 
           increment("proof_jobs_success")
           log("PROOF_JOB_SUCCESS", {
@@ -178,8 +160,6 @@ export function getProofWorker(): Worker {
       }
     )
 
-    /* ── Events ── */
-
     _proofWorker.on("completed", (job) => {
       log("PROOF_JOB_COMPLETED", { jobId: job.id })
     })
@@ -199,7 +179,6 @@ export function getProofWorker(): Worker {
   return _proofWorker
 }
 
-// Proxy para compatibilidade com imports existentes
 export const proofWorker = new Proxy({} as Worker, {
   get(_, prop) {
     const w = getProofWorker()
