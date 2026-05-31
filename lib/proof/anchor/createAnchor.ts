@@ -19,24 +19,28 @@ function sha256(data: string) {
 }
 
 /**
- * Obtém o último estado do ledger
+ * Obtém o último estado do ledger com merkle_root válido
  */
 async function getLedgerState() {
+  // Busca evento com merkle_root valido
   const res = await pool.query(`
-    select
-      event_hash,
-      merkle_root,
-      block_height
+    select event_hash, merkle_root, block_height
     from event_chain
+    where merkle_root is not null and merkle_root != ''
     order by block_height desc
     limit 1
   `)
-
-  if (res.rowCount === 0) {
-    throw new Error("Ledger is empty")
-  }
-
-  return res.rows[0]
+  if (res.rowCount > 0) return res.rows[0]
+  // Fallback: blockchain_anchor
+  const ba = await pool.query(`
+    select merkle_root, tx_hash as event_hash
+    from blockchain_anchor
+    where merkle_root is not null
+    order by created_at desc
+    limit 1
+  `)
+  if (ba.rowCount === 0) throw new Error("Ledger is empty")
+  return ba.rows[0]
 }
 
 /**
@@ -85,7 +89,6 @@ async function publishAnchor(
     console.warn('[anchor] Polygon falhou:', e.message, e.code || '')
     return { network: 'internal', tx: merkleRoot }
   }
-
 }
 
 /**
