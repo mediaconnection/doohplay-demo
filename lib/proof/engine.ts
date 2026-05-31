@@ -46,7 +46,8 @@ type LocalFailureReason =
 const EXECUTABLE_LAYERS = [
   "icp",
   "merkle",
-  "blockchain"
+  "blockchain",
+  "timestamp"
 ] as const satisfies readonly LayerName[]
 
 const VALID_FAILURE_REASONS: readonly LocalFailureReason[] = [
@@ -242,6 +243,12 @@ function createLayerTask(
     case "blockchain":
       return safeLayer("blockchain", () => blockchainLayer(ctx))
 
+    case "timestamp":
+      return safeLayer("timestamp", async () => {
+        const cert = ctx.cert as any
+        const hasTsa = Boolean(cert && cert.tsa_token)
+        return { name: "timestamp", valid: hasTsa, weight: 10, reasons: hasTsa ? [] : ["LAYER_TIMEOUT"], message: hasTsa ? "TSA RFC3161 valido" : "Sem TSA", error: hasTsa ? null : "LAYER_TIMEOUT", details: { tsa_present: hasTsa }, duration_ms: 0, meta: { tsa_present: hasTsa } }
+      })
     default:
       return safeLayer(layerName, async () =>
         ({
