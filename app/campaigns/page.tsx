@@ -123,7 +123,7 @@ export default async function CampaignsPage({
   const result = await pool.query(`
     WITH campaign_stats AS (
       SELECT
-        ec.campaign_id,
+        ec.payload->>'campaign_id',
         COUNT(*)::int AS total_events,
         COALESCE(
           SUM(
@@ -134,11 +134,11 @@ export default async function CampaignsPage({
           ),
           0
         )::int AS invalid_events,
-        COUNT(DISTINCT ec.device_id)::int AS players_count,
+        COUNT(DISTINCT ec.payload->>'device_id')::int AS players_count,
         MAX(ec.occurred_at)::text AS last_event_at
       FROM public.event_chain ec
-      WHERE ec.campaign_id IS NOT NULL
-      GROUP BY ec.campaign_id
+      WHERE ec.payload->>'campaign_id' IS NOT NULL
+      GROUP BY ec.payload->>'campaign_id'
     ),
     campaign_graph AS (
       SELECT
