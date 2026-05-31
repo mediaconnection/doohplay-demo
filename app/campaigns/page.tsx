@@ -123,7 +123,7 @@ export default async function CampaignsPage({
   const result = await pool.query(`
     WITH campaign_stats AS (
       SELECT
-        ec.payload->>'campaign_id',
+        ec.payload->>'campaign_id' AS campaign_id,
         COUNT(*)::int AS total_events,
         COALESCE(
           SUM(
