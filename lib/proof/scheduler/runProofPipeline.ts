@@ -142,6 +142,17 @@ export async function runProofPipeline(): Promise<PipelineResult> {
 
   if (anchor) {
     anchors++
+    // Se anchor Polygon real, atualiza certifications com tx_hash
+    if (anchor.anchor_network === 'polygon' && anchor.anchor_tx) {
+      const {Pool: PgPool2} = require('pg')
+      const pgPool2 = new PgPool2({connectionString: process.env.DATABASE_URL, ssl:{rejectUnauthorized:false}})
+      await pgPool2.query(
+        'UPDATE certifications SET blockchain_tx=$1, tx_hash=$1 WHERE blockchain_tx IS NULL OR blockchain_tx = tx_hash',
+        [anchor.anchor_tx]
+      ).catch(e => console.warn('[pipeline] update cert tx_hash failed:', e.message))
+      await pgPool2.end()
+      console.log('[pipeline] certifications atualizadas com tx_hash:', anchor.anchor_tx)
+    }
   }
 
   return {
