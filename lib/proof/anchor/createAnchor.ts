@@ -22,7 +22,6 @@ function sha256(data: string) {
  * Obtém o último estado do ledger
  */
 async function getLedgerState() {
-
   const res = await pool.query(`
     select
       event_hash,
@@ -47,7 +46,6 @@ function buildAnchorPayload(
   merkleRoot: string,
   ledgerHash: string
 ) {
-
   const payload = JSON.stringify({
     merkle_root: merkleRoot,
     ledger_hash: ledgerHash,
@@ -60,15 +58,14 @@ function buildAnchorPayload(
     payload,
     payloadHash
   }
-
 }
 
 /**
- * Simulação de publicação em rede externa
- * (OpenTimestamps / Bitcoin / Arweave)
+ * Publica anchor na Polygon como storeRoot(bytes32)
+ * compatível com blockchainLayer/decodeTransaction
  */
 async function publishAnchor(
-  payloadHash: string
+  merkleRoot: string
 ) {
   try {
     const {ethers} = require('ethers')
@@ -77,12 +74,16 @@ async function publishAnchor(
     if (!pk) throw new Error('no key')
     const provider = new ethers.JsonRpcProvider(process.env.BLOCKCHAIN_RPC || process.env.POLYGON_RPC)
     const wallet = new ethers.Wallet(pk, provider)
-    const tx = await wallet.sendTransaction({to: wallet.address, value: ethers.toBigInt(0), data: ethers.hexlify(ethers.toUtf8Bytes(payloadHash))})
-    console.log('[anchor] Polygon tx:', tx.hash)
+    const iface = new ethers.Interface(['function storeRoot(bytes32 root)'])
+    const root = merkleRoot.startsWith('0x') ? merkleRoot : '0x' + merkleRoot
+    const root32 = ethers.zeroPadValue(root.slice(0, 66), 32)
+    const data = iface.encodeFunctionData('storeRoot', [root32])
+    const tx = await wallet.sendTransaction({to: wallet.address, value: ethers.toBigInt(0), data})
+    console.log('[anchor] Polygon tx storeRoot:', tx.hash)
     return { network: 'polygon', tx: tx.hash }
   } catch(e) {
     console.warn('[anchor] Polygon falhou:', e.message, e.code || '')
-    return { network: 'internal', tx: payloadHash }
+    return { network: 'internal', tx: merkleRoot }
   }
 
 }
