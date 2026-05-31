@@ -70,13 +70,19 @@ function buildAnchorPayload(
 async function publishAnchor(
   payloadHash: string
 ) {
-
-  // placeholder para integração futura
-  // OpenTimestamps ou outra rede
-
-  return {
-    network: "internal",
-    tx: payloadHash
+  try {
+    const {ethers} = require('ethers')
+    const pk = process.env.WALLET_PRIVATE_KEY
+    if (!pk) throw new Error('no key')
+    const provider = new ethers.JsonRpcProvider(process.env.BLOCKCHAIN_RPC || process.env.POLYGON_RPC)
+    const wallet = new ethers.Wallet(pk, provider)
+    const tx = await wallet.sendTransaction({to: wallet.address, value: ethers.toBigInt(0), data: ethers.hexlify(ethers.toUtf8Bytes(payloadHash))})
+    const receipt = await tx.wait()
+    console.log('[anchor] Polygon tx:', tx.hash)
+    return { network: 'polygon', tx: tx.hash }
+  } catch(e) {
+    console.warn('[anchor] Polygon falhou:', e.message)
+    return { network: 'internal', tx: payloadHash }
   }
 
 }
