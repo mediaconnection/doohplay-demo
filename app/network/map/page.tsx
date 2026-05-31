@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react"
 
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
 
-import "leaflet.markercluster"
-import "leaflet.markercluster/dist/MarkerCluster.css"
-import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 
 type DevicePoint = {
   id: string
@@ -18,7 +13,7 @@ type DevicePoint = {
   city?: string | null
 }
 
-type MarkerClusterGroupInstance = L.MarkerClusterGroup
+type MarkerClusterGroupInstance = any
 
 function isValidCoordinate(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value)
@@ -66,7 +61,7 @@ function normalizePoints(data: unknown): DevicePoint[] {
 }
 
 export default function NetworkMapPage() {
-  const mapRef = useRef<L.Map | null>(null)
+  const mapRef = useRef<any>(null)
   const clusterRef = useRef<MarkerClusterGroupInstance | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -100,9 +95,11 @@ export default function NetworkMapPage() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === "undefined") return
     if (!containerRef.current || mapRef.current) {
       return
     }
+    const L = require("leaflet"); require("leaflet.markercluster")
 
     const map = L.map(containerRef.current, {
       zoomControl: true
