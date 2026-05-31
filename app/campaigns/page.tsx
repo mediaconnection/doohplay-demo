@@ -139,27 +139,17 @@ export default async function CampaignsPage({
       FROM public.event_chain ec
       WHERE ec.payload->>'campaign_id' IS NOT NULL
       GROUP BY ec.payload->>'campaign_id'
-    ),
-    campaign_graph AS (
-      SELECT
-        tgn.ref_id AS campaign_id,
-        tgn.score,
-        tgn.risk
-      FROM public.trust_graph_nodes tgn
-      WHERE tgn.node_type = 'campaign'
     )
     SELECT
       cs.campaign_id,
       NULL::text AS campaign_name,
-      cg.score,
-      cg.risk,
+      NULL::int AS score,
+      NULL::text AS risk,
       cs.total_events,
       cs.invalid_events,
       cs.players_count,
       cs.last_event_at
     FROM campaign_stats cs
-    LEFT JOIN campaign_graph cg
-      ON cg.campaign_id = cs.campaign_id
   `)
 
   const resultRows = result.rows as CampaignListRow[]
