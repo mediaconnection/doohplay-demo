@@ -72,7 +72,8 @@ async function publishAnchor(
 ) {
   try {
     const {ethers} = require('ethers')
-    const pk = process.env.WALLET_PRIVATE_KEY
+    const pkRaw = process.env.WALLET_PRIVATE_KEY
+    const pk = pkRaw && !pkRaw.startsWith('0x') ? '0x'+pkRaw : pkRaw
     if (!pk) throw new Error('no key')
     const provider = new ethers.JsonRpcProvider(process.env.BLOCKCHAIN_RPC || process.env.POLYGON_RPC)
     const wallet = new ethers.Wallet(pk, provider)
@@ -81,7 +82,7 @@ async function publishAnchor(
     console.log('[anchor] Polygon tx:', tx.hash)
     return { network: 'polygon', tx: tx.hash }
   } catch(e) {
-    console.warn('[anchor] Polygon falhou:', e.message)
+    console.warn('[anchor] Polygon falhou:', e.message, e.code || '')
     return { network: 'internal', tx: payloadHash }
   }
 
