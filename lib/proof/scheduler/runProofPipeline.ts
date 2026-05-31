@@ -54,13 +54,22 @@ async function createCertificationForBlock(block) {
   if (!privRaw) return 0
   const priv = privRaw.startsWith('-----') ? privRaw : ['-----BEGIN PRIVATE KEY-----', ...privRaw.match(/.{1,64}/g), '-----END PRIVATE KEY-----', ''].join('\n')
   const sig = crypto.createSign('SHA256').update(Buffer.from(merkleRoot,'hex')).sign(priv,'base64')
-  const {error} = await sb.from('certifications').upsert({
+  const {Pool: PgPool} = require('pg')
+  const pgPool = new PgPool({connectionString: process.env.DATABASE_URL, ssl:{rejectUnauthorized:false}})
+  const error = await pgPool.query(
+    `INSERT INTO certifications (content_hash, entity_id, entity_type, merkle_root, signature)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (content_hash) DO UPDATE SET signature=EXCLUDED.signature, merkle_root=EXCLUDED.merkle_root`,
+    [merkleRoot, String(block.block_id || merkleRoot.slice(0,36)), 'event', merkleRoot, sig]
+  ).then(() => null).catch(e => e)
+  await pgPool.end()
+  const _unused = {
     content_hash: merkleRoot,
     entity_id: String(block.block_id || merkleRoot.slice(0,36)),
     entity_type: 'event',
     merkle_root: merkleRoot,
     signature: sig
-  }, {onConflict: 'content_hash'})
+  }
   if (error) { console.error('cert error:', error.message); return 0 }
   console.log('[pipeline] certification criada:', merkleRoot.slice(0,16)+'...')
   return 1
