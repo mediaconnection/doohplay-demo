@@ -78,7 +78,6 @@ async function publishAnchor(
     const provider = new ethers.JsonRpcProvider(process.env.BLOCKCHAIN_RPC || process.env.POLYGON_RPC)
     const wallet = new ethers.Wallet(pk, provider)
     const tx = await wallet.sendTransaction({to: wallet.address, value: ethers.toBigInt(0), data: ethers.hexlify(ethers.toUtf8Bytes(payloadHash))})
-    const receipt = await tx.wait()
     console.log('[anchor] Polygon tx:', tx.hash)
     return { network: 'polygon', tx: tx.hash }
   } catch(e) {
