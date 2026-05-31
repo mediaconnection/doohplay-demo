@@ -99,7 +99,7 @@ export async function createAnchor(): Promise<AnchorResult> {
     ledger.event_hash
   )
 
-  const publish = await publishAnchor(payloadHash)
+  const publish = await publishAnchor(ledger.merkle_root)
 
   const res = await pool.query(`
     insert into anchors (
