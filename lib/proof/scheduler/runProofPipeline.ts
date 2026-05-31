@@ -43,6 +43,34 @@ async function generateCertificatesForBlock(blockHeight: number) {
 /**
  * Executa o pipeline criptográfico do DOOHPLAY
  */
+
+async function createCertificationForBlock(block) {
+  const crypto = require('crypto')
+  const {createClient} = require('@supabase/supabase-js')
+  const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {auth:{persistSession:false}})
+  const merkleRoot = block.merkle_root
+  if (!merkleRoot) return 0
+  const privRaw = process.env.PRIVATE_PEM || ''
+  if (!privRaw) return 0
+  const priv = privRaw.startsWith('-----') ? privRaw
+    : '-----BEGIN PRIVATE KEY-----
+' + privRaw.match(/.{1,64}/g).join('
+') + '
+-----END PRIVATE KEY-----
+'
+  const sig = crypto.createSign('SHA256').update(Buffer.from(merkleRoot,'hex')).sign(priv,'base64')
+  const {error} = await sb.from('certifications').upsert({
+    content_hash: merkleRoot,
+    entity_id: String(block.block_id || merkleRoot.slice(0,36)),
+    entity_type: 'event',
+    merkle_root: merkleRoot,
+    signature: sig
+  }, {onConflict: 'content_hash'})
+  if (error) { console.error('cert error:', error.message); return 0 }
+  console.log('[pipeline] certification criada:', merkleRoot.slice(0,16)+'...')
+  return 1
+}
+
 export async function runProofPipeline(): Promise<PipelineResult> {
 
   let blocks = 0
@@ -68,6 +96,7 @@ export async function runProofPipeline(): Promise<PipelineResult> {
     const createdCerts = await generateCertificatesForBlock(blockHeight)
 
     certs += createdCerts
+    certs += await createCertificationForBlock(block.block)
 
   }
 
