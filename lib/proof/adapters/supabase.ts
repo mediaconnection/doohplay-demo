@@ -172,6 +172,8 @@ function mapCertification(row: CertificationRow): CertificationRecord | null {
     tx_hash: normalizeTxHash(row.tx_hash ?? row.blockchain_tx),
     signature: normalizeString(row.signature),
     certificate_url: normalizeString(row.certificate_url),
+    tsa_token: normalizeString((row as any).tsa_token),
+    tsa_timestamp: normalizeString((row as any).tsa_timestamp),
     created_at: normalizeString(row.created_at) ?? undefined,
     updated_at: normalizeString(row.updated_at) ?? undefined
   }
@@ -333,6 +335,8 @@ async function getCertificationByHashFromSupabase(
         tx_hash,
         signature,
         certificate_url,
+        tsa_token,
+        tsa_timestamp,
         created_at,
         updated_at
       `)
