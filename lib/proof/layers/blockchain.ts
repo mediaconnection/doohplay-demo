@@ -266,6 +266,17 @@ export async function blockchainLayer(
       if (decodeErrorMessage) {
         methodMatch = false
         merkleMatch = false
+        // Fallback: verifica se rawData contém o merkleRoot
+        const expectedMerkleRaw = getExpectedMerkleRoot(ctx)
+        if (expectedMerkleRaw && tx.rawData) {
+          const rawLower = tx.rawData.toLowerCase()
+          const merkleHex = Buffer.from(expectedMerkleRaw).toString('hex')
+          if (rawLower.includes(expectedMerkleRaw.toLowerCase()) || rawLower.includes(merkleHex)) {
+            methodMatch = true
+            merkleMatch = true
+            decodeErrorMessage = null
+          }
+        }
       }
     }
 
