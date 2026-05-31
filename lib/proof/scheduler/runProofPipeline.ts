@@ -52,12 +52,7 @@ async function createCertificationForBlock(block) {
   if (!merkleRoot) return 0
   const privRaw = process.env.PRIVATE_PEM || ''
   if (!privRaw) return 0
-  const priv = privRaw.startsWith('-----') ? privRaw
-    : '-----BEGIN PRIVATE KEY-----
-' + privRaw.match(/.{1,64}/g).join('
-') + '
------END PRIVATE KEY-----
-'
+  const priv = privRaw.startsWith('-----') ? privRaw : ['-----BEGIN PRIVATE KEY-----', ...privRaw.match(/.{1,64}/g), '-----END PRIVATE KEY-----', ''].join('\n')
   const sig = crypto.createSign('SHA256').update(Buffer.from(merkleRoot,'hex')).sign(priv,'base64')
   const {error} = await sb.from('certifications').upsert({
     content_hash: merkleRoot,
