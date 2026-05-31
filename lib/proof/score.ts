@@ -33,7 +33,7 @@ const LAYER_WEIGHTS: Partial<Record<LayerName, number>> = {
 const REASON_PENALTIES: Record<FailureReason, number> = {
   ICP_FAIL: 25,
   MERKLE_FAIL: 30,
-  BLOCKCHAIN_FAIL: 20,
+  BLOCKCHAIN_FAIL: 0,
   INVALID_SIGNATURE: 35,
   CHAIN_INVALID: 20,
   CERT_REVOKED: 40,
