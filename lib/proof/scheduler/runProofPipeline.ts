@@ -54,13 +54,43 @@ async function createCertificationForBlock(block) {
   if (!privRaw) return 0
   const priv = privRaw.startsWith('-----') ? privRaw : ['-----BEGIN PRIVATE KEY-----', ...privRaw.match(/.{1,64}/g), '-----END PRIVATE KEY-----', ''].join('\n')
   const sig = crypto.createSign('SHA256').update(Buffer.from(merkleRoot,'hex')).sign(priv,'base64')
+  
+  // TSA timestamp
+  let tsaToken = null
+  let tsaTimestamp = null
+  try {
+    const {writeFileSync, readFileSync, unlinkSync} = require('fs')
+    const {spawn} = require('child_process')
+    const {randomUUID} = require('crypto')
+    const id = randomUUID()
+    const inputFile = '/tmp/' + id + '.txt'
+    const queryFile = '/tmp/' + id + '.tsq'
+    const responseFile = '/tmp/' + id + '.tsr'
+    writeFileSync(inputFile, merkleRoot)
+    await new Promise((resolve) => {
+      const q = spawn('openssl', ['ts', '-query', '-data', inputFile, '-sha256', '-no_nonce', '-cert', '-out', queryFile])
+      q.on('close', resolve)
+    })
+    await new Promise((resolve) => {
+      const r = spawn('curl', ['-s', '-H', 'Content-Type: application/timestamp-query', '--data-binary', '@' + queryFile, 'https://freetsa.org/tsr', '-o', responseFile])
+      r.on('close', resolve)
+    })
+    tsaToken = readFileSync(responseFile).toString('base64')
+    tsaTimestamp = new Date().toISOString()
+    try { unlinkSync(inputFile) } catch {}
+    try { unlinkSync(queryFile) } catch {}
+    try { unlinkSync(responseFile) } catch {}
+    console.log('[pipeline] TSA timestamp obtido')
+  } catch(e) {
+    console.warn('[pipeline] TSA falhou:', e.message)
+  }
   const {Pool: PgPool} = require('pg')
   const pgPool = new PgPool({connectionString: process.env.DATABASE_URL, ssl:{rejectUnauthorized:false}})
   const error = await pgPool.query(
-    `INSERT INTO certifications (content_hash, entity_id, entity_type, merkle_root, signature)
-     VALUES ($1,$2,$3,$4,$5)
+    `INSERT INTO certifications (content_hash, entity_id, entity_type, merkle_root, signature, tsa_token, tsa_timestamp)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (content_hash) DO UPDATE SET signature=EXCLUDED.signature, merkle_root=EXCLUDED.merkle_root`,
-    [merkleRoot, String(block.block_id || merkleRoot.slice(0,36)), 'event', merkleRoot, sig]
+    [merkleRoot, String(block.block_id || merkleRoot.slice(0,36)), 'event', merkleRoot, sig, tsaToken, tsaTimestamp]
   ).then(() => null).catch(e => e)
   await pgPool.end()
   const _unused = {
