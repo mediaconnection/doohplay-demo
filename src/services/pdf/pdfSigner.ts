@@ -7,23 +7,38 @@ import path from "path";
  * Retorna assinatura em base64
  */
 export function signHash(hash: string): string {
-  // Caminho absoluto da chave privada
-  const privateKeyPath = path.resolve(
-    process.cwd(),
-    "keys/private.pem"
-  );
+  let privateKey: string | null = null
 
-  if (!fs.existsSync(privateKeyPath)) {
-    throw new Error("Chave privada não encontrada em keys/private.pem");
+  // 1. Secret File do Render: /etc/secrets/private.pem
+  const secretPath = "/etc/secrets/private.pem"
+  if (fs.existsSync(secretPath)) {
+    privateKey = fs.readFileSync(secretPath, "utf8")
   }
 
-  const privateKey = fs.readFileSync(privateKeyPath, "utf8");
+  // 2. Fallback: keys/private.pem (desenvolvimento local)
+  if (!privateKey) {
+    const localPath = path.resolve(process.cwd(), "keys/private.pem")
+    if (fs.existsSync(localPath)) {
+      privateKey = fs.readFileSync(localPath, "utf8")
+    }
+  }
 
-  const sign = crypto.createSign("RSA-SHA256");
+  // 3. Fallback: PRIVATE_PEM env var
+  if (!privateKey) {
+    const privRaw = process.env.PRIVATE_PEM?.trim()
+    if (privRaw) {
+      privateKey = privRaw.startsWith('-----')
+        ? privRaw
+        : '-----BEGIN PRIVATE KEY-----\n' + privRaw.match(/.{1,64}/g)!.join('\n') + '\n-----END PRIVATE KEY-----\n'
+    }
+  }
 
-  // ⚠️ Converter hash HEX para bytes reais
-  sign.update(Buffer.from(hash, "hex"));
-  sign.end();
+  if (!privateKey) {
+    throw new Error("Chave privada não encontrada em /etc/secrets/private.pem, keys/private.pem ou PRIVATE_PEM")
+  }
 
-  return sign.sign(privateKey, "base64");
+  const sign = crypto.createSign("RSA-SHA256")
+  sign.update(Buffer.from(hash, "hex"))
+  sign.end()
+  return sign.sign(privateKey, "base64")
 }
