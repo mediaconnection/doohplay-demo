@@ -11,9 +11,7 @@ export async function appendEventToLedger(event: any) {
   `)
 
   const prevHash = last.rows[0]?.event_hash || null
-
   const combined = `${prevHash || ""}${event.hash}`
-
   const eventHash = crypto
     .createHash("sha256")
     .update(combined)
@@ -24,12 +22,12 @@ export async function appendEventToLedger(event: any) {
     INSERT INTO event_chain (
       event_id,
       event_hash,
-      prev_hash,
+      previous_event_hash,
       payload
     )
     VALUES ($1, $2, $3, $4)
     RETURNING *
-  `,
+    `,
     [event.event_id, eventHash, prevHash, event.payload]
   )
 
