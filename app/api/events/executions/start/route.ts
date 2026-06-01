@@ -1,22 +1,10 @@
-﻿export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
-
-
 export const runtime = "nodejs"
-
-type ExecutionStartedBody = {
-  campaign_id?: unknown
-  player_id?: unknown
-  execution_id?: unknown
-  media_id?: unknown
-  duration?: unknown
-  started_at?: unknown
-}
 
 function safeString(value: unknown): string | null {
   if (typeof value !== "string") return null
-
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
 }
@@ -26,27 +14,11 @@ function safeNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-function resolveExecutionStartedType(): string {
-  const types = LOG_EVENT_TYPES as Record<string, string>
-
-  return (
-    types.EXECUTION_STARTED ??
-    types.EXECUTION_START ??
-    types.PLAYBACK_STARTED ??
-    types.PLAYBACK_START ??
-    "EXECUTION_STARTED"
-  )
-}
-
 export async function POST(req: Request) {
-    const { logEvent } = await import("@/lib/logging/logEvent")
-    const { LOG_EVENT_TYPES } = await import("@/lib/logging/logEventTypes")
-
   try {
-    const body = (await req.json().catch(() => null)) as
-      | ExecutionStartedBody
-      | null
+    const { logEvent } = await import("@/lib/logging/logEvent")
 
+    const body = await req.json().catch(() => null)
     if (!body || typeof body !== "object") {
       return Response.json({ error: "Payload inválido" }, { status: 400 })
     }
@@ -57,39 +29,27 @@ export async function POST(req: Request) {
     const mediaId = safeString(body.media_id)
 
     if (!campaignId || !playerId || !executionId || !mediaId) {
-      return Response.json(
-        { error: "Dados obrigatórios ausentes" },
-        { status: 400 }
-      )
+      return Response.json({ error: "Dados obrigatórios ausentes" }, { status: 400 })
     }
 
-    const eventType = resolveExecutionStartedType()
-
     await logEvent({
-      type: eventType,
+      event_type: "EXECUTION_STARTED" as any,
+      campaign_id: campaignId,
+      player_id: playerId,
+      execution_id: executionId,
       metadata: {
-        campaign_id: campaignId,
-        player_id: playerId,
-        execution_id: executionId,
         media_id: mediaId,
         duration: safeNumber(body.duration),
         started_at: safeString(body.started_at) ?? new Date().toISOString()
       }
     })
 
-    return Response.json({
-      ok: true,
-      event_type: eventType
-    })
+    return Response.json({ ok: true, event_type: "EXECUTION_STARTED" })
   } catch (error) {
     console.error("EXECUTION_STARTED_ROUTE_ERROR", error)
-
-    return Response.json(
-      {
-        error: "Erro ao iniciar execução",
-        detail: error instanceof Error ? error.message : String(error)
-      },
-      { status: 500 }
-    )
+    return Response.json({
+      error: "Erro ao iniciar execução",
+      detail: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
   }
 }
