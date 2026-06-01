@@ -16,11 +16,6 @@ export type AggregatorResult = {
   error?: string
 }
 
-/* =========================
-   MERKLE HELPERS
-   Uses sha256(0x01 || left || right) — same as verifyMerkleProof
-========================= */
-
 function hashNode(left: string, right: string): string {
   const l = Buffer.from(left.toLowerCase().replace(/^0x/, ""), "hex")
   const r = Buffer.from(right.toLowerCase().replace(/^0x/, ""), "hex")
@@ -77,10 +72,6 @@ function getMerkleProofForLeaf(leaves: string[], leaf: string, tree: string[][])
   return proof
 }
 
-/* =========================
-   MAIN PIPELINE
-========================= */
-
 export async function runProofChainAggregator(): Promise<AggregatorResult> {
   // 1 — Fetch unanchored events
   const events = await getUnanchoredEvents(500)
@@ -92,7 +83,7 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
 
   console.log(`[proofchain] Processing ${events.length} events`)
 
-  // 2 — RSA-sign each event hash (best-effort; continues if keys/private.pem absent)
+  // 2 — RSA-sign each event hash
   for (const event of events) {
     if (event.signature) continue
     try {
@@ -107,12 +98,12 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
     }
   }
 
-  // 3 — Build Merkle tree from event hashes
+  // 3 — Build Merkle tree
   const hashes = events.map((e) => e.event_hash)
   const { root: merkleRoot, tree } = buildCompatibleMerkleTree(hashes)
   console.log(`[proofchain] merkle_root = ${merkleRoot}`)
 
-  // 4 — Compute block hash (sha256 of prev_block_hash + merkle_root + timestamp)
+  // 4 — Compute block hash
   const prevResult = await db.query<{ block_hash: string | null }>(
     `SELECT block_hash FROM public.event_blocks ORDER BY created_at DESC LIMIT 1`
   )
@@ -133,7 +124,7 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
   if (!blockId) throw new Error("[proofchain] Failed to insert event_blocks record")
   console.log(`[proofchain] Created block ${blockId}`)
 
-  // 6 — Assign events to block + store per-event merkle proofs (single transaction)
+  // 6 — Assign events to block + store merkle proofs
   const client = await pool.connect()
   try {
     await client.query("BEGIN")
@@ -155,7 +146,7 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
     client.release()
   }
 
-  // 7 — Anchor Merkle root to Polygon blockchain (best-effort)
+  // 7 — Anchor Merkle root to Polygon blockchain
   let txHash: string | null = null
   try {
     const anchorResult = await anchorMerkleRoot(merkleRoot)
@@ -173,7 +164,7 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
     console.warn("[proofchain] Blockchain anchor skipped:", (err as Error).message)
   }
 
-  // 8 — TSA timestamp (best-effort)
+  // 8 — TSA timestamp
   let tsaOk = false
   try {
     const tsaToken = await createTsaToken(Buffer.from(merkleRoot, "hex"))
@@ -188,6 +179,41 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
     console.warn("[proofchain] TSA skipped:", (err as Error).message)
   }
 
+  // 9 — Create certifications per event for /api/verify/[hash]
+  try {
+    const blockData = await db.query(
+      `SELECT merkle_root, tx_hash, tsa_token FROM public.event_blocks WHERE id = $1`,
+      [blockId]
+    )
+    const b = blockData.rows[0]
+    if (b) {
+      for (const event of events) {
+        await db.query(
+          `INSERT INTO public.certifications (
+            content_hash, entity_id, entity_type, merkle_root,
+            tx_hash, blockchain_tx, signature, tsa_token, tsa_timestamp
+          ) VALUES ($1, $2, 'event', $3, $4, $4, $5, $6, now())
+          ON CONFLICT (content_hash) DO UPDATE SET
+            merkle_root = EXCLUDED.merkle_root,
+            tx_hash = COALESCE(EXCLUDED.tx_hash, certifications.tx_hash),
+            signature = COALESCE(EXCLUDED.signature, certifications.signature),
+            tsa_token = COALESCE(EXCLUDED.tsa_token, certifications.tsa_token)`,
+          [
+            event.event_hash,
+            event.event_id ?? event.event_hash.slice(0, 36),
+            b.merkle_root,
+            b.tx_hash,
+            event.signature ?? null,
+            b.tsa_token ?? null
+          ]
+        )
+      }
+      console.log(`[proofchain] Certifications criadas para ${events.length} eventos`)
+    }
+  } catch (err) {
+    console.warn("[proofchain] Certification creation skipped:", (err as Error).message)
+  }
+
   return {
     events_processed: events.length,
     block_id: blockId,
@@ -197,4 +223,3 @@ export async function runProofChainAggregator(): Promise<AggregatorResult> {
     skipped: false,
   }
 }
-
