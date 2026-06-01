@@ -53,6 +53,7 @@ type DigitalCertificationRow = {
   } | null
 }
 
+// CHANGE 1: added tsa_token and tsa_timestamp to LedgerEventRow
 type LedgerEventRow = {
   event_id: string
   event_hash: string
@@ -61,6 +62,8 @@ type LedgerEventRow = {
   merkle_root: string | null
   tx_hash: string | null
   signature: string | null
+  tsa_token: string | null
+  tsa_timestamp: string | null
 }
 
 type LedgerBlockRow = {
@@ -172,6 +175,7 @@ function mapCertification(row: CertificationRow): CertificationRecord | null {
     tx_hash: normalizeTxHash(row.tx_hash ?? row.blockchain_tx),
     signature: normalizeString(row.signature),
     certificate_url: normalizeString(row.certificate_url),
+    // CHANGE 2: include tsa fields from certifications table
     tsa_token: normalizeString((row as any).tsa_token),
     tsa_timestamp: normalizeString((row as any).tsa_timestamp),
     created_at: normalizeString(row.created_at) ?? undefined,
@@ -222,6 +226,7 @@ async function getLedgerEventCertification(
 
   if (entityId) params.push(entityId)
 
+  // CHANGE 3: JOIN with certifications to get tsa_token and tsa_timestamp
   const result = await pool.query(
     `
     select
@@ -231,9 +236,13 @@ async function getLedgerEventCertification(
       e.merkle_proof,
       e.signature,
       b.merkle_root,
-      b.tx_hash
+      b.tx_hash,
+      c.tsa_token,
+      c.tsa_timestamp
     from public.event_chain e
     left join public.event_blocks b on b.id = e.block_id
+    left join public.certifications c
+      on lower(replace(c.content_hash, '0x', '')) = lower(replace(e.event_hash, '0x', ''))
     where lower(replace(e.event_hash, '0x', '')) = $1
     ${entityFilter}
     limit 1
@@ -248,6 +257,7 @@ async function getLedgerEventCertification(
 
   const merkleRoot = normalizeHash(row.merkle_root)
 
+  // CHANGE 4: return tsa_token and tsa_timestamp
   return {
     content_hash: normalizedHash,
     entity_id: row.event_id,
@@ -257,6 +267,8 @@ async function getLedgerEventCertification(
     blockchain_tx: normalizeTxHash(row.tx_hash),
     tx_hash: normalizeTxHash(row.tx_hash),
     signature: normalizeString(row.signature),
+    tsa_token: normalizeString(row.tsa_token),
+    tsa_timestamp: normalizeString(row.tsa_timestamp),
   }
 }
 
