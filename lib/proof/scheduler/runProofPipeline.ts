@@ -12,11 +12,8 @@ interface PipelineResult {
 
 async function generateCertificatesForBlock(blockHeight: number) {
   const res = await pool.query(`
-    select id
-    from impressions
-    where block_height = $1
+    select id from impressions where block_height = $1
   `, [blockHeight])
-
   let count = 0
   for (const row of res.rows) {
     try {
@@ -29,9 +26,6 @@ async function generateCertificatesForBlock(blockHeight: number) {
   return count
 }
 
-/**
- * Gera assinatura RSA-SHA256 para um hash hex
- */
 function signHash(hashHex: string): string | null {
   try {
     const crypto = require('crypto')
@@ -49,9 +43,6 @@ function signHash(hashHex: string): string | null {
   }
 }
 
-/**
- * Obtém TSA timestamp RFC3161 para um dado
- */
 async function getTsaToken(data: string): Promise<{ token: string | null, timestamp: string | null }> {
   try {
     const { writeFileSync, readFileSync, unlinkSync } = require('fs')
@@ -84,36 +75,31 @@ async function getTsaToken(data: string): Promise<{ token: string | null, timest
   }
 }
 
-/**
- * Cria certification para o bloco E popula event_chain com assinatura e event_id
- */
 async function createCertificationForBlock(block) {
   const merkleRoot = block.merkle_root
   if (!merkleRoot) return 0
 
-  // 1. Assinar o merkle_root
   const sig = signHash(merkleRoot)
   if (!sig) { console.warn('[pipeline] sem assinatura, abortando cert'); return 0 }
 
-  // 2. TSA timestamp
   const { token: tsaToken, timestamp: tsaTimestamp } = await getTsaToken(merkleRoot)
 
-  // 3. Garantir event_id em todos os eventos do bloco sem UUID
+  // Garantir event_id em todos os eventos do bloco
   await pool.query(`
     UPDATE public.event_chain
     SET event_id = gen_random_uuid()
     WHERE block_id = $1 AND event_id IS NULL
   `, [block.block_id || block.id])
 
-  // 4. Salvar assinatura no event_chain (para o adapter getLedgerEventCertification)
+  // Salvar assinatura no event_chain
   await pool.query(`
     UPDATE public.event_chain
     SET signature = $1
     WHERE block_id = $2 AND (signature IS NULL OR signature = '')
   `, [sig, block.block_id || block.id])
 
-  // 5. Inserir na tabela certifications
-  const error = await pool.query(
+  // Certification do bloco (content_hash = merkle_root)
+  await pool.query(
     `INSERT INTO certifications (content_hash, entity_id, entity_type, merkle_root, signature, tsa_token, tsa_timestamp)
      VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (content_hash) DO UPDATE SET
@@ -122,10 +108,30 @@ async function createCertificationForBlock(block) {
        tsa_token = COALESCE(EXCLUDED.tsa_token, certifications.tsa_token),
        tsa_timestamp = COALESCE(EXCLUDED.tsa_timestamp, certifications.tsa_timestamp)`,
     [merkleRoot, String(block.block_id || merkleRoot.slice(0, 36)), 'event', merkleRoot, sig, tsaToken, tsaTimestamp]
-  ).then(() => null).catch(e => e)
+  ).catch(e => console.error('[pipeline] cert block error:', e.message))
 
-  if (error) { console.error('[pipeline] cert error:', error.message); return 0 }
-  console.log('[pipeline] certification criada:', merkleRoot.slice(0, 16) + '...')
+  // Certifications individuais por evento (content_hash = event_hash)
+  // Isso é necessário para que /api/verify/[event_hash] funcione
+  const events = await pool.query(`
+    SELECT event_hash, event_id::text FROM public.event_chain
+    WHERE block_id = $1 AND event_hash IS NOT NULL
+  `, [block.block_id || block.id])
+
+  for (const ev of events.rows) {
+    await pool.query(
+      `INSERT INTO certifications (content_hash, entity_id, entity_type, merkle_root, signature, tsa_token, tsa_timestamp)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (content_hash) DO UPDATE SET
+         signature = EXCLUDED.signature,
+         merkle_root = EXCLUDED.merkle_root,
+         tsa_token = COALESCE(EXCLUDED.tsa_token, certifications.tsa_token),
+         tsa_timestamp = COALESCE(EXCLUDED.tsa_timestamp, certifications.tsa_timestamp)`,
+      [ev.event_hash, ev.event_id || ev.event_hash.slice(0, 36), 'event', merkleRoot, sig, tsaToken, tsaTimestamp]
+    ).catch(e => console.warn('[pipeline] cert event error:', e.message))
+  }
+
+  console.log('[pipeline] certifications criadas para bloco:', merkleRoot.slice(0, 16) + '...',
+    '+ ' + events.rows.length + ' eventos individuais')
   return 1
 }
 
@@ -134,30 +140,16 @@ export async function runProofPipeline(): Promise<PipelineResult> {
   let anchors = 0
   let certs = 0
 
-  /*
-  STEP 1 — criar bloco do ledger
-  */
   const block = await buildBlock()
 
   if (block.created) {
     blocks++
     const blockHeight = block.block.block_height
-
-    /*
-    STEP 2 — gerar certificados de impressions (legado)
-    */
     const createdCerts = await generateCertificatesForBlock(blockHeight)
     certs += createdCerts
-
-    /*
-    STEP 2b — criar certification para o bloco com assinatura + TSA
-    */
     certs += await createCertificationForBlock(block.block)
   }
 
-  /*
-  STEP 3 — criar anchor periódico na Polygon
-  */
   const anchor = await createAnchor()
 
   if (anchor) {
@@ -166,7 +158,6 @@ export async function runProofPipeline(): Promise<PipelineResult> {
     if (anchor.anchor_network === 'polygon' && anchor.anchor_tx) {
       const merkleAnchored = anchor.merkle_root
 
-      // Atualizar certifications com o tx_hash do anchor
       await pool.query(
         `UPDATE certifications
          SET blockchain_tx = $1, tx_hash = $1
@@ -174,7 +165,6 @@ export async function runProofPipeline(): Promise<PipelineResult> {
         [anchor.anchor_tx]
       ).catch(e => console.warn('[pipeline] update cert tx_hash failed:', e.message))
 
-      // Atualizar event_chain com o tx_hash do anchor Polygon
       if (merkleAnchored) {
         await pool.query(
           `UPDATE public.event_chain ec
@@ -191,9 +181,5 @@ export async function runProofPipeline(): Promise<PipelineResult> {
     }
   }
 
-  return {
-    blocks_created: blocks,
-    anchors_created: anchors,
-    certificates_created: certs
-  }
+  return { blocks_created: blocks, anchors_created: anchors, certificates_created: certs }
 }
