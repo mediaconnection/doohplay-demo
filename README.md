@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DOOHPLAY
+
+Plataforma de verificação criptográfica para publicidade DOOH (Digital Out-of-Home).
+
+## Stack
+
+- Next.js 15 (App Router)
+- PostgreSQL + Supabase
+- Polygon blockchain (storeRoot)
+- TSA RFC3161 (FreeTSA)
+- RSA-SHA256 ICP signing
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `.env.example` for required variables including `DATABASE_URL`, `PRIVATE_PEM`, `WALLET_PRIVATE_KEY`, `BLOCKCHAIN_RPC`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PROOF_CACHE_SECRET`, `REDIS_URL`.
 
-## Learn More
+## Verify an event
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+curl https://doohplay-demo.onrender.com/api/verify/{hash}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+See `DOOHPLAY_Integracao.md` for full integration documentation.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+<!-- rebuild 2026-06-01 -->
