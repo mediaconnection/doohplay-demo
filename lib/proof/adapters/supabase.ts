@@ -53,7 +53,6 @@ type DigitalCertificationRow = {
   } | null
 }
 
-// CHANGE 1: added tsa_token and tsa_timestamp to LedgerEventRow
 type LedgerEventRow = {
   event_id: string
   event_hash: string
@@ -175,7 +174,6 @@ function mapCertification(row: CertificationRow): CertificationRecord | null {
     tx_hash: normalizeTxHash(row.tx_hash ?? row.blockchain_tx),
     signature: normalizeString(row.signature),
     certificate_url: normalizeString(row.certificate_url),
-    // CHANGE 2: include tsa fields from certifications table
     tsa_token: normalizeString((row as any).tsa_token),
     tsa_timestamp: normalizeString((row as any).tsa_timestamp),
     created_at: normalizeString(row.created_at) ?? undefined,
@@ -226,7 +224,6 @@ async function getLedgerEventCertification(
 
   if (entityId) params.push(entityId)
 
-  // CHANGE 3: JOIN with certifications to get tsa_token and tsa_timestamp
   const result = await pool.query(
     `
     select
@@ -257,7 +254,6 @@ async function getLedgerEventCertification(
 
   const merkleRoot = normalizeHash(row.merkle_root)
 
-  // CHANGE 4: return tsa_token and tsa_timestamp
   return {
     content_hash: normalizedHash,
     entity_id: row.event_id,
@@ -424,7 +420,8 @@ export async function getCertification(
       normalizedHash,
       normalizedEntityId
     )
-    if (ledger) return ledger
+    // Only use ledger result if merkle_root is present — otherwise fall through to Supabase
+    if (ledger && ledger.merkle_root) return ledger
   }
 
   if (input.entity_type === "block") {
@@ -459,7 +456,7 @@ export async function getCertificationByHash(
 
   if (!options?.entity_type || options.entity_type === "event") {
     const ledgerEvent = await getLedgerEventCertification(normalizedHash)
-    if (ledgerEvent) return ledgerEvent
+    if (ledgerEvent && ledgerEvent.merkle_root) return ledgerEvent
   }
 
   if (!options?.entity_type || options.entity_type === "block") {
