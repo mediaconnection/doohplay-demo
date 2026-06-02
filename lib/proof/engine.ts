@@ -21,6 +21,7 @@ import {
   getVerificationStatus
 } from "./score"
 import { validateCrossLayerConsistency } from "./validation/crossLayer"
+import { pool } from "@/lib/db"
 
 type LocalFailureReason =
   | "ICP_FAIL"
@@ -136,7 +137,6 @@ function isValidEngineInput(
   if (!input) return false
   if (!isValidHash(normalizeHash(input.hash))) return false
   if (!String(input.entity_id ?? "").trim()) return false
-
   return true
 }
 
@@ -217,7 +217,6 @@ function createLayerTask(
     case "icp":
       return safeLayer("icp", async () => {
         const cert = ctx.cert as Record<string, unknown>
-
         return (await a1SignatureLayer({
           event_hash: String(cert.content_hash ?? ""),
           signature: String(cert.signature ?? ""),
@@ -226,14 +225,10 @@ function createLayerTask(
           proof_payload_hash: String(cert.proof_payload_hash ?? ""),
           certificate_subject: String(cert.certificate_subject ?? ""),
           certificate_issuer: String(cert.certificate_issuer ?? ""),
-          certificate_serial_number: String(
-            cert.certificate_serial_number ?? ""
-          ),
+          certificate_serial_number: String(cert.certificate_serial_number ?? ""),
           certificate_fingerprint: String(cert.certificate_fingerprint ?? ""),
           certificate_valid_to: String(cert.certificate_valid_to ?? ""),
-          certificate_days_remaining: Number(
-            cert.certificate_days_remaining ?? 0
-          )
+          certificate_days_remaining: Number(cert.certificate_days_remaining ?? 0)
         })) as LayerResult
       })
 
@@ -246,9 +241,32 @@ function createLayerTask(
     case "timestamp":
       return safeLayer("timestamp", async () => {
         const cert = ctx.cert as any
-        const hasTsa = Boolean(cert && cert.tsa_token)
-        return { name: "timestamp", valid: hasTsa, weight: 10, reasons: hasTsa ? [] : ["LAYER_TIMEOUT"], message: hasTsa ? "TSA RFC3161 valido" : "Sem TSA", error: hasTsa ? null : "LAYER_TIMEOUT", details: { tsa_present: hasTsa }, duration_ms: 0, meta: { tsa_present: hasTsa } }
+        let hasTsa = Boolean(cert && cert.tsa_token)
+
+        // Fallback: buscar tsa_token diretamente no banco se não veio no cert
+        if (!hasTsa && cert?.content_hash) {
+          try {
+            const res = await pool.query(
+              `SELECT tsa_token FROM public.certifications WHERE content_hash = $1 LIMIT 1`,
+              [cert.content_hash]
+            )
+            hasTsa = Boolean(res.rows[0]?.tsa_token)
+          } catch {}
+        }
+
+        return {
+          name: "timestamp",
+          valid: hasTsa,
+          weight: 10,
+          reasons: hasTsa ? [] : ["LAYER_TIMEOUT"],
+          message: hasTsa ? "TSA RFC3161 valido" : "Sem TSA",
+          error: hasTsa ? null : "LAYER_TIMEOUT",
+          details: { tsa_present: hasTsa },
+          duration_ms: 0,
+          meta: { tsa_present: hasTsa }
+        }
       })
+
     default:
       return safeLayer(layerName, async () =>
         ({
@@ -281,15 +299,8 @@ export async function runProofEngine(input: ProofInput | Record<string, unknown>
       status: "FAILED",
       reasons,
       layers,
-      explanation: buildSafeExplanation({
-        status: "FAILED",
-        score: 0,
-        reasons,
-        layers
-      }),
-      meta: {
-        request_id: requestId
-      }
+      explanation: buildSafeExplanation({ status: "FAILED", score: 0, reasons, layers }),
+      meta: { request_id: requestId }
     } as unknown as ProofResult
   }
 
@@ -307,15 +318,8 @@ export async function runProofEngine(input: ProofInput | Record<string, unknown>
       status: "FAILED",
       reasons,
       layers,
-      explanation: buildSafeExplanation({
-        status: "FAILED",
-        score: 0,
-        reasons,
-        layers
-      }),
-      meta: {
-        request_id: requestId
-      }
+      explanation: buildSafeExplanation({ status: "FAILED", score: 0, reasons, layers }),
+      meta: { request_id: requestId }
     } as unknown as ProofResult
   }
 
@@ -337,26 +341,4 @@ export async function runProofEngine(input: ProofInput | Record<string, unknown>
   const score = computeScore(layers, reasons as unknown as Parameters<typeof computeScore>[1])
   const trust = getTrustLevel(score)
   const status = getVerificationStatus(score)
-  const crossLayer = validateCrossLayerConsistency(layers)
-
-  return {
-    valid: status !== "FAILED" && crossLayer.consistent,
-    score,
-    trust,
-    status,
-    reasons,
-    layers,
-    explanation: buildSafeExplanation({
-      status,
-      score,
-      reasons,
-      layers
-    }),
-    meta: {
-      request_id: requestId,
-      execution_ms: Date.now() - startedAt
-    }
-  } as unknown as ProofResult
-}
-
-export default runProofEngine
+  const crossLayer = validateCrossLayerConsistency(
