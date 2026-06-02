@@ -341,4 +341,21 @@ export async function runProofEngine(input: ProofInput | Record<string, unknown>
   const score = computeScore(layers, reasons as unknown as Parameters<typeof computeScore>[1])
   const trust = getTrustLevel(score)
   const status = getVerificationStatus(score)
-  const crossLayer = validateCrossLayerConsistency(
+  const crossLayer = validateCrossLayerConsistency(layers)
+
+  return {
+    valid: status !== "FAILED" && crossLayer.consistent,
+    score,
+    trust,
+    status,
+    reasons,
+    layers,
+    explanation: buildSafeExplanation({ status, score, reasons, layers }),
+    meta: {
+      request_id: requestId,
+      execution_ms: Date.now() - startedAt
+    }
+  } as unknown as ProofResult
+}
+
+export default runProofEngine
