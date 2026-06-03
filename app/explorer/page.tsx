@@ -36,10 +36,9 @@ async function getBlocks(): Promise<Block[]> {
       pool.query(`
         SELECT b.id, b.merkle_root, b.block_hash, b.tx_hash, b.blockchain_tx,
                b.anchored_at, b.confirmations, b.created_at,
-               COUNT(e.id)::int AS event_count
+               0::int AS event_count
         FROM event_blocks b
-        LEFT JOIN display_events e ON e.merkle_batch_id = b.id::text::uuid
-        GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50
+        ORDER BY b.created_at DESC LIMIT 50
       `),
       new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
     ]) as any
