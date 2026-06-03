@@ -2,200 +2,198 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 
-/* =========================
-   TYPES
-========================= */
 type PlaylistItem = {
-  campaign_id: string
-  campaign_name: string
-  media_id: string | null
-  url: string
+  id: string
+  playlist_id: string
+  asset_url: string
   type: string
   duration: number
-  file_name: string | null
+  campaign_id: string | null
+  position: number
 }
 
-type PlayerInfo = {
-  id: string
-  name: string
-  location: string | null
-  code: string
-}
+type PlayerState = "loading" | "playing" | "error" | "empty"
 
-type PlaylistResponse = {
-  ok: boolean
-  player: PlayerInfo
-  playlist: PlaylistItem[]
-  error?: string
-}
-
-/* =========================
-   PLAYER PAGE
-========================= */
+// O code é o screen_id ou player_code
 export default function PlayerPage({ params }: { params: { code: string } }) {
-  const [playlist, setPlaylist] = useState<PlaylistItem[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [player, setPlayer] = useState<PlayerInfo | null>(null)
-  const [status, setStatus] = useState<"loading" | "playing" | "error" | "empty">("loading")
+  const [items, setItems] = useState<PlaylistItem[]>([])
+  const [index, setIndex] = useState(0)
+  const [state, setState] = useState<PlayerState>("loading")
   const [errorMsg, setErrorMsg] = useState("")
-  const [lastVerifyUrl, setLastVerifyUrl] = useState<string | null>(null)
-  const [showVerify, setShowVerify] = useState(false)
+  const [verified, setVerified] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const code = params.code.toUpperCase()
+  const code = params.code
 
-  /* ── Buscar playlist ── */
+  // Detectar se é UUID (screen_id) ou código alfanumérico (player_code)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code)
+
   const fetchPlaylist = useCallback(async () => {
     try {
-      const res = await fetch(`/api/player/playlist?code=${code}`, { cache: "no-store" })
-      const data: PlaylistResponse = await res.json()
-      if (!data.ok || !data.playlist?.length) {
-        setStatus("empty")
+      let screenId = code
+
+      // Se não é UUID, buscar screen_id pelo player_code
+      if (!isUuid) {
+        const pRes = await fetch(`/api/player/resolve?code=${code}`, { cache: "no-store" })
+        if (pRes.ok) {
+          const pData = await pRes.json()
+          screenId = pData.screen_id ?? code
+        }
+      }
+
+      const res = await fetch(`/api/player/playlist?screen=${screenId}`, { cache: "no-store" })
+      const data = await res.json()
+
+      if (!data.items?.length) {
+        setState("empty")
         return
       }
-      setPlayer(data.player)
-      setPlaylist(data.playlist)
-      setStatus("playing")
+
+      setItems(data.items)
+      setState("playing")
     } catch {
-      setStatus("error")
+      setState("error")
       setErrorMsg("Sem conexão com o servidor")
     }
-  }, [code])
+  }, [code, isUuid])
 
   useEffect(() => {
     fetchPlaylist()
-    // Refresh da playlist a cada 5 minutos
-    const interval = setInterval(fetchPlaylist, 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    const iv = setInterval(fetchPlaylist, 5 * 60 * 1000)
+    return () => clearInterval(iv)
   }, [fetchPlaylist])
 
-  /* ── Registrar exibição e avançar ── */
-  const reportAndAdvance = useCallback(async (item: PlaylistItem) => {
+  const advance = useCallback(() => {
+    setIndex(prev => (prev + 1) % items.length)
+  }, [items.length])
+
+  const reportStart = useCallback(async (item: PlaylistItem) => {
     try {
-      const res = await fetch("/api/player/event", {
+      await fetch("/api/player/ad-start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          player_code: code,
+          screen_id: isUuid ? code : "cccccccc-0001-0001-0001-000000000001",
           campaign_id: item.campaign_id,
-          duration: item.duration,
-          media_id: item.media_id,
-          played_at: new Date().toISOString(),
+          ad_id: item.id,
         }),
       })
-      const data = await res.json()
-      if (data.verify_url) {
-        setLastVerifyUrl(data.verify_url)
-        setShowVerify(true)
-        setTimeout(() => setShowVerify(false), 4000)
-      }
-    } catch {
-      // silencioso — não interrompe o player
-    }
-  }, [code])
+    } catch {}
+  }, [code, isUuid])
 
-  /* ── Avançar para próximo item ── */
-  const advance = useCallback(() => {
-    setCurrentIndex(prev => (prev + 1) % playlist.length)
-  }, [playlist.length])
+  const reportEnd = useCallback(async (item: PlaylistItem, duration: number) => {
+    try {
+      await fetch("/api/player/ad-end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          screen_id: isUuid ? code : "cccccccc-0001-0001-0001-000000000001",
+          campaign_id: item.campaign_id,
+          ad_id: item.id,
+          duration,
+        }),
+      })
+      setVerified(true)
+      setTimeout(() => setVerified(false), 3000)
+    } catch {}
+  }, [code, isUuid])
 
-  /* ── Timer por item ── */
+  // Timer para imagens
   useEffect(() => {
-    if (status !== "playing" || !playlist.length) return
-    const item = playlist[currentIndex]
-    const isVideo = item.type?.includes("video") || item.url?.match(/\.(mp4|webm|mov|avi)$/i)
+    if (state !== "playing" || !items.length) return
+    const item = items[index]
+    const isVideo = item.type === "video" || item.asset_url?.match(/\.(mp4|webm|mov)$/i)
+    if (isVideo) return
 
-    if (!isVideo) {
-      // Imagem: usar duration da campanha
-      timerRef.current = setTimeout(async () => {
-        await reportAndAdvance(item)
-        advance()
-      }, (item.duration ?? 30) * 1000)
-    }
+    reportStart(item)
+    timerRef.current = setTimeout(async () => {
+      await reportEnd(item, item.duration ?? 30)
+      advance()
+    }, (item.duration ?? 30) * 1000)
 
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [currentIndex, playlist, status, advance, reportAndAdvance])
+  }, [index, items, state, advance, reportStart, reportEnd])
 
-  const current = playlist[currentIndex]
-
-  /* ── TELAS ── */
-
-  if (status === "loading") {
-    return (
-      <div style={styles.fullscreen}>
-        <div style={styles.loadingWrap}>
-          <div style={styles.logo}>DOOHPLAY</div>
-          <div style={styles.loadingDot} />
-          <div style={{ color: "#C9A84C80", fontSize: 14 }}>Carregando playlist...</div>
-          <div style={{ color: "#ffffff30", fontSize: 12, marginTop: 8 }}>{code}</div>
-        </div>
+  /* ── LOADING ── */
+  if (state === "loading") return (
+    <div style={S.screen}>
+      <div style={S.center}>
+        <div style={S.brand}>DOOHPLAY</div>
+        <div style={S.spinner} />
+        <div style={{ color: "#C9A84C60", fontSize: 13 }}>Carregando...</div>
       </div>
-    )
-  }
+    </div>
+  )
 
-  if (status === "error" || status === "empty") {
-    return (
-      <div style={styles.fullscreen}>
-        <div style={styles.loadingWrap}>
-          <div style={styles.logo}>DOOHPLAY</div>
-          <div style={{ color: "#ff6b6b", fontSize: 14, marginTop: 16 }}>
-            {status === "error" ? errorMsg : "Nenhuma mídia configurada"}
-          </div>
-          <div style={{ color: "#ffffff30", fontSize: 12, marginTop: 8 }}>{code}</div>
-          <button
-            onClick={fetchPlaylist}
-            style={{ marginTop: 20, padding: "8px 20px", background: "#C9A84C", color: "#000", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
-          >
-            Tentar novamente
-          </button>
+  /* ── ERROR / EMPTY ── */
+  if (state === "error" || state === "empty") return (
+    <div style={S.screen}>
+      <div style={S.center}>
+        <div style={S.brand}>DOOHPLAY</div>
+        <div style={{ color: state === "error" ? "#ff6b6b" : "#C9A84C80", fontSize: 13, marginTop: 16 }}>
+          {state === "error" ? errorMsg : "Nenhuma mídia configurada"}
         </div>
+        <div style={{ color: "#ffffff20", fontSize: 11, marginTop: 6 }}>{code}</div>
+        <button onClick={fetchPlaylist} style={S.retryBtn}>Tentar novamente</button>
       </div>
-    )
-  }
+    </div>
+  )
 
+  const current = items[index]
   if (!current) return null
 
-  const isVideo = current.type?.includes("video") || current.url?.match(/\.(mp4|webm|mov|avi)$/i)
+  const isVideo = current.type === "video" || current.asset_url?.match(/\.(mp4|webm|mov)$/i)
+  const isIframe = current.type === "url" || current.asset_url?.startsWith("http") && !current.asset_url.match(/\.(mp4|webm|mov|jpg|jpeg|png|gif|webp)$/i)
 
   return (
-    <div style={styles.fullscreen}>
-      {/* ── Mídia ── */}
+    <div style={S.screen}>
+      {/* ── Conteúdo ── */}
       {isVideo ? (
         <video
-          key={current.url}
-          src={current.url}
-          autoPlay
-          muted
-          playsInline
-          style={styles.media}
-          onEnded={async () => {
-            await reportAndAdvance(current)
-            advance()
-          }}
+          key={current.asset_url}
+          src={current.asset_url}
+          autoPlay muted playsInline
+          style={S.fill}
+          onPlay={() => reportStart(current)}
+          onEnded={async () => { await reportEnd(current, current.duration ?? 30); advance() }}
           onError={advance}
+        />
+      ) : isIframe ? (
+        <iframe
+          key={current.asset_url}
+          src={current.asset_url}
+          style={{ ...S.fill, border: "none" }}
+          onLoad={() => reportStart(current)}
         />
       ) : (
         <img
-          key={current.url}
-          src={current.url}
-          alt={current.campaign_name}
-          style={styles.media}
+          key={current.asset_url}
+          src={current.asset_url}
+          alt=""
+          style={S.fill}
+          onLoad={() => reportStart(current)}
           onError={advance}
         />
       )}
 
-      {/* ── HUD — info discreta ── */}
-      <div style={styles.hud}>
-        <span style={styles.hudCode}>{code}</span>
-        <span style={styles.hudName}>{current.campaign_name}</span>
+      {/* ── HUD ── */}
+      <div style={S.hud}>
+        <span style={{ color: "#C9A84C", fontFamily: "monospace", fontSize: 10 }}>
+          {code.slice(0, 8).toUpperCase()}
+        </span>
+        {current.campaign_id && (
+          <span style={{ color: "#ffffff40", fontSize: 10 }}>
+            {index + 1}/{items.length}
+          </span>
+        )}
       </div>
 
-      {/* ── Toast de verificação ── */}
-      {showVerify && lastVerifyUrl && (
-        <div style={styles.verifyToast}>
-          <span style={{ fontSize: 14 }}>🔐</span>
+      {/* ── Toast verificado ── */}
+      {verified && (
+        <div style={S.toast}>
+          <span>🔐</span>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "#C9A84C" }}>Exibição registrada</div>
-            <div style={{ fontSize: 9, color: "#ffffff60", marginTop: 1 }}>Prova criptográfica gerada</div>
+            <div style={{ fontSize: 9, color: "#ffffff50" }}>Prova criptográfica gerada</div>
           </div>
         </div>
       )}
@@ -203,82 +201,13 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
   )
 }
 
-/* =========================
-   STYLES
-========================= */
-const styles: Record<string, React.CSSProperties> = {
-  fullscreen: {
-    position: "fixed",
-    inset: 0,
-    background: "#000",
-    overflow: "hidden",
-    cursor: "none",
-  },
-  media: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-  loadingWrap: {
-    position: "absolute",
-    inset: 0,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  logo: {
-    fontSize: 32,
-    fontWeight: 700,
-    color: "#C9A84C",
-    letterSpacing: "0.2em",
-    fontFamily: "Georgia, serif",
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: "50%",
-    background: "#C9A84C",
-    animation: "pulse 1.5s infinite",
-  },
-  hud: {
-    position: "absolute",
-    bottom: 16,
-    left: 16,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    background: "#00000060",
-    borderRadius: 6,
-    padding: "4px 10px",
-    backdropFilter: "blur(4px)",
-  },
-  hudCode: {
-    fontSize: 10,
-    color: "#C9A84C",
-    fontFamily: "monospace",
-    fontWeight: 700,
-  },
-  hudName: {
-    fontSize: 10,
-    color: "#ffffff60",
-    maxWidth: 200,
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-    textOverflow: "ellipsis",
-  },
-  verifyToast: {
-    position: "absolute",
-    bottom: 48,
-    right: 16,
-    background: "#0a0a0aee",
-    border: "1px solid #C9A84C40",
-    borderRadius: 8,
-    padding: "8px 12px",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    backdropFilter: "blur(8px)",
-  },
+const S: Record<string, React.CSSProperties> = {
+  screen: { position: "fixed", inset: 0, background: "#000", overflow: "hidden", cursor: "none" },
+  fill: { width: "100%", height: "100%", objectFit: "cover" },
+  center: { position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 },
+  brand: { fontSize: 28, fontWeight: 700, color: "#C9A84C", letterSpacing: "0.2em", fontFamily: "Georgia, serif" },
+  spinner: { width: 8, height: 8, borderRadius: "50%", background: "#C9A84C" },
+  retryBtn: { marginTop: 16, padding: "8px 20px", background: "#C9A84C", color: "#000", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 },
+  hud: { position: "absolute", bottom: 12, left: 12, display: "flex", gap: 8, alignItems: "center", background: "#00000070", borderRadius: 6, padding: "3px 8px" },
+  toast: { position: "absolute", bottom: 44, right: 12, background: "#0a0a0aee", border: "1px solid #C9A84C40", borderRadius: 8, padding: "8px 12px", display: "flex", gap: 8, alignItems: "center" },
 }
