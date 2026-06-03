@@ -10,10 +10,10 @@ const fs = require("fs")
 const path = require("path")
 
 const TARGET = path.join(__dirname, "..", "app", "verify", "[hash]", "page.tsx")
+const TARGET_SRC = path.join(__dirname, "..", "src", "app", "verify", "[hash]", "page.tsx")
 
 const DUPLICATES = [
   path.join(__dirname, "..", "verify", "[hash]", "page.tsx"),
-  path.join(__dirname, "..", "src", "app", "verify", "[hash]", "page.tsx"),
 ]
 
 /* ── Conteúdo correto (commit c96a6f0) ── */
@@ -839,37 +839,42 @@ export default function VerifyPage() {
 /* ── Lógica principal ── */
 
 console.log("[fix-verify-page] Iniciando verificação...")
+console.log(`[fix-verify-page] CWD: ${process.cwd()}`)
+console.log(`[fix-verify-page] __dirname: ${__dirname}`)
 
-// 1. Garantir que o diretório existe
-const dir = path.dirname(TARGET)
-if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true })
-  console.log(`[fix-verify-page] Diretório criado: ${dir}`)
-}
-
-// 2. Verificar se o arquivo precisa de correção
-let needsFix = true
-if (fs.existsSync(TARGET)) {
-  const lines = fs.readFileSync(TARGET, "utf8").split("\n").length
-  console.log(`[fix-verify-page] ${TARGET} tem ${lines} linhas.`)
-  if (lines >= 100) {
-    needsFix = false
-    console.log("[fix-verify-page] Arquivo OK, nenhuma correção necessária.")
-  } else {
-    console.log(`[fix-verify-page] Arquivo incompleto (${lines} < 100 linhas) — será substituído.`)
+function fixTarget(filePath) {
+  const dir = path.dirname(filePath)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+    console.log(`[fix-verify-page] Diretório criado: ${dir}`)
   }
-} else {
-  console.log("[fix-verify-page] Arquivo não encontrado — será criado.")
+
+  let needsFix = true
+  if (fs.existsSync(filePath)) {
+    const lines = fs.readFileSync(filePath, "utf8").split("\n").length
+    console.log(`[fix-verify-page] ${filePath} tem ${lines} linhas.`)
+    if (lines >= 100) {
+      needsFix = false
+      console.log("[fix-verify-page] Arquivo OK, nenhuma correção necessária.")
+    } else {
+      console.log(`[fix-verify-page] Arquivo incompleto (${lines} < 100 linhas) — será substituído.`)
+    }
+  } else {
+    console.log(`[fix-verify-page] ${filePath} não encontrado — será criado.`)
+  }
+
+  if (needsFix) {
+    fs.writeFileSync(filePath, CORRECT_CONTENT, "utf8")
+    const written = fs.readFileSync(filePath, "utf8").split("\n").length
+    console.log(`[fix-verify-page] ✅ Arquivo escrito com ${written} linhas em ${filePath}`)
+  }
 }
 
-// 3. Corrigir se necessário
-if (needsFix) {
-  fs.writeFileSync(TARGET, CORRECT_CONTENT, "utf8")
-  const written = fs.readFileSync(TARGET, "utf8").split("\n").length
-  console.log(`[fix-verify-page] ✅ Arquivo escrito com ${written} linhas.`)
-}
+// Corrigir ambos os caminhos possíveis
+fixTarget(TARGET)
+fixTarget(TARGET_SRC)
 
-// 4. Remover duplicatas
+// Remover duplicatas
 for (const dup of DUPLICATES) {
   if (fs.existsSync(dup)) {
     fs.rmSync(dup, { recursive: true, force: true })
