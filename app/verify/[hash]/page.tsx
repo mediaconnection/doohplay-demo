@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import dynamic from "next/dynamic"
+import nextDynamic from "next/dynamic"
 import Link from "next/link"
 
-const QRCode = dynamic(() => import("qrcode.react").then(m => m.QRCodeSVG ?? m.default), { ssr: false })
+const QRCode = nextDynamic(() => import("qrcode.react").then(m => m.QRCodeSVG ?? m.default), { ssr: false })
 
 import TrustScoreBreakdown from "./components/TrustScoreBreakdown"
 import EnterpriseExplanation from "./components/EnterpriseExplanation"
