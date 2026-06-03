@@ -1,464 +1,178 @@
-﻿export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-
 import { pool } from "@/lib/db"
+import TimeAgo from "@/components/ui/TimeAgo"
 
-type CampaignListRow = {
-  campaign_id: string
-  campaign_name: string | null
-  score: number | string | null
-  risk: string | null
-  total_events: number | string | null
-  invalid_events: number | string | null
-  players_count: number | string | null
-  last_event_at: string | null
+type Campaign = {
+  id: string
+  name: string
+  advertiser: string | null
+  status: string | null
+  is_active: boolean
+  start_date: string | null
+  end_date: string | null
+  duration_seconds: number | null
+  cpm: number | null
+  media_type: string | null
+  plays_total: number | null
+  players_count: number | null
+  created_at: string
 }
 
-type CampaignDisplayRow = CampaignListRow & {
-  displayName: string
-  normalizedRisk: string
-  normalizedScore: number
-  totalEvents: number
-  invalidEvents: number
-  playersCount: number
+type Stats = { total: number; active: number; inactive: number; total_plays: number }
+
+function statusColor(c: Campaign) {
+  if (c.status === "active" || c.is_active) return "bg-emerald-50 border-emerald-200 text-emerald-700"
+  if (c.status === "paused") return "bg-amber-50 border-amber-200 text-amber-700"
+  if (c.status === "ended" || (c.end_date && new Date(c.end_date) < new Date())) return "bg-slate-100 border-slate-200 text-slate-500"
+  return "bg-slate-100 border-slate-200 text-slate-500"
 }
 
-type SortKey = "last_event" | "score" | "risk" | "events" | "players"
-
-function normalizeRisk(value: string | null | undefined) {
-  if (value === "HIGH_RISK") return "HIGH_RISK"
-  if (value === "WATCH") return "WATCH"
-  return "SAFE"
+function statusLabel(c: Campaign) {
+  if (c.status) return c.status.charAt(0).toUpperCase() + c.status.slice(1)
+  if (c.is_active) return "Ativa"
+  return "Inativa"
 }
 
-function toSafeNumber(value: number | string | null | undefined) {
-  const numeric =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value)
-        : NaN
-
-  return Number.isFinite(numeric) ? numeric : 0
+function fmtDate(d?: string | null) {
+  if (!d) return "—"
+  try { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "UTC" }).format(new Date(d)) } catch { return "—" }
 }
 
-function toSafeInteger(value: number | string | null | undefined) {
-  return Math.max(0, Math.trunc(toSafeNumber(value)))
+function fmtCpm(v?: number | null) {
+  if (v == null) return "—"
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v))
 }
 
-function clampScore(value: number | string | null | undefined) {
-  return Math.max(0, Math.min(100, Math.round(toSafeNumber(value))))
+async function getCampaigns(): Promise<Campaign[]> {
+  try {
+    const r = await Promise.race([
+      pool.query(`
+        SELECT
+          c.id, c.name, c.advertiser, c.status, c.is_active,
+          c.start_date, c.end_date, c.duration_seconds, c.cpm, c.media_type,
+          c.created_at,
+          COUNT(DISTINCT e.id)::int AS plays_total,
+          COUNT(DISTINCT e.player_id)::int AS players_count
+        FROM campaigns c
+        LEFT JOIN display_events e ON e.campaign_id = c.id
+        GROUP BY c.id
+        ORDER BY c.is_active DESC, c.created_at DESC
+        LIMIT 100
+      `),
+      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 5000))
+    ]) as any
+    return r.rows ?? []
+  } catch (e) { console.error("Campaigns:", e); return [] }
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "—"
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "—"
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short"
-  }).format(date)
+async function getStats(): Promise<Stats> {
+  try {
+    const r = await Promise.race([
+      pool.query(`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE is_active = true)::int AS active,
+          COUNT(*) FILTER (WHERE is_active = false)::int AS inactive,
+          (SELECT COUNT(*)::int FROM display_events) AS total_plays
+        FROM campaigns
+      `),
+      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
+    ]) as any
+    return r.rows?.[0] ?? { total: 0, active: 0, inactive: 0, total_plays: 0 }
+  } catch { return { total: 0, active: 0, inactive: 0, total_plays: 0 } }
 }
 
-function riskBadgeClasses(risk: string) {
-  if (risk === "HIGH_RISK") {
-    return "border-red-200 bg-red-50 text-red-700"
-  }
-
-  if (risk === "WATCH") {
-    return "border-amber-200 bg-amber-50 text-amber-700"
-  }
-
-  return "border-green-200 bg-green-50 text-green-700"
-}
-
-function riskPriority(risk: string) {
-  if (risk === "HIGH_RISK") return 3
-  if (risk === "WATCH") return 2
-  return 1
-}
-
-function buildQueryString(params: {
-  q?: string
-  risk?: string
-  sort?: string
-  page?: number | string
-}) {
-  const search = new URLSearchParams()
-
-  if (params.q) search.set("q", params.q)
-  if (params.risk) search.set("risk", params.risk)
-  if (params.sort) search.set("sort", params.sort)
-  if (params.page) search.set("page", String(params.page))
-
-  return search.toString()
-}
-
-function displayCampaignName(row: CampaignListRow) {
-  return row.campaign_name?.trim() || row.campaign_id
-}
-
-export default async function CampaignsPage({
-  searchParams
-}: {
-  searchParams: Promise<{
-    q?: string
-    risk?: string
-    sort?: string
-    page?: string
-  }>
-}) {
-  const params = await searchParams
-
-  const q = (params.q ?? "").trim()
-  const riskFilter = (params.risk ?? "").trim().toUpperCase()
-  const sort = ((params.sort ?? "last_event").trim() || "last_event") as SortKey
-
-  const currentPage = Math.max(1, Number(params.page ?? "1") || 1)
-  const pageSize = 20
-
-  const result = await pool.query(`
-    WITH campaign_stats AS (
-      SELECT
-        ec.payload->>'campaign_id' AS campaign_id,
-        COUNT(*)::int AS total_events,
-        COALESCE(
-          SUM(
-            CASE
-              WHEN lower(coalesce(ec.payload->>'invalid', 'false')) = 'true' THEN 1
-              ELSE 0
-            END
-          ),
-          0
-        )::int AS invalid_events,
-        COUNT(DISTINCT ec.payload->>'device_id')::int AS players_count,
-        MAX(ec.occurred_at)::text AS last_event_at
-      FROM public.event_chain ec
-      WHERE ec.payload->>'campaign_id' IS NOT NULL
-      GROUP BY ec.payload->>'campaign_id'
-    )
-    SELECT
-      cs.campaign_id,
-      NULL::text AS campaign_name,
-      NULL::int AS score,
-      NULL::text AS risk,
-      cs.total_events,
-      cs.invalid_events,
-      cs.players_count,
-      cs.last_event_at
-    FROM campaign_stats cs
-  `)
-
-  const resultRows = result.rows as CampaignListRow[]
-
-  const filteredRows: CampaignDisplayRow[] = resultRows
-    .map((row): CampaignDisplayRow => {
-      const displayName = displayCampaignName(row)
-      const normalizedRisk = normalizeRisk(row.risk)
-      const normalizedScore = clampScore(row.score)
-      const totalEvents = toSafeInteger(row.total_events)
-      const invalidEvents = toSafeInteger(row.invalid_events)
-      const playersCount = toSafeInteger(row.players_count)
-
-      return {
-        ...row,
-        displayName,
-        normalizedRisk,
-        normalizedScore,
-        totalEvents,
-        invalidEvents,
-        playersCount
-      }
-    })
-    .filter((row) => {
-      const query = q.toLowerCase()
-
-      const matchesQuery =
-        q.length === 0 ||
-        row.displayName.toLowerCase().includes(query) ||
-        row.campaign_id.toLowerCase().includes(query)
-
-      const matchesRisk =
-        riskFilter.length === 0 || row.normalizedRisk === riskFilter
-
-      return matchesQuery && matchesRisk
-    })
-    .sort((a, b) => {
-      switch (sort) {
-        case "score":
-          return b.normalizedScore - a.normalizedScore
-
-        case "risk":
-          return riskPriority(b.normalizedRisk) - riskPriority(a.normalizedRisk)
-
-        case "events":
-          return b.totalEvents - a.totalEvents
-
-        case "players":
-          return b.playersCount - a.playersCount
-
-        case "last_event":
-        default: {
-          const aTime = a.last_event_at ? new Date(a.last_event_at).getTime() : 0
-          const bTime = b.last_event_at ? new Date(b.last_event_at).getTime() : 0
-          return bTime - aTime
-        }
-      }
-    })
-
-  const totalRows = filteredRows.length
-  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
-  const safePage = Math.min(currentPage, totalPages)
-  const start = (safePage - 1) * pageSize
-  const end = start + pageSize
-  const rows: CampaignDisplayRow[] = filteredRows.slice(start, end)
-
-  const summary = {
-    total: filteredRows.length,
-    watch: filteredRows.filter((row) => row.normalizedRisk === "WATCH").length,
-    highRisk: filteredRows.filter((row) => row.normalizedRisk === "HIGH_RISK")
-      .length,
-    totalEvents: filteredRows.reduce((acc, row) => acc + row.totalEvents, 0),
-    totalPlayersTouched: filteredRows.reduce(
-      (acc, row) => acc + row.playersCount,
-      0
-    )
-  }
-
-  const prevHref =
-    safePage > 1
-      ? `/campaigns?${buildQueryString({
-          q,
-          risk: riskFilter,
-          sort,
-          page: safePage - 1
-        })}`
-      : null
-
-  const nextHref =
-    safePage < totalPages
-      ? `/campaigns?${buildQueryString({
-          q,
-          risk: riskFilter,
-          sort,
-          page: safePage + 1
-        })}`
-      : null
-
+export default async function CampaignsPage() {
+  const [campaigns, stats] = await Promise.all([getCampaigns(), getStats()])
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Campanhas</h1>
-          <p className="text-sm text-gray-500">
-            Visão operacional e de risco das campanhas observadas na event_chain.
-          </p>
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">📢 Campanhas</h1>
+          <p className="mt-2 text-sm text-slate-500">Campanhas DOOH registradas com verificação criptográfica de exibição.</p>
         </div>
-
-        <div className="flex gap-2">
-          <Link
-            href="/players"
-            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
-          >
-            Ver players
-          </Link>
-
-          <Link
-            href="/network/map"
-            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
-          >
-            Ver mapa
-          </Link>
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {[
+            { label: "Total", value: stats.total, cls: "border-slate-200 bg-white text-slate-900" },
+            { label: "Ativas", value: stats.active, cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+            { label: "Inativas", value: stats.inactive, cls: "border-slate-200 bg-white text-slate-500" },
+            { label: "Total de Plays", value: stats.total_plays?.toLocaleString("pt-BR"), cls: "border-blue-200 bg-blue-50 text-blue-700" },
+          ].map(s => (
+            <div key={s.label} className={`rounded-2xl border px-5 py-4 shadow-sm ${s.cls}`}>
+              <div className="text-xs font-semibold uppercase tracking-wide opacity-60">{s.label}</div>
+              <div className="mt-1 text-2xl font-bold">{s.value}</div>
+            </div>
+          ))}
         </div>
-      </div>
-
-      <form className="rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_180px_220px_auto]">
-          <input
-            type="text"
-            name="q"
-            defaultValue={q}
-            placeholder="Buscar por campaign ID"
-            className="rounded-lg border px-3 py-2 text-sm outline-none"
-          />
-
-          <select
-            name="risk"
-            defaultValue={riskFilter}
-            className="rounded-lg border px-3 py-2 text-sm outline-none"
-          >
-            <option value="">Todos riscos</option>
-            <option value="SAFE">SAFE</option>
-            <option value="WATCH">WATCH</option>
-            <option value="HIGH_RISK">HIGH_RISK</option>
-          </select>
-
-          <select
-            name="sort"
-            defaultValue={sort}
-            className="rounded-lg border px-3 py-2 text-sm outline-none"
-          >
-            <option value="last_event">Ordenar por último evento</option>
-            <option value="score">Ordenar por score</option>
-            <option value="risk">Ordenar por risk</option>
-            <option value="events">Ordenar por eventos</option>
-            <option value="players">Ordenar por players</option>
-          </select>
-
-          <button
-            type="submit"
-            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          >
-            Filtrar
-          </button>
-        </div>
-      </form>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Metric title="Campanhas" value={summary.total} />
-        <Metric title="Watch" value={summary.watch} />
-        <Metric title="High Risk" value={summary.highRisk} />
-        <Metric title="Eventos totais" value={summary.totalEvents} />
-      </div>
-
-      <section className="rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Lista de campanhas</h2>
-            <p className="text-sm text-gray-500">
-              Página {safePage} de {totalPages} · {totalRows} resultado(s)
-            </p>
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700">Campanhas</h2>
+            <span className="text-xs text-slate-400">{campaigns.length} exibidas</span>
           </div>
-
-          <div className="text-sm text-gray-500">
-            Players impactados somados: {summary.totalPlayersTouched}
-          </div>
-        </div>
-
-        {rows.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">
-            Nenhuma campanha encontrada com os filtros atuais.
-          </div>
-        ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-y-2">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-                  <th className="px-3 py-2">Campaign</th>
-                  <th className="px-3 py-2">Risk</th>
-                  <th className="px-3 py-2">Score</th>
-                  <th className="px-3 py-2">Eventos</th>
-                  <th className="px-3 py-2">Inválidos</th>
-                  <th className="px-3 py-2">Players</th>
-                  <th className="px-3 py-2">Último evento</th>
-                  <th className="px-3 py-2">Ações</th>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  {["Status", "Nome", "Anunciante", "Período", "CPM", "Plays", "Players", "Tipo", "Criada em"].map(h => (
+                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">{h}</th>
+                  ))}
                 </tr>
               </thead>
-
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.campaign_id} className="bg-gray-50 text-sm">
-                    <td className="rounded-l-xl px-3 py-3 align-top">
-                      <div className="font-medium">{row.displayName}</div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {row.campaign_id}
-                      </div>
-                    </td>
-
-                    <td className="px-3 py-3 align-top">
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${riskBadgeClasses(
-                          row.normalizedRisk
-                        )}`}
-                      >
-                        {row.normalizedRisk}
+                {campaigns.length === 0 ? (
+                  <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-400">Nenhuma campanha encontrada.</td></tr>
+                ) : campaigns.map(c => (
+                  <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusColor(c)}`}>
+                        {statusLabel(c)}
                       </span>
                     </td>
-
-                    <td className="px-3 py-3 align-top">{row.normalizedScore}</td>
-                    <td className="px-3 py-3 align-top">{row.totalEvents}</td>
-                    <td className="px-3 py-3 align-top">{row.invalidEvents}</td>
-                    <td className="px-3 py-3 align-top">{row.playersCount}</td>
-                    <td className="px-3 py-3 align-top">
-                      {formatDate(row.last_event_at)}
+                    <td className="px-5 py-4">
+                      <Link href={`/campaigns/${c.id}`} className="font-medium text-slate-800 hover:text-blue-600 hover:underline">
+                        {c.name || "—"}
+                      </Link>
                     </td>
-
-                    <td className="rounded-r-xl px-3 py-3 align-top">
-                      <div className="flex flex-wrap gap-2">
-                        <Link
-                          href={`/campaigns/${encodeURIComponent(row.campaign_id)}`}
-                          className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-white"
-                        >
-                          Detalhes
-                        </Link>
-
-                        <Link
-                          href={`/proof?campaign_id=${encodeURIComponent(row.campaign_id)}`}
-                          className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-white"
-                        >
-                          Explorer
-                        </Link>
-                      </div>
+                    <td className="px-5 py-4 text-xs text-slate-500">{c.advertiser || "—"}</td>
+                    <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
+                      {fmtDate(c.start_date)} → {fmtDate(c.end_date)}
+                    </td>
+                    <td className="px-5 py-4 text-xs text-slate-500">{fmtCpm(c.cpm)}</td>
+                    <td className="px-5 py-4 text-center">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                        {(c.plays_total ?? 0).toLocaleString("pt-BR")}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <span className="rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                        {c.players_count ?? 0}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-xs text-slate-400">{c.media_type || "—"}</td>
+                    <td className="px-5 py-4 text-xs text-slate-500">
+                      {c.created_at ? <TimeAgo date={c.created_at} /> : "—"}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            Mostrando {rows.length} item(ns) nesta página.
-          </div>
-
-          <div className="flex gap-2">
-            {prevHref ? (
-              <Link
-                href={prevHref}
-                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-              >
-                Anterior
-              </Link>
-            ) : (
-              <span className="rounded-lg border px-4 py-2 text-sm text-gray-300">
-                Anterior
-              </span>
-            )}
-
-            {nextHref ? (
-              <Link
-                href={nextHref}
-                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-              >
-                Próxima
-              </Link>
-            ) : (
-              <span className="rounded-lg border px-4 py-2 text-sm text-gray-300">
-                Próxima
-              </span>
-            )}
-          </div>
         </div>
-      </section>
-    </div>
-  )
-}
-
-function Metric({
-  title,
-  value
-}: {
-  title: string
-  value: number
-}) {
-  return (
-    <div className="rounded-2xl border bg-white px-4 py-3 shadow-sm">
-      <div className="text-xs text-gray-500">{title}</div>
-      <div className="mt-1 text-lg font-semibold">{value}</div>
-    </div>
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[
+            { href: "/players", icon: "📺", title: "Players", desc: "Ver dispositivos ativos" },
+            { href: "/explorer", icon: "🔍", title: "Explorer", desc: "Blocos e provas on-chain" },
+            { href: "/verify", icon: "🔐", title: "Verificar", desc: "Verificar uma prova" },
+          ].map(l => (
+            <Link key={l.href} href={l.href} className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:bg-slate-50 transition-colors">
+              <div className="text-sm font-semibold text-slate-700">{l.icon} {l.title}</div>
+              <div className="mt-1 text-xs text-slate-400">{l.desc}</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </main>
   )
 }
