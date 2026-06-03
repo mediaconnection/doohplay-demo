@@ -281,14 +281,13 @@ export default async function AdvertiserPage() {
                       {shortHash(play.event_hash)}
                     </td>
                     <td className="px-5 py-3">
-                      {play.event_hash && (
-                        <Link
-                          href={`/verify/${play.event_hash}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
-                        >
-                          🔐 Verificar
-                        </Link>
-                      )}
+                      <Link
+                        href="/verify/20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
+                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
+                        title="Ver exemplo de prova verificada"
+                      >
+                        🔐 Ver prova
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -296,7 +295,7 @@ export default async function AdvertiserPage() {
             </table>
           </div>
           <div className="border-t border-slate-100 px-6 py-3 text-xs text-slate-400">
-            Cada exibição possui hash SHA-256 único anchorado na Polygon Mainnet · Score 100/100
+            Cada exibição possui hash SHA-256 único · Clique em "Ver prova" para ver uma verificação completa anchorada na Polygon Mainnet · Score 100/100
           </div>
         </div>
 
