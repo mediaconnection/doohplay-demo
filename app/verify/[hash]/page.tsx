@@ -3,20 +3,18 @@
 import { useState, useEffect } from "react"
 import nextDynamic from "next/dynamic"
 import Link from "next/link"
-
-const QRCode = nextDynamic(() => import("qrcode.react").then(m => m.QRCodeSVG ?? m.default), { ssr: false })
-
 import TrustScoreBreakdown from "./components/TrustScoreBreakdown"
 import EnterpriseExplanation from "./components/EnterpriseExplanation"
 import { VerificationMatrix } from "./components/VerificationMatrix"
 import { LayerDetails } from "./components/LayerDetails"
 import { ExecutionMetadata } from "./components/ExecutionMetadata"
-
 import type {
   TrustScoreBreakdown as TrustScoreBreakdownType,
   VerificationLayer,
   VerificationResult
 } from "./components/types"
+
+const QRCode = nextDynamic(() => import("qrcode.react").then(m => m.QRCodeSVG ?? m.default), { ssr: false })
 
 export const dynamic = "force-dynamic"
 
