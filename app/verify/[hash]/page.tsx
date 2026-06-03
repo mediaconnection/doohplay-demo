@@ -778,7 +778,7 @@ export default function VerifyPage() {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
-            
+            <a
               href={`/api/verify/${hash}`}
               target="_blank"
               rel="noreferrer"
