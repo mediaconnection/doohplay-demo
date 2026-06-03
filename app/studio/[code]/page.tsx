@@ -55,10 +55,11 @@ const TEMPLATES: Record<string, Template[]> = {
 }
 
 /* ── Preview Canvas ── */
-function AdPreview({ tpl, client, form }: {
+function AdPreview({ tpl, client, form, imageUrl }: {
   tpl: Template
   client: Client
   form: { headline: string; subline: string; cta: string; phone: string }
+  imageUrl?: string | null
 }) {
   const isLight = tpl.bg.startsWith("#f") || tpl.bg.startsWith("#fff")
   const textColor = isLight ? "#1a1a1a" : "#ffffff"
@@ -79,18 +80,33 @@ function AdPreview({ tpl, client, form }: {
       padding: "2rem",
       boxSizing: "border-box",
     }}>
+      {/* Imagem de fundo se disponível */}
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt="background"
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            objectFit: "cover", opacity: 0.35,
+          }}
+        />
+      )}
       {/* Fundo decorativo */}
       <div style={{
         position: "absolute", inset: 0,
-        background: `radial-gradient(ellipse 70% 70% at 80% 20%, ${tpl.accent}15 0%, transparent 70%)`,
+        background: imageUrl
+          ? `linear-gradient(135deg, ${tpl.bg}ee 0%, ${tpl.bg}99 100%)`
+          : `radial-gradient(ellipse 70% 70% at 80% 20%, ${tpl.accent}15 0%, transparent 70%)`,
       }} />
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: "40%",
         background: `linear-gradient(to top, ${tpl.accent}10, transparent)`,
       }} />
 
-      {/* Emoji grande */}
-      <div style={{ fontSize: 48, marginBottom: 16, position: "relative" }}>{tpl.emoji}</div>
+      {/* Emoji grande — só quando sem imagem */}
+      {!imageUrl && (
+        <div style={{ fontSize: 48, marginBottom: 16, position: "relative" }}>{tpl.emoji}</div>
+      )}
 
       {/* Nome do negócio */}
       <div style={{
@@ -103,9 +119,10 @@ function AdPreview({ tpl, client, form }: {
 
       {/* Headline */}
       <div style={{
-        fontSize: 32, fontWeight: 700, color: textColor,
+        fontSize: imageUrl ? 36 : 32, fontWeight: 700, color: textColor,
         textAlign: "center", lineHeight: 1.1, position: "relative",
         fontFamily: "Georgia, serif",
+        textShadow: imageUrl ? "0 2px 8px rgba(0,0,0,0.8)" : "none",
       }}>
         {form.headline || tpl.headline}
       </div>
@@ -114,6 +131,7 @@ function AdPreview({ tpl, client, form }: {
       <div style={{
         fontSize: 14, color: mutedColor, marginTop: 10,
         textAlign: "center", position: "relative",
+        textShadow: imageUrl ? "0 1px 4px rgba(0,0,0,0.8)" : "none",
       }}>
         {form.subline || tpl.subline}
       </div>
@@ -132,6 +150,7 @@ function AdPreview({ tpl, client, form }: {
         <div style={{
           position: "absolute", bottom: 16, right: 16,
           fontSize: 11, color: mutedColor,
+          textShadow: imageUrl ? "0 1px 4px rgba(0,0,0,0.8)" : "none",
         }}>
           📞 {form.phone}
         </div>
@@ -157,6 +176,10 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [loading, setLoading] = useState(true)
   const [selectedTpl, setSelectedTpl] = useState<Template | null>(null)
   const [form, setForm] = useState({ headline: "", subline: "", cta: "", phone: "", duration: "15" })
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
   const [publishedItems, setPublishedItems] = useState<{ title: string; time: string }[]>([])
@@ -174,6 +197,27 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
       .catch(() => router.push("/studio"))
       .finally(() => setLoading(false))
   }, [code, router])
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    setUploadError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("code", code)
+      const res = await fetch("/api/studio/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok) {
+        setImageUrl(data.url)
+      } else {
+        setUploadError(data.error ?? "Erro no upload")
+      }
+    } catch {
+      setUploadError("Erro de conexão")
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handlePublish = async () => {
     if (!selectedTpl || !client) return
@@ -274,11 +318,53 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
             <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
               Preview ao vivo
             </div>
-            <AdPreview tpl={selectedTpl} client={client} form={form} />
+            <AdPreview tpl={selectedTpl} client={client} form={form} imageUrl={imageUrl} />
           </div>
 
-          {/* Formulário */}
-          <div style={{ background: "#111", border: "1px solid #ffffff0f", borderRadius: 16, padding: "1.25rem" }}>
+          <div style={{ background: "#111", border: "1px solid #ffffff0f", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
+            <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+              Imagem de fundo (opcional)
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+            />
+            {imageUrl ? (
+              <div style={{ position: "relative" }}>
+                <img src={imageUrl} alt="preview" style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8 }} />
+                <button
+                  onClick={() => setImageUrl(null)}
+                  style={{ position: "absolute", top: 6, right: 6, background: "#000000cc", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}
+                >
+                  ✕ Remover
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: `2px dashed ${uploading ? accent : "#ffffff20"}`,
+                  borderRadius: 10, padding: "1.5rem", textAlign: "center",
+                  cursor: uploading ? "not-allowed" : "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {uploading ? (
+                  <div style={{ fontSize: 13, color: accent }}>Enviando imagem...</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 24, marginBottom: 6 }}>🖼️</div>
+                    <div style={{ fontSize: 13, color: "#ffffff60" }}>Clique para fazer upload</div>
+                    <div style={{ fontSize: 11, color: "#ffffff30", marginTop: 4 }}>JPG, PNG ou WebP · máx 10MB</div>
+                  </>
+                )}
+              </div>
+            )}
+            {uploadError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{uploadError}</div>}
+          </div>
             <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
               Personalize o anúncio
             </div>
