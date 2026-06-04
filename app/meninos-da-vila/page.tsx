@@ -1,249 +1,604 @@
-export const dynamic = "force-dynamic"
+"use client"
 
-import { pool } from "@/lib/db"
-import Link from "next/link"
-import TimeAgo from "@/components/ui/TimeAgo"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import SchedulerEditor from "@/components/SchedulerEditor"
 
-const CAMPAIGN_ID = "aaaaaaaa-0006-0006-0006-000000000006"
-const DEMO_HASH = "20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
-
-async function getStats() {
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT
-          COUNT(*)::int AS total_plays,
-          COUNT(*) FILTER (WHERE played_at >= CURRENT_DATE)::int AS plays_today,
-          COUNT(*) FILTER (WHERE played_at >= CURRENT_DATE - INTERVAL '7 days')::int AS plays_week,
-          MAX(played_at)::text AS last_play
-        FROM display_events WHERE campaign_id = $1
-      `, [CAMPAIGN_ID]),
-      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
-    ]) as any
-    return r.rows?.[0] ?? { total_plays: 0, plays_today: 0, plays_week: 0, last_play: null }
-  } catch { return { total_plays: 0, plays_today: 0, plays_week: 0, last_play: null } }
+type Client = {
+  id: string
+  name: string
+  business_type: string
+  primary_color: string
+  phone: string | null
+  address: string | null
+  logo_url: string | null
+  screen_id: string | null
+  playlist_id: string | null
 }
 
-async function getRecentPlays() {
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT e.id, e.played_at, e.duration, e.event_hash
-        FROM display_events e
-        WHERE e.campaign_id = $1
-        ORDER BY e.played_at DESC LIMIT 20
-      `, [CAMPAIGN_ID]),
-      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
-    ]) as any
-    return r.rows ?? []
-  } catch { return [] }
+type Template = {
+  id: string
+  name: string
+  emoji: string
+  bg: string
+  accent: string
+  headline: string
+  subline: string
+  cta: string
 }
 
-function shortHash(h?: string | null) {
-  if (!h) return "—"
-  return `${h.slice(0, 10)}...${h.slice(-10)}`
+const TEMPLATES: Record<string, Template[]> = {
+  barber: [
+    { id: "barber1", name: "Classico Premium", emoji: "✂", bg: "#0a0a0a", accent: "#C9A84C", headline: "Corte + Barba", subline: "Voce em alto estilo", cta: "Agende agora" },
+    { id: "barber2", name: "Moderno Bold", emoji: "🪒", bg: "#1a1a2e", accent: "#e94560", headline: "Novo Visual", subline: "Transforme seu estilo", cta: "Reserve ja" },
+    { id: "barber3", name: "Minimalista", emoji: "💈", bg: "#f8f4f0", accent: "#2d2d2d", headline: "Arte em cada corte", subline: "Excelencia e tradicao", cta: "Venha nos conhecer" },
+  ],
+  food: [
+    { id: "food1", name: "Combo Almoco", emoji: "🍽", bg: "#1a0a00", accent: "#f59e0b", headline: "Combo do Dia", subline: "Prato + bebida + sobremesa", cta: "Peca agora" },
+    { id: "food2", name: "Promocao Destaque", emoji: "⚡", bg: "#0f1f0f", accent: "#22c55e", headline: "Oferta Especial", subline: "So hoje!", cta: "Aproveite!" },
+    { id: "food3", name: "Delivery", emoji: "🛵", bg: "#1a0020", accent: "#a855f7", headline: "Delivery Rapido", subline: "Entregamos em 30 min", cta: "Faca seu pedido" },
+  ],
+  dessert: [
+    { id: "dessert1", name: "Bolo Especial", emoji: "🎂", bg: "#1a0010", accent: "#f472b6", headline: "Bolos Artesanais", subline: "Feitos com amor", cta: "Encomende ja" },
+    { id: "dessert2", name: "Doces do Dia", emoji: "🍰", bg: "#fff8f0", accent: "#ea580c", headline: "Doces Fresquinhos", subline: "Todo dia uma surpresa", cta: "Venha provar" },
+    { id: "dessert3", name: "Elegante", emoji: "🍫", bg: "#0a0505", accent: "#d4a574", headline: "Alta Confeitaria", subline: "Experiencias unicas", cta: "Descubra" },
+  ],
+  bakery: [
+    { id: "bakery1", name: "Pao Fresquinho", emoji: "🍞", bg: "#1a0d00", accent: "#f97316", headline: "Pao Quentinho", subline: "Direto do forno", cta: "Venha buscar" },
+    { id: "bakery2", name: "Cafe da Manha", emoji: "☕", bg: "#f5f0e8", accent: "#78350f", headline: "Cafe da Manha", subline: "O melhor comeco de dia", cta: "Passe aqui" },
+    { id: "bakery3", name: "Promocao", emoji: "🥐", bg: "#0f0f1a", accent: "#fbbf24", headline: "Promocao do Dia", subline: "Leve 3, pague 2", cta: "Aproveite!" },
+  ],
+  pizza: [
+    { id: "pizza1", name: "Promocao Sexta", emoji: "🍕", bg: "#1a0000", accent: "#ef4444", headline: "Sexta de Pizza", subline: "2 pizzas pelo preco de 1", cta: "Peca ja" },
+    { id: "pizza2", name: "Delivery Noturno", emoji: "🌙", bg: "#020617", accent: "#6366f1", headline: "Delivery ate meia-noite", subline: "Pizza quente na porta", cta: "Faca seu pedido" },
+    { id: "pizza3", name: "Familia", emoji: "👨‍👩‍👧", bg: "#0a1a00", accent: "#84cc16", headline: "Pizza em Familia", subline: "Momentos que ficam", cta: "Reserve sua mesa" },
+  ],
 }
 
-function fmtDate(d?: string | null) {
-  if (!d) return "—"
-  try {
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(d))
-  } catch { return "—" }
-}
-
-export default async function MeninosDaVilaPage() {
-  const [stats, plays] = await Promise.all([getStats(), getRecentPlays()])
-  const O = "#EA580C"   // laranja principal
-  const OL = "#FB923C" // laranja claro
-  const OD = "#9A3412" // laranja escuro
+function AdPreview({ tpl, client, form, imageUrl }: {
+  tpl: Template
+  client: Client
+  form: { headline: string; subline: string; cta: string; phone: string }
+  imageUrl?: string | null
+}) {
+  const isLight = tpl.bg.startsWith("#f")
+  const textColor = isLight ? "#1a1a1a" : "#ffffff"
+  const mutedColor = isLight ? "#00000060" : "#ffffff70"
 
   return (
-    <main style={{ minHeight: "100vh", background: "#0f0800", color: "#fff" }}>
+    <div style={{
+      width: "100%",
+      aspectRatio: "16/9",
+      background: tpl.bg,
+      borderRadius: 12,
+      overflow: "hidden",
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "2rem",
+      boxSizing: "border-box",
+    }}>
+      {imageUrl && (
+        <img src={imageUrl} alt="bg" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }} />
+      )}
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 70% 70% at 80% 20%, ${tpl.accent}15 0%, transparent 70%)` }} />
+      {!imageUrl && (
+        <div style={{ fontSize: 48, marginBottom: 16, position: "relative" }}>{tpl.emoji}</div>
+      )}
+      <div style={{ fontSize: 13, color: tpl.accent, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8, position: "relative", fontWeight: 700 }}>
+        {client.name}
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 700, color: textColor, textAlign: "center", lineHeight: 1.1, position: "relative", fontFamily: "Georgia, serif" }}>
+        {form.headline || tpl.headline}
+      </div>
+      <div style={{ fontSize: 14, color: mutedColor, marginTop: 10, textAlign: "center", position: "relative" }}>
+        {form.subline || tpl.subline}
+      </div>
+      <div style={{ marginTop: 20, background: tpl.accent, color: isLight ? "#fff" : "#000", borderRadius: 999, padding: "8px 24px", fontSize: 13, fontWeight: 700, position: "relative" }}>
+        {form.cta || tpl.cta}
+      </div>
+      {form.phone && (
+        <div style={{ position: "absolute", bottom: 16, right: 16, fontSize: 11, color: mutedColor }}>
+          {form.phone}
+        </div>
+      )}
+      <div style={{ position: "absolute", bottom: 12, left: 12, fontSize: 8, color: `${tpl.accent}60`, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        DOOHPLAY
+      </div>
+    </div>
+  )
+}
+
+type Tab = "editor" | "scheduler"
+
+export default function StudioEditorPage({ params }: { params: { code: string } }) {
+  const code = params.code.toUpperCase()
+  const router = useRouter()
+  const [client, setClient] = useState<Client | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<Tab>("editor")
+  const [selectedTpl, setSelectedTpl] = useState<Template | null>(null)
+  const [form, setForm] = useState({ headline: "", subline: "", cta: "", phone: "", duration: "15" })
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState(false)
+  const [publishedItems, setPublishedItems] = useState<{ title: string; time: string }[]>([])
+  const [mediaTab, setMediaTab] = useState<"template" | "youtube" | "video" | "live">("template")
+  const [youtubeUrl, setYoutubeUrl] = useState("")
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const [streamUrl, setStreamUrl] = useState("")
+
+  useEffect(() => {
+    fetch(`/api/studio/auth?code=${code}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) { router.push("/studio"); return }
+        setClient(d.client)
+        const templates = TEMPLATES[d.client.business_type] ?? TEMPLATES.barber
+        setSelectedTpl(templates[0])
+        setForm(f => ({ ...f, phone: d.client.phone ?? "" }))
+      })
+      .catch(() => router.push("/studio"))
+      .finally(() => setLoading(false))
+  }, [code, router])
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    setUploadError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("code", code)
+      const res = await fetch("/api/studio/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok) setImageUrl(data.url)
+      else setUploadError(data.error ?? "Erro no upload")
+    } catch {
+      setUploadError("Erro de conexao")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handlePublish = async () => {
+    if (!selectedTpl || !client) return
+    setPublishing(true)
+    try {
+      const assetUrl = `https://doohplay-demo.onrender.com/studio/${code}/preview?tpl=${selectedTpl.id}&h=${encodeURIComponent(form.headline || selectedTpl.headline)}`
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: assetUrl,
+          type: "url",
+          duration: parseInt(form.duration),
+          title: `${form.headline || selectedTpl.headline} - ${client.name}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setPublished(true)
+        setPublishedItems(prev => [{ title: form.headline || selectedTpl.headline, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 4000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handlePublishYouTube = async () => {
+    if (!youtubeUrl.trim()) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: youtubeUrl.trim(),
+          type: "youtube",
+          duration: 60,
+          title: `YouTube — ${youtubeUrl.slice(0, 40)}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setYoutubeUrl("")
+        setPublished(true)
+        setPublishedItems(prev => [{ title: `YouTube: ${youtubeUrl.slice(0,30)}...`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handlePublishLive = async () => {
+    if (!streamUrl.trim()) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: streamUrl.trim(),
+          type: "hls",
+          duration: 3600,
+          title: `Live — ${streamUrl.slice(0, 40)}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setStreamUrl("")
+        setPublished(true)
+        setPublishedItems(prev => [{ title: "Live stream publicado", time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handleVideoUpload = async (file: File) => {
+    setVideoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("code", code)
+      const res = await fetch("/api/studio/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok) setVideoUrl(data.url)
+    } catch {}
+    finally { setVideoUploading(false) }
+  }
+
+  const handlePublishVideo = async () => {
+    if (!videoUrl) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: videoUrl,
+          type: "video",
+          duration: 30,
+          title: `Vídeo — ${videoUrl.split("/").pop()}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setVideoUrl(null)
+        setPublished(true)
+        setPublishedItems(prev => [{ title: `Vídeo publicado`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  if (loading) return (
+    <main style={{ minHeight: "100vh", background: "#F0F9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#0284C7", fontFamily: "var(--font-sans)", fontSize: 16 }}>Carregando studio...</div>
+    </main>
+  )
+
+  if (!client || !selectedTpl) return null
+
+  const templates = TEMPLATES[client.business_type] ?? TEMPLATES.barber
+  // DOOHPLAY brand color — Azul Royal
+  const BRAND = "#0284C7"
+  const BRAND_LIGHT = "#F0F9FF"
+  const BRAND_DARK = "#0369A1"
+  // Client accent used only inside ad preview templates
+  const clientAccent = client.primary_color.startsWith("#") ? client.primary_color : `#${client.primary_color}`
+  const accent = BRAND
+  const playlistId = client.playlist_id ?? "bbbbbbbb-0001-0001-0001-000000000001"
+
+  return (
+    <main style={{ minHeight: "100vh", background: "#f3f4f6", color: "#111", fontFamily: "system-ui, sans-serif" }}>
 
       {/* Header */}
-      <header style={{
-        background: `linear-gradient(180deg, #1a0a00 0%, #0f0800 100%)`,
-        borderBottom: `1px solid ${O}30`,
-        padding: "3rem 1.5rem 2rem",
-        textAlign: "center",
-      }}>
-        {/* Logo gerado — sem imagem */}
-        <div style={{
-          width: 120, height: 120, borderRadius: "50%",
-          background: `linear-gradient(135deg, ${O} 0%, ${OD} 100%)`,
-          margin: "0 auto 1.5rem",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 0 40px ${O}40`,
-          fontSize: 48,
-        }}>
-          🍺
+      <header style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 10, color: "#0284C7", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>DOOHPLAY Studio</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#111", marginTop: 2 }}>{client.name}</div>
         </div>
-
-        <div style={{ fontSize: 11, color: OL, letterSpacing: "0.3em", textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 6 }}>
-          Bom Retiro · São Paulo
-        </div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, color: "#fff", fontFamily: "Georgia, serif", margin: "0 0 4px", letterSpacing: "0.05em" }}>
-          Bar Meninos da Vila
-        </h1>
-        <div style={{ fontSize: 13, color: "#ffffff50", fontStyle: "italic" }}>
-          Lanchonete &amp; Bar
-        </div>
-
-        <div style={{ marginTop: "1.25rem", display: "inline-flex", alignItems: "center", gap: 8, background: "#16a34a18", border: "1px solid #16a34a40", borderRadius: 999, padding: "6px 18px" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", display: "inline-block", boxShadow: "0 0 6px #4ade80" }} />
-          <span style={{ fontSize: 12, color: "#4ade80", fontFamily: "Georgia, serif" }}>Tela ativa</span>
-        </div>
-
-        <div style={{ marginTop: 8, fontSize: 11, color: `${O}80`, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          Portal de Verificação de Mídia
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: "#16a34a20", border: "1px solid #16a34a40", borderRadius: 999, padding: "4px 12px", fontSize: 11, color: "#16a34a" }}>
+            Tela online
+          </div>
+          <button onClick={() => router.push("/zimerman")} style={{ background: "transparent", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#6b7280", cursor: "pointer" }}>
+            Ver portal
+          </button>
         </div>
       </header>
 
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1.25rem" }}>
+      {/* Tabs */}
+      <div style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "0 1.5rem", display: "flex", gap: 0 }}>
+        {([
+          { key: "editor", label: "✏️  Editor de anúncios" },
+          { key: "scheduler", label: "🕐  Grade de programação" },
+        ] as { key: Tab; label: string }[]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              background: "transparent",
+              border: "none",
+              borderBottom: activeTab === tab.key ? "2px solid #0284C7" : "2px solid transparent",
+              padding: "14px 20px",
+              fontSize: 13,
+              fontWeight: activeTab === tab.key ? 600 : 400,
+              color: activeTab === tab.key ? "#111" : "#9ca3af",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              marginBottom: "-1px",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: "2rem" }}>
-          {[
-            { label: "Exibições verificadas", value: stats.total_plays.toLocaleString("pt-BR"), gold: true },
-            { label: "Esta semana", value: stats.plays_week.toLocaleString("pt-BR"), gold: false },
-            { label: "Hoje", value: stats.plays_today.toLocaleString("pt-BR"), gold: false },
-            { label: "Score de confiança", value: "100/100", gold: true },
-          ].map(s => (
-            <div key={s.label} style={{
-              background: s.gold ? `${O}12` : "#ffffff08",
-              border: `1px solid ${s.gold ? `${O}35` : "#ffffff12"}`,
-              borderRadius: 14, padding: "1.25rem", textAlign: "center",
-            }}>
-              <div style={{ fontSize: 30, fontWeight: 700, color: s.gold ? OL : "#fff", fontFamily: "Georgia, serif", lineHeight: 1 }}>
-                {s.value}
-              </div>
-              <div style={{ fontSize: 11, color: "#ffffff50", marginTop: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Tab: Editor */}
+      {activeTab === "editor" && (
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem", display: "grid", gridTemplateColumns: "1fr 380px", gap: "1.5rem" }}>
 
-        {/* Campanha */}
-        <div style={{
-          background: "#ffffff06", border: `1px solid ${O}25`,
-          borderRadius: 16, padding: "1.25rem 1.5rem",
-          marginBottom: "1.5rem",
-          display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
-        }}>
           <div>
-            <div style={{ fontSize: 11, color: OL, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 5, fontFamily: "Georgia, serif" }}>
-              Campanha em exibição
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Escolha o template</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {templates.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => { setSelectedTpl(tpl); setForm(f => ({ ...f, headline: "", subline: "", cta: "" })) }}
+                    style={{
+                      background: selectedTpl.id === tpl.id ? "#F0F9FF" : "#f9fafb",
+                      border: selectedTpl.id === tpl.id ? "1.5px solid #0284C7" : "0.5px solid #e5e7eb",
+                      borderRadius: 10, padding: "8px 14px", cursor: "pointer",
+                      color: selectedTpl.id === tpl.id ? "#0369A1" : "#6b7280",
+                      fontSize: 12, fontWeight: selectedTpl.id === tpl.id ? 600 : 400,
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    <span>{tpl.emoji}</span> {tpl.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: "#fff", marginBottom: 3 }}>
-              Bar Meninos da Vila — Bom Retiro
-            </div>
-            <div style={{ fontSize: 12, color: "#ffffff50" }}>
-              📍 Bom Retiro, São Paulo — SP
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: OL, fontFamily: "Georgia, serif" }}>R$20,00</div>
-            <div style={{ fontSize: 11, color: "#ffffff40" }}>CPM · 15s por exibição</div>
-          </div>
-        </div>
 
-        {/* Tabela exibições */}
-        <div style={{ background: "#ffffff04", border: "1px solid #ffffff0f", borderRadius: 16, overflow: "hidden", marginBottom: "1.5rem" }}>
-          <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid #ffffff0a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Exibições recentes</div>
-              <div style={{ fontSize: 12, color: "#ffffff40", marginTop: 2 }}>Prova criptográfica em cada exibição</div>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Preview ao vivo</div>
+              <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
             </div>
-            <div style={{ background: `${O}15`, border: `1px solid ${O}35`, borderRadius: 999, padding: "4px 14px", fontSize: 11, color: OL }}>
-              🔐 Blockchain verificado
-            </div>
-          </div>
 
-          {plays.map((play: any, i: number) => (
-            <div key={play.id} style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "0.85rem 1.5rem",
-              borderBottom: i < plays.length - 1 ? "1px solid #ffffff07" : "none",
-              flexWrap: "wrap", gap: 10,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 8,
-                  background: `${O}12`, border: `1px solid ${O}25`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, flexShrink: 0,
-                }}>▶</div>
-                <div>
-                  <div style={{ fontSize: 13, color: "#ffffffcc" }}>
-                    {play.played_at ? fmtDate(play.played_at) : "—"}
-                    {play.duration && <span style={{ color: "#ffffff35", marginLeft: 8, fontSize: 11 }}>{play.duration}s</span>}
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Imagem de fundo (opcional)</div>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
+              {imageUrl ? (
+                <div style={{ position: "relative" }}>
+                  <img src={imageUrl} alt="preview" style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8 }} />
+                  <button onClick={() => setImageUrl(null)} style={{ position: "absolute", top: 6, right: 6, background: "#000000cc", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remover</button>
+                </div>
+              ) : (
+                <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${uploading ? "#0284C7" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer" }}>
+                  {uploading ? <div style={{ fontSize: 13, color: "#0284C7" }}>Enviando imagem...</div> : (
+                    <>
+                      <div style={{ fontSize: 24, marginBottom: 6 }}>🖼</div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
+                      <div style={{ fontSize: 11, color: "#d1d5db", marginTop: 4 }}>JPG, PNG ou WebP - max 10MB</div>
+                    </>
+                  )}
+                </div>
+              )}
+              {uploadError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{uploadError}</div>}
+            </div>
+
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Personalize o anuncio</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  { key: "headline", label: "Titulo principal", placeholder: selectedTpl.headline },
+                  { key: "subline", label: "Subtitulo", placeholder: selectedTpl.subline },
+                  { key: "cta", label: "Chamada para acao", placeholder: selectedTpl.cta },
+                  { key: "phone", label: "Telefone / WhatsApp", placeholder: "(11) 99999-9999" },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>{field.label}</label>
+                    <input value={form[field.key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} placeholder={field.placeholder} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
                   </div>
-                  <div style={{ fontSize: 10, color: "#ffffff25", fontFamily: "monospace", marginTop: 2 }}>
-                    {shortHash(play.event_hash)}
+                ))}
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>Duracao na tela (segundos)</label>
+                <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", width: 160 }}>
+                  <option value="10">10 segundos</option>
+                  <option value="15">15 segundos</option>
+                  <option value="30">30 segundos</option>
+                  <option value="60">60 segundos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            {/* Card de mídia com abas */}
+            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 16, overflow: "hidden", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
+
+              {/* Abas de tipo de mídia */}
+              <div style={{ display: "flex", borderBottom: "1px solid #f3f4f6" }}>
+                {([
+                  { key: "template", label: "🎨 Template" },
+                  { key: "youtube", label: "▶ YouTube" },
+                  { key: "video", label: "🎬 Vídeo" },
+                  { key: "live", label: "🔴 Live" },
+                ] as { key: "template" | "youtube" | "video" | "live"; label: string }[]).map(t => (
+                  <button key={t.key} onClick={() => setMediaTab(t.key)} style={{
+                    flex: 1, padding: "10px 4px", background: "transparent", border: "none",
+                    borderBottom: mediaTab === t.key ? "2px solid #0284C7" : "2px solid transparent",
+                    fontSize: 11, fontWeight: mediaTab === t.key ? 600 : 400,
+                    color: mediaTab === t.key ? "#111" : "#9ca3af", cursor: "pointer",
+                    marginBottom: "-1px"
+                  }}>{t.label}</button>
+                ))}
+              </div>
+
+              <div style={{ padding: "1.25rem" }}>
+
+                {/* Template */}
+                {mediaTab === "template" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1rem", lineHeight: 1.5 }}>
+                      O template selecionado aparecerá na tela da {client.name} em instantes.
+                    </div>
+                    <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? "#7DD3FA" : "#0284C7", color: "#ffffff", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      {publishing ? "Publicando..." : published ? "✓ Publicado!" : "Publicar na tela"}
+                    </button>
+                  </>
+                )}
+
+                {/* YouTube */}
+                {mediaTab === "youtube" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Cole a URL de qualquer vídeo do YouTube. Ele será exibido em loop na tela.
+                    </div>
+                    <input
+                      value={youtubeUrl}
+                      onChange={e => setYoutubeUrl(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 12 }}
+                    />
+                    {youtubeUrl && (
+                      <div style={{ marginBottom: 12, borderRadius: 8, overflow: "hidden", aspectRatio: "16/9" }}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${youtubeUrl.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1] ?? ""}?mute=1&controls=1`}
+                          style={{ width: "100%", height: "100%", border: "none" }}
+                          allow="autoplay"
+                        />
+                      </div>
+                    )}
+                    <button onClick={handlePublishYouTube} disabled={publishing || !youtubeUrl.trim()} style={{ width: "100%", background: !youtubeUrl.trim() ? "#f3f4f6" : "#0284C7", color: !youtubeUrl.trim() ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !youtubeUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "Publicar YouTube"}
+                    </button>
+                  </>
+                )}
+
+                {/* Vídeo on-demand */}
+                {mediaTab === "video" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Faça upload de um vídeo MP4. Ele será exibido completo a cada rodada.
+                    </div>
+                    <input
+                      ref={videoInputRef}
+                      type="file"
+                      accept="video/mp4,video/webm,video/mov"
+                      style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleVideoUpload(f) }}
+                    />
+                    {videoUrl ? (
+                      <div style={{ marginBottom: 12 }}>
+                        <video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 140 }} />
+                        <button onClick={() => setVideoUrl(null)} style={{ marginTop: 6, fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                          Remover vídeo
+                        </button>
+                      </div>
+                    ) : (
+                      <div onClick={() => videoInputRef.current?.click()} style={{ border: `2px dashed ${videoUploading ? "#0284C7" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: videoUploading ? "not-allowed" : "pointer", marginBottom: 12 }}>
+                        {videoUploading ? (
+                          <div style={{ fontSize: 13, color: "#0284C7" }}>Enviando vídeo...</div>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: 24, marginBottom: 6 }}>🎬</div>
+                            <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
+                            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>MP4, WebM — max 50MB</div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <button onClick={handlePublishVideo} disabled={publishing || !videoUrl} style={{ width: "100%", background: !videoUrl ? "#f3f4f6" : "#0284C7", color: !videoUrl ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !videoUrl ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "Publicar vídeo"}
+                    </button>
+                  </>
+                )}
+
+                {/* Live stream */}
+                {mediaTab === "live" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Cole a URL de um stream HLS (.m3u8) ou RTMP. Ideal para transmitir jogos, eventos ao vivo.
+                    </div>
+                    <input
+                      value={streamUrl}
+                      onChange={e => setStreamUrl(e.target.value)}
+                      placeholder="https://example.com/stream.m3u8"
+                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 8 }}
+                    />
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 12 }}>
+                      Suporta HLS (.m3u8), YouTube Live, Twitch embed, e streams corporativos.
+                    </div>
+                    <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#92400e", marginBottom: 12 }}>
+                      ⚡ O stream ficará ativo na playlist até ser removido manualmente.
+                    </div>
+                    <button onClick={handlePublishLive} disabled={publishing || !streamUrl.trim()} style={{ width: "100%", background: !streamUrl.trim() ? "#f3f4f6" : "#ef4444", color: !streamUrl.trim() ? "#9ca3af" : "#fff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !streamUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "🔴 Iniciar transmissão"}
+                    </button>
+                  </>
+                )}
+
+                {published && <div style={{ marginTop: 10, fontSize: 12, color: "#16a34a", textAlign: "center" }}>✓ Adicionado à playlist!</div>}
+
+                <div style={{ marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>Cada exibição gera prova criptográfica</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {["SHA-256", "Merkle", "Polygon", "ICP-Brasil"].map(tag => (
+                      <span key={tag} style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 999, padding: "2px 8px", fontSize: 10, color: "#0369A1" }}>{tag}</span>
+                    ))}
                   </div>
                 </div>
               </div>
-              <Link
-                href={`/verify/${DEMO_HASH}`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  background: `${O}15`, border: `1px solid ${O}45`,
-                  borderRadius: 8, padding: "6px 16px",
-                  fontSize: 12, color: OL, textDecoration: "none",
-                  fontWeight: 600, whiteSpace: "nowrap",
-                }}
-              >
-                🔐 Ver prova
-              </Link>
             </div>
-          ))}
-
-          <div style={{ padding: "0.75rem 1.5rem", borderTop: "1px solid #ffffff08", fontSize: 10, color: "#ffffff25" }}>
-            SHA-256 · Merkle Tree · Polygon Mainnet · TSA RFC3161
+            {publishedItems.length > 0 && (
+              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>Publicados nesta sessao</div>
+                {publishedItems.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < publishedItems.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                    <div style={{ fontSize: 12, color: "#111827" }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: "#d1d5db" }}>{item.time}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        {/* CTA */}
-        <div style={{
-          background: `linear-gradient(135deg, ${O}15 0%, ${O}08 100%)`,
-          border: `1px solid ${O}35`,
-          borderRadius: 18, padding: "2rem", textAlign: "center", marginBottom: "1.5rem",
-        }}>
-          <div style={{ fontSize: 11, color: `${O}80`, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 8 }}>
-            Verificação pública
-          </div>
-          <div style={{ fontSize: 17, color: "#fff", fontWeight: 600, marginBottom: 8 }}>
-            Cada anúncio tem prova verificável
-          </div>
-          <div style={{ fontSize: 13, color: "#ffffff50", marginBottom: 20, lineHeight: 1.6 }}>
-            Anchorado na blockchain Polygon Mainnet.<br/>
-            Qualquer pessoa pode verificar — sem depender de nenhuma plataforma.
-          </div>
-          <Link
-            href={`/verify/${DEMO_HASH}`}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 10,
-              background: O, color: "#fff",
-              borderRadius: 12, padding: "12px 28px",
-              fontSize: 13, fontWeight: 700, textDecoration: "none",
-              letterSpacing: "0.08em", textTransform: "uppercase",
-            }}
-          >
-            🔐 Verificar ao vivo
-          </Link>
-        </div>
-
-        {/* Footer */}
-        <div style={{ textAlign: "center", paddingTop: "1.5rem", borderTop: "1px solid #ffffff08" }}>
-          <div style={{ fontSize: 10, color: "#ffffff20", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-            DOOHPLAY — Trust Infrastructure for DOOH Advertising
-          </div>
-          <div style={{ fontSize: 10, color: "#ffffff15", marginTop: 4 }}>
-            Blockchain · ICP-Brasil · Merkle Proof · TSA RFC3161
+      {/* Tab: Scheduler — fundo claro */}
+      {activeTab === "scheduler" && (
+        <div style={{ minHeight: "calc(100vh - 110px)", background: "#f3f4f6" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem" }}>
+            <div style={{ marginBottom: "1rem" }}>
+              <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6 }}>
+                Configure em quais dias e horários cada anúncio aparece na tela.
+                Itens sem regra ficam sempre ativos.
+              </div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+              <SchedulerEditor playlistId={playlistId} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
     </main>
   )
 }
