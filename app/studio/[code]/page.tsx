@@ -188,7 +188,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   }
 
   if (loading) return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <main style={{ minHeight: "100vh", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ color: "#C9A84C", fontFamily: "Georgia, serif", fontSize: 16 }}>Carregando studio...</div>
     </main>
   )
@@ -200,26 +200,26 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const playlistId = client.playlist_id ?? "bbbbbbbb-0001-0001-0001-000000000001"
 
   return (
-    <main style={{ minHeight: "100vh", background: activeTab === "scheduler" ? "#f3f4f6" : "#0a0a0a", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: "#f3f4f6", color: "#111", fontFamily: "system-ui, sans-serif" }}>
 
       {/* Header */}
-      <header style={{ borderBottom: activeTab === "scheduler" ? "1px solid #e5e7eb" : "1px solid #ffffff10", background: activeTab === "scheduler" ? "#fff" : "transparent", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 10, color: accent, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "Georgia, serif" }}>DOOHPLAY Studio</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: activeTab === "scheduler" ? "#111" : "#fff", marginTop: 2 }}>{client.name}</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#111", marginTop: 2 }}>{client.name}</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ background: "#16a34a20", border: "1px solid #16a34a40", borderRadius: 999, padding: "4px 12px", fontSize: 11, color: "#16a34a" }}>
             Tela online
           </div>
-          <button onClick={() => router.push("/zimerman")} style={{ background: "transparent", border: `1px solid ${activeTab === "scheduler" ? "#e5e7eb" : "#ffffff15"}`, borderRadius: 8, padding: "6px 12px", fontSize: 11, color: activeTab === "scheduler" ? "#6b7280" : "#ffffff60", cursor: "pointer" }}>
+          <button onClick={() => router.push("/zimerman")} style={{ background: "transparent", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#6b7280", cursor: "pointer" }}>
             Ver portal
           </button>
         </div>
       </header>
 
       {/* Tabs */}
-      <div style={{ borderBottom: activeTab === "scheduler" ? "1px solid #e5e7eb" : "1px solid #ffffff10", background: activeTab === "scheduler" ? "#fff" : "transparent", padding: "0 1.5rem", display: "flex", gap: 0 }}>
+      <div style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "0 1.5rem", display: "flex", gap: 0 }}>
         {([
           { key: "editor", label: "✏️  Editor de anúncios" },
           { key: "scheduler", label: "🕐  Grade de programação" },
@@ -234,9 +234,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
               padding: "14px 20px",
               fontSize: 13,
               fontWeight: activeTab === tab.key ? 600 : 400,
-              color: activeTab === tab.key
-                ? (activeTab === "scheduler" ? "#111" : "#fff")
-                : (activeTab === "scheduler" ? "#9ca3af" : "#ffffff40"),
+              color: activeTab === tab.key ? "#111" : "#9ca3af",
               cursor: "pointer",
               transition: "all 0.15s",
               marginBottom: "-1px",
@@ -253,17 +251,17 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
 
           <div>
             <div style={{ marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Escolha o template</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Escolha o template</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {templates.map(tpl => (
                   <button
                     key={tpl.id}
                     onClick={() => { setSelectedTpl(tpl); setForm(f => ({ ...f, headline: "", subline: "", cta: "" })) }}
                     style={{
-                      background: selectedTpl.id === tpl.id ? `${accent}20` : "#111",
-                      border: `1px solid ${selectedTpl.id === tpl.id ? accent : "#ffffff10"}`,
+                      background: selectedTpl.id === tpl.id ? `${accent}20` : "#f9fafb",
+                      border: `1px solid ${selectedTpl.id === tpl.id ? accent : "#e5e7eb"}`,
                       borderRadius: 10, padding: "8px 14px", cursor: "pointer",
-                      color: selectedTpl.id === tpl.id ? accent : "#ffffff60",
+                      color: selectedTpl.id === tpl.id ? accent : "#6b7280",
                       fontSize: 12, fontWeight: selectedTpl.id === tpl.id ? 600 : 400,
                       display: "flex", alignItems: "center", gap: 6,
                     }}
@@ -275,12 +273,12 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
             </div>
 
             <div style={{ marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Preview ao vivo</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Preview ao vivo</div>
               <AdPreview tpl={selectedTpl} client={client} form={form} imageUrl={imageUrl} />
             </div>
 
-            <div style={{ background: "#111", border: "1px solid #ffffff0f", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
-              <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Imagem de fundo (opcional)</div>
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Imagem de fundo (opcional)</div>
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
               {imageUrl ? (
                 <div style={{ position: "relative" }}>
@@ -288,12 +286,12 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   <button onClick={() => setImageUrl(null)} style={{ position: "absolute", top: 6, right: 6, background: "#000000cc", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remover</button>
                 </div>
               ) : (
-                <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${uploading ? accent : "#ffffff20"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer" }}>
+                <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${uploading ? accent : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer" }}>
                   {uploading ? <div style={{ fontSize: 13, color: accent }}>Enviando imagem...</div> : (
                     <>
                       <div style={{ fontSize: 24, marginBottom: 6 }}>🖼</div>
-                      <div style={{ fontSize: 13, color: "#ffffff60" }}>Clique para fazer upload</div>
-                      <div style={{ fontSize: 11, color: "#ffffff30", marginTop: 4 }}>JPG, PNG ou WebP - max 10MB</div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
+                      <div style={{ fontSize: 11, color: "#d1d5db", marginTop: 4 }}>JPG, PNG ou WebP - max 10MB</div>
                     </>
                   )}
                 </div>
@@ -301,8 +299,8 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
               {uploadError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{uploadError}</div>}
             </div>
 
-            <div style={{ background: "#111", border: "1px solid #ffffff0f", borderRadius: 16, padding: "1.25rem" }}>
-              <div style={{ fontSize: 12, color: "#ffffff50", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Personalize o anuncio</div>
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Personalize o anuncio</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {[
                   { key: "headline", label: "Titulo principal", placeholder: selectedTpl.headline },
@@ -311,14 +309,14 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   { key: "phone", label: "Telefone / WhatsApp", placeholder: "(11) 99999-9999" },
                 ].map(field => (
                   <div key={field.key}>
-                    <label style={{ fontSize: 11, color: "#ffffff40", display: "block", marginBottom: 4 }}>{field.label}</label>
-                    <input value={form[field.key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} placeholder={field.placeholder} style={{ width: "100%", background: "#1a1a1a", border: "1px solid #ffffff10", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#fff", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>{field.label}</label>
+                    <input value={form[field.key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} placeholder={field.placeholder} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
                   </div>
                 ))}
               </div>
               <div style={{ marginTop: 12 }}>
-                <label style={{ fontSize: 11, color: "#ffffff40", display: "block", marginBottom: 4 }}>Duracao na tela (segundos)</label>
-                <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} style={{ background: "#1a1a1a", border: "1px solid #ffffff10", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#fff", outline: "none", width: 160 }}>
+                <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>Duracao na tela (segundos)</label>
+                <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", width: 160 }}>
                   <option value="10">10 segundos</option>
                   <option value="15">15 segundos</option>
                   <option value="30">30 segundos</option>
@@ -329,15 +327,15 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           </div>
 
           <div>
-            <div style={{ background: "#111", border: `1px solid ${accent}30`, borderRadius: 16, padding: "1.5rem", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>Pronto para publicar?</div>
-              <div style={{ fontSize: 12, color: "#ffffff40", marginBottom: "1.25rem", lineHeight: 1.5 }}>O anuncio aparecera na tela da {client.name} em instantes.</div>
+            <div style={{ background: "#fff", border: `1px solid ${accent}30`, borderRadius: 16, padding: "1.5rem", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 4 }}>Pronto para publicar?</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: "1.25rem", lineHeight: 1.5 }}>O anuncio aparecera na tela da {client.name} em instantes.</div>
               <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? `${accent}50` : accent, color: "#0a0a0a", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 {publishing ? "Publicando..." : published ? "Publicado!" : "Publicar na tela"}
               </button>
               {published && <div style={{ marginTop: 10, fontSize: 12, color: "#4ade80", textAlign: "center" }}>Anuncio na fila da playlist!</div>}
-              <div style={{ marginTop: "1rem", borderTop: "1px solid #ffffff08", paddingTop: "1rem" }}>
-                <div style={{ fontSize: 11, color: "#ffffff30", marginBottom: 8 }}>Cada exibicao gera prova criptografica</div>
+              <div style={{ marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>Cada exibicao gera prova criptografica</div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {["SHA-256", "Merkle", "Polygon", "ICP-Brasil"].map(tag => (
                     <span key={tag} style={{ background: `${accent}10`, border: `1px solid ${accent}20`, borderRadius: 999, padding: "2px 8px", fontSize: 10, color: accent }}>{tag}</span>
@@ -346,12 +344,12 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
               </div>
             </div>
             {publishedItems.length > 0 && (
-              <div style={{ background: "#111", border: "1px solid #ffffff0f", borderRadius: 16, padding: "1.25rem" }}>
-                <div style={{ fontSize: 12, color: "#ffffff40", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>Publicados nesta sessao</div>
+              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>Publicados nesta sessao</div>
                 {publishedItems.map((item, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < publishedItems.length - 1 ? "1px solid #ffffff08" : "none" }}>
-                    <div style={{ fontSize: 12, color: "#ffffffcc" }}>{item.title}</div>
-                    <div style={{ fontSize: 11, color: "#ffffff30" }}>{item.time}</div>
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < publishedItems.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                    <div style={{ fontSize: 12, color: "#111827" }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: "#d1d5db" }}>{item.time}</div>
                   </div>
                 ))}
               </div>
