@@ -42,8 +42,6 @@ export async function saveEvent(event: CanonicalEvent): Promise<void> {
         event_type,
         source_table,
         source_id,
-        device_id,
-        campaign_id,
         occurred_at,
         payload_hash,
         previous_event_hash,
@@ -51,7 +49,7 @@ export async function saveEvent(event: CanonicalEvent): Promise<void> {
         signature
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
+        $1,$2,$3,$4,$5,$6,$7,$8,$9
       )
       ON CONFLICT (event_id, occurred_at) DO NOTHING
       RETURNING event_id
@@ -61,8 +59,6 @@ export async function saveEvent(event: CanonicalEvent): Promise<void> {
         event.event_type,
         event.source_table,
         event.source_id,
-        event.device_id ?? null,
-        event.campaign_id ?? null,
         event.occurred_at,
         event.payload_hash,
         event.previous_event_hash,
