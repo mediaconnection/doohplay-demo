@@ -1,271 +1,604 @@
-export const dynamic = "force-dynamic"
+"use client"
 
-import { pool } from "@/lib/db"
-import Link from "next/link"
-import TimeAgo from "@/components/ui/TimeAgo"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import SchedulerEditor from "@/components/SchedulerEditor"
 
-type Play = {
+type Client = {
   id: string
-  played_at: string
-  duration: number | null
-  event_hash: string | null
+  name: string
+  business_type: string
+  primary_color: string
+  phone: string | null
+  address: string | null
+  logo_url: string | null
+  screen_id: string | null
+  playlist_id: string | null
 }
 
-type Stats = {
-  total_plays: number
-  plays_today: number
-  plays_week: number
-  last_play: string | null
+type Template = {
+  id: string
+  name: string
+  emoji: string
+  bg: string
+  accent: string
+  headline: string
+  subline: string
+  cta: string
 }
 
-const CAMPAIGN_ID = "aaaaaaaa-0001-0001-0001-000000000001"
-const DEMO_HASH = "20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
-const LOGO = "data:image/webp;base64,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"
-
-async function getStats(): Promise<Stats> {
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT
-          COUNT(*)::int AS total_plays,
-          COUNT(*) FILTER (WHERE played_at >= CURRENT_DATE)::int AS plays_today,
-          COUNT(*) FILTER (WHERE played_at >= CURRENT_DATE - INTERVAL '7 days')::int AS plays_week,
-          MAX(played_at)::text AS last_play
-        FROM display_events
-        WHERE campaign_id = $1
-      `, [CAMPAIGN_ID]),
-      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
-    ]) as any
-    return r.rows?.[0] ?? { total_plays: 0, plays_today: 0, plays_week: 0, last_play: null }
-  } catch { return { total_plays: 0, plays_today: 0, plays_week: 0, last_play: null } }
+const TEMPLATES: Record<string, Template[]> = {
+  barber: [
+    { id: "barber1", name: "Classico Premium", emoji: "✂", bg: "#0a0a0a", accent: "#C9A84C", headline: "Corte + Barba", subline: "Voce em alto estilo", cta: "Agende agora" },
+    { id: "barber2", name: "Moderno Bold", emoji: "🪒", bg: "#1a1a2e", accent: "#e94560", headline: "Novo Visual", subline: "Transforme seu estilo", cta: "Reserve ja" },
+    { id: "barber3", name: "Minimalista", emoji: "💈", bg: "#f8f4f0", accent: "#2d2d2d", headline: "Arte em cada corte", subline: "Excelencia e tradicao", cta: "Venha nos conhecer" },
+  ],
+  food: [
+    { id: "food1", name: "Combo Almoco", emoji: "🍽", bg: "#1a0a00", accent: "#f59e0b", headline: "Combo do Dia", subline: "Prato + bebida + sobremesa", cta: "Peca agora" },
+    { id: "food2", name: "Promocao Destaque", emoji: "⚡", bg: "#0f1f0f", accent: "#22c55e", headline: "Oferta Especial", subline: "So hoje!", cta: "Aproveite!" },
+    { id: "food3", name: "Delivery", emoji: "🛵", bg: "#1a0020", accent: "#a855f7", headline: "Delivery Rapido", subline: "Entregamos em 30 min", cta: "Faca seu pedido" },
+  ],
+  dessert: [
+    { id: "dessert1", name: "Bolo Especial", emoji: "🎂", bg: "#1a0010", accent: "#f472b6", headline: "Bolos Artesanais", subline: "Feitos com amor", cta: "Encomende ja" },
+    { id: "dessert2", name: "Doces do Dia", emoji: "🍰", bg: "#fff8f0", accent: "#ea580c", headline: "Doces Fresquinhos", subline: "Todo dia uma surpresa", cta: "Venha provar" },
+    { id: "dessert3", name: "Elegante", emoji: "🍫", bg: "#0a0505", accent: "#d4a574", headline: "Alta Confeitaria", subline: "Experiencias unicas", cta: "Descubra" },
+  ],
+  bakery: [
+    { id: "bakery1", name: "Pao Fresquinho", emoji: "🍞", bg: "#1a0d00", accent: "#f97316", headline: "Pao Quentinho", subline: "Direto do forno", cta: "Venha buscar" },
+    { id: "bakery2", name: "Cafe da Manha", emoji: "☕", bg: "#f5f0e8", accent: "#78350f", headline: "Cafe da Manha", subline: "O melhor comeco de dia", cta: "Passe aqui" },
+    { id: "bakery3", name: "Promocao", emoji: "🥐", bg: "#0f0f1a", accent: "#fbbf24", headline: "Promocao do Dia", subline: "Leve 3, pague 2", cta: "Aproveite!" },
+  ],
+  pizza: [
+    { id: "pizza1", name: "Promocao Sexta", emoji: "🍕", bg: "#1a0000", accent: "#ef4444", headline: "Sexta de Pizza", subline: "2 pizzas pelo preco de 1", cta: "Peca ja" },
+    { id: "pizza2", name: "Delivery Noturno", emoji: "🌙", bg: "#020617", accent: "#6366f1", headline: "Delivery ate meia-noite", subline: "Pizza quente na porta", cta: "Faca seu pedido" },
+    { id: "pizza3", name: "Familia", emoji: "👨‍👩‍👧", bg: "#0a1a00", accent: "#84cc16", headline: "Pizza em Familia", subline: "Momentos que ficam", cta: "Reserve sua mesa" },
+  ],
 }
 
-async function getRecentPlays(): Promise<Play[]> {
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT e.id, e.played_at, e.duration, e.event_hash
-        FROM display_events e
-        WHERE e.campaign_id = $1
-        ORDER BY e.played_at DESC
-        LIMIT 25
-      `, [CAMPAIGN_ID]),
-      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
-    ]) as any
-    return r.rows ?? []
-  } catch { return [] }
-}
-
-function shortHash(h?: string | null) {
-  if (!h) return "—"
-  return `${h.slice(0, 10)}...${h.slice(-10)}`
-}
-
-function fmtDate(d?: string | null) {
-  if (!d) return "—"
-  try {
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(d))
-  } catch { return "—" }
-}
-
-export default async function ZimermanPage() {
-  const [stats, plays] = await Promise.all([getStats(), getRecentPlays()])
+function AdPreview({ tpl, client, form, imageUrl }: {
+  tpl: Template
+  client: Client
+  form: { headline: string; subline: string; cta: string; phone: string }
+  imageUrl?: string | null
+}) {
+  const isLight = tpl.bg.startsWith("#f")
+  const textColor = isLight ? "#1a1a1a" : "#ffffff"
+  const mutedColor = isLight ? "#00000060" : "#ffffff70"
 
   return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff" }}>
-
-      {/* ── HERO HEADER ── */}
-      <header style={{
-        background: "linear-gradient(180deg, #1a1400 0%, #0a0a0a 100%)",
-        borderBottom: "1px solid #C9A84C30",
-        padding: "3rem 1.5rem 2rem",
-        textAlign: "center"
-      }}>
-        <img
-          src={LOGO}
-          alt="Barbearia Zimermam"
-          style={{ width: 140, height: 140, borderRadius: "50%", margin: "0 auto 1.5rem", display: "block", objectFit: "cover" }}
-        />
-        <div style={{ fontSize: 11, color: "#C9A84C", letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "Georgia, serif" }}>
-          Portal de verificação de mídia
+    <div style={{
+      width: "100%",
+      aspectRatio: "16/9",
+      background: tpl.bg,
+      borderRadius: 12,
+      overflow: "hidden",
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "2rem",
+      boxSizing: "border-box",
+    }}>
+      {imageUrl && (
+        <img src={imageUrl} alt="bg" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }} />
+      )}
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 70% 70% at 80% 20%, ${tpl.accent}15 0%, transparent 70%)` }} />
+      {!imageUrl && (
+        <div style={{ fontSize: 48, marginBottom: 16, position: "relative" }}>{tpl.emoji}</div>
+      )}
+      <div style={{ fontSize: 13, color: tpl.accent, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8, position: "relative", fontWeight: 700 }}>
+        {client.name}
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 700, color: textColor, textAlign: "center", lineHeight: 1.1, position: "relative", fontFamily: "Georgia, serif" }}>
+        {form.headline || tpl.headline}
+      </div>
+      <div style={{ fontSize: 14, color: mutedColor, marginTop: 10, textAlign: "center", position: "relative" }}>
+        {form.subline || tpl.subline}
+      </div>
+      <div style={{ marginTop: 20, background: tpl.accent, color: isLight ? "#fff" : "#000", borderRadius: 999, padding: "8px 24px", fontSize: 13, fontWeight: 700, position: "relative" }}>
+        {form.cta || tpl.cta}
+      </div>
+      {form.phone && (
+        <div style={{ position: "absolute", bottom: 16, right: 16, fontSize: 11, color: mutedColor }}>
+          {form.phone}
         </div>
-        <div style={{ marginTop: "1rem", display: "inline-flex", alignItems: "center", gap: 8, background: "#16a34a18", border: "1px solid #16a34a40", borderRadius: 999, padding: "6px 18px" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", display: "inline-block", boxShadow: "0 0 6px #4ade80" }} />
-          <span style={{ fontSize: 12, color: "#4ade80", fontFamily: "Georgia, serif" }}>Campanha ativa</span>
+      )}
+      <div style={{ position: "absolute", bottom: 12, left: 12, fontSize: 8, color: `${tpl.accent}60`, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        DOOHPLAY
+      </div>
+    </div>
+  )
+}
+
+type Tab = "editor" | "scheduler"
+
+export default function StudioEditorPage({ params }: { params: { code: string } }) {
+  const code = params.code.toUpperCase()
+  const router = useRouter()
+  const [client, setClient] = useState<Client | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<Tab>("editor")
+  const [selectedTpl, setSelectedTpl] = useState<Template | null>(null)
+  const [form, setForm] = useState({ headline: "", subline: "", cta: "", phone: "", duration: "15" })
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState(false)
+  const [publishedItems, setPublishedItems] = useState<{ title: string; time: string }[]>([])
+  const [mediaTab, setMediaTab] = useState<"template" | "youtube" | "video" | "live">("template")
+  const [youtubeUrl, setYoutubeUrl] = useState("")
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const [streamUrl, setStreamUrl] = useState("")
+
+  useEffect(() => {
+    fetch(`/api/studio/auth?code=${code}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) { router.push("/studio"); return }
+        setClient(d.client)
+        const templates = TEMPLATES[d.client.business_type] ?? TEMPLATES.barber
+        setSelectedTpl(templates[0])
+        setForm(f => ({ ...f, phone: d.client.phone ?? "" }))
+      })
+      .catch(() => router.push("/studio"))
+      .finally(() => setLoading(false))
+  }, [code, router])
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    setUploadError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("code", code)
+      const res = await fetch("/api/studio/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok) setImageUrl(data.url)
+      else setUploadError(data.error ?? "Erro no upload")
+    } catch {
+      setUploadError("Erro de conexao")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handlePublish = async () => {
+    if (!selectedTpl || !client) return
+    setPublishing(true)
+    try {
+      const assetUrl = `https://doohplay-demo.onrender.com/studio/${code}/preview?tpl=${selectedTpl.id}&h=${encodeURIComponent(form.headline || selectedTpl.headline)}`
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: assetUrl,
+          type: "url",
+          duration: parseInt(form.duration),
+          title: `${form.headline || selectedTpl.headline} - ${client.name}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setPublished(true)
+        setPublishedItems(prev => [{ title: form.headline || selectedTpl.headline, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 4000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handlePublishYouTube = async () => {
+    if (!youtubeUrl.trim()) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: youtubeUrl.trim(),
+          type: "youtube",
+          duration: 60,
+          title: `YouTube — ${youtubeUrl.slice(0, 40)}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setYoutubeUrl("")
+        setPublished(true)
+        setPublishedItems(prev => [{ title: `YouTube: ${youtubeUrl.slice(0,30)}...`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handlePublishLive = async () => {
+    if (!streamUrl.trim()) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: streamUrl.trim(),
+          type: "hls",
+          duration: 3600,
+          title: `Live — ${streamUrl.slice(0, 40)}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setStreamUrl("")
+        setPublished(true)
+        setPublishedItems(prev => [{ title: "Live stream publicado", time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handleVideoUpload = async (file: File) => {
+    setVideoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("code", code)
+      const res = await fetch("/api/studio/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok) setVideoUrl(data.url)
+    } catch {}
+    finally { setVideoUploading(false) }
+  }
+
+  const handlePublishVideo = async () => {
+    if (!videoUrl) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: videoUrl,
+          type: "video",
+          duration: 30,
+          title: `Vídeo — ${videoUrl.split("/").pop()}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setVideoUrl(null)
+        setPublished(true)
+        setPublishedItems(prev => [{ title: `Vídeo publicado`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  if (loading) return (
+    <main style={{ minHeight: "100vh", background: "#F0F9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#0284C7", fontFamily: "var(--font-sans)", fontSize: 16 }}>Carregando studio...</div>
+    </main>
+  )
+
+  if (!client || !selectedTpl) return null
+
+  const templates = TEMPLATES[client.business_type] ?? TEMPLATES.barber
+  // DOOHPLAY brand color — Azul Royal
+  const BRAND = "#0284C7"
+  const BRAND_LIGHT = "#F0F9FF"
+  const BRAND_DARK = "#0369A1"
+  // Client accent used only inside ad preview templates
+  const clientAccent = client.primary_color.startsWith("#") ? client.primary_color : `#${client.primary_color}`
+  const accent = BRAND
+  const playlistId = client.playlist_id ?? "bbbbbbbb-0001-0001-0001-000000000001"
+
+  return (
+    <main style={{ minHeight: "100vh", background: "#f3f4f6", color: "#111", fontFamily: "system-ui, sans-serif" }}>
+
+      {/* Header */}
+      <header style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 10, color: "#0284C7", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>DOOHPLAY Studio</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#111", marginTop: 2 }}>{client.name}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: "#16a34a20", border: "1px solid #16a34a40", borderRadius: 999, padding: "4px 12px", fontSize: 11, color: "#16a34a" }}>
+            Tela online
+          </div>
+          <button onClick={() => router.push("/zimerman")} style={{ background: "transparent", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#6b7280", cursor: "pointer" }}>
+            Ver portal
+          </button>
         </div>
       </header>
 
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1.25rem" }}>
+      {/* Tabs */}
+      <div style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "0 1.5rem", display: "flex", gap: 0 }}>
+        {([
+          { key: "editor", label: "✏️  Editor de anúncios" },
+          { key: "scheduler", label: "🕐  Grade de programação" },
+        ] as { key: Tab; label: string }[]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              background: "transparent",
+              border: "none",
+              borderBottom: activeTab === tab.key ? "2px solid #0284C7" : "2px solid transparent",
+              padding: "14px 20px",
+              fontSize: 13,
+              fontWeight: activeTab === tab.key ? 600 : 400,
+              color: activeTab === tab.key ? "#111" : "#9ca3af",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              marginBottom: "-1px",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* ── STATS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: "2rem" }}>
-          {[
-            { label: "Exibições verificadas", value: stats.total_plays.toLocaleString("pt-BR"), gold: true },
-            { label: "Esta semana", value: stats.plays_week.toLocaleString("pt-BR"), gold: false },
-            { label: "Hoje", value: stats.plays_today.toLocaleString("pt-BR"), gold: false },
-            { label: "Score de confiança", value: "100/100", gold: true },
-          ].map(s => (
-            <div key={s.label} style={{
-              background: s.gold ? "#C9A84C0f" : "#ffffff08",
-              border: `1px solid ${s.gold ? "#C9A84C35" : "#ffffff12"}`,
-              borderRadius: 14,
-              padding: "1.25rem",
-              textAlign: "center"
-            }}>
-              <div style={{ fontSize: 30, fontWeight: 700, color: s.gold ? "#C9A84C" : "#fff", fontFamily: "Georgia, serif", lineHeight: 1 }}>
-                {s.value}
-              </div>
-              <div style={{ fontSize: 11, color: "#ffffff50", marginTop: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Tab: Editor */}
+      {activeTab === "editor" && (
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem", display: "grid", gridTemplateColumns: "1fr 380px", gap: "1.5rem" }}>
 
-        {/* ── CAMPANHA ── */}
-        <div style={{
-          background: "#ffffff06",
-          border: "1px solid #C9A84C25",
-          borderRadius: 16,
-          padding: "1.25rem 1.5rem",
-          marginBottom: "1.5rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12
-        }}>
           <div>
-            <div style={{ fontSize: 11, color: "#C9A84C", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 5, fontFamily: "Georgia, serif" }}>
-              Campanha em exibição
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Escolha o template</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {templates.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => { setSelectedTpl(tpl); setForm(f => ({ ...f, headline: "", subline: "", cta: "" })) }}
+                    style={{
+                      background: selectedTpl.id === tpl.id ? "#F0F9FF" : "#f9fafb",
+                      border: selectedTpl.id === tpl.id ? "1.5px solid #0284C7" : "0.5px solid #e5e7eb",
+                      borderRadius: 10, padding: "8px 14px", cursor: "pointer",
+                      color: selectedTpl.id === tpl.id ? "#0369A1" : "#6b7280",
+                      fontSize: 12, fontWeight: selectedTpl.id === tpl.id ? 600 : 400,
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    <span>{tpl.emoji}</span> {tpl.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: "#fff", marginBottom: 3 }}>
-              Corte + Barba — Promoção Especial
-            </div>
-            <div style={{ fontSize: 12, color: "#ffffff50" }}>
-              📍 Rua Augusta 1200, Consolação — São Paulo
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#C9A84C", fontFamily: "Georgia, serif" }}>R5,00</div>
-            <div style={{ fontSize: 11, color: "#ffffff40" }}>CPM · 30s por exibição</div>
-          </div>
-        </div>
 
-        {/* ── TABELA EXIBIÇÕES ── */}
-        <div style={{ background: "#ffffff04", border: "1px solid #ffffff0f", borderRadius: 16, overflow: "hidden", marginBottom: "1.5rem" }}>
-          <div style={{
-            padding: "1rem 1.5rem",
-            borderBottom: "1px solid #ffffff0a",
-            display: "flex", justifyContent: "space-between", alignItems: "center"
-          }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Exibições recentes</div>
-              <div style={{ fontSize: 12, color: "#ffffff40", marginTop: 2 }}>Prova criptográfica em cada exibição</div>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Preview ao vivo</div>
+              <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
             </div>
-            <div style={{
-              background: "#C9A84C15", border: "1px solid #C9A84C35",
-              borderRadius: 999, padding: "4px 14px",
-              fontSize: 11, color: "#C9A84C", letterSpacing: "0.05em"
-            }}>
-              🔐 Blockchain verificado
-            </div>
-          </div>
 
-          {plays.map((play, i) => (
-            <div key={play.id} style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "0.85rem 1.5rem",
-              borderBottom: i < plays.length - 1 ? "1px solid #ffffff07" : "none",
-              flexWrap: "wrap", gap: 10,
-              transition: "background 0.15s"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 8,
-                  background: "#C9A84C12", border: "1px solid #C9A84C25",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, flexShrink: 0
-                }}>▶</div>
-                <div>
-                  <div style={{ fontSize: 13, color: "#ffffffcc" }}>
-                    {play.played_at ? fmtDate(play.played_at) : "—"}
-                    {play.duration && (
-                      <span style={{ color: "#ffffff35", marginLeft: 8, fontSize: 11 }}>
-                        {play.duration}s
-                      </span>
-                    )}
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Imagem de fundo (opcional)</div>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
+              {imageUrl ? (
+                <div style={{ position: "relative" }}>
+                  <img src={imageUrl} alt="preview" style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8 }} />
+                  <button onClick={() => setImageUrl(null)} style={{ position: "absolute", top: 6, right: 6, background: "#000000cc", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remover</button>
+                </div>
+              ) : (
+                <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${uploading ? "#0284C7" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer" }}>
+                  {uploading ? <div style={{ fontSize: 13, color: "#0284C7" }}>Enviando imagem...</div> : (
+                    <>
+                      <div style={{ fontSize: 24, marginBottom: 6 }}>🖼</div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
+                      <div style={{ fontSize: 11, color: "#d1d5db", marginTop: 4 }}>JPG, PNG ou WebP - max 10MB</div>
+                    </>
+                  )}
+                </div>
+              )}
+              {uploadError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{uploadError}</div>}
+            </div>
+
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Personalize o anuncio</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  { key: "headline", label: "Titulo principal", placeholder: selectedTpl.headline },
+                  { key: "subline", label: "Subtitulo", placeholder: selectedTpl.subline },
+                  { key: "cta", label: "Chamada para acao", placeholder: selectedTpl.cta },
+                  { key: "phone", label: "Telefone / WhatsApp", placeholder: "(11) 99999-9999" },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>{field.label}</label>
+                    <input value={form[field.key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} placeholder={field.placeholder} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
                   </div>
-                  <div style={{ fontSize: 10, color: "#ffffff25", fontFamily: "monospace", marginTop: 2 }}>
-                    {shortHash(play.event_hash)}
+                ))}
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>Duracao na tela (segundos)</label>
+                <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", width: 160 }}>
+                  <option value="10">10 segundos</option>
+                  <option value="15">15 segundos</option>
+                  <option value="30">30 segundos</option>
+                  <option value="60">60 segundos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            {/* Card de mídia com abas */}
+            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 16, overflow: "hidden", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
+
+              {/* Abas de tipo de mídia */}
+              <div style={{ display: "flex", borderBottom: "1px solid #f3f4f6" }}>
+                {([
+                  { key: "template", label: "🎨 Template" },
+                  { key: "youtube", label: "▶ YouTube" },
+                  { key: "video", label: "🎬 Vídeo" },
+                  { key: "live", label: "🔴 Live" },
+                ] as { key: "template" | "youtube" | "video" | "live"; label: string }[]).map(t => (
+                  <button key={t.key} onClick={() => setMediaTab(t.key)} style={{
+                    flex: 1, padding: "10px 4px", background: "transparent", border: "none",
+                    borderBottom: mediaTab === t.key ? "2px solid #0284C7" : "2px solid transparent",
+                    fontSize: 11, fontWeight: mediaTab === t.key ? 600 : 400,
+                    color: mediaTab === t.key ? "#111" : "#9ca3af", cursor: "pointer",
+                    marginBottom: "-1px"
+                  }}>{t.label}</button>
+                ))}
+              </div>
+
+              <div style={{ padding: "1.25rem" }}>
+
+                {/* Template */}
+                {mediaTab === "template" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1rem", lineHeight: 1.5 }}>
+                      O template selecionado aparecerá na tela da {client.name} em instantes.
+                    </div>
+                    <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? "#7DD3FA" : "#0284C7", color: "#ffffff", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      {publishing ? "Publicando..." : published ? "✓ Publicado!" : "Publicar na tela"}
+                    </button>
+                  </>
+                )}
+
+                {/* YouTube */}
+                {mediaTab === "youtube" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Cole a URL de qualquer vídeo do YouTube. Ele será exibido em loop na tela.
+                    </div>
+                    <input
+                      value={youtubeUrl}
+                      onChange={e => setYoutubeUrl(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 12 }}
+                    />
+                    {youtubeUrl && (
+                      <div style={{ marginBottom: 12, borderRadius: 8, overflow: "hidden", aspectRatio: "16/9" }}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${youtubeUrl.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1] ?? ""}?mute=1&controls=1`}
+                          style={{ width: "100%", height: "100%", border: "none" }}
+                          allow="autoplay"
+                        />
+                      </div>
+                    )}
+                    <button onClick={handlePublishYouTube} disabled={publishing || !youtubeUrl.trim()} style={{ width: "100%", background: !youtubeUrl.trim() ? "#f3f4f6" : "#0284C7", color: !youtubeUrl.trim() ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !youtubeUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "Publicar YouTube"}
+                    </button>
+                  </>
+                )}
+
+                {/* Vídeo on-demand */}
+                {mediaTab === "video" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Faça upload de um vídeo MP4. Ele será exibido completo a cada rodada.
+                    </div>
+                    <input
+                      ref={videoInputRef}
+                      type="file"
+                      accept="video/mp4,video/webm,video/mov"
+                      style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleVideoUpload(f) }}
+                    />
+                    {videoUrl ? (
+                      <div style={{ marginBottom: 12 }}>
+                        <video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 140 }} />
+                        <button onClick={() => setVideoUrl(null)} style={{ marginTop: 6, fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                          Remover vídeo
+                        </button>
+                      </div>
+                    ) : (
+                      <div onClick={() => videoInputRef.current?.click()} style={{ border: `2px dashed ${videoUploading ? "#0284C7" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: videoUploading ? "not-allowed" : "pointer", marginBottom: 12 }}>
+                        {videoUploading ? (
+                          <div style={{ fontSize: 13, color: "#0284C7" }}>Enviando vídeo...</div>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: 24, marginBottom: 6 }}>🎬</div>
+                            <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
+                            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>MP4, WebM — max 50MB</div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <button onClick={handlePublishVideo} disabled={publishing || !videoUrl} style={{ width: "100%", background: !videoUrl ? "#f3f4f6" : "#0284C7", color: !videoUrl ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !videoUrl ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "Publicar vídeo"}
+                    </button>
+                  </>
+                )}
+
+                {/* Live stream */}
+                {mediaTab === "live" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Cole a URL de um stream HLS (.m3u8) ou RTMP. Ideal para transmitir jogos, eventos ao vivo.
+                    </div>
+                    <input
+                      value={streamUrl}
+                      onChange={e => setStreamUrl(e.target.value)}
+                      placeholder="https://example.com/stream.m3u8"
+                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 8 }}
+                    />
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 12 }}>
+                      Suporta HLS (.m3u8), YouTube Live, Twitch embed, e streams corporativos.
+                    </div>
+                    <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#92400e", marginBottom: 12 }}>
+                      ⚡ O stream ficará ativo na playlist até ser removido manualmente.
+                    </div>
+                    <button onClick={handlePublishLive} disabled={publishing || !streamUrl.trim()} style={{ width: "100%", background: !streamUrl.trim() ? "#f3f4f6" : "#ef4444", color: !streamUrl.trim() ? "#9ca3af" : "#fff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !streamUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "🔴 Iniciar transmissão"}
+                    </button>
+                  </>
+                )}
+
+                {published && <div style={{ marginTop: 10, fontSize: 12, color: "#16a34a", textAlign: "center" }}>✓ Adicionado à playlist!</div>}
+
+                <div style={{ marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>Cada exibição gera prova criptográfica</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {["SHA-256", "Merkle", "Polygon", "ICP-Brasil"].map(tag => (
+                      <span key={tag} style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 999, padding: "2px 8px", fontSize: 10, color: "#0369A1" }}>{tag}</span>
+                    ))}
                   </div>
                 </div>
               </div>
-              <Link
-                href={`/verify/${DEMO_HASH}`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  background: "#C9A84C15", border: "1px solid #C9A84C45",
-                  borderRadius: 8, padding: "6px 16px",
-                  fontSize: 12, color: "#C9A84C", textDecoration: "none",
-                  fontWeight: 600, whiteSpace: "nowrap",
-                  letterSpacing: "0.03em"
-                }}
-              >
-                🔐 Ver prova
-              </Link>
             </div>
-          ))}
-
-          <div style={{ padding: "0.75rem 1.5rem", borderTop: "1px solid #ffffff08", fontSize: 10, color: "#ffffff25", letterSpacing: "0.05em" }}>
-            SHA-256 · Merkle Tree · Polygon Mainnet · TSA RFC3161
+            {publishedItems.length > 0 && (
+              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>Publicados nesta sessao</div>
+                {publishedItems.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < publishedItems.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                    <div style={{ fontSize: 12, color: "#111827" }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: "#d1d5db" }}>{item.time}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        {/* ── CTA VERIFICAÇÃO ── */}
-        <div style={{
-          background: "linear-gradient(135deg, #C9A84C15 0%, #C9A84C08 100%)",
-          border: "1px solid #C9A84C35",
-          borderRadius: 18,
-          padding: "2rem",
-          textAlign: "center",
-          marginBottom: "1.5rem"
-        }}>
-          <div style={{ fontSize: 11, color: "#C9A84C80", letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 8 }}>
-            Verificação pública
-          </div>
-          <div style={{ fontSize: 17, color: "#fff", fontWeight: 600, marginBottom: 8 }}>
-            Cada anúncio tem prova verificável
-          </div>
-          <div style={{ fontSize: 13, color: "#ffffff50", marginBottom: 20, lineHeight: 1.6 }}>
-            Anchorado na blockchain Polygon Mainnet.<br/>
-            Qualquer pessoa pode verificar — sem depender de nenhuma plataforma.
-          </div>
-          <Link
-            href={`/verify/${DEMO_HASH}`}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 10,
-              background: "#C9A84C", color: "#0a0a0a",
-              borderRadius: 12, padding: "12px 28px",
-              fontSize: 13, fontWeight: 700, textDecoration: "none",
-              letterSpacing: "0.08em", textTransform: "uppercase"
-            }}
-          >
-            🔐 Verificar ao vivo
-          </Link>
-        </div>
-
-        {/* ── FOOTER ── */}
-        <div style={{ textAlign: "center", paddingTop: "1.5rem", borderTop: "1px solid #ffffff08" }}>
-          <div style={{ fontSize: 10, color: "#ffffff20", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-            DOOHPLAY — Trust Infrastructure for DOOH Advertising
-          </div>
-          <div style={{ fontSize: 10, color: "#ffffff15", marginTop: 4 }}>
-            Blockchain · ICP-Brasil · Merkle Proof · TSA RFC3161
+      {/* Tab: Scheduler — fundo claro */}
+      {activeTab === "scheduler" && (
+        <div style={{ minHeight: "calc(100vh - 110px)", background: "#f3f4f6" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem" }}>
+            <div style={{ marginBottom: "1rem" }}>
+              <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6 }}>
+                Configure em quais dias e horários cada anúncio aparece na tela.
+                Itens sem regra ficam sempre ativos.
+              </div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+              <SchedulerEditor playlistId={playlistId} />
+            </div>
           </div>
         </div>
+      )}
 
-      </div>
     </main>
   )
 }
