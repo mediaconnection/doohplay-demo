@@ -2,77 +2,99 @@ export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
-export async function GET(req: Request) {
-
+export async function GET(request: NextRequest) {
   try {
-
-    const { searchParams } = new URL(req.url);
-    const screenId = searchParams.get("screen");
-
-    if (!screenId) {
-      return Response.json(
-        { error: "screen required" },
-        { status: 400 }
-      );
-    }
+    const { searchParams } = new URL(request.url)
+    const screenParam = searchParams.get("screen")?.trim()
+    const codeParam = searchParams.get("code")?.trim().toUpperCase()
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    )
 
-    // ------------------------------------------------
-    // SCREEN
-    // ------------------------------------------------
+    let playlistId: string | null = null
 
-    const { data: screen, error: screenError } = await supabase
-      .from("screens")
-      .select("playlist_id")
-      .eq("id", screenId)
-      .maybeSingle();
+    // --- Resolução via screen UUID ---
+    if (screenParam) {
+      const isUUID = /^[0-9a-f-]{36}$/i.test(screenParam)
 
-    if (screenError) {
-      throw new Error(screenError.message);
+      if (isUUID) {
+        // screen_id direto
+        const { data: screen, error } = await supabase
+          .from("screens")
+          .select("playlist_id")
+          .eq("id", screenParam)
+          .maybeSingle()
+
+        if (error) throw new Error(error.message)
+        playlistId = screen?.playlist_id ?? null
+
+      } else {
+        // player_code passado no param screen (bug do Fire Stick)
+        const { data: player, error } = await supabase
+          .from("players")
+          .select("id")
+          .eq("player_code", screenParam)
+          .maybeSingle()
+
+        if (error) throw new Error(error.message)
+
+        if (player) {
+          const { data: screen, error: se } = await supabase
+            .from("screens")
+            .select("playlist_id")
+            .eq("player_id", player.id)
+            .maybeSingle()
+
+          if (se) throw new Error(se.message)
+          playlistId = screen?.playlist_id ?? null
+        }
+      }
     }
 
-    if (!screen?.playlist_id) {
+    // --- Resolução via code (player_code) ---
+    if (!playlistId && codeParam) {
+      const { data: player, error } = await supabase
+        .from("players")
+        .select("id")
+        .eq("player_code", codeParam)
+        .maybeSingle()
 
-      return Response.json({
-        items: []
-      });
+      if (error) throw new Error(error.message)
 
+      if (player) {
+        const { data: screen, error: se } = await supabase
+          .from("screens")
+          .select("playlist_id")
+          .eq("player_id", player.id)
+          .maybeSingle()
+
+        if (se) throw new Error(se.message)
+        playlistId = screen?.playlist_id ?? null
+      }
     }
 
-    // ------------------------------------------------
-    // PLAYLIST ITEMS
-    // ------------------------------------------------
+    if (!playlistId) {
+      return NextResponse.json({ items: [] })
+    }
 
-    const { data: items, error } = await supabase
+    // --- Buscar itens da playlist ---
+    const { data: items, error: itemsError } = await supabase
       .from("playlist_items")
       .select("*")
-      .eq("playlist_id", screen.playlist_id)
-      .order("position", { ascending: true });
+      .eq("playlist_id", playlistId)
+      .order("position", { ascending: true })
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (itemsError) throw new Error(itemsError.message)
 
-    return Response.json({
-      items: items ?? []
-    });
+    return NextResponse.json({ items: items ?? [] })
 
   } catch (err: any) {
-
-    console.error("PLAYER PLAYLIST ERROR:", err);
-
-    return Response.json(
-      { error: err.message },
-      { status: 500 }
-    );
-
+    console.error("PLAYER PLAYLIST ERROR:", err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
-
 }
-
