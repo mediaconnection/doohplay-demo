@@ -14,8 +14,11 @@ type PlaylistItem = {
 }
 
 type PlayerState = "loading" | "playing" | "error" | "empty"
+type Transition = "fade" | "slide" | "zoom" | "flash"
 
-// Extrai o video_id de qualquer formato de URL do YouTube
+// Transições disponíveis — rotaciona automaticamente ou usa a do item
+const TRANSITIONS: Transition[] = ["fade", "slide", "zoom", "flash"]
+
 function getYouTubeId(url: string): string | null {
   const patterns = [
     /youtube\.com\/watch\?v=([^&]+)/,
@@ -46,12 +49,145 @@ function isImageUrl(url: string, type: string): boolean {
   return type === "image" || /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)
 }
 
+// Retorna os estilos CSS para cada fase da transição
+function getTransitionStyles(transition: Transition, phase: "enter" | "active" | "exit") {
+  const base: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+  }
+
+  switch (transition) {
+    case "fade":
+      return {
+        ...base,
+        opacity: phase === "active" ? 1 : 0,
+        transition: phase === "exit" ? "opacity 0.6s ease-out" : "opacity 0.6s ease-in",
+      }
+
+    case "slide":
+      return {
+        ...base,
+        opacity: 1,
+        transform: phase === "enter"
+          ? "translateX(100%)"
+          : phase === "active"
+          ? "translateX(0%)"
+          : "translateX(-100%)",
+        transition: phase !== "enter" ? "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+      }
+
+    case "zoom":
+      return {
+        ...base,
+        opacity: phase === "active" ? 1 : 0,
+        transform: phase === "enter"
+          ? "scale(1.08)"
+          : phase === "active"
+          ? "scale(1)"
+          : "scale(0.95)",
+        transition: phase !== "enter"
+          ? "opacity 0.5s ease, transform 0.5s ease"
+          : "none",
+      }
+
+    case "flash":
+      return {
+        ...base,
+        opacity: phase === "active" ? 1 : 0,
+        transition: phase === "exit"
+          ? "opacity 0.15s ease-out"
+          : "opacity 0.15s ease-in",
+      }
+
+    default:
+      return { ...base, opacity: phase === "active" ? 1 : 0, transition: "opacity 0.5s" }
+  }
+}
+
+// Renderiza o conteúdo de um item (iframe, video, img)
+function ItemContent({
+  item,
+  videoRef,
+  onStart,
+  onEnd,
+  onAdvance,
+}: {
+  item: PlaylistItem
+  videoRef?: React.RefObject<HTMLVideoElement>
+  onStart: () => void
+  onEnd: () => void
+  onAdvance: () => void
+}) {
+  const ytId = isYouTubeUrl(item.asset_url) ? getYouTubeId(item.asset_url) : null
+  const isHls = !ytId && isHlsUrl(item.asset_url, item.type)
+  const isVid = !ytId && !isHls && isVideoUrl(item.asset_url, item.type)
+  const isImg = !ytId && !isHls && !isVid && isImageUrl(item.asset_url, item.type)
+
+  const fillStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: "cover" as const }
+
+  if (isHls) return (
+    <video
+      ref={videoRef}
+      autoPlay muted playsInline
+      style={fillStyle}
+      onPlay={onStart}
+      onError={onAdvance}
+    />
+  )
+
+  if (ytId) return (
+    <iframe
+      src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3`}
+      style={{ ...fillStyle, border: "none" }}
+      allow="autoplay; fullscreen"
+      allowFullScreen
+      onLoad={onStart}
+    />
+  )
+
+  if (isVid) return (
+    <video
+      src={item.asset_url}
+      autoPlay muted playsInline
+      style={fillStyle}
+      onPlay={onStart}
+      onEnded={async () => { onEnd(); onAdvance() }}
+      onError={onAdvance}
+    />
+  )
+
+  if (isImg) return (
+    <img
+      src={item.asset_url}
+      alt=""
+      style={fillStyle}
+      onLoad={onStart}
+      onError={onAdvance}
+    />
+  )
+
+  return (
+    <iframe
+      src={item.asset_url}
+      style={{ ...fillStyle, border: "none" }}
+      onLoad={onStart}
+    />
+  )
+}
+
 export default function PlayerPage({ params }: { params: { code: string } }) {
   const [items, setItems] = useState<PlaylistItem[]>([])
   const [index, setIndex] = useState(0)
+  const [prevIndex, setPrevIndex] = useState<number | null>(null)
   const [state, setState] = useState<PlayerState>("loading")
   const [errorMsg, setErrorMsg] = useState("")
   const [verified, setVerified] = useState(false)
+  const [transition, setTransition] = useState<Transition>("fade")
+  const [transitioning, setTransitioning] = useState(false)
+  const [transitionCount, setTransitionCount] = useState(0)
+
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hlsRef = useRef<Hls | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -90,8 +226,28 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
   }, [fetchPlaylist])
 
   const advance = useCallback(() => {
-    setIndex(prev => (prev + 1) % items.length)
-  }, [items.length])
+    if (!items.length) return
+
+    // Escolhe próxima transição — rotaciona pelo array
+    const nextTransition = TRANSITIONS[transitionCount % TRANSITIONS.length]
+    setTransition(nextTransition)
+    setTransitionCount(c => c + 1)
+
+    const nextIndex = (index + 1) % items.length
+    setPrevIndex(index)
+    setTransitioning(true)
+
+    // Duração da transição
+    const duration = nextTransition === "flash" ? 200 : 600
+
+    setTimeout(() => {
+      setIndex(nextIndex)
+      setTimeout(() => {
+        setPrevIndex(null)
+        setTransitioning(false)
+      }, duration)
+    }, duration / 2)
+  }, [items.length, index, transitionCount])
 
   const reportStart = useCallback(async (item: PlaylistItem) => {
     try {
@@ -128,8 +284,6 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
   useEffect(() => {
     if (state !== "playing" || !items.length) return
     const item = items[index]
-
-    // Vídeo MP4 usa onEnded — não precisa de timer
     if (isVideoUrl(item.asset_url, item.type)) return
 
     reportStart(item)
@@ -142,7 +296,7 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [index, items, state, advance, reportStart, reportEnd])
 
-  // Attach HLS.js when streaming item is active
+  // HLS
   useEffect(() => {
     if (state !== "playing" || !items.length) return
     const item = items[index]
@@ -166,7 +320,6 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
         if (data.fatal) advance()
       })
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari native HLS
       video.src = item.asset_url
       video.play().catch(() => {})
       reportStart(item)
@@ -179,6 +332,15 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
       hlsRef.current = null
     }
   }, [index, items, state, advance, reportStart])
+
+  // Flash overlay
+  const [flashVisible, setFlashVisible] = useState(false)
+  useEffect(() => {
+    if (transition === "flash" && transitioning) {
+      setFlashVisible(true)
+      setTimeout(() => setFlashVisible(false), 200)
+    }
+  }, [transition, transitioning, transitionCount])
 
   if (state === "loading") return (
     <div style={S.screen}>
@@ -204,83 +366,53 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
   )
 
   const current = items[index]
+  const prev = prevIndex !== null ? items[prevIndex] : null
   if (!current) return null
 
   const ytId = isYouTubeUrl(current.asset_url) ? getYouTubeId(current.asset_url) : null
   const isHls = !ytId && isHlsUrl(current.asset_url, current.type)
-  const isVid = !ytId && !isHls && isVideoUrl(current.asset_url, current.type)
-  const isImg = !ytId && !isHls && !isVid && isImageUrl(current.asset_url, current.type)
 
   return (
     <div style={S.screen}>
 
-      {/* ── HLS / Live stream ── */}
-      {isHls && (
-        <video
-          key={current.asset_url}
-          ref={videoRef}
-          autoPlay muted playsInline
-          style={S.fill}
-          onPlay={() => reportStart(current)}
-          onError={advance}
-        />
+      {/* ── Layer anterior (saindo) ── */}
+      {prev && transitioning && (
+        <div style={getTransitionStyles(transition, "exit")}>
+          <ItemContent
+            item={prev}
+            onStart={() => {}}
+            onEnd={() => {}}
+            onAdvance={() => {}}
+          />
+        </div>
       )}
 
-      {/* ── YouTube embed ── */}
-      {ytId && (
-        <iframe
-          key={`yt-${ytId}-${index}`}
-          src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3`}
-          style={{ ...S.fill, border: "none" }}
-          allow="autoplay; fullscreen"
-          allowFullScreen
-          onLoad={() => reportStart(current)}
+      {/* ── Layer atual (entrando) ── */}
+      <div style={getTransitionStyles(transition, transitioning ? "enter" : "active")}>
+        <ItemContent
+          item={current}
+          videoRef={videoRef}
+          onStart={() => reportStart(current)}
+          onEnd={() => reportEnd(current, current.duration ?? 30)}
+          onAdvance={advance}
         />
-      )}
+      </div>
 
-      {/* ── Vídeo MP4 / WebM ── */}
-      {!ytId && isVid && (
-        <video
-          key={current.asset_url}
-          src={current.asset_url}
-          autoPlay muted playsInline
-          style={S.fill}
-          onPlay={() => reportStart(current)}
-          onEnded={async () => { await reportEnd(current, current.duration ?? 30); advance() }}
-          onError={advance}
-        />
+      {/* ── Flash overlay ── */}
+      {flashVisible && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "#fff",
+          opacity: 0.9,
+          pointerEvents: "none",
+          transition: "opacity 0.1s",
+          zIndex: 10,
+        }} />
       )}
-
-      {/* ── Imagem ── */}
-      {!ytId && !isVid && isImg && (
-        <img
-          key={current.asset_url}
-          src={current.asset_url}
-          alt=""
-          style={S.fill}
-          onLoad={() => reportStart(current)}
-          onError={advance}
-        />
-      )}
-
-      {/* ── URL / iframe (portal, studio preview, etc) ── */}
-      {!ytId && !isVid && !isImg && (
-        <iframe
-          key={current.asset_url}
-          src={current.asset_url}
-          style={{ ...S.fill, border: "none" }}
-          onLoad={() => reportStart(current)}
-        />
-      )}
-
-      {/* ── HLS useEffect ── */}
-      {isHls && (() => {
-        // HLS setup happens via useEffect below — placeholder for render order
-        return null
-      })()}
 
       {/* ── HUD ── */}
-      <div style={S.hud}>
+      <div style={{ ...S.hud, zIndex: 20 }}>
         <span style={{ color: "#C9A84C", fontFamily: "monospace", fontSize: 10 }}>
           {code.slice(0, 8).toUpperCase()}
         </span>
@@ -289,17 +421,14 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
             {index + 1}/{items.length}
           </span>
         )}
-        {ytId && (
-          <span style={{ color: "#ff000080", fontSize: 9 }}>▶ YT</span>
-        )}
-        {isHls && (
-          <span style={{ color: "#ef444480", fontSize: 9 }}>● LIVE</span>
-        )}
+        {ytId && <span style={{ color: "#ff000080", fontSize: 9 }}>▶ YT</span>}
+        {isHls && <span style={{ color: "#ef444480", fontSize: 9 }}>● LIVE</span>}
+        <span style={{ color: "#ffffff20", fontSize: 9 }}>{transition}</span>
       </div>
 
       {/* ── Toast verificado ── */}
       {verified && (
-        <div style={S.toast}>
+        <div style={{ ...S.toast, zIndex: 20 }}>
           <span>🔐</span>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "#C9A84C" }}>Exibição registrada</div>
