@@ -23,10 +23,13 @@ function parseRSS(xml: string): { title: string; description: string }[] {
   let match
   while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
     const item = match[1]
-    const title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
-      || item.match(/<title>(.*?)<\/title>/)?.[1] || "").replace(/<[^>]*>/g, "").trim()
-    const description = (item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1]
-      || item.match(/<description>(.*?)<\/description>/)?.[1] || "").replace(/<[^>]*>/g, "").trim().slice(0, 120)
+    const rawTitle = item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]>/)?.[1]
+      || item.match(/<title>(.*?)<\/title>/)?.[1] || ""
+    const rawDesc = item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]>/)?.[1]
+      || item.match(/<description>(.*?)<\/description>/)?.[1] || ""
+    const clean = (s: string) => s.replace(/<[^>]*>/g, "").replace(/\]\]>/g, "").replace(/^\s*\]\]>\s*/g, "").trim()
+    const title = clean(rawTitle)
+    const description = clean(rawDesc).slice(0, 120)
     if (title) items.push({ title, description })
   }
   return items
