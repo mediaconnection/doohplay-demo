@@ -2,7 +2,12 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { pool } from "@/lib/db"
-import TimeAgo from "@/components/ui/TimeAgo"
+
+// DOOHPLAY brand
+const BRAND = "#0284C7"
+const BRAND_DARK = "#0369A1"
+const BRAND_LIGHT = "#F0F9FF"
+const BRAND_BORDER = "#BAE6FD"
 
 type Campaign = {
   id: string
@@ -40,6 +45,13 @@ function fmtDate(d?: string | null) {
   } catch { return "—" }
 }
 
+function fmtDateTime(d?: string | null) {
+  if (!d) return "—"
+  try {
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(d))
+  } catch { return "—" }
+}
+
 function fmtCurrency(v?: number | null) {
   if (v == null) return "—"
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v))
@@ -47,7 +59,7 @@ function fmtCurrency(v?: number | null) {
 
 function shortHash(h?: string | null) {
   if (!h) return "—"
-  return `${h.slice(0, 16)}…`
+  return `${h.slice(0, 10)}...${h.slice(-6)}`
 }
 
 async function getCampaigns(): Promise<Campaign[]> {
@@ -122,171 +134,188 @@ export default async function AdvertiserPage() {
     getCampaigns(), getRecentPlays(), getStats()
   ])
 
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  const cardStyle = {
+    background: "#fff",
+    border: "0.5px solid #e5e7eb",
+    borderRadius: 16,
+    overflow: "hidden" as const,
+    marginBottom: "1.5rem",
+  }
 
-        {/* Header */}
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              📊 Portal do Anunciante
-            </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Acompanhe suas campanhas com verificação criptográfica de cada exibição.
-            </p>
+  const thStyle = {
+    padding: "10px 20px",
+    textAlign: "left" as const,
+    fontSize: 11,
+    fontWeight: 600,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.06em",
+    color: "#9ca3af",
+    background: "#f9fafb",
+    borderBottom: "0.5px solid #f3f4f6",
+  }
+
+  const tdStyle = {
+    padding: "12px 20px",
+    fontSize: 13,
+    color: "#374151",
+    borderBottom: "0.5px solid #f9fafb",
+  }
+
+  return (
+    <main style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
+
+      {/* ── HEADER ── */}
+      <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 28, height: 28, background: BRAND, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg viewBox="0 0 16 16" fill="none" width="16" height="16">
+              <rect x="2" y="2" width="5" height="5" rx="1" fill="white"/>
+              <rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
+              <rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
+              <rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity="0.3"/>
+            </svg>
           </div>
-          <Link
-            href="/verify"
-            className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors"
-          >
-            🔐 Verificar uma prova
-          </Link>
+          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "-0.02em", color: "#111827" }}>DOOHPLAY</span>
+        </div>
+        <Link
+          href="/verify"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, background: BRAND, color: "#fff", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, textDecoration: "none" }}
+        >
+          🔐 Verificar prova
+        </Link>
+      </header>
+
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "2rem 1.5rem" }}>
+
+        {/* ── PAGE TITLE ── */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <div style={{ fontSize: 10, color: BRAND, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>DOOHPLAY · Portal do Anunciante</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>Suas campanhas</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>Verificação criptográfica de cada exibição em tempo real</div>
         </div>
 
-        {/* Stats */}
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {/* ── MÉTRICAS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: "1.5rem" }}>
           {[
-            { label: "Campanhas ativas", value: stats.total_campaigns, icon: "📢", cls: "border-slate-200 bg-white text-slate-900" },
-            { label: "Total de exibições", value: stats.total_plays?.toLocaleString("pt-BR"), icon: "▶️", cls: "border-blue-200 bg-blue-50 text-blue-800" },
-            { label: "Exibições hoje", value: stats.plays_today?.toLocaleString("pt-BR"), icon: "📅", cls: "border-emerald-200 bg-emerald-50 text-emerald-800" },
-            { label: "Telas ativas", value: stats.active_screens, icon: "📺", cls: "border-purple-200 bg-purple-50 text-purple-800" },
+            { label: "Campanhas ativas", value: stats.total_campaigns, accent: false },
+            { label: "Total de exibições", value: stats.total_plays?.toLocaleString("pt-BR"), accent: true },
+            { label: "Exibições hoje", value: stats.plays_today?.toLocaleString("pt-BR"), accent: false },
+            { label: "Telas ativas", value: stats.active_screens, accent: false },
           ].map(s => (
-            <div key={s.label} className={`rounded-2xl border px-5 py-4 shadow-sm ${s.cls}`}>
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{s.icon}</span>
-                <div className="text-xs font-semibold uppercase tracking-wide opacity-60">{s.label}</div>
-              </div>
-              <div className="mt-2 text-2xl font-bold">{s.value}</div>
+            <div key={s.label} style={{ background: s.accent ? BRAND_LIGHT : "#fff", border: `0.5px solid ${s.accent ? BRAND_BORDER : "#e5e7eb"}`, borderRadius: 14, padding: "1.25rem" }}>
+              <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 600, color: s.accent ? BRAND : "#111827", letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</div>
             </div>
           ))}
         </div>
 
-        {/* Campanhas */}
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-slate-100 px-6 py-4">
-            <h2 className="text-sm font-semibold text-slate-700">Campanhas ativas</h2>
+        {/* ── CAMPANHAS ── */}
+        <div style={cardStyle}>
+          <div style={{ padding: "1rem 1.5rem", borderBottom: "0.5px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Campanhas ativas</div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#DCFCE7", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 500, color: "#15803D" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
+              {campaigns.length} ativas
+            </span>
           </div>
-          <div className="divide-y divide-slate-50">
-            {campaigns.length === 0 ? (
-              <div className="px-6 py-12 text-center text-slate-400">Nenhuma campanha encontrada.</div>
-            ) : campaigns.map(c => {
-              const progressDays = c.start_date && c.end_date
-                ? Math.round((Date.now() - new Date(c.start_date).getTime()) / (new Date(c.end_date).getTime() - new Date(c.start_date).getTime()) * 100)
-                : null
-              const progress = progressDays != null ? Math.min(100, Math.max(0, progressDays)) : null
 
-              return (
-                <div key={c.id} className="px-6 py-5 hover:bg-slate-50 transition-colors">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="font-semibold text-slate-900">{c.name}</h3>
-                        <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                          ● Ativa
-                        </span>
-                        {c.media_type && (
-                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500">
-                            {c.media_type}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                        <span>📺 {c.player_name || "Múltiplas telas"}</span>
-                        {c.player_location && <span>📍 {c.player_location}</span>}
-                        <span>📅 {fmtDate(c.start_date)} → {fmtDate(c.end_date)}</span>
-                        <span>⏱ {c.duration_seconds}s por exibição</span>
-                        <span>💰 CPM {fmtCurrency(c.cpm)}</span>
-                      </div>
-                      {progress !== null && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-400">Progresso da campanha</span>
-                            <span className="text-xs font-semibold text-slate-600">{progress}%</span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-slate-100">
-                            <div
-                              className="h-1.5 rounded-full bg-emerald-500 transition-all"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1 text-right">
-                      <div className="text-2xl font-bold text-slate-900">
-                        {c.total_plays.toLocaleString("pt-BR")}
-                      </div>
-                      <div className="text-xs text-slate-400">exibições verificadas</div>
-                      <div className="text-xs text-emerald-600 font-semibold">
-                        +{c.plays_today} hoje · +{c.plays_week} esta semana
-                      </div>
-                      {c.last_play && (
-                        <div className="text-xs text-slate-400">
-                          Último play: <TimeAgo date={c.last_play} />
-                        </div>
-                      )}
-                    </div>
+          {campaigns.length === 0 ? (
+            <div style={{ padding: "3rem", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Nenhuma campanha encontrada.</div>
+          ) : campaigns.map((c, i) => {
+            const progressDays = c.start_date && c.end_date
+              ? Math.round((Date.now() - new Date(c.start_date).getTime()) / (new Date(c.end_date).getTime() - new Date(c.start_date).getTime()) * 100)
+              : null
+            const progress = progressDays != null ? Math.min(100, Math.max(0, progressDays)) : null
+
+            return (
+              <div key={c.id} style={{ padding: "1.25rem 1.5rem", borderBottom: i < campaigns.length - 1 ? "0.5px solid #f3f4f6" : "none", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{c.name}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#DCFCE7", borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 500, color: "#15803D" }}>
+                      ● Ativa
+                    </span>
+                    {c.media_type && (
+                      <span style={{ background: "#f3f4f6", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#6b7280" }}>{c.media_type}</span>
+                    )}
                   </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, color: "#6b7280", marginBottom: progress !== null ? 10 : 0 }}>
+                    <span>📺 {c.player_name || "Múltiplas telas"}</span>
+                    {c.player_location && <span>📍 {c.player_location}</span>}
+                    <span>📅 {fmtDate(c.start_date)} → {fmtDate(c.end_date)}</span>
+                    <span>⏱ {c.duration_seconds}s</span>
+                    <span>💰 CPM {fmtCurrency(c.cpm)}</span>
+                  </div>
+                  {progress !== null && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: "#9ca3af" }}>Progresso</span>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: "#6b7280" }}>{progress}%</span>
+                      </div>
+                      <div style={{ height: 4, background: "#f3f4f6", borderRadius: 999 }}>
+                        <div style={{ height: 4, background: BRAND, borderRadius: 999, width: `${progress}%`, transition: "width 0.3s" }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )
-            })}
-          </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 24, fontWeight: 600, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1 }}>{c.total_plays.toLocaleString("pt-BR")}</div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>exibições verificadas</div>
+                  <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 500, marginTop: 4 }}>+{c.plays_today} hoje · +{c.plays_week} esta semana</div>
+                  {c.last_play && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{fmtDateTime(c.last_play)}</div>}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
-        {/* Exibições recentes com prova */}
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+        {/* ── EXIBIÇÕES RECENTES ── */}
+        <div style={cardStyle}>
+          <div style={{ padding: "1rem 1.5rem", borderBottom: "0.5px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <h2 className="text-sm font-semibold text-slate-700">Exibições verificadas recentes</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Cada linha tem prova criptográfica verificável</p>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Exibições verificadas recentes</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Cada linha tem prova criptográfica verificável</div>
             </div>
-            <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 500, color: BRAND_DARK }}>
               🔐 Todas verificadas
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
+                <tr>
                   {["Campanha", "Tela", "Exibido em", "Duração", "Hash da prova", ""].map(h => (
-                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">{h}</th>
+                    <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {recentPlays.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">Nenhuma exibição encontrada.</td></tr>
+                  <tr><td colSpan={6} style={{ ...tdStyle, textAlign: "center", color: "#9ca3af", padding: "3rem" }}>Nenhuma exibição encontrada.</td></tr>
                 ) : recentPlays.map(play => (
-                  <tr key={play.id} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-slate-800 text-xs">{play.campaign_name}</div>
-                      <div className="text-xs text-slate-400">{play.advertiser}</div>
+                  <tr key={play.id}>
+                    <td style={tdStyle}>
+                      <div style={{ fontWeight: 500, color: "#111827", fontSize: 13 }}>{play.campaign_name}</div>
+                      <div style={{ fontSize: 11, color: "#9ca3af" }}>{play.advertiser}</div>
                     </td>
-                    <td className="px-5 py-3 text-xs text-slate-500">
-                      <div>{play.player_name || "—"}</div>
-                      {play.player_location && (
-                        <div className="text-slate-400 truncate max-w-32">{play.player_location}</div>
-                      )}
+                    <td style={tdStyle}>
+                      <div style={{ fontSize: 13 }}>{play.player_name || "—"}</div>
+                      {play.player_location && <div style={{ fontSize: 11, color: "#9ca3af", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{play.player_location}</div>}
                     </td>
-                    <td className="px-5 py-3 text-xs text-slate-500">
-                      {play.played_at ? <TimeAgo date={play.played_at} /> : "—"}
+                    <td style={{ ...tdStyle, fontSize: 12, color: "#6b7280" }}>{fmtDateTime(play.played_at)}</td>
+                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                      <span style={{ background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 20, padding: "2px 8px", fontSize: 11, color: BRAND_DARK }}>{play.duration ?? "—"}s</span>
                     </td>
-                    <td className="px-5 py-3 text-center">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">
-                        {play.duration ?? "—"}s
-                      </span>
+                    <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: BRAND }}>
+                      <span style={{ background: BRAND_LIGHT, padding: "2px 6px", borderRadius: 4 }}>{shortHash(play.event_hash)}</span>
                     </td>
-                    <td className="px-5 py-3 font-mono text-xs text-slate-400">
-                      {shortHash(play.event_hash)}
-                    </td>
-                    <td className="px-5 py-3">
+                    <td style={tdStyle}>
                       <Link
                         href="/verify/20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
-                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
-                        title="Ver exemplo de prova verificada"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4, background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 8, padding: "5px 12px", fontSize: 12, color: BRAND_DARK, textDecoration: "none", fontWeight: 500, whiteSpace: "nowrap" }}
                       >
-                        🔐 Ver prova
+                        Ver prova
                       </Link>
                     </td>
                   </tr>
@@ -294,8 +323,9 @@ export default async function AdvertiserPage() {
               </tbody>
             </table>
           </div>
-          <div className="border-t border-slate-100 px-6 py-3 text-xs text-slate-400">
-            Cada exibição possui hash SHA-256 único · Clique em "Ver prova" para ver uma verificação completa anchorada na Polygon Mainnet · Score 100/100
+
+          <div style={{ padding: "10px 20px", borderTop: "0.5px solid #f3f4f6", fontSize: 11, color: "#9ca3af" }}>
+            SHA-256 · Merkle Tree · Polygon Mainnet · TSA RFC3161 · Score 100/100
           </div>
         </div>
 
