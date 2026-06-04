@@ -285,8 +285,8 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   }
 
   if (loading) return (
-    <main style={{ minHeight: "100vh", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ color: "#2563EB", fontFamily: "var(--font-sans)", fontSize: 16 }}>Carregando studio...</div>
+    <main style={{ minHeight: "100vh", background: "#F0F9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#0284C7", fontFamily: "var(--font-sans)", fontSize: 16 }}>Carregando studio...</div>
     </main>
   )
 
@@ -294,9 +294,9 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
 
   const templates = TEMPLATES[client.business_type] ?? TEMPLATES.barber
   // DOOHPLAY brand color — Azul Royal
-  const BRAND = "#2563EB"
-  const BRAND_LIGHT = "#EFF6FF"
-  const BRAND_DARK = "#1D4ED8"
+  const BRAND = "#0284C7"
+  const BRAND_LIGHT = "#F0F9FF"
+  const BRAND_DARK = "#0369A1"
   // Client accent used only inside ad preview templates
   const clientAccent = client.primary_color.startsWith("#") ? client.primary_color : `#${client.primary_color}`
   const accent = BRAND
@@ -308,7 +308,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
       {/* Header */}
       <header style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: 10, color: "#2563EB", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>DOOHPLAY Studio</div>
+          <div style={{ fontSize: 10, color: "#0284C7", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>DOOHPLAY Studio</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "#111", marginTop: 2 }}>{client.name}</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -333,7 +333,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
             style={{
               background: "transparent",
               border: "none",
-              borderBottom: activeTab === tab.key ? "2px solid #2563EB" : "2px solid transparent",
+              borderBottom: activeTab === tab.key ? "2px solid #0284C7" : "2px solid transparent",
               padding: "14px 20px",
               fontSize: 13,
               fontWeight: activeTab === tab.key ? 600 : 400,
@@ -361,10 +361,10 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                     key={tpl.id}
                     onClick={() => { setSelectedTpl(tpl); setForm(f => ({ ...f, headline: "", subline: "", cta: "" })) }}
                     style={{
-                      background: selectedTpl.id === tpl.id ? "#EFF6FF" : "#f9fafb",
-                      border: selectedTpl.id === tpl.id ? "1.5px solid #2563EB" : "0.5px solid #e5e7eb",
+                      background: selectedTpl.id === tpl.id ? "#F0F9FF" : "#f9fafb",
+                      border: selectedTpl.id === tpl.id ? "1.5px solid #0284C7" : "0.5px solid #e5e7eb",
                       borderRadius: 10, padding: "8px 14px", cursor: "pointer",
-                      color: selectedTpl.id === tpl.id ? "#1D4ED8" : "#6b7280",
+                      color: selectedTpl.id === tpl.id ? "#0369A1" : "#6b7280",
                       fontSize: 12, fontWeight: selectedTpl.id === tpl.id ? 600 : 400,
                       display: "flex", alignItems: "center", gap: 6,
                     }}
@@ -389,8 +389,8 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   <button onClick={() => setImageUrl(null)} style={{ position: "absolute", top: 6, right: 6, background: "#000000cc", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remover</button>
                 </div>
               ) : (
-                <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${uploading ? "#2563EB" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer" }}>
-                  {uploading ? <div style={{ fontSize: 13, color: "#2563EB" }}>Enviando imagem...</div> : (
+                <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${uploading ? "#0284C7" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer" }}>
+                  {uploading ? <div style={{ fontSize: 13, color: "#0284C7" }}>Enviando imagem...</div> : (
                     <>
                       <div style={{ fontSize: 24, marginBottom: 6 }}>🖼</div>
                       <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
@@ -431,7 +431,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
 
           <div>
             {/* Card de mídia com abas */}
-            <div style={{ background: "#fff", border: "1px solid #BFDBFE", borderRadius: 16, overflow: "hidden", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
+            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 16, overflow: "hidden", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
 
               {/* Abas de tipo de mídia */}
               <div style={{ display: "flex", borderBottom: "1px solid #f3f4f6" }}>
@@ -443,7 +443,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                 ] as { key: "template" | "youtube" | "video" | "live"; label: string }[]).map(t => (
                   <button key={t.key} onClick={() => setMediaTab(t.key)} style={{
                     flex: 1, padding: "10px 4px", background: "transparent", border: "none",
-                    borderBottom: mediaTab === t.key ? "2px solid #2563EB" : "2px solid transparent",
+                    borderBottom: mediaTab === t.key ? "2px solid #0284C7" : "2px solid transparent",
                     fontSize: 11, fontWeight: mediaTab === t.key ? 600 : 400,
                     color: mediaTab === t.key ? "#111" : "#9ca3af", cursor: "pointer",
                     marginBottom: "-1px"
@@ -459,7 +459,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                     <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1rem", lineHeight: 1.5 }}>
                       O template selecionado aparecerá na tela da {client.name} em instantes.
                     </div>
-                    <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? "#93C5FD" : "#2563EB", color: "#0a0a0a", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? "#7DD3FA" : "#0284C7", color: "#ffffff", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                       {publishing ? "Publicando..." : published ? "✓ Publicado!" : "Publicar na tela"}
                     </button>
                   </>
@@ -486,7 +486,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                         />
                       </div>
                     )}
-                    <button onClick={handlePublishYouTube} disabled={publishing || !youtubeUrl.trim()} style={{ width: "100%", background: !youtubeUrl.trim() ? "#f3f4f6" : "#2563EB", color: !youtubeUrl.trim() ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !youtubeUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <button onClick={handlePublishYouTube} disabled={publishing || !youtubeUrl.trim()} style={{ width: "100%", background: !youtubeUrl.trim() ? "#f3f4f6" : "#0284C7", color: !youtubeUrl.trim() ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !youtubeUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       {publishing ? "Publicando..." : "Publicar YouTube"}
                     </button>
                   </>
@@ -513,9 +513,9 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                         </button>
                       </div>
                     ) : (
-                      <div onClick={() => videoInputRef.current?.click()} style={{ border: `2px dashed ${videoUploading ? "#2563EB" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: videoUploading ? "not-allowed" : "pointer", marginBottom: 12 }}>
+                      <div onClick={() => videoInputRef.current?.click()} style={{ border: `2px dashed ${videoUploading ? "#0284C7" : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: videoUploading ? "not-allowed" : "pointer", marginBottom: 12 }}>
                         {videoUploading ? (
-                          <div style={{ fontSize: 13, color: "#2563EB" }}>Enviando vídeo...</div>
+                          <div style={{ fontSize: 13, color: "#0284C7" }}>Enviando vídeo...</div>
                         ) : (
                           <>
                             <div style={{ fontSize: 24, marginBottom: 6 }}>🎬</div>
@@ -525,7 +525,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                         )}
                       </div>
                     )}
-                    <button onClick={handlePublishVideo} disabled={publishing || !videoUrl} style={{ width: "100%", background: !videoUrl ? "#f3f4f6" : "#2563EB", color: !videoUrl ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !videoUrl ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <button onClick={handlePublishVideo} disabled={publishing || !videoUrl} style={{ width: "100%", background: !videoUrl ? "#f3f4f6" : "#0284C7", color: !videoUrl ? "#9ca3af" : "#ffffff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !videoUrl ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       {publishing ? "Publicando..." : "Publicar vídeo"}
                     </button>
                   </>
@@ -561,7 +561,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>Cada exibição gera prova criptográfica</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {["SHA-256", "Merkle", "Polygon", "ICP-Brasil"].map(tag => (
-                      <span key={tag} style={{ background: BRAND_LIGHT, border: "1px solid #BFDBFE", borderRadius: 999, padding: "2px 8px", fontSize: 10, color: BRAND_DARK }}>{tag}</span>
+                      <span key={tag} style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 999, padding: "2px 8px", fontSize: 10, color: "#0369A1" }}>{tag}</span>
                     ))}
                   </div>
                 </div>
