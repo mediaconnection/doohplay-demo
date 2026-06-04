@@ -128,6 +128,12 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
   const [publishedItems, setPublishedItems] = useState<{ title: string; time: string }[]>([])
+  const [mediaTab, setMediaTab] = useState<"template" | "youtube" | "video" | "live">("template")
+  const [youtubeUrl, setYoutubeUrl] = useState("")
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const [streamUrl, setStreamUrl] = useState("")
 
   useEffect(() => {
     fetch(`/api/studio/auth?code=${code}`)
@@ -182,6 +188,97 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
         setPublished(true)
         setPublishedItems(prev => [{ title: form.headline || selectedTpl.headline, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
         setTimeout(() => setPublished(false), 4000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handlePublishYouTube = async () => {
+    if (!youtubeUrl.trim()) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: youtubeUrl.trim(),
+          type: "youtube",
+          duration: 60,
+          title: `YouTube — ${youtubeUrl.slice(0, 40)}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setYoutubeUrl("")
+        setPublished(true)
+        setPublishedItems(prev => [{ title: `YouTube: ${youtubeUrl.slice(0,30)}...`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handlePublishLive = async () => {
+    if (!streamUrl.trim()) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: streamUrl.trim(),
+          type: "hls",
+          duration: 3600,
+          title: `Live — ${streamUrl.slice(0, 40)}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setStreamUrl("")
+        setPublished(true)
+        setPublishedItems(prev => [{ title: "Live stream publicado", time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
+      }
+    } catch {}
+    finally { setPublishing(false) }
+  }
+
+  const handleVideoUpload = async (file: File) => {
+    setVideoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("code", code)
+      const res = await fetch("/api/studio/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok) setVideoUrl(data.url)
+    } catch {}
+    finally { setVideoUploading(false) }
+  }
+
+  const handlePublishVideo = async () => {
+    if (!videoUrl) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/studio/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          asset_url: videoUrl,
+          type: "video",
+          duration: 30,
+          title: `Vídeo — ${videoUrl.split("/").pop()}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setVideoUrl(null)
+        setPublished(true)
+        setPublishedItems(prev => [{ title: `Vídeo publicado`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev])
+        setTimeout(() => setPublished(false), 3000)
       }
     } catch {}
     finally { setPublishing(false) }
@@ -327,19 +424,140 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           </div>
 
           <div>
-            <div style={{ background: "#fff", border: `1px solid ${accent}30`, borderRadius: 16, padding: "1.5rem", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 4 }}>Pronto para publicar?</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: "1.25rem", lineHeight: 1.5 }}>O anuncio aparecera na tela da {client.name} em instantes.</div>
-              <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? `${accent}50` : accent, color: "#0a0a0a", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                {publishing ? "Publicando..." : published ? "Publicado!" : "Publicar na tela"}
-              </button>
-              {published && <div style={{ marginTop: 10, fontSize: 12, color: "#4ade80", textAlign: "center" }}>Anuncio na fila da playlist!</div>}
-              <div style={{ marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
-                <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>Cada exibicao gera prova criptografica</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {["SHA-256", "Merkle", "Polygon", "ICP-Brasil"].map(tag => (
-                    <span key={tag} style={{ background: `${accent}10`, border: `1px solid ${accent}20`, borderRadius: 999, padding: "2px 8px", fontSize: 10, color: accent }}>{tag}</span>
-                  ))}
+            {/* Card de mídia com abas */}
+            <div style={{ background: "#fff", border: `1px solid ${accent}30`, borderRadius: 16, overflow: "hidden", marginBottom: "1rem", position: "sticky", top: "1rem" }}>
+
+              {/* Abas de tipo de mídia */}
+              <div style={{ display: "flex", borderBottom: "1px solid #f3f4f6" }}>
+                {([
+                  { key: "template", label: "🎨 Template" },
+                  { key: "youtube", label: "▶ YouTube" },
+                  { key: "video", label: "🎬 Vídeo" },
+                  { key: "live", label: "🔴 Live" },
+                ] as { key: "template" | "youtube" | "video" | "live"; label: string }[]).map(t => (
+                  <button key={t.key} onClick={() => setMediaTab(t.key)} style={{
+                    flex: 1, padding: "10px 4px", background: "transparent", border: "none",
+                    borderBottom: mediaTab === t.key ? `2px solid ${accent}` : "2px solid transparent",
+                    fontSize: 11, fontWeight: mediaTab === t.key ? 600 : 400,
+                    color: mediaTab === t.key ? "#111" : "#9ca3af", cursor: "pointer",
+                    marginBottom: "-1px"
+                  }}>{t.label}</button>
+                ))}
+              </div>
+
+              <div style={{ padding: "1.25rem" }}>
+
+                {/* Template */}
+                {mediaTab === "template" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1rem", lineHeight: 1.5 }}>
+                      O template selecionado aparecerá na tela da {client.name} em instantes.
+                    </div>
+                    <button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? `${accent}50` : accent, color: "#0a0a0a", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      {publishing ? "Publicando..." : published ? "✓ Publicado!" : "Publicar na tela"}
+                    </button>
+                  </>
+                )}
+
+                {/* YouTube */}
+                {mediaTab === "youtube" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Cole a URL de qualquer vídeo do YouTube. Ele será exibido em loop na tela.
+                    </div>
+                    <input
+                      value={youtubeUrl}
+                      onChange={e => setYoutubeUrl(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 12 }}
+                    />
+                    {youtubeUrl && (
+                      <div style={{ marginBottom: 12, borderRadius: 8, overflow: "hidden", aspectRatio: "16/9" }}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${youtubeUrl.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1] ?? ""}?mute=1&controls=1`}
+                          style={{ width: "100%", height: "100%", border: "none" }}
+                          allow="autoplay"
+                        />
+                      </div>
+                    )}
+                    <button onClick={handlePublishYouTube} disabled={publishing || !youtubeUrl.trim()} style={{ width: "100%", background: !youtubeUrl.trim() ? "#f3f4f6" : accent, color: !youtubeUrl.trim() ? "#9ca3af" : "#0a0a0a", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !youtubeUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "Publicar YouTube"}
+                    </button>
+                  </>
+                )}
+
+                {/* Vídeo on-demand */}
+                {mediaTab === "video" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Faça upload de um vídeo MP4. Ele será exibido completo a cada rodada.
+                    </div>
+                    <input
+                      ref={videoInputRef}
+                      type="file"
+                      accept="video/mp4,video/webm,video/mov"
+                      style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleVideoUpload(f) }}
+                    />
+                    {videoUrl ? (
+                      <div style={{ marginBottom: 12 }}>
+                        <video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 140 }} />
+                        <button onClick={() => setVideoUrl(null)} style={{ marginTop: 6, fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                          Remover vídeo
+                        </button>
+                      </div>
+                    ) : (
+                      <div onClick={() => videoInputRef.current?.click()} style={{ border: `2px dashed ${videoUploading ? accent : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: videoUploading ? "not-allowed" : "pointer", marginBottom: 12 }}>
+                        {videoUploading ? (
+                          <div style={{ fontSize: 13, color: accent }}>Enviando vídeo...</div>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: 24, marginBottom: 6 }}>🎬</div>
+                            <div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div>
+                            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>MP4, WebM — max 50MB</div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <button onClick={handlePublishVideo} disabled={publishing || !videoUrl} style={{ width: "100%", background: !videoUrl ? "#f3f4f6" : accent, color: !videoUrl ? "#9ca3af" : "#0a0a0a", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !videoUrl ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "Publicar vídeo"}
+                    </button>
+                  </>
+                )}
+
+                {/* Live stream */}
+                {mediaTab === "live" && (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>
+                      Cole a URL de um stream HLS (.m3u8) ou RTMP. Ideal para transmitir jogos, eventos ao vivo.
+                    </div>
+                    <input
+                      value={streamUrl}
+                      onChange={e => setStreamUrl(e.target.value)}
+                      placeholder="https://example.com/stream.m3u8"
+                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 8 }}
+                    />
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 12 }}>
+                      Suporta HLS (.m3u8), YouTube Live, Twitch embed, e streams corporativos.
+                    </div>
+                    <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#92400e", marginBottom: 12 }}>
+                      ⚡ O stream ficará ativo na playlist até ser removido manualmente.
+                    </div>
+                    <button onClick={handlePublishLive} disabled={publishing || !streamUrl.trim()} style={{ width: "100%", background: !streamUrl.trim() ? "#f3f4f6" : "#ef4444", color: !streamUrl.trim() ? "#9ca3af" : "#fff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !streamUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {publishing ? "Publicando..." : "🔴 Iniciar transmissão"}
+                    </button>
+                  </>
+                )}
+
+                {published && <div style={{ marginTop: 10, fontSize: 12, color: "#16a34a", textAlign: "center" }}>✓ Adicionado à playlist!</div>}
+
+                <div style={{ marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>Cada exibição gera prova criptográfica</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {["SHA-256", "Merkle", "Polygon", "ICP-Brasil"].map(tag => (
+                      <span key={tag} style={{ background: `${accent}10`, border: `1px solid ${accent}20`, borderRadius: 999, padding: "2px 8px", fontSize: 10, color: accent }}>{tag}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
