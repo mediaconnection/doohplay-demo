@@ -28,9 +28,6 @@ export async function saveEvent(event: CanonicalEvent): Promise<void> {
 
     await client.query("BEGIN");
 
-    /**
-     * Lock da cadeia para evitar race condition
-     */
     await client.query(`
       LOCK TABLE public.event_chain IN SHARE ROW EXCLUSIVE MODE
     `);
@@ -43,13 +40,15 @@ export async function saveEvent(event: CanonicalEvent): Promise<void> {
         source_table,
         source_id,
         occurred_at,
-        payload_hash,
+        payload,
+        proof_payload_hash,
         previous_event_hash,
+        previous_hash,
         event_hash,
         signature
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
       )
       ON CONFLICT (event_id, occurred_at) DO NOTHING
       RETURNING event_id
@@ -60,18 +59,17 @@ export async function saveEvent(event: CanonicalEvent): Promise<void> {
         event.source_table,
         event.source_id,
         event.occurred_at,
-        event.payload_hash,
+        JSON.stringify(event.payload ?? {}),
+        event.payload_hash ?? null,
+        event.previous_event_hash,
         event.previous_event_hash,
         event.event_hash,
-        event.signature
+        event.signature ?? "DOOHPLAY_SYSTEM_v1"
       ]
     );
 
     await client.query("COMMIT");
 
-    /**
-     * Se não inseriu, é duplicado (idempotência)
-     */
     if (res.rowCount === 0) {
       console.warn("⚠️ Duplicate event ignored", event.event_id);
       return;
