@@ -124,8 +124,18 @@ function ItemContent({
   const isHls = !ytId && isHlsUrl(item.asset_url, item.type)
   const isVid = !ytId && !isHls && isVideoUrl(item.asset_url, item.type)
   const isImg = !ytId && !isHls && !isVid && isImageUrl(item.asset_url, item.type)
+  const isDynamic = item.type === "weather" || item.type === "news" || item.type === "social"
 
   const fillStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: "cover" as const }
+
+  // Dynamic content types — rendered as fullscreen HTML
+  if (isDynamic) return (
+    <iframe
+      src={`/api/widgets/render?type=${item.type}&url=${encodeURIComponent(item.asset_url)}`}
+      style={{ ...fillStyle, border: "none" }}
+      onLoad={onStart}
+    />
+  )
 
   if (isHls) return (
     <video
@@ -191,6 +201,7 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hlsRef = useRef<Hls | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [weather, setWeather] = useState<{ temperature: number; emoji: string; condition: string; city: string } | null>(null)
   const code = params.code
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code)
@@ -215,6 +226,20 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
       setErrorMsg("Sem conexão com o servidor")
     }
   }, [code, isUuid])
+
+  // Fetch weather — atualiza a cada 10 min
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch("/api/widgets/weather")
+        const data = await res.json()
+        if (data.ok) setWeather(data)
+      } catch {}
+    }
+    fetchWeather()
+    const wiv = setInterval(fetchWeather, 10 * 60 * 1000)
+    return () => clearInterval(wiv)
+  }, [])
 
   useEffect(() => {
     fetchPlaylist()
@@ -409,6 +434,34 @@ export default function PlayerPage({ params }: { params: { code: string } }) {
           transition: "opacity 0.1s",
           zIndex: 10,
         }} />
+      )}
+
+      {/* ── Weather widget ── */}
+      {weather && (
+        <div style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 20,
+          background: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(8px)",
+          borderRadius: 12,
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}>
+          <span style={{ fontSize: 28 }}>{weather.emoji}</span>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {weather.temperature}°C
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+              {weather.city} · {weather.condition}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── HUD ── */}
