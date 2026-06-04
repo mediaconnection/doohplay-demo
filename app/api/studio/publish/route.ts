@@ -3,74 +3,104 @@ import { pool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
-export async function POST(request: NextRequest) {
+// GET — lista itens da playlist de um cliente
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { code, asset_url, type, duration, campaign_id, title } = body
+    const { searchParams } = new URL(request.url)
+    const code = searchParams.get("code")?.trim().toUpperCase()
 
-    if (!code || !asset_url) {
-      return NextResponse.json({ error: "code e asset_url obrigatórios" }, { status: 400 })
-    }
+    if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
 
-    // Buscar cliente
     const clientRes = await pool.query(
-      `SELECT * FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
-      [code.trim().toUpperCase()]
+      `SELECT playlist_id FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
+      [code]
     )
     const client = clientRes.rows[0]
-    if (!client) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
+    if (!client?.playlist_id) return NextResponse.json({ items: [] })
 
-    // Se não tem playlist, criar uma
-    let playlistId = client.playlist_id
-    if (!playlistId) {
-      const plRes = await pool.query(
-        `INSERT INTO playlists (name, active, created_at) VALUES ($1, true, NOW()) RETURNING id`,
-        [`Playlist ${client.name}`]
+    const itemsRes = await pool.query(
+      `SELECT id, asset_url, type, duration, position, campaign_id, created_at
+       FROM playlist_items
+       WHERE playlist_id = $1
+       ORDER BY position ASC`,
+      [client.playlist_id]
+    )
+
+    return NextResponse.json({ ok: true, items: itemsRes.rows })
+  } catch (err) {
+    console.error("Playlist GET error:", err)
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+  }
+}
+
+// DELETE — remove um item da playlist
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const itemId = searchParams.get("item_id")
+    const code = searchParams.get("code")?.trim().toUpperCase()
+
+    if (!itemId || !code) return NextResponse.json({ error: "item_id e code obrigatórios" }, { status: 400 })
+
+    // Verificar que o item pertence ao cliente
+    const check = await pool.query(
+      `SELECT pi.id FROM playlist_items pi
+       JOIN studio_clients sc ON sc.playlist_id = pi.playlist_id
+       WHERE pi.id = $1 AND sc.code = $2`,
+      [itemId, code]
+    )
+    if (!check.rows.length) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
+
+    // Deletar item
+    await pool.query(`DELETE FROM playlist_items WHERE id = $1`, [itemId])
+
+    // Reordenar posições restantes
+    await pool.query(
+      `WITH ordered AS (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY position ASC) AS new_pos
+        FROM playlist_items pi
+        JOIN studio_clients sc ON sc.playlist_id = pi.playlist_id
+        WHERE sc.code = $1
       )
-      playlistId = plRes.rows[0].id
+      UPDATE playlist_items SET position = ordered.new_pos
+      FROM ordered WHERE playlist_items.id = ordered.id`,
+      [code]
+    )
 
-      // Criar screen se não existe
-      if (!client.screen_id && client.player_id) {
-        const scRes = await pool.query(
-          `INSERT INTO screens (name, player_id, playlist_id, status, venue_name, created_at)
-           VALUES ($1, $2, $3, 'online', $4, NOW()) RETURNING id`,
-          [`Tela ${client.name}`, client.player_id, playlistId, client.name]
-        )
-        await pool.query(
-          `UPDATE studio_clients SET playlist_id = $1, screen_id = $2 WHERE code = $3`,
-          [playlistId, scRes.rows[0].id, code.trim().toUpperCase()]
-        )
-      } else {
-        await pool.query(
-          `UPDATE studio_clients SET playlist_id = $1 WHERE code = $2`,
-          [playlistId, code.trim().toUpperCase()]
-        )
-      }
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("Playlist DELETE error:", err)
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+  }
+}
+
+// PATCH — reordena itens (recebe array de ids na nova ordem)
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { code, order } = body // order: string[] — ids na nova sequência
+
+    if (!code || !Array.isArray(order)) {
+      return NextResponse.json({ error: "code e order obrigatórios" }, { status: 400 })
     }
 
-    // Contar itens atuais para posição
-    const countRes = await pool.query(
-      `SELECT COUNT(*)::int AS total FROM playlist_items WHERE playlist_id = $1`,
-      [playlistId]
+    const client = await pool.query(
+      `SELECT playlist_id FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
+      [code.trim().toUpperCase()]
     )
-    const position = (countRes.rows[0]?.total ?? 0) + 1
+    if (!client.rows[0]?.playlist_id) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
 
-    // Inserir item na playlist
-    const itemRes = await pool.query(
-      `INSERT INTO playlist_items (playlist_id, asset_url, type, duration, campaign_id, position, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-      [playlistId, asset_url, type ?? "image", duration ?? 15, campaign_id ?? null, position]
-    )
+    // Atualizar posições em batch
+    for (let i = 0; i < order.length; i++) {
+      await pool.query(
+        `UPDATE playlist_items SET position = $1 WHERE id = $2 AND playlist_id = $3`,
+        [i + 1, order[i], client.rows[0].playlist_id]
+      )
+    }
 
-    return NextResponse.json({
-      ok: true,
-      item_id: itemRes.rows[0].id,
-      playlist_id: playlistId,
-      position,
-      message: `Anúncio "${title}" publicado na playlist!`,
-    })
+    return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error("Studio publish error:", err)
+    console.error("Playlist PATCH error:", err)
     return NextResponse.json({ error: "Erro interno" }, { status: 500 })
   }
 }
