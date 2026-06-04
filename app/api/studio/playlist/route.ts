@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     if (!client?.playlist_id) return NextResponse.json({ items: [] })
 
     const itemsRes = await pool.query(
-      `SELECT id, asset_url, type, duration, position, campaign_id, created_at
+      `SELECT id, asset_url, type, duration, position, campaign_id, created_at, starts_at, ends_at
        FROM playlist_items
        WHERE playlist_id = $1
        ORDER BY position ASC`,
@@ -74,31 +74,49 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// PATCH — reordena itens (recebe array de ids na nova ordem)
+// PATCH — reordena itens OU atualiza datas de validade
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { code, order } = body // order: string[] — ids na nova sequência
+    const { code, order, item_id, starts_at, ends_at } = body
 
-    if (!code || !Array.isArray(order)) {
-      return NextResponse.json({ error: "code e order obrigatórios" }, { status: 400 })
-    }
+    if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
 
-    const client = await pool.query(
+    const clientRes = await pool.query(
       `SELECT playlist_id FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
       [code.trim().toUpperCase()]
     )
-    if (!client.rows[0]?.playlist_id) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
+    if (!clientRes.rows[0]?.playlist_id) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
 
-    // Atualizar posições em batch
-    for (let i = 0; i < order.length; i++) {
+    // Modo 1: atualizar datas de um item específico
+    if (item_id) {
       await pool.query(
-        `UPDATE playlist_items SET position = $1 WHERE id = $2 AND playlist_id = $3`,
-        [i + 1, order[i], client.rows[0].playlist_id]
+        `UPDATE playlist_items
+         SET starts_at = $1, ends_at = $2
+         WHERE id = $3 AND playlist_id = $4`,
+        [
+          starts_at ? new Date(starts_at).toISOString() : null,
+          ends_at ? new Date(ends_at).toISOString() : null,
+          item_id,
+          clientRes.rows[0].playlist_id
+        ]
       )
+      return NextResponse.json({ ok: true })
     }
 
-    return NextResponse.json({ ok: true })
+    // Modo 2: reordenar itens
+    if (Array.isArray(order)) {
+      for (let i = 0; i < order.length; i++) {
+        await pool.query(
+          `UPDATE playlist_items SET position = $1 WHERE id = $2 AND playlist_id = $3`,
+          [i + 1, order[i], clientRes.rows[0].playlist_id]
+        )
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    return NextResponse.json({ error: "order ou item_id obrigatório" }, { status: 400 })
+
   } catch (err) {
     console.error("Playlist PATCH error:", err)
     return NextResponse.json({ error: "Erro interno" }, { status: 500 })
