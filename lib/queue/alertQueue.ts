@@ -1,60 +1,58 @@
-import { NextResponse } from "next/server"
-import { getPool } from "@/lib/db"
+import { Queue } from "bullmq"
+import { Redis } from "ioredis"
 
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+const QUEUE_NAME = "alerts"
 
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url)
-    const start  = searchParams.get("start")
-    const end    = searchParams.get("end")
-    const player = searchParams.get("player")
+function createRedisConnection(): Redis {
+  const url = process.env.REDIS_URL
 
-    if (start && isNaN(Date.parse(start))) {
-      return NextResponse.json({ error: "Parâmetro 'start' inválido" }, { status: 400 })
-    }
-    if (end && isNaN(Date.parse(end))) {
-      return NextResponse.json({ error: "Parâmetro 'end' inválido" }, { status: 400 })
-    }
-
-    const params: string[] = []
-    const conditions: string[] = []
-
-    if (start) {
-      params.push(start)
-      conditions.push(`pl.started_at >= $${params.length}`)
-    }
-    if (end) {
-      params.push(end)
-      conditions.push(`pl.started_at <= $${params.length}`)
-    }
-    if (player) {
-      params.push(player)
-      conditions.push(`pl.player_id = $${params.length}`)
-    }
-
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
-
-    const query = `
-      SELECT
-        c.id                                       AS campaign_id,
-        c.name                                     AS campaign_name,
-        COUNT(pl.id)                               AS executions_done,
-        COALESCE(SUM(pl.duration_seconds), 0)      AS total_seconds,
-        COALESCE(SUM(pl.duration_seconds) / 60, 0) AS total_minutes
-      FROM public.campaigns c
-      LEFT JOIN public.play_logs_certified pl
-        ON pl.campaign_id = c.id
-      ${where}
-      GROUP BY c.id, c.name
-      ORDER BY c.name;
-    `
-
-    const { rows } = await getPool().query(query, params)
-    return NextResponse.json(rows)
-  } catch (error) {
-    console.error("[REPORTS_CAMPAIGNS]", error)
-    return NextResponse.json({ error: "Erro ao carregar relatório" }, { status: 500 })
+  if (!url) {
+    console.warn("[alertQueue] REDIS_URL não definida — fila desabilitada")
+    return null as unknown as Redis
   }
+
+  const redis = new Redis(url, {
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 0,
+  })
+
+  redis.on("error", (err) => {
+    console.error("[alertQueue] Redis error:", err.message)
+  })
+
+  return redis
 }
+
+function createAlertQueue(): Queue {
+  const connection = createRedisConnection()
+
+  if (!connection) {
+    // Retorna um objeto fake para não quebrar imports em build/dev sem Redis
+    return {
+      add: async () => null,
+      close: async () => {},
+    } as unknown as Queue
+  }
+
+  return new Queue(QUEUE_NAME, {
+    connection,
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: true,
+      removeOnFail: false,
+    },
+  })
+}
+
+// Singleton lazy — não conecta no build
+let _queue: Queue | null = null
+
+export const alertQueue: Queue = new Proxy({} as Queue, {
+  get(_, prop) {
+    if (!_queue) _queue = createAlertQueue()
+    const value = _queue[prop as keyof Queue]
+    return typeof value === "function" ? value.bind(_queue) : value
+  },
+})
