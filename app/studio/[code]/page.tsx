@@ -274,10 +274,10 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
 
       <div style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "0 1.5rem", display: "flex", gap: 0 }}>
         {([
-          { key: "editor", label: "✏️  Editor" },
+          { key: "editor", label: "✏️  Editor de anúncios" },
           { key: "ai", label: "✨  IA" },
           { key: "playlist", label: "📋  Playlist" },
-          { key: "scheduler", label: "🕐  Grade" },
+          { key: "scheduler", label: "🕐  Grade de programação" },
         ] as { key: Tab; label: string }[]).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ background: "transparent", border: "none", borderBottom: activeTab === tab.key ? "2px solid #0284C7" : "2px solid transparent", padding: "14px 20px", fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400, color: activeTab === tab.key ? "#111" : "#9ca3af", cursor: "pointer", marginBottom: "-1px" }}>
             {tab.label}
@@ -423,15 +423,19 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
               <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Itens na playlist</div>
               <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Arraste para reordenar · 📅 para definir validade · ✕ para remover</div>
             </div>
-            <button onClick={loadPlaylist} style={{ background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#6b7280", cursor: "pointer" }}>↻ Atualizar</button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={loadPlaylist} style={{ background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#6b7280", cursor: "pointer" }}>↻ Atualizar</button>
+              <button onClick={() => setActiveTab("editor")} style={{ background: "#0284C7", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Adicionar</button>
+            </div>
           </div>
 
           {playlistLoading ? (
             <div style={{ padding: "3rem", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Carregando...</div>
           ) : playlistItems.length === 0 ? (
             <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 16, padding: "3rem", textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-              <div style={{ fontSize: 14, color: "#9ca3af" }}>Nenhum item na playlist</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: "#374151", marginBottom: 8 }}>Playlist vazia</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", lineHeight: 1.6 }}>Vá na aba <strong>✏️ Editor de anúncios</strong> e clique em<br/><strong>Publicar na tela</strong> para adicionar o primeiro item.</div>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -458,11 +462,22 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                     >
                       <div style={{ color: "#d1d5db", fontSize: 16, userSelect: "none", flexShrink: 0 }}>⠿</div>
                       <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#6b7280", flexShrink: 0 }}>{i + 1}</div>
-                      <div style={{ width: 64, height: 36, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                        {isUrl ? <iframe src={item.asset_url} style={{ width: "400%", height: "400%", transform: "scale(0.25)", transformOrigin: "top left", border: "none", pointerEvents: "none" }} /> : <span>{typeIcon}</span>}
+                      <div style={{ width: 64, height: 36, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: isYT ? "#1a0000" : isLive ? "#1a0000" : isVideo ? "#0a001a" : "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isUrl ? 10 : 18, color: isYT ? "#ef4444" : isLive ? "#ef4444" : isVideo ? "#a855f7" : "#C9A84C", fontWeight: 700 }}>
+                        {isUrl ? (
+                          <span style={{ fontSize: 9, color: "#C9A84C", textAlign: "center", padding: "0 2px", lineHeight: 1.2, letterSpacing: "0.02em" }}>
+                            {decodeURIComponent(item.asset_url?.match(/[?&]h=([^&]+)/)?.[1] || "").slice(0, 12) || "AD"}
+                          </span>
+                        ) : <span>{typeIcon}</span>}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: "#111827", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.asset_url?.split("/").pop()?.split("?")[0] || "Item"}</div>
+                        <div style={{ fontSize: 12, color: "#111827", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {isYT
+                          ? (item.asset_url?.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1] ? `YouTube: ${item.asset_url.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1]?.slice(0,12)}...` : "YouTube")
+                          : isLive ? "Live stream"
+                          : isVideo ? (item.asset_url?.split("/").pop()?.split("?")[0] || "Vídeo")
+                          : isUrl ? (item.asset_url?.match(/[?&]h=([^&]+)/)?.[1] ? decodeURIComponent(item.asset_url.match(/[?&]h=([^&]+)/)?.[1] || "") : "Template")
+                          : "Mídia"}
+                      </div>
                         <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                           <span style={{ background: typeBg, border: `0.5px solid ${typeBorder}`, borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 500, color: typeColor }}>{typeIcon} {typeLabel}</span>
                           <span style={{ background: "#f3f4f6", borderRadius: 20, padding: "1px 8px", fontSize: 10, color: "#6b7280" }}>{item.duration}s</span>
