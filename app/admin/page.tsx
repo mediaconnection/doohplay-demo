@@ -9,7 +9,7 @@ type Screen = {
   name: string
   location: string | null
   status: string
-  last_seen: string | null
+  last_ping: string | null
   plays_today: number
   plays_week: number
   client_name: string | null
@@ -40,7 +40,7 @@ async function getStats(): Promise<Stats> {
       pool.query(`
         SELECT
           COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE last_seen >= NOW() - INTERVAL '5 minutes')::int AS online
+          COUNT(*) FILTER (WHERE last_ping IS NOT NULL AND last_ping >= NOW() - INTERVAL '5 minutes')::int AS online
         FROM players
       `),
       pool.query(`
@@ -73,8 +73,8 @@ async function getScreens(): Promise<Screen[]> {
         p.id,
         p.name,
         p.location,
-        CASE WHEN p.last_seen >= NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END AS status,
-        p.last_seen::text,
+        CASE WHEN p.last_ping >= NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END AS status,
+        p.last_ping::text,
         COUNT(e.id) FILTER (WHERE e.played_at >= CURRENT_DATE)::int AS plays_today,
         COUNT(e.id) FILTER (WHERE e.played_at >= CURRENT_DATE - INTERVAL '7 days')::int AS plays_week,
         sc.name AS client_name,
@@ -82,7 +82,7 @@ async function getScreens(): Promise<Screen[]> {
       FROM players p
       LEFT JOIN display_events e ON e.player_id = p.id
       LEFT JOIN studio_clients sc ON sc.player_id = p.id
-      GROUP BY p.id, p.name, p.location, p.last_seen, sc.name, sc.code
+      GROUP BY p.id, p.name, p.location, p.last_ping, sc.name, sc.code
       ORDER BY status ASC, plays_today DESC
     `)
     return res.rows ?? []
@@ -95,20 +95,20 @@ async function getAlerts(): Promise<Alert[]> {
 
     // Telas offline há mais de 1 hora
     const offlineRes = await pool.query(`
-      SELECT name, last_seen::text
+      SELECT name, last_ping::text
       FROM players
-      WHERE last_seen < NOW() - INTERVAL '1 hour' OR last_seen IS NULL
+      WHERE (last_ping IS NULL OR last_ping < NOW() - INTERVAL '1 hour') AND is_active = true
       LIMIT 10
     `)
     for (const r of offlineRes.rows) {
-      alerts.push({ type: "offline", screen_name: r.name, message: "Tela offline", since: r.last_seen })
+      alerts.push({ type: "offline", screen_name: r.name, message: "Tela offline", since: r.last_ping })
     }
 
     // Telas sem exibições hoje
     const noPlaysRes = await pool.query(`
-      SELECT p.name, p.last_seen::text
+      SELECT p.name, p.last_ping::text
       FROM players p
-      WHERE p.last_seen >= NOW() - INTERVAL '5 minutes'
+      WHERE p.last_ping IS NOT NULL AND p.last_ping >= NOW() - INTERVAL '5 minutes'
       AND NOT EXISTS (
         SELECT 1 FROM display_events e
         WHERE e.player_id = p.id AND e.played_at >= CURRENT_DATE
@@ -116,7 +116,7 @@ async function getAlerts(): Promise<Alert[]> {
       LIMIT 5
     `)
     for (const r of noPlaysRes.rows) {
-      alerts.push({ type: "no_plays", screen_name: r.name, message: "Online mas sem exibições hoje", since: r.last_seen })
+      alerts.push({ type: "no_plays", screen_name: r.name, message: "Online mas sem exibições hoje", since: r.last_ping })
     }
 
     return alerts
@@ -272,7 +272,7 @@ export default async function AdminPage() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: BRAND }}>{s.plays_today}</div>
                     <div style={{ fontSize: 10, color: "#9ca3af" }}>plays hoje</div>
                   </div>
-                  <div style={{ fontSize: 10, color: "#9ca3af", flexShrink: 0 }}>{fmtDate(s.last_seen)}</div>
+                  <div style={{ fontSize: 10, color: "#9ca3af", flexShrink: 0 }}>{fmtDate(s.last_ping)}</div>
                   {s.client_code && (
                     <Link href={`/studio/${s.client_code}`} style={{ background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: BRAND_DARK, textDecoration: "none" }}>Studio</Link>
                   )}
@@ -296,7 +296,7 @@ export default async function AdminPage() {
                       <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{s.name}</div>
                       <div style={{ fontSize: 11, color: "#9ca3af" }}>{s.location || "Sem localização"} {s.client_name ? `· ${s.client_name}` : ""}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>Último: {fmtDate(s.last_seen)}</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af" }}>Último: {fmtDate(s.last_ping)}</div>
                   </div>
                 ))}
               </div>
