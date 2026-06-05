@@ -263,6 +263,13 @@ export default async function AdvertiserPage() {
                   <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>exibições verificadas</div>
                   <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 500, marginTop: 4 }}>+{c.plays_today} hoje · +{c.plays_week} esta semana</div>
                   {c.last_play && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{fmtDateTime(c.last_play)}</div>}
+                  <a
+                    href={`/api/certificate?campaign_id=${c.id}`}
+                    target="_blank"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, background: "#F0F9FF", border: "0.5px solid #BAE6FD", borderRadius: 8, padding: "5px 12px", fontSize: 11, color: "#0369A1", textDecoration: "none", fontWeight: 500 }}
+                  >
+                    📄 Certificado PDF
+                  </a>
                 </div>
               </div>
             )
