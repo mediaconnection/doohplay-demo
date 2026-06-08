@@ -6,19 +6,34 @@ import { useSearchParams } from "next/navigation"
 type Status = "checking" | "found" | "invalid" | "ready" | "pending"
 
 const STEPS = [
-  { id: 1, label: "Conectar TV",        desc: "Dispositivo detectado na rede" },
-  { id: 2, label: "Validar Código",     desc: "Código verificado com sucesso" },
-  { id: 3, label: "Registrar Tela",     desc: "Registrando sua tela no sistema" },
+  { id: 1, label: "Conectar TV",          desc: "Dispositivo detectado na rede" },
+  { id: 2, label: "Validar Código",       desc: "Código verificado com sucesso" },
+  { id: 3, label: "Registrar Tela",       desc: "Registrando sua tela no sistema" },
   { id: 4, label: "Sincronizar Conteúdo", desc: "Aguardando conexão da TV" },
-  { id: 5, label: "Tela Ativa",         desc: "Pronta para exibir conteúdo" },
+  { id: 5, label: "Tela Ativa",           desc: "Pronta para exibir conteúdo" },
 ]
 
 const BENEFITS = [
-  { icon: "📈", label: "Monetização",           desc: "Gere receita com anúncios e conteúdo estratégico." },
-  { icon: "▶️", label: "Conteúdo Automatizado", desc: "Playlists dinâmicas e atualização de conteúdo em tempo real." },
-  { icon: "🛡", label: "Proof-of-Play Blockchain", desc: "Todas as exibições são auditadas e registradas na blockchain." },
-  { icon: "📡", label: "Gestão Remota",          desc: "Controle total da sua rede de telas de qualquer lugar." },
-  { icon: "🔍", label: "Auditoria Enterprise",   desc: "Relatórios, certificados e compliance para grandes anunciantes." },
+  { icon: "📈", label: "Monetização",            desc: "Gere receita com anúncios e conteúdo estratégico." },
+  { icon: "▶️", label: "Conteúdo Automatizado",  desc: "Playlists dinâmicas e atualização em tempo real." },
+  { icon: "🛡",  label: "Proof-of-Play Blockchain", desc: "Todas as exibições auditadas e registradas na blockchain." },
+  { icon: "📡", label: "Gestão Remota",           desc: "Controle total da sua rede de telas de qualquer lugar." },
+  { icon: "🔍", label: "Auditoria Enterprise",    desc: "Relatórios, certificados e compliance para anunciantes." },
+]
+
+const CHAIN = [
+  { label: "ICP Brasil",  sub: "Assinatura digital" },
+  { label: "Merkle Root", sub: "Prova criptográfica" },
+  { label: "Blockchain",  sub: "Polygon Mainnet" },
+  { label: "Auditoria",   sub: "Enterprise grade" },
+]
+
+const TIMELINE = [
+  { label: "Tela registrada",        color: "#10B981" },
+  { label: "Player sincronizado",    color: "#3B82F6" },
+  { label: "Conteúdo baixado",       color: "#3B82F6" },
+  { label: "Monitoramento ativo",    color: "#10B981" },
+  { label: "Monetização habilitada", color: "#F59E0B" },
 ]
 
 const TRUST = [
@@ -28,14 +43,13 @@ const TRUST = [
   { icon: "⭐", label: "Trust Score",  sub: "Rede Verificada" },
 ]
 
-export default function InstallV2Page() {
+export default function InstallContent() {
   const searchParams  = useSearchParams()
   const screenId      = searchParams.get("screen") || ""
   const code          = searchParams.get("code")?.toUpperCase() || ""
   const [status, setStatus]         = useState<Status>("checking")
   const [activeStep, setActiveStep] = useState(0)
   const [clientName, setClientName] = useState("")
-  const [trustScore]                = useState(98.7)
 
   const playerUrl = screenId
     ? `https://doohplay-demo.onrender.com/player?screen=${screenId}`
@@ -70,252 +84,227 @@ export default function InstallV2Page() {
     return () => clearTimeout(t)
   }, [code, screenId])
 
-  const Check = ({ done = false, active = false }) => (
-    <div style={{
-      width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-      background: done ? "#10B981" : active ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)",
-      border: `2px solid ${done ? "#10B981" : active ? "#3B82F6" : "rgba(255,255,255,0.1)"}`,
-      transition: "all 0.4s",
-    }}>
-      {done && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-      {!done && active && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3B82F6" }} />}
-    </div>
+  const statusMap: Record<Status, { color: string; bg: string; label: string; desc: string }> = {
+    checking: { color: "#3B82F6", bg: "rgba(59,130,246,0.1)",  label: "Verificando...",       desc: "Validando credenciais" },
+    found:    { color: "#10B981", bg: "rgba(16,185,129,0.1)",  label: "Tela encontrada",      desc: `Código ${code} validado` },
+    ready:    { color: "#10B981", bg: "rgba(16,185,129,0.1)",  label: "Pronta para ativação", desc: "Todos os sistemas OK" },
+    pending:  { color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  label: "Conexão pendente",     desc: "Aguardando screen_id" },
+    invalid:  { color: "#EF4444", bg: "rgba(239,68,68,0.1)",   label: "Código inválido",      desc: "Verifique o código" },
+  }
+  const st = statusMap[status]
+
+  const Check = ({ color = "#fff" }: { color?: string }) => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
   )
 
   return (
     <main style={{ minHeight: "100vh", background: "#0A0F1E", color: "#fff", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {/* NAV */}
-      <nav style={{ padding: "0 2.5rem", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <nav style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 2rem", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0A0F1E", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
-          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.03em" }}>DOOH<span style={{ color: "#3B82F6" }}>PLAY</span></span>
+          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em" }}>DOOH<span style={{ color: "#3B82F6" }}>PLAY</span></span>
+          <span style={{ fontSize: 11, color: "#475569", background: "rgba(255,255,255,0.06)", padding: "2px 8px", borderRadius: 20, marginLeft: 4 }}>Enterprise</span>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <a href="https://wa.me/5511962050987" style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 16px", fontSize: 13, color: "#94A3B8", textDecoration: "none" }}>
-            <span>?</span> Precisa de ajuda?
-          </a>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 16px", fontSize: 13, color: "#94A3B8" }}>
-            🌐 Português
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
+          <span style={{ fontSize: 12, color: "#94A3B8" }}>Sistema operacional</span>
         </div>
       </nav>
 
-      {/* MAIN GRID */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "4rem 2rem", display: "grid", gridTemplateColumns: "1fr 580px", gap: "4rem", alignItems: "start" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 1.5rem", display: "grid", gridTemplateColumns: "1fr 420px", gap: "3rem", alignItems: "start" }}>
 
-        {/* LEFT — Hero */}
+        {/* LEFT */}
         <div>
-          <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 20px" }}>
-            Ative sua Tela no<br />
-            <span style={{ color: "#3B82F6" }}>DOOHPLAY</span>
-          </h1>
-          <p style={{ fontSize: 18, color: "#94A3B8", lineHeight: 1.6, maxWidth: 420, margin: "0 0 2.5rem" }}>
-            Transforme qualquer TV em um canal de mídia digital inteligente.
-          </p>
-
-          {/* Benefits */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: "3rem" }}>
-            {BENEFITS.map(b => (
-              <div key={b.label} style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                  {b.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{b.label}</div>
-                  <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5 }}>{b.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT — Activation Card */}
-        <div>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, overflow: "hidden" }}>
-
-            {/* Card Header */}
-            <div style={{ padding: "1.5rem 1.75rem", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              </div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Instalação da Tela</div>
-                <div style={{ fontSize: 13, color: "#64748B" }}>Siga os passos para conectar sua TV ao DOOHPLAY</div>
-              </div>
+          <div style={{ marginBottom: "3rem" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#3B82F6", marginBottom: 20 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#3B82F6" }} />
+              Instalação guiada — TV & Android TV
             </div>
-
-            <div style={{ padding: "1.5rem 1.75rem" }}>
-
-              {/* Status Banner */}
-              {(status === "found" || status === "ready") && (
-                <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "10px 14px", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#10B981" }}>Tela encontrada com sucesso!</span>
-                </div>
-              )}
-              {status === "invalid" && (
-                <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "10px 14px", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#EF4444" }}>Código inválido — verifique e tente novamente</span>
-                </div>
-              )}
-              {status === "pending" && (
-                <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "10px 14px", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#F59E0B" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#F59E0B" }}>Aguardando código de ativação</span>
-                </div>
-              )}
-
-              {/* Fields */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: "1.5rem" }}>
-                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>ID da Tela</div>
-                  <div style={{ fontSize: 13, color: "#CBD5E1", fontFamily: "monospace" }}>{screenId || "—"}</div>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>Código de Ativação</div>
-                  <div style={{ fontSize: 13, color: "#CBD5E1", fontFamily: "monospace", fontWeight: 700 }}>{code || "—"}</div>
-                  {clientName && <div style={{ fontSize: 11, color: "#10B981", marginTop: 2 }}>{clientName}</div>}
-                </div>
-              </div>
-
-              {/* Steps + Device Card */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: "1.5rem" }}>
-
-                {/* Steps */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  {STEPS.map((step, i) => {
-                    const done   = i < activeStep
-                    const active = i === activeStep
-                    return (
-                      <div key={step.id} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: done ? "#10B981" : active ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)", border: `2px solid ${done ? "#10B981" : active ? "#3B82F6" : "rgba(255,255,255,0.1)"}`, transition: "all 0.4s", flexShrink: 0 }}>
-                            {done
-                              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                              : <span style={{ fontSize: 11, fontWeight: 700, color: active ? "#3B82F6" : "#475569" }}>{step.id}</span>
-                            }
-                          </div>
-                          {i < STEPS.length - 1 && <div style={{ width: 2, height: 20, background: done ? "#10B981" : "rgba(255,255,255,0.06)", transition: "background 0.4s" }} />}
-                        </div>
-                        <div style={{ paddingTop: 4, paddingBottom: i < STEPS.length - 1 ? 16 : 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: done ? "#fff" : active ? "#3B82F6" : "#475569" }}>{step.label}</div>
-                          <div style={{ fontSize: 11, color: "#334155" }}>{step.desc}</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Device Card */}
-                <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 16, padding: "1rem" }}>
-                  <div style={{ width: "100%", aspectRatio: "16/9", background: "linear-gradient(135deg, #1a1a2e, #16213e)", borderRadius: 10, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
-                    📺
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Fire Stick / Android TV</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 10 }}>Navegador Silk</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                      <span style={{ color: "#64748B" }}>Conexão</span>
-                      <span style={{ color: status === "ready" || status === "found" ? "#10B981" : "#F59E0B", fontWeight: 600 }}>
-                        {status === "ready" || status === "found" ? "● Online" : "○ Aguardando"}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                      <span style={{ color: "#64748B" }}>Sinal</span>
-                      <span style={{ color: "#3B82F6" }}>▐▐▐</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                      <span style={{ color: "#64748B" }}>Último Check-in</span>
-                      <span style={{ color: "#94A3B8" }}>Agora há pouco</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Player URL */}
-              {screenId && (
-                <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 14px", marginBottom: "1rem", fontFamily: "monospace", fontSize: 11, color: "#64748B", wordBreak: "break-all" }}>
-                  {playerUrl}
-                </div>
-              )}
-
-              {/* CTA */}
-              {status === "ready" ? (
-                <a href={playerUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "linear-gradient(135deg, #3B82F6, #6366F1)", color: "#fff", borderRadius: 12, padding: "14px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>
-                  <span>Abrir Player na TV</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </a>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 12, padding: "14px", textAlign: "center" }}>
-                    <div style={{ fontSize: 20, marginBottom: 4 }}>▶</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6" }}>Deixe o app aberto na sua TV</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>O DOOHPLAY será ativado automaticamente assim que a conexão for confirmada.</div>
-                  </div>
-                  <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: "14px", textAlign: "center" }}>
-                    <div style={{ fontSize: 20, marginBottom: 4 }}>⟳</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#6366F1" }}>Aguardando conexão da TV...</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Este processo pode levar até 60 segundos.</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* TRUST SECTION */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "2.5rem 2rem" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "2rem" }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: "1.5rem" }}>Segurança e Auditoria de Nível Enterprise</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {TRUST.map(t => (
-                <div key={t.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "1rem", display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
-                    {t.icon}
-                  </div>
+            <h1 style={{ fontSize: 48, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
+              Ative sua Tela no<br />
+              <span style={{ color: "#3B82F6" }}>DOOHPLAY</span>
+            </h1>
+            <p style={{ fontSize: 18, color: "#94A3B8", lineHeight: 1.6, maxWidth: 480, margin: "0 0 2rem" }}>
+              Transforme qualquer TV em um canal de mídia digital inteligente.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {BENEFITS.map(b => (
+                <div key={b.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{b.icon}</div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{t.label}</div>
-                    <div style={{ fontSize: 11, color: "#475569" }}>{t.sub}</div>
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{b.label}</span>
+                    <span style={{ fontSize: 13, color: "#64748B", marginLeft: 8 }}>{b.desc}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Trust Score */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem 2rem", textAlign: "center", minWidth: 200 }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #3B82F6, #6366F1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 28 }}>
-              🛡
+          {/* ProofChain */}
+          <div style={{ background: "#12182B", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, padding: "1.5rem", marginBottom: "1.5rem" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 16 }}>ProofChain Security — exclusivo DOOHPLAY</div>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {CHAIN.map((c, i) => (
+                <div key={c.label} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 10, padding: "8px 6px", marginBottom: 4 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#3B82F6" }}>{c.label}</div>
+                    </div>
+                    <div style={{ fontSize: 10, color: "#475569" }}>{c.sub}</div>
+                  </div>
+                  {i < CHAIN.length - 1 && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
+                  )}
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize: 13, color: "#64748B", marginBottom: 4 }}>Trust Score da Rede</div>
-            <div style={{ fontSize: 42, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>
-              {trustScore}<span style={{ fontSize: 16, color: "#64748B" }}>/100</span>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981", marginTop: 4 }}>Excelente</div>
           </div>
+
+          {/* Timeline */}
+          <div style={{ background: "#12182B", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, padding: "1.5rem" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>O que acontece após a ativação?</div>
+            {TIMELINE.map((t, i) => (
+              <div key={t.label} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${t.color}18`, border: `1px solid ${t.color}40`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Check color={t.color} />
+                  </div>
+                  {i < TIMELINE.length - 1 && <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.06)", margin: "2px 0" }} />}
+                </div>
+                <div style={{ paddingTop: 3, paddingBottom: i < TIMELINE.length - 1 ? 14 : 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#CBD5E1" }}>{i + 1}. {t.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div style={{ position: "sticky", top: "4rem" }}>
+          <div style={{ background: "#12182B", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "1.5rem", marginBottom: "1rem" }}>
+
+            {/* Status */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: st.bg, borderRadius: 12, padding: "12px 14px", marginBottom: "1.5rem" }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.color, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{st.label}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8" }}>{st.desc}</div>
+              </div>
+              <div style={{ fontSize: 11, color: st.color, background: `${st.color}20`, padding: "3px 10px", borderRadius: 20, border: `1px solid ${st.color}30` }}>
+                {status === "ready" ? "Ativo" : status === "checking" ? "..." : status === "found" ? "OK" : status === "pending" ? "Aguardando" : "Erro"}
+              </div>
+            </div>
+
+            {/* Stepper */}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "1.25rem" }}>
+              {STEPS.map((step, i) => (
+                <div key={step.id} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: activeStep > i ? "#10B981" : activeStep === i ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)", border: `2px solid ${activeStep > i ? "#10B981" : activeStep === i ? "#3B82F6" : "rgba(255,255,255,0.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: activeStep >= i ? "#fff" : "#475569", transition: "all 0.3s" }}>
+                    {activeStep > i ? <Check /> : step.id}
+                  </div>
+                  {i < STEPS.length - 1 && <div style={{ flex: 1, height: 1, background: activeStep > i + 1 ? "#10B981" : "rgba(255,255,255,0.08)", margin: "0 4px", transition: "background 0.3s" }} />}
+                </div>
+              ))}
+            </div>
+
+            {/* Step label */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 14px", marginBottom: "1.25rem" }}>
+              <div style={{ fontSize: 12, color: "#94A3B8" }}>
+                {STEPS[Math.min(activeStep, 4)].label} — {STEPS[Math.min(activeStep, 4)].desc}
+              </div>
+            </div>
+
+            {/* Fields */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
+              <div style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, color: "#475569", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>ID da Tela</div>
+                <div style={{ fontSize: 12, color: "#CBD5E1", fontFamily: "monospace" }}>{screenId || "—"}</div>
+              </div>
+              <div style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, color: "#475569", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Código</div>
+                <div style={{ fontSize: 12, color: "#CBD5E1", fontFamily: "monospace", fontWeight: 700 }}>{code || "—"}</div>
+                {clientName && <div style={{ fontSize: 10, color: "#10B981", marginTop: 2 }}>{clientName}</div>}
+              </div>
+            </div>
+
+            {/* Device */}
+            <div style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 14, padding: "1rem", marginBottom: "1.25rem", display: "grid", gridTemplateColumns: "auto 1fr", gap: 12, alignItems: "center" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 10, background: "linear-gradient(135deg, #1a1a2e, #16213e)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📺</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Fire Stick / Android TV</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                  <span style={{ color: "#64748B" }}>Conexão</span>
+                  <span style={{ color: status === "ready" || status === "found" ? "#10B981" : "#F59E0B", fontWeight: 600 }}>
+                    {status === "ready" || status === "found" ? "● Online" : "○ Aguardando"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 4 }}>
+                  <span style={{ color: "#64748B" }}>Último Check-in</span>
+                  <span style={{ color: "#94A3B8" }}>Agora há pouco</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Player URL */}
+            {screenId && (
+              <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", marginBottom: "1.25rem", fontFamily: "monospace", fontSize: 11, color: "#64748B", wordBreak: "break-all" }}>
+                {playerUrl}
+              </div>
+            )}
+
+            {/* CTA */}
+            {status === "ready" ? (
+              <a href={playerUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "linear-gradient(135deg, #3B82F6, #6366F1)", color: "#fff", borderRadius: 12, padding: "14px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>
+                <span>Abrir Player na TV</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </a>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 12, padding: "12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 18, marginBottom: 4 }}>▶</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#3B82F6" }}>Deixe o app aberto na TV</div>
+                  <div style={{ fontSize: 10, color: "#475569", marginTop: 4, lineHeight: 1.4 }}>Será ativado automaticamente.</div>
+                </div>
+                <div style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: "12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 18, marginBottom: 4 }}>⟳</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6366F1" }}>Aguardando conexão...</div>
+                  <div style={{ fontSize: 10, color: "#475569", marginTop: 4, lineHeight: 1.4 }}>Até 60 segundos.</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Trust badges */}
+          <div style={{ background: "#12182B", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1rem 1.25rem", marginBottom: "1rem" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Segurança & Auditoria</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {TRUST.map(t => (
+                <span key={t.label} style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 20, padding: "4px 10px", fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>
+                  {t.icon} {t.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* WhatsApp */}
+          <a href="https://wa.me/5511962050987" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.2)", borderRadius: 12, textDecoration: "none" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#25D366" }}>Suporte via WhatsApp</div>
+              <div style={{ fontSize: 11, color: "#475569" }}>Resposta em minutos</div>
+            </div>
+          </a>
         </div>
       </div>
 
-      {/* FOOTER */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "1.5rem 2.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 24, height: 24, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>DOOH<span style={{ color: "#3B82F6" }}>PLAY</span></span>
-          <span style={{ fontSize: 11, color: "#334155" }}>© 2026 DOOHPLAY · Todos os direitos reservados.</span>
-        </div>
-        <div style={{ display: "flex", gap: 20, fontSize: 12, color: "#334155" }}>
-          <a href="#" style={{ color: "#334155", textDecoration: "none" }}>Política de Privacidade</a>
-          <a href="#" style={{ color: "#334155", textDecoration: "none" }}>Termos de Uso</a>
-          <a href="https://wa.me/5511962050987" style={{ color: "#334155", textDecoration: "none" }}>Suporte</a>
-        </div>
+      {/* Footer */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", fontSize: 12, color: "#334155" }}>
+        <span>DOOHPLAY — Trust Infrastructure for DOOH Advertising</span>
+        <span>ICP-Brasil · Blockchain · Enterprise</span>
       </div>
     </main>
   )
