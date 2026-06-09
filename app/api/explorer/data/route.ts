@@ -6,19 +6,18 @@ export async function GET() {
   try {
     const [blocksRes, eventsRes, statsRes, totalEventsRes] = await Promise.all([
       pool.query(`
-        SELECT b.id, b.block_hash, b.merkle_root, b.tx_hash, b.blockchain_tx,
+        SELECT b.id, b.merkle_root, b.block_hash, b.tx_hash, b.blockchain_tx,
                b.anchored_at, b.created_at,
-               COALESCE((SELECT COUNT(*)::int FROM display_events e WHERE e.block_id = b.id), 0) AS event_count
+               COALESCE((SELECT COUNT(*)::int FROM display_events e WHERE e.merkle_batch_id = b.id), 0) AS event_count
         FROM event_blocks b
         ORDER BY b.created_at DESC LIMIT 5
       `),
       pool.query(`
-        SELECT e.id::text, e.event_hash, e.player_id::text, e.played_at,
-               p.name AS screen_label,
-               NULL::text AS campaign_name,
+        SELECT e.id::text, e.event_hash, e.screen_id::text, e.played_at,
+               s.name AS screen_label,
                (e.event_hash IS NOT NULL)::boolean AS anchored
         FROM display_events e
-        LEFT JOIN studio_clients p ON p.player_id = e.player_id
+        LEFT JOIN screens s ON s.id = e.screen_id
         ORDER BY e.played_at DESC LIMIT 5
       `),
       pool.query(`
@@ -52,8 +51,8 @@ export async function GET() {
     const events = eventsRes.rows.map(e => ({
       id: e.id,
       hash: e.event_hash ? `${e.event_hash.slice(0,10)}...${e.event_hash.slice(-4)}` : "—",
-      screen: e.screen_label ?? e.player_id ?? "—",
-      campaign: e.campaign_name ?? "Exibição",
+      screen: e.screen_label ?? e.screen_id ?? "—",
+      campaign: "Exibição",
       time: fmt(e.played_at),
       status: e.anchored ? "Verified" : "Pending",
     }))
@@ -66,6 +65,6 @@ export async function GET() {
     return Response.json({ blocks, events, stats })
   } catch (err) {
     console.error("[explorer data]", err)
-    return Response.json({ blocks: [], events: [], stats: {} })
+    return Response.json({ blocks: [], events: [], stats: {}, error: String(err) })
   }
 }
