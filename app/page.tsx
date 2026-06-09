@@ -1,237 +1,446 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 
-export default function HomePage() {
+const NAV_LINKS = [
+  { label: "Instalar Tela", href: "/install" },
+  { label: "Planos",        href: "/planos" },
+  { label: "Enterprise",    href: "/enterprise" },
+  { label: "Trust Center",  href: "/trust-center" },
+  { label: "ProofChain",    href: "/proofchain" },
+  { label: "Network Center",href: "/noc" },
+]
+
+const TAGS = ["Digital Signage", "Retail Media", "Blockchain", "ICP Brasil", "ProofChain", "Trust Score"]
+
+const STATS = [
+  { value: "12.847", label: "Telas ativas",         color: "#3B82F6" },
+  { value: "84.2M",  label: "Impressões hoje",      color: "#10B981" },
+  { value: "R$8.4M", label: "Receita gerada",       color: "#F59E0B" },
+  { value: "96.8",   label: "Trust Score",          color: "#10B981" },
+  { value: "99.9%",  label: "SLA",                  color: "#3B82F6" },
+  { value: "4.8M",   label: "Provas auditadas",     color: "#8B5CF6" },
+]
+
+const SEGMENTS = [
+  { icon: "🍞", label: "Padarias" },
+  { icon: "☕", label: "Cafeterias" },
+  { icon: "🍔", label: "Restaurantes" },
+  { icon: "💊", label: "Farmácias" },
+  { icon: "🏋", label: "Academias" },
+  { icon: "🏪", label: "Franquias" },
+  { icon: "📢", label: "Agências" },
+  { icon: "🛒", label: "Supermercados" },
+  { icon: "🏬", label: "Shoppings" },
+  { icon: "🏢", label: "Redes Varejistas" },
+]
+
+const FEATURES = [
+  { icon: "📺", title: "Digital Signage",         desc: "Transforme qualquer TV em uma tela profissional gerenciada remotamente. Conteúdo automático, promoções e anúncios." },
+  { icon: "💰", title: "Retail Media",             desc: "Monetize suas telas com anúncios de marcas nacionais. Revenue share automático direto na sua conta." },
+  { icon: "🛡",  title: "Proof-of-Play Auditável", desc: "Cada exibição registrada na blockchain com certificação ICP Brasil. Auditável em tempo real." },
+  { icon: "🔗", title: "ProofChain",               desc: "Explorer de blockchain próprio. Cada evento tem TX hash, Merkle Root e certificado criptográfico." },
+  { icon: "📊", title: "Analytics em tempo real", desc: "Impressões, reach, CPM, Trust Score e SLA monitorados ao vivo. Dashboard por tela, região e campanha." },
+  { icon: "🌐", title: "Rede Nacional",            desc: "Telas em todo o Brasil. De São Paulo a Manaus. Inventário verificado e auditável." },
+]
+
+const PERSONAS = [
+  {
+    badge: "Mais popular",
+    badgeColor: "#10B981",
+    tag: "COMÉRCIO LOCAL",
+    title: "Transforme sua TV em uma fonte de renda.",
+    stats: [
+      { value: "R$847", label: "Receita" },
+      { value: "99.2%", label: "TV Online" },
+      { value: "3",     label: "Anúncios" },
+    ],
+    features: ["Monetize sua TV", "Conteúdo automático", "Pagamentos garantidos", "Gestão simples"],
+    cta: "Começar Agora",
+    ctaColor: "#10B981",
+    href: "/onboarding",
+  },
+  {
+    badge: "Recomendado",
+    badgeColor: "#3B82F6",
+    tag: "REDE DE LOJAS",
+    title: "Gerencie todas as telas da sua rede.",
+    stats: [
+      { value: "24",     label: "Telas" },
+      { value: "8",      label: "Unidades" },
+      { value: "R$12.4K", label: "Receita" },
+    ],
+    features: ["Gestão centralizada", "Campanhas por região", "Relatórios", "SLA operacional"],
+    cta: "Gerenciar Rede",
+    ctaColor: "#3B82F6",
+    href: "/enterprise",
+  },
+  {
+    badge: "Enterprise",
+    badgeColor: "#8B5CF6",
+    tag: "AGÊNCIA / ANUNCIANTE",
+    title: "Compre mídia com Proof-of-Play auditável.",
+    stats: [
+      { value: "4.2M",  label: "Impressões" },
+      { value: "98.7%", label: "SLA" },
+      { value: "97.3",  label: "Trust" },
+    ],
+    features: ["Proof-of-Play", "Blockchain", "ICP Brasil", "APIs"],
+    cta: "Acessar Enterprise",
+    ctaColor: "#8B5CF6",
+    href: "/enterprise",
+  },
+]
+
+const TRUST_BADGES = [
+  { label: "ICP Brasil A3",      color: "#10B981" },
+  { label: "Ethereum Mainnet",   color: "#3B82F6" },
+  { label: "LGPD Compliance",    color: "#F59E0B" },
+  { label: "97.3 Trust Score",   color: "#10B981" },
+]
+
+export default function LandingPage() {
+  const [impressions, setImpressions] = useState(1333)
+  const [screens]    = useState(1333)
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setImpressions(p => p + Math.floor(Math.random() * 3) + 1)
+    }, 1500)
+    return () => clearInterval(t)
+  }, [])
+
   return (
-    <main className="min-h-screen bg-white">
+    <main style={{ minHeight: "100vh", background: "#080C18", color: "#fff", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* ── HERO ── */}
-      <section className="relative overflow-hidden bg-slate-950 px-6 py-24 sm:py-32">
-        {/* Grid decorativo */}
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:48px_48px]" />
-        {/* Glow */}
-        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+      {/* NAV */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 2rem", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.03em" }}>DOOH<span style={{ color: "#3B82F6" }}>PLAY</span></span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {NAV_LINKS.map(link => (
+            <Link key={link.label} href={link.href} style={{ padding: "6px 12px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, transition: "color 0.2s" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#94A3B8")}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/studio" style={{ padding: "8px 16px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
+            Entrar
+          </Link>
+          <Link href="/onboarding" style={{ padding: "8px 16px", fontSize: 13, color: "#fff", textDecoration: "none", borderRadius: 8, background: "#3B82F6", fontWeight: 600 }}>
+            Instalar uma Tela
+          </Link>
+        </div>
+      </nav>
 
-        <div className="relative mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Ledger público · Polygon Mainnet · Score 100/100
+      {/* HERO */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem 3rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
+        <div>
+          {/* Tags */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: "1.5rem" }}>
+            {TAGS.map(tag => (
+              <span key={tag} style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#3B82F6", fontWeight: 500 }}>
+                ✓ {tag}
+              </span>
+            ))}
           </div>
 
-          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-            Publicidade DOOH com{" "}
-            <span className="text-emerald-400">prova criptográfica</span>
+          <h1 style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 20px" }}>
+            Transforme qualquer TV em uma plataforma de{" "}
+            <span style={{ color: "#3B82F6" }}>conteúdo, publicidade e receita.</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-            O DOOHPLAY registra cada exibição de mídia em um ledger imutável,
-            ancorando as provas na blockchain Polygon. Anunciantes verificam
-            o que foi exibido, quando e onde — com score de confiança auditável.
+          <p style={{ fontSize: 18, color: "#94A3B8", lineHeight: 1.6, margin: "0 0 2rem", maxWidth: 500 }}>
+            Digital Signage, Retail Media e Proof-of-Play Auditável em uma única plataforma Enterprise.
           </p>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/verify"
-              className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-emerald-400 transition-colors"
-            >
-              🔐 Verificar uma prova
+          <div style={{ display: "flex", gap: 12, marginBottom: "2rem" }}>
+            <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Instalar uma Tela →
             </Link>
-            <Link
-              href="/explorer"
-              className="rounded-xl border border-slate-700 bg-slate-800 px-6 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
-            >
-              🔍 Explorar o ledger
+            <Link href="/enterprise" style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.06)", color: "#fff", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600, textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Solicitar Demonstração
             </Link>
+          </div>
+
+          <Link href="#video" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Assistir Vídeo
+          </Link>
+        </div>
+
+        {/* Hero Dashboard */}
+        <div style={{ position: "relative" }}>
+          <div style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "1.25rem", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#EF4444" }} />
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#F59E0B" }} />
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#10B981" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#10B981" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} /> LIVE · NOC
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: "1rem" }}>
+              {[
+                { value: "12.847", label: "Telas", color: "#3B82F6" },
+                { value: "84.2M",  label: "Impressões", color: "#10B981" },
+                { value: "97.3",   label: "Trust", color: "#10B981" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: "#64748B" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 11, color: "#64748B", marginBottom: 8 }}>Receita Mensal (R$ M)</div>
+            <div style={{ height: 60, background: "rgba(59,130,246,0.05)", borderRadius: 8, overflow: "hidden", position: "relative", marginBottom: "1rem" }}>
+              <svg width="100%" height="100%" viewBox="0 0 300 60" preserveAspectRatio="none">
+                <polyline points="0,50 50,40 100,35 150,28 200,20 250,15 300,8" fill="none" stroke="#3B82F6" strokeWidth="2"/>
+                <polygon points="0,50 50,40 100,35 150,28 200,20 250,15 300,8 300,60 0,60" fill="rgba(59,130,246,0.1)"/>
+              </svg>
+            </div>
+
+            <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#10B981" }}>ProofChain</div>
+                <div style={{ fontSize: 10, color: "#64748B" }}>0x7f2a...c4e1 · Verificado · Bloco #18.2M</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Floating card */}
+          <div style={{ position: "absolute", top: -20, right: -20, background: "#12182B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 16px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+            <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>Retail Media</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#10B981" }}>R$8.4M</div>
+            <div style={{ fontSize: 11, color: "#10B981" }}>+23% esse mês</div>
           </div>
         </div>
       </section>
 
-      {/* ── STATS ── */}
-      <section className="border-b border-slate-100 bg-slate-50 px-6 py-12">
-        <div className="mx-auto max-w-5xl grid grid-cols-2 gap-6 sm:grid-cols-4">
-          {[
-            { value: "524", label: "Blocos no ledger", icon: "🗄️" },
-            { value: "515", label: "Anchorados na Polygon", icon: "⬡" },
-            { value: "100/100", label: "Score de confiança", icon: "✅" },
-            { value: "RSA-SHA256", label: "Assinatura ICP-Brasil", icon: "🔏" },
-          ].map(s => (
-            <div key={s.label} className="rounded-2xl border border-slate-200 bg-white px-5 py-5 text-center shadow-sm">
-              <div className="text-2xl">{s.icon}</div>
-              <div className="mt-2 text-2xl font-bold text-slate-900">{s.value}</div>
-              <div className="mt-1 text-xs text-slate-500">{s.label}</div>
+      {/* LIVE NETWORK STATUS */}
+      <section style={{ maxWidth: 760, margin: "0 auto", padding: "0 2rem 4rem" }}>
+        <div style={{ background: "#0F1629", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 16, padding: "1.25rem 1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "#10B981", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
+            LIVE NETWORK STATUS
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 36, fontWeight: 900, letterSpacing: "-0.03em" }}>{screens.toLocaleString("pt-BR")}</div>
+              <div style={{ fontSize: 13, color: "#64748B" }}>telas online agora</div>
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "#3B82F6" }}>
+              +{impressions - screens}
+              <div style={{ fontSize: 13, color: "#64748B", fontWeight: 400 }}>exibições verificadas / 30s</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
+            <span style={{ color: "#10B981" }}>● Blockchain Sync</span>
+            <span style={{ color: "#3B82F6" }}>● ICP Brasil Ativo</span>
+            <span style={{ color: "#F59E0B" }}>● Trust 97.3</span>
+          </div>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section style={{ background: "#0A0F1E", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "3rem 2rem" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 0 }}>
+          {STATS.map((s, i) => (
+            <div key={s.label} style={{ textAlign: "center", padding: "1rem", borderRight: i < STATS.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: s.color, letterSpacing: "-0.02em" }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>{s.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── COMO FUNCIONA ── */}
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Como funciona</h2>
-            <p className="mt-3 text-slate-500">Do play na tela à prova on-chain em milissegundos.</p>
-          </div>
-
-          <div className="relative">
-            {/* Linha conectora */}
-            <div className="absolute left-8 top-8 hidden h-[calc(100%-4rem)] w-0.5 bg-slate-100 sm:block" />
-
-            <div className="space-y-8">
-              {[
-                {
-                  step: "01",
-                  icon: "📺",
-                  title: "Exibição registrada",
-                  desc: "Cada play de mídia gera um evento com hash SHA-256, assinatura RSA do player e timestamp TSA RFC3161.",
-                  color: "bg-blue-50 border-blue-200 text-blue-700",
-                },
-                {
-                  step: "02",
-                  icon: "🌲",
-                  title: "Merkle Tree formada",
-                  desc: "Os eventos são agrupados em blocos e organizados em uma Merkle Tree, garantindo integridade da cadeia.",
-                  color: "bg-purple-50 border-purple-200 text-purple-700",
-                },
-                {
-                  step: "03",
-                  icon: "⬡",
-                  title: "Ancoragem na Polygon",
-                  desc: "O Merkle Root é gravado em smart contract na Polygon Mainnet, criando prova imutável e auditável.",
-                  color: "bg-emerald-50 border-emerald-200 text-emerald-700",
-                },
-                {
-                  step: "04",
-                  icon: "🔐",
-                  title: "Verificação pública",
-                  desc: "Qualquer pessoa pode verificar qualquer hash via portal público ou API REST — sem autenticação.",
-                  color: "bg-amber-50 border-amber-200 text-amber-700",
-                },
-              ].map((item, i) => (
-                <div key={i} className="relative flex gap-6">
-                  <div className={`relative z-10 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-2xl ${item.color}`}>
-                    {item.icon}
-                  </div>
-                  <div className="pt-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400">PASSO {item.step}</span>
-                    </div>
-                    <h3 className="mt-0.5 text-lg font-semibold text-slate-900">{item.title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
+      {/* QUEM USA */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem" }}>
+        <div style={{ textAlign: "center", marginBottom: "3rem" }}>
+          <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Quem usa o DOOHPLAY?</h2>
+          <p style={{ fontSize: 16, color: "#64748B" }}>Da padaria ao shopping center — uma plataforma para todos os tamanhos.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+          {SEGMENTS.map(s => (
+            <div key={s.label} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.25rem", textAlign: "center", cursor: "pointer", transition: "border-color 0.2s" }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(59,130,246,0.4)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
+            >
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#CBD5E1" }}>{s.label}</div>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* ── DIFERENCIAIS ── */}
-      <section className="bg-slate-50 px-6 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Por que DOOHPLAY</h2>
-            <p className="mt-3 text-slate-500">A única plataforma DOOH com verificação criptográfica end-to-end.</p>
+      {/* FEATURES */}
+      <section style={{ background: "#0A0F1E", padding: "5rem 2rem" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: "3rem" }}>
+            <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Tecnologia de ponta. Simplicidade na prática.</h2>
+            <p style={{ fontSize: 16, color: "#64748B" }}>Do pequeno comércio à agência global — tudo em uma plataforma.</p>
           </div>
-
-          <div className="grid gap-6 sm:grid-cols-3">
-            {[
-              {
-                icon: "🔏",
-                title: "ICP-Brasil + RSA-SHA256",
-                desc: "Cada evento é assinado com chave RSA-SHA256 compatível com a cadeia de certificação ICP-Brasil, com validade jurídica.",
-                badge: "Compliance",
-                badgeCls: "bg-blue-50 border-blue-200 text-blue-700",
-              },
-              {
-                icon: "⬡",
-                title: "Blockchain Polygon",
-                desc: "Merkle Roots anchorados na Polygon Mainnet com confirmação de transação verificável no PolygonScan.",
-                badge: "On-chain",
-                badgeCls: "bg-purple-50 border-purple-200 text-purple-700",
-              },
-              {
-                icon: "📊",
-                title: "Score auditável 0–100",
-                desc: "Cada verificação retorna um score calculado por camadas — ICP, Merkle, Blockchain e TSA — com breakdown detalhado.",
-                badge: "Transparência",
-                badgeCls: "bg-emerald-50 border-emerald-200 text-emerald-700",
-              },
-              {
-                icon: "⚡",
-                title: "API REST pública",
-                desc: "Endpoint público sem autenticação para verificação de provas. Integração em minutos com qualquer sistema.",
-                badge: "Integração",
-                badgeCls: "bg-amber-50 border-amber-200 text-amber-700",
-              },
-              {
-                icon: "📄",
-                title: "PDF certificado",
-                desc: "Geração de documento PDF com QR Code, hash, camadas de verificação e link para a transação blockchain.",
-                badge: "Documentação",
-                badgeCls: "bg-rose-50 border-rose-200 text-rose-700",
-              },
-              {
-                icon: "🗺️",
-                title: "Network Map em tempo real",
-                desc: "Visualização de todas as telas da rede, status online/offline, plays e localização geográfica.",
-                badge: "Visibilidade",
-                badgeCls: "bg-slate-100 border-slate-200 text-slate-600",
-              },
-            ].map(f => (
-              <div key={f.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="text-3xl">{f.icon}</div>
-                <div className="mt-3 flex items-center gap-2">
-                  <h3 className="font-semibold text-slate-900">{f.title}</h3>
-                </div>
-                <span className={`mt-1 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${f.badgeCls}`}>
-                  {f.badge}
-                </span>
-                <p className="mt-3 text-sm leading-6 text-slate-500">{f.desc}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            {FEATURES.map(f => (
+              <div key={f.title} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1.5rem", transition: "border-color 0.2s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(59,130,246,0.3)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
+              >
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{f.icon}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{f.title}</div>
+                <div style={{ fontSize: 14, color: "#64748B", lineHeight: 1.6 }}>{f.desc}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── DEMO AO VIVO ── */}
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-slate-950 p-10 text-center shadow-xl">
-          <div className="text-4xl">🔐</div>
-          <h2 className="mt-4 text-2xl font-bold text-white">Veja uma prova ao vivo</h2>
-          <p className="mt-3 text-slate-400 text-sm leading-6">
-            Acesse a verificação de um evento real anchorado na Polygon Mainnet.
-            Score 100/100, Trust HIGH, Risk LOW.
-          </p>
-          <div className="mt-6 rounded-xl bg-slate-800 px-4 py-3 font-mono text-xs text-slate-300 break-all">
-            0x20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be
+      {/* PERSONAS */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem" }}>
+        <div style={{ textAlign: "center", marginBottom: "3rem" }}>
+          <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Como você pretende utilizar o DOOHPLAY?</h2>
+          <p style={{ fontSize: 16, color: "#64748B" }}>Escolha a experiência ideal para seu negócio.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+          {PERSONAS.map(p => (
+            <div key={p.tag} style={{ background: "#0F1629", border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+                <span style={{ background: p.badgeColor, color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{p.badge}</span>
+                <span style={{ fontSize: 11, color: p.badgeColor, fontWeight: 600 }}>● {p.tag}</span>
+              </div>
+
+              {/* Mini dashboard */}
+              <div style={{ background: "#080C18", borderRadius: 12, padding: "1rem", marginBottom: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+                  {p.stats.map(s => (
+                    <div key={s.label} style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: p.badgeColor }}>{s.value}</div>
+                      <div style={{ fontSize: 10, color: "#64748B" }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: "70%", background: p.badgeColor, borderRadius: 2 }} />
+                </div>
+              </div>
+
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: "1rem", lineHeight: 1.3 }}>{p.title}</div>
+
+              <div style={{ flex: 1, marginBottom: "1.5rem" }}>
+                {p.features.map(f => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, color: "#CBD5E1" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={p.badgeColor} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    {f}
+                  </div>
+                ))}
+              </div>
+
+              <Link href={p.href} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: p.badgeColor, color: "#fff", padding: "13px", borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+                {p.cta} →
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PROOFCHAIN BANNER */}
+      <section style={{ background: "#080C18", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "1.25rem 2rem" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Proof-of-Play Auditável com ICP Brasil & Blockchain</div>
+            <div style={{ fontSize: 13, color: "#64748B" }}>Cada exibição registrada de forma imutável. Trust Score em tempo real. LGPD compliance.</div>
           </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/verify/20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
-              className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-400 transition-colors"
-            >
-              Ver verificação completa →
-            </Link>
-            <a
-              href="https://polygonscan.com/tx/0xc0680ce7bbb283cbb7af6ec6c6fc01cb99067434e1aaa4ec513d24d4f1c10b32"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-xl border border-slate-700 bg-slate-800 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition-colors"
-            >
-              ⬡ Ver na Polygon
-            </a>
+          <div style={{ display: "flex", gap: 10 }}>
+            {TRUST_BADGES.map(b => (
+              <span key={b.label} style={{ background: `${b.color}15`, border: `1px solid ${b.color}40`, borderRadius: 20, padding: "6px 14px", fontSize: 12, color: b.color, fontWeight: 600, whiteSpace: "nowrap" }}>
+                ✓ {b.label}
+              </span>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-slate-100 bg-slate-50 px-6 py-8">
-        <div className="mx-auto max-w-5xl flex flex-col items-center gap-2 text-center text-xs text-slate-400">
-          <div className="font-semibold text-slate-600">DOOHPLAY — Trust Infrastructure for DOOH Advertising</div>
-          <div>Blockchain · ICP-Brasil · Merkle Proof · TSA RFC3161</div>
-          <div className="mt-2">© {new Date().getFullYear()} DOOHPLAY. Ledger público auditável.</div>
+      {/* CTA FINAL */}
+      <section style={{ padding: "6rem 2rem", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "#3B82F6", marginBottom: "1.5rem" }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
+          {screens.toLocaleString("pt-BR")} telas ativas agora
+        </div>
+        <h2 style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 16px" }}>
+          Comece a monetizar sua TV hoje.
+        </h2>
+        <p style={{ fontSize: 18, color: "#64748B", margin: "0 0 2rem" }}>
+          Grátis para comércios locais. Sem contrato. Sem taxa de adesão.
+        </p>
+        <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+          <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 700, textDecoration: "none" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Instalar uma Tela — Grátis →
+          </Link>
+          <Link href="/enterprise" style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.06)", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 600, textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            Solicitar Demo Enterprise
+          </Link>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ background: "#080C18", borderTop: "1px solid rgba(255,255,255,0.06)", padding: "3rem 2rem 2rem" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "2rem", marginBottom: "2rem" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 800 }}>DOOH<span style={{ color: "#3B82F6" }}>PLAY</span></span>
+              </div>
+              <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6, maxWidth: 280 }}>
+                Digital Signage, Retail Media e Proof-of-Play Auditável em uma única plataforma Enterprise.
+              </p>
+            </div>
+            {[
+              { title: "PLATAFORMA", links: ["Instalar Tela", "Planos", "Enterprise", "Studio"] },
+              { title: "SEGURANÇA",  links: ["ProofChain", "ICP Brasil", "Blockchain", "LGPD"] },
+              { title: "CERTIFICAÇÕES", links: ["Trust Center", "Audit Center", "Network Center", "Suporte"] },
+            ].map(col => (
+              <div key={col.title}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{col.title}</div>
+                {col.links.map(link => (
+                  <div key={link} style={{ fontSize: 13, color: "#64748B", marginBottom: 8, cursor: "pointer" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#64748B")}
+                  >{link}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "1.5rem", display: "flex", justifyContent: "space-between", fontSize: 12, color: "#334155" }}>
+            <span>© 2026 DOOHPLAY. Todos os direitos reservados.</span>
+            <div style={{ display: "flex", gap: 16 }}>
+              <span style={{ color: "#10B981" }}>↑ 99.9% uptime</span>
+              <span>LGPD Compliance</span>
+              <span>ICP Brasil</span>
+            </div>
+          </div>
         </div>
       </footer>
-
     </main>
   )
 }
