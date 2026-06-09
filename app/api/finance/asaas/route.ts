@@ -21,34 +21,83 @@ async function asaas(path: string, method = "GET", body?: object) {
   return res.json()
 }
 
-// Cria ou busca cliente no Asaas
-async function getOrCreateAsaasCustomer(client: any) {
-  // Busca por CPF/CNPJ ou email
-  const search = await asaas(`/customers?email=${encodeURIComponent(client.email)}`)
-  if (search.data?.length > 0) return search.data[0]
+function cleanDocument(doc: string) {
+  return doc.replace(/\D/g, "")
+}
 
-  return asaas("/customers", "POST", {
+function isCNPJ(doc: string) {
+  return cleanDocument(doc).length === 14
+}
+
+// Cria ou busca cliente no Asaas por CPF/CNPJ (mais confiável que email)
+async function getOrCreateAsaasCustomer(client: {
+  name: string
+  email?: string
+  phone?: string
+  cpf_cnpj?: string
+  code: string
+  contact_name?: string
+}) {
+  const pool = getPool()
+  
+  // 1. Verifica se já tem asaas_customer_id salvo
+  try {
+    const r = await pool.query(
+      `SELECT asaas_customer_id FROM financial_subscriptions WHERE code = $1 LIMIT 1`,
+      [client.code]
+    )
+    if (r.rows[0]?.asaas_customer_id) {
+      const existing = await asaas(`/customers/${r.rows[0].asaas_customer_id}`)
+      if (!existing.errors) return existing
+    }
+  } catch {}
+
+  // 2. Busca por CPF/CNPJ no Asaas
+  if (client.cpf_cnpj) {
+    const doc = cleanDocument(client.cpf_cnpj)
+    const search = await asaas(`/customers?cpfCnpj=${doc}`)
+    if (search.data?.length > 0) return search.data[0]
+  }
+
+  // 3. Busca por email
+  if (client.email) {
+    const search = await asaas(`/customers?email=${encodeURIComponent(client.email)}`)
+    if (search.data?.length > 0) return search.data[0]
+  }
+
+  // 4. Cria novo cliente
+  const customerData: Record<string, string> = {
     name: client.contact_name || client.name,
-    email: client.email,
-    mobilePhone: client.phone,
     externalReference: client.code,
-  })
+  }
+  if (client.email)    customerData.email = client.email
+  if (client.phone)    customerData.mobilePhone = cleanDocument(client.phone)
+  if (client.cpf_cnpj) {
+    const doc = cleanDocument(client.cpf_cnpj)
+    customerData.cpfCnpj = doc
+    customerData.personType = isCNPJ(doc) ? "JURIDICA" : "FISICA"
+  }
+
+  return asaas("/customers", "POST", customerData)
 }
 
 // Cria cobrança recorrente
 async function createSubscription(customerId: string, client: any, plan: string) {
   const prices: Record<string, number> = {
-    starter: 197,
-    pro: 347,
-    multi: 547,
+    local:      0,    // comissão, sem mensalidade
+    starter:  197,
+    business: 299,
+    pro:      347,
+    multi:    547,
+    enterprise: 0,  // negociado
   }
-  const value = prices[plan] || 197
+  const value = prices[plan] ?? 197
 
   return asaas("/subscriptions", "POST", {
     customer: customerId,
-    billingType: "UNDEFINED", // cliente escolhe PIX, boleto ou cartão
+    billingType: "UNDEFINED",
     value,
-    nextDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 7 dias
+    nextDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     cycle: "MONTHLY",
     description: `DOOHPLAY — Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)} · ${client.name}`,
     externalReference: client.code,
@@ -60,7 +109,7 @@ async function createSubscription(customerId: string, client: any, plan: string)
 // ── POST /api/finance/asaas — ativa cobrança para um cliente ─────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { code, plan } = await req.json()
+    const { code, plan, cpf_cnpj } = await req.json()
 
     if (!code || !plan) {
       return NextResponse.json({ error: "code e plan obrigatórios" }, { status: 400 })
@@ -68,13 +117,17 @@ export async function POST(req: NextRequest) {
 
     const pool = getPool()
 
-    // Busca cliente no banco
+    // Busca cliente + lead (para email)
     const { rows } = await pool.query(
-      `SELECT sc.*, l.email, l.contact_name, l.plan
+      `SELECT sc.code, sc.name, sc.phone, sc.active,
+              COALESCE(l.email, '') AS email,
+              COALESCE(l.contact_name, sc.name) AS contact_name,
+              COALESCE(l.plan, $2) AS plan,
+              COALESCE(sc.cpf_cnpj, l.cpf_cnpj, $3) AS cpf_cnpj
          FROM studio_clients sc
          LEFT JOIN leads l ON l.code = sc.code
         WHERE sc.code = $1 LIMIT 1`,
-      [code.toUpperCase()]
+      [code.toUpperCase(), plan, cpf_cnpj || ""]
     )
 
     const client = rows[0]
@@ -82,8 +135,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
     }
 
-    // Cria cliente no Asaas
-    const customer = await getOrCreateAsaasCustomer(client)
+    // Salva CPF/CNPJ se fornecido
+    if (cpf_cnpj) {
+      try {
+        await pool.query(
+          `UPDATE studio_clients SET cpf_cnpj = $1 WHERE code = $2`,
+          [cleanDocument(cpf_cnpj), code.toUpperCase()]
+        )
+        client.cpf_cnpj = cleanDocument(cpf_cnpj)
+      } catch {
+        // Coluna pode não existir ainda — continua
+      }
+    }
+
+    // Cria/busca cliente no Asaas
+    const customer = await getOrCreateAsaasCustomer({ ...client, cpf_cnpj: client.cpf_cnpj })
     if (customer.errors) {
       return NextResponse.json({ error: "Erro ao criar cliente no Asaas", details: customer.errors }, { status: 400 })
     }
@@ -94,27 +160,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erro ao criar assinatura", details: subscription.errors }, { status: 400 })
     }
 
-    // Salva IDs no banco
-    await pool.query(
-      `UPDATE studio_clients
-          SET active = true
-        WHERE code = $1`,
-      [code.toUpperCase()]
-    )
+    // Ativa cliente e salva referência
+    await pool.query(`UPDATE studio_clients SET active = true WHERE code = $1`, [code.toUpperCase()])
 
-    // Salva referência financeira
     try {
       await pool.query(
         `INSERT INTO financial_subscriptions
            (code, asaas_customer_id, asaas_subscription_id, plan, value, status, created_at)
          VALUES ($1, $2, $3, $4, $5, 'ACTIVE', NOW())
          ON CONFLICT (code) DO UPDATE
-           SET asaas_subscription_id = $3, status = 'ACTIVE'`,
+           SET asaas_customer_id = $2, asaas_subscription_id = $3,
+               plan = $4, value = $5, status = 'ACTIVE'`,
         [code, customer.id, subscription.id, plan, subscription.value]
       )
-    } catch {
-      // Tabela pode não existir ainda
-    }
+    } catch { /* tabela pode não existir */ }
 
     return NextResponse.json({
       ok: true,
@@ -131,7 +190,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── GET /api/finance/asaas?code=ZIMERM — status financeiro do cliente ─────────
+// ── GET /api/finance/asaas?code=ZIMERM — status financeiro ───────────────────
 export async function GET(req: NextRequest) {
   try {
     const code = new URL(req.url).searchParams.get("code")
@@ -143,11 +202,8 @@ export async function GET(req: NextRequest) {
       [code.toUpperCase()]
     )
 
-    if (!rows[0]) {
-      return NextResponse.json({ error: "Sem assinatura ativa" }, { status: 404 })
-    }
+    if (!rows[0]) return NextResponse.json({ error: "Sem assinatura ativa" }, { status: 404 })
 
-    // Busca status atualizado no Asaas
     const subscription = await asaas(`/subscriptions/${rows[0].asaas_subscription_id}`)
 
     return NextResponse.json({
@@ -156,9 +212,101 @@ export async function GET(req: NextRequest) {
       value: subscription.value,
       next_due_date: subscription.nextDueDate,
       cycle: subscription.cycle,
+      customer_id: rows[0].asaas_customer_id,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+// ── PATCH /api/finance/asaas — atualiza CPF/CNPJ do cliente ──────────────────
+export async function PATCH(req: NextRequest) {
+  try {
+    const { code, cpf_cnpj, email, phone } = await req.json()
+    if (!code || !cpf_cnpj) {
+      return NextResponse.json({ error: "code e cpf_cnpj obrigatórios" }, { status: 400 })
+    }
+
+    const pool = getPool()
+    const doc = cleanDocument(cpf_cnpj)
+
+    // Valida formato
+    if (doc.length !== 11 && doc.length !== 14) {
+      return NextResponse.json({ error: "CPF deve ter 11 dígitos, CNPJ 14 dígitos" }, { status: 400 })
+    }
+
+    // Atualiza no banco (tenta — coluna pode não existir)
+    try {
+      await pool.query(
+        `ALTER TABLE studio_clients ADD COLUMN IF NOT EXISTS cpf_cnpj VARCHAR(20)`,
+        []
+      )
+      await pool.query(
+        `UPDATE studio_clients SET cpf_cnpj = $1 WHERE code = $2`,
+        [doc, code.toUpperCase()]
+      )
+    } catch (e) {
+      console.error("[finance/asaas PATCH] DB error:", e)
+    }
+
+    // Atualiza ou cria cliente no Asaas
+    const { rows } = await pool.query(
+      `SELECT sc.name, sc.phone, COALESCE(l.email, $3) AS email, COALESCE(l.contact_name, sc.name) AS contact_name,
+              fs.asaas_customer_id
+         FROM studio_clients sc
+         LEFT JOIN leads l ON l.code = sc.code
+         LEFT JOIN financial_subscriptions fs ON fs.code = sc.code
+        WHERE sc.code = $1 LIMIT 1`,
+      [code.toUpperCase(), code.toUpperCase(), email || ""]
+    )
+
+    if (!rows[0]) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
+
+    const client = rows[0]
+
+    // Se já tem customer no Asaas, atualiza documento
+    if (client.asaas_customer_id) {
+      const updated = await asaas(`/customers/${client.asaas_customer_id}`, "PUT", {
+        cpfCnpj: doc,
+        personType: doc.length === 14 ? "JURIDICA" : "FISICA",
+        ...(phone && { mobilePhone: cleanDocument(phone) }),
+        ...(email && { email }),
+      })
+      if (updated.errors) {
+        return NextResponse.json({ error: "Erro ao atualizar no Asaas", details: updated.errors }, { status: 400 })
+      }
+      return NextResponse.json({ ok: true, asaas_id: client.asaas_customer_id, cpf_cnpj: doc })
+    }
+
+    // Cria cliente novo no Asaas com documento
+    const newCustomer = await getOrCreateAsaasCustomer({
+      name: client.contact_name || client.name,
+      email: email || client.email,
+      phone: phone || client.phone,
+      cpf_cnpj: doc,
+      code: code.toUpperCase(),
+    })
+
+    if (newCustomer.errors) {
+      return NextResponse.json({ error: "Erro ao criar no Asaas", details: newCustomer.errors }, { status: 400 })
+    }
+
+    // Salva customer_id na tabela de subscriptions (para referência futura)
+    try {
+      await pool.query(
+        `INSERT INTO financial_subscriptions (code, asaas_customer_id, plan, value, status, created_at)
+         VALUES ($1, $2, 'pending', 0, 'PENDING', NOW())
+         ON CONFLICT (code) DO UPDATE SET asaas_customer_id = $2`,
+        [code.toUpperCase(), newCustomer.id]
+      )
+    } catch {}
+
+    return NextResponse.json({ ok: true, asaas_id: newCustomer.id, cpf_cnpj: doc })
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error("[finance/asaas PATCH] error:", message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

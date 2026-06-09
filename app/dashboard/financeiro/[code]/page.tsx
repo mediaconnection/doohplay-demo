@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { getPool } from "@/lib/db"
+import CpfForm from "./cpf-form"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = { id: string; code: string; name: string; phone: string | null; active: boolean }
@@ -303,6 +304,11 @@ export default async function FinanceiroDashboard({ params }: { params: { code: 
             </div>
           </div>
         )}
+
+        {/* ── CPF / CNPJ ── */}
+        <div style={{ marginBottom: 20 }}>
+          <CpfForm code={code} />
+        </div>
 
         {/* ── ATIVAR PLANO ── */}
         {!subscription && (
