@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const pool = getPool()
 
   try {
-    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes] = await Promise.all([
+    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes] = await Promise.all([
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
                sc.phone, sc.address, sc.created_at,
@@ -59,15 +59,26 @@ export async function GET(req: NextRequest) {
                COUNT(*) FILTER (WHERE anchored_at IS NOT NULL)::int AS anchored
         FROM event_blocks
       `),
+      pool.query(`
+        SELECT m.id::text, m.name, m.type, m.status, m.url, m."createdAt",
+               c.name AS campaign_name, c."advertiserCode",
+               a.name AS advertiser_name, a.phone AS advertiser_phone
+        FROM "CampaignMedia" m
+        JOIN "Campaign" c ON c.id = m."campaignId"
+        JOIN "Advertiser" a ON a.code = c."advertiserCode"
+        ORDER BY m."createdAt" DESC
+        LIMIT 50
+      `),
     ])
 
     return Response.json({
-      clients: clientsRes.rows,
+      clients:       clientsRes.rows,
       subscriptions: subsRes.rows,
-      advertisers: advertisersRes.rows,
-      campaigns: campaignsRes.rows,
-      events: eventsRes.rows[0],
-      blocks: blocksRes.rows[0],
+      advertisers:   advertisersRes.rows,
+      campaigns:     campaignsRes.rows,
+      events:        eventsRes.rows[0],
+      blocks:        blocksRes.rows[0],
+      medias:        mediasRes.rows,
     })
   } catch (err) {
     console.error("[admin stats]", err)
