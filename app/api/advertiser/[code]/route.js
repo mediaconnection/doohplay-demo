@@ -5,7 +5,6 @@ export async function GET(request, { params }) {
   const pool = getPool();
 
   try {
-    // Busca anunciante
     const advResult = await pool.query(
       `SELECT * FROM "Advertiser" WHERE code = $1`,
       [code.toUpperCase()]
@@ -17,7 +16,6 @@ export async function GET(request, { params }) {
 
     const advertiser = advResult.rows[0];
 
-    // Busca campanhas
     const campResult = await pool.query(
       `SELECT c.*, 
         COALESCE(
@@ -33,7 +31,6 @@ export async function GET(request, { params }) {
       [code.toUpperCase()]
     );
 
-    // Busca mídias
     const mediaResult = await pool.query(
       `SELECT m.*, c.name as "campaignName"
        FROM "CampaignMedia" m
