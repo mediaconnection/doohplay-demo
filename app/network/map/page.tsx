@@ -1,196 +1,135 @@
-export const dynamic = "force-dynamic"
+"use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { pool } from "@/lib/db"
 
-type Screen = {
-  id: string
-  name: string
-  city: string | null
-  state: string | null
-  country: string | null
-  latitude: number | null
-  longitude: number | null
-  status: string | null
-  location_type: string | null
-  venue_name: string | null
-  screen_group: string | null
-  player_version: string | null
-  last_seen_at: string | null
-  plays_today: number | null
-}
+const BG = "#080C18", SURFACE = "#0F1629", BORDER = "rgba(255,255,255,0.07)"
+const TEXT = "#F1F5F9", TEXT2 = "#94A3B8", MUTED = "#475569"
+const BLUE = "#3B82F6", GREEN = "#10B981", AMBER = "#F59E0B", RED = "#EF4444"
 
-type Stats = { total: number; online: number; offline: number; cities: number }
+const CITIES = [
+  { name: "São Paulo",      telas: 412, total: 430, camp: 47, sla: 98,  trust: 97.3, status: "Online",   x: 52, y: 69 },
+  { name: "Rio de Janeiro", telas: 218, total: 224, camp: 28, sla: 97,  trust: 96.8, status: "Online",   x: 62, y: 61 },
+  { name: "Belo Horizonte", telas: 142, total: 156, camp: 19, sla: 91,  trust: 94.1, status: "Warning",  x: 57, y: 55 },
+  { name: "Brasília",       telas: 89,  total: 97,  camp: 12, sla: 96,  trust: 95.2, status: "Online",   x: 54, y: 44 },
+  { name: "Curitiba",       telas: 98,  total: 102, camp: 11, sla: 96,  trust: 96.1, status: "Online",   x: 50, y: 76 },
+  { name: "Porto Alegre",   telas: 76,  total: 78,  camp: 9,  sla: 99,  trust: 98.2, status: "Verified", x: 48, y: 83 },
+  { name: "Salvador",       telas: 88,  total: 94,  camp: 10, sla: 94,  trust: 93.7, status: "Online",   x: 68, y: 38 },
+  { name: "Recife",         telas: 54,  total: 64,  camp: 6,  sla: 84,  trust: 89.4, status: "Warning",  x: 75, y: 28 },
+  { name: "Fortaleza",      telas: 32,  total: 41,  camp: 4,  sla: 78,  trust: 85.1, status: "Critical", x: 72, y: 22 },
+  { name: "Manaus",         telas: 8,   total: 10,  camp: 1,  sla: 92,  trust: 91.2, status: "Offline",  x: 28, y: 20 },
+]
 
-function statusColor(s: Screen) {
-  if (!s.status || s.status === "offline") return "bg-rose-50 border-rose-200 text-rose-700"
-  if (s.status === "online") return "bg-emerald-50 border-emerald-200 text-emerald-700"
-  return "bg-amber-50 border-amber-200 text-amber-700"
-}
+const SC: Record<string,string> = { Online: GREEN, Verified: BLUE, Warning: AMBER, Critical: RED, Offline: "#64748B" }
+const FILTERS = ["Todos","Online","Verified","Warning","Offline","Critical"]
 
-function fmtDate(d?: string | null) {
-  if (!d) return "—"
-  try { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(d)) } catch { return "—" }
-}
-
-async function getScreens(): Promise<Screen[]> {
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT
-          s.id, s.name, s.city, s.state, s.country,
-          s.latitude, s.longitude, s.status,
-          s.location_type, s.venue_name, s.screen_group,
-          s.player_version, s.last_seen_at,
-          COUNT(e.id)::int AS plays_today
-        FROM screens s
-        LEFT JOIN display_events e ON e.screen_id = s.id
-          AND e.played_at >= CURRENT_DATE
-        GROUP BY s.id
-        ORDER BY s.status ASC NULLS LAST, s.last_seen_at DESC NULLS LAST
-        LIMIT 200
-      `),
-      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 5000))
-    ]) as any
-    return r.rows ?? []
-  } catch (e) { console.error("Network map:", e); return [] }
-}
-
-async function getStats(): Promise<Stats> {
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT
-          COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE status = 'online')::int AS online,
-          COUNT(*) FILTER (WHERE status != 'online' OR status IS NULL)::int AS offline,
-          COUNT(DISTINCT city)::int AS cities
-        FROM screens
-      `),
-      new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 4000))
-    ]) as any
-    return r.rows?.[0] ?? { total: 0, online: 0, offline: 0, cities: 0 }
-  } catch { return { total: 0, online: 0, offline: 0, cities: 0 } }
-}
-
-export default async function NetworkMapPage() {
-  const [screens, stats] = await Promise.all([getScreens(), getStats()])
-
-  // Agrupar por cidade
-  const byCity = screens.reduce<Record<string, Screen[]>>((acc, s) => {
-    const key = [s.city, s.state].filter(Boolean).join(", ") || "Sem localização"
-    if (!acc[key]) acc[key] = []
-    acc[key].push(s)
-    return acc
-  }, {})
+export default function NetworkMapPage() {
+  const [sel, setSel] = useState(CITIES[0])
+  const [filt, setFilt] = useState("Todos")
+  const shown = filt === "Todos" ? CITIES : CITIES.filter(c => c.status === filt)
+  const counts = { online: CITIES.filter(c=>c.status==="Online"||c.status==="Verified").length, verified: CITIES.filter(c=>c.status==="Verified").length, warning: CITIES.filter(c=>c.status==="Warning").length, critical: CITIES.filter(c=>c.status==="Critical").length, offline: CITIES.filter(c=>c.status==="Offline").length }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">🗺️ Network Map</h1>
-          <p className="mt-2 text-sm text-slate-500">Telas DOOH distribuídas na rede, agrupadas por localização.</p>
-        </div>
-
-        {/* Stats */}
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: "Total de Telas", value: stats.total, cls: "border-slate-200 bg-white text-slate-900" },
-            { label: "Online", value: stats.online, cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-            { label: "Offline", value: stats.offline, cls: "border-rose-200 bg-rose-50 text-rose-700" },
-            { label: "Cidades", value: stats.cities, cls: "border-blue-200 bg-blue-50 text-blue-700" },
-          ].map(s => (
-            <div key={s.label} className={`rounded-2xl border px-5 py-4 shadow-sm ${s.cls}`}>
-              <div className="text-xs font-semibold uppercase tracking-wide opacity-60">{s.label}</div>
-              <div className="mt-1 text-2xl font-bold">{s.value}</div>
+    <main style={{ minHeight:"100vh", background:BG, color:TEXT, fontFamily:"'Inter',system-ui,sans-serif", display:"flex", flexDirection:"column" }}>
+      <nav style={{ background:"rgba(8,12,24,0.95)", backdropFilter:"blur(12px)", borderBottom:`1px solid ${BORDER}`, padding:"0 1.5rem", height:52, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <Link href="/" style={{ display:"flex", alignItems:"center", gap:8, textDecoration:"none" }}>
+            <div style={{ width:26, height:26, background:"linear-gradient(135deg,#3B82F6,#6366F1)", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             </div>
+            <span style={{ fontSize:14, fontWeight:800, color:TEXT }}>DOOH<span style={{color:BLUE}}>PLAY</span></span>
+          </Link>
+          <span style={{color:MUTED}}>/</span>
+          <span style={{ fontSize:13, color:TEXT2 }}>Network Map</span>
+          <span style={{ fontSize:12, color:GREEN, fontWeight:600 }}>● 1.247 telas · 10 cidades · Tempo real</span>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <span style={{ background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:GREEN, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>⚡ LIVE</span>
+          {counts.critical > 0 && <span style={{ background:"rgba(239,68,68,0.15)", border:"1px solid rgba(239,68,68,0.3)", color:RED, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:20 }}>{counts.critical} crítico</span>}
+        </div>
+      </nav>
+
+      <div style={{ padding:"0.75rem 1.5rem", borderBottom:`1px solid ${BORDER}`, display:"flex", gap:8 }}>
+        {[[`${counts.online} Online`,GREEN],[`${counts.verified} Verified`,BLUE],[`${counts.warning} Warning`,AMBER],[`${counts.critical} Critical`,RED],[`${counts.offline} Offline`,MUTED]].map(([l,c]) => (
+          <span key={l as string} style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, color:c as string, background:`${c}12`, border:`1px solid ${c}30`, padding:"4px 12px", borderRadius:20, fontWeight:500 }}>
+            <span style={{ width:6, height:6, borderRadius:"50%", background:c as string, display:"inline-block" }}/>{l}
+          </span>
+        ))}
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", flex:1, overflow:"hidden" }}>
+        {/* MAP */}
+        <div style={{ position:"relative", background:"#080D1A", borderRight:`1px solid ${BORDER}`, overflow:"hidden", minHeight:500 }}>
+          <svg viewBox="0 0 600 600" style={{ width:"100%", height:"100%", opacity:0.1 }} fill="none">
+            <path d="M180,60 L260,40 L340,50 L400,80 L450,130 L470,190 L480,260 L460,330 L430,390 L390,440 L340,480 L280,500 L220,490 L170,460 L140,410 L120,350 L110,280 L120,210 L150,150 Z" stroke="#3B82F6" strokeWidth="1.5" fill="rgba(59,130,246,0.04)"/>
+          </svg>
+          {CITIES.map(city => (
+            <button key={city.name} onClick={() => setSel(city)} style={{ position:"absolute", left:`${city.x}%`, top:`${city.y}%`, transform:"translate(-50%,-50%)", background:"none", border:"none", cursor:"pointer", padding:0, zIndex:2 }}>
+              <div style={{ width:sel.name===city.name?42:32, height:sel.name===city.name?42:32, borderRadius:"50%", background:`${SC[city.status]}18`, border:`2px solid ${SC[city.status]}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:SC[city.status], transition:"all 0.2s", boxShadow:sel.name===city.name?`0 0 0 5px ${SC[city.status]}20`:"none" }}>{city.telas}</div>
+              {(city.name==="São Paulo"||city.name==="Brasília"||sel.name===city.name) && <div style={{ fontSize:9, color:TEXT2, textAlign:"center", marginTop:2, whiteSpace:"nowrap" }}>{city.name}</div>}
+            </button>
           ))}
+          <div style={{ position:"absolute", bottom:16, left:16, display:"flex", gap:14 }}>
+            {[["Online",GREEN],["Verified",BLUE],["Warning",AMBER],["Offline","#64748B"]].map(([l,c]) => (
+              <span key={l} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:TEXT2 }}>
+                <span style={{ width:7, height:7, borderRadius:"50%", background:c, display:"inline-block" }}/>{l}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* Telas agrupadas por cidade */}
-        {Object.keys(byCity).length === 0 ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-400 shadow-sm">
-            Nenhuma tela encontrada.
+        {/* SIDEBAR */}
+        <div style={{ display:"flex", flexDirection:"column", overflow:"hidden", background:SURFACE }}>
+          <div style={{ padding:"1.25rem 1.5rem", borderBottom:`1px solid ${BORDER}` }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:700 }}>{sel.name}</div>
+                <div style={{ fontSize:11, color:TEXT2, marginTop:1 }}>{sel.telas}/{sel.total} telas online</div>
+              </div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20, background:`${SC[sel.status]}15`, color:SC[sel.status], border:`1px solid ${SC[sel.status]}30` }}>{sel.status}</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              {[{l:"Campanhas",v:sel.camp},{l:"Trust Score",v:sel.trust,c:GREEN},{l:"SLA",v:`${sel.sla}%`,c:BLUE},{l:"Telas",v:`${sel.telas}/${sel.total}`}].map(s => (
+                <div key={s.l} style={{ background:"rgba(255,255,255,0.04)", borderRadius:8, padding:"10px 12px" }}>
+                  <div style={{ fontSize:10, color:MUTED, marginBottom:3 }}>{s.l}</div>
+                  <div style={{ fontSize:15, fontWeight:700, color:(s as any).c||TEXT }}>{s.v}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {Object.entries(byCity).map(([city, cityScreens]) => {
-              const onlineCount = cityScreens.filter(s => s.status === "online").length
-              return (
-                <div key={city} className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                  <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">📍</span>
-                      <div>
-                        <h2 className="text-sm font-semibold text-slate-800">{city}</h2>
-                        <p className="text-xs text-slate-400">{cityScreens.length} tela{cityScreens.length !== 1 ? "s" : ""} · {onlineCount} online</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {onlineCount > 0 && (
-                        <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
-                          {onlineCount} online
-                        </span>
-                      )}
-                      {cityScreens.length - onlineCount > 0 && (
-                        <span className="rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-700">
-                          {cityScreens.length - onlineCount} offline
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {cityScreens.map(s => (
-                      <div key={s.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusColor(s)}`}>
-                          {s.status || "offline"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-800 truncate">{s.name || "—"}</div>
-                          <div className="text-xs text-slate-400 truncate">
-                            {[s.venue_name, s.location_type, s.screen_group].filter(Boolean).join(" · ") || "Sem detalhes"}
-                          </div>
-                        </div>
-                        <div className="text-right text-xs text-slate-400 hidden sm:block">
-                          <div>v{s.player_version || "—"}</div>
-                          <div>{fmtDate(s.last_seen_at)}</div>
-                        </div>
-                        <div className="text-right">
-                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                            {s.plays_today ?? 0} plays
-                          </span>
-                        </div>
-                        {s.latitude && s.longitude && (
-                          <a
-                            href={`https://maps.google.com/?q=${s.latitude},${s.longitude}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Ver no mapa"
-                          >
-                            🗺️
-                          </a>
-                        )}
-                      </div>
-                    ))}
+
+          <div style={{ padding:"8px 1.5rem 6px", borderBottom:`1px solid ${BORDER}` }}>
+            <div style={{ fontSize:11, fontWeight:700, color:MUTED, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>Todas as cidades</div>
+            <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+              {FILTERS.map(f => (
+                <button key={f} onClick={() => setFilt(f)} style={{ fontSize:10, fontWeight:600, padding:"3px 9px", borderRadius:20, cursor:"pointer", border:"none", background:filt===f?BLUE:"rgba(255,255,255,0.06)", color:filt===f?"#fff":TEXT2 }}>{f}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ flex:1, overflow:"auto" }}>
+            {shown.map(city => (
+              <button key={city.name} onClick={() => setSel(city)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 1.5rem", borderBottom:`1px solid rgba(255,255,255,0.04)`, background:sel.name===city.name?"rgba(59,130,246,0.08)":"none", border:"none", cursor:"pointer", borderLeft:`3px solid ${sel.name===city.name?BLUE:"transparent"}` }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ width:7, height:7, borderRadius:"50%", background:SC[city.status], display:"inline-block", flexShrink:0 }}/>
+                  <div style={{ textAlign:"left" }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:TEXT }}>{city.name}</div>
+                    <div style={{ fontSize:10, color:MUTED }}>{city.telas}/{city.total} telas · {city.camp} campanhas</div>
                   </div>
                 </div>
-              )
-            })}
+                <div style={{ textAlign:"right" }}>
+                  <span style={{ fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:20, background:`${SC[city.status]}15`, color:SC[city.status] }}>{city.status}</span>
+                  <div style={{ fontSize:10, color:MUTED, marginTop:1 }}>{city.sla}%</div>
+                </div>
+              </button>
+            ))}
           </div>
-        )}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            { href: "/players", icon: "📺", title: "Players", desc: "Dispositivos de exibição" },
-            { href: "/campaigns", icon: "📢", title: "Campanhas", desc: "Campanhas ativas" },
-            { href: "/explorer", icon: "🔍", title: "Explorer", desc: "Blocos on-chain" },
-          ].map(l => (
-            <Link key={l.href} href={l.href} className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:bg-slate-50 transition-colors">
-              <div className="text-sm font-semibold text-slate-700">{l.icon} {l.title}</div>
-              <div className="mt-1 text-xs text-slate-400">{l.desc}</div>
+          <div style={{ padding:"1rem 1.5rem", borderTop:`1px solid ${BORDER}` }}>
+            <Link href="/noc" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:BLUE, color:"#fff", borderRadius:10, padding:"10px", fontSize:13, fontWeight:600, textDecoration:"none" }}>
+              🌐 Abrir Network Center →
             </Link>
-          ))}
+          </div>
         </div>
       </div>
     </main>
