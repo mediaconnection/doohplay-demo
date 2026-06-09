@@ -60,63 +60,16 @@ export default function NetworkMapPage() {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", flex:1, overflow:"hidden" }}>
         {/* MAP */}
         <div style={{ position:"relative", background:"#080D1A", borderRight:`1px solid ${BORDER}`, overflow:"hidden", minHeight:500 }}>
-          {/* Brazil map using reliable SVG */}
-          <svg viewBox="0 0 800 800" style={{ width:"100%", height:"100%", opacity:0.25, position:"absolute", top:0, left:0 }} xmlns="http://www.w3.org/2000/svg">
-            <g transform="translate(400,400) scale(0.85) translate(-400,-400)">
-              {/* Simplified but recognizable Brazil outline */}
-              <path
-                fill="rgba(59,130,246,0.15)"
-                stroke="#3B82F6"
-                strokeWidth="2"
-                strokeLinejoin="round"
-                d="
-                  M 370,55 L 395,50 L 420,53 L 448,62 L 472,76 L 492,94 L 506,115
-                  L 514,138 L 516,161 L 512,183 L 503,202 L 490,218 L 474,231
-                  L 456,241 L 440,249 L 428,257 L 420,267 L 416,279 L 416,294
-                  L 420,310 L 428,326 L 438,340 L 448,352 L 455,362 L 458,372
-                  L 456,382 L 448,390 L 436,396 L 422,400 L 408,402 L 394,402
-                  L 382,400 L 372,395 L 364,388 L 357,378 L 351,366 L 346,352
-                  L 341,338 L 335,324 L 328,312 L 319,302 L 308,294 L 296,288
-                  L 283,284 L 270,282 L 258,282 L 247,284 L 238,289 L 230,296
-                  L 224,306 L 220,318 L 218,332 L 219,347 L 223,362 L 230,376
-                  L 239,388 L 249,399 L 259,408 L 268,415 L 274,422 L 277,430
-                  L 276,438 L 271,445 L 262,450 L 250,453 L 237,454 L 224,452
-                  L 212,447 L 201,440 L 192,431 L 185,420 L 181,408 L 180,396
-                  L 182,384 L 188,373 L 197,364 L 208,357 L 220,353 L 232,351
-                  L 244,352 L 255,356 L 265,363 L 272,372 L 276,382 L 276,392
-                  L 272,401 L 264,408 L 253,412 L 241,413 L 230,410 L 220,404
-                  L 213,395 L 209,384 L 209,373 L 213,363 L 221,356 L 232,352
-                  L 244,352 L 255,356 L 264,364 L 269,375 L 269,387 L 264,397
-                  L 254,404 L 242,407 L 231,406 L 222,400 L 217,391 L 217,381
-                  L 222,372 L 230,366 L 241,364 L 252,366 L 260,372 L 264,381
-                  L 262,390 L 255,396 L 246,397 L 237,393 L 232,385 L 234,376
-                  L 242,371 L 251,372 L 256,379 L 253,387 L 244,389 L 238,382
-                  L 240,374 L 248,372 L 253,378 L 249,385 L 241,383
-                  M 258,450 L 264,458 L 271,469 L 276,482 L 279,497 L 279,513
-                  L 276,529 L 269,544 L 258,558 L 244,569 L 228,577 L 210,582
-                  L 192,583 L 174,580 L 158,573 L 143,561 L 131,546 L 123,528
-                  L 119,509 L 120,490 L 126,472 L 136,456 L 150,443 L 166,434
-                  L 184,428 L 202,426 L 220,428 L 237,434 L 251,443 L 258,450
-                  M 278,582 L 288,590 L 300,596 L 314,599 L 329,599 L 343,595
-                  L 355,587 L 365,576 L 370,562 L 370,548 L 365,534 L 356,522
-                  L 343,513 L 329,508 L 314,506 L 300,508 L 287,514 L 278,522
-                  L 272,533 L 270,545 L 272,558 L 278,570 L 278,582
-                "
-              />
-              {/* Northeast protrusion - "bico" do Nordeste */}
-              <path
-                fill="rgba(59,130,246,0.15)"
-                stroke="#3B82F6"
-                strokeWidth="2"
-                d="
-                  M 472,76 L 500,72 L 525,74 L 548,82 L 565,95 L 575,111
-                  L 578,129 L 572,147 L 558,161 L 540,170 L 520,174
-                  L 500,172 L 483,164 L 470,152 L 462,137 L 460,121
-                  L 463,105 L 472,93 L 472,76
-                "
-              />
-            </g>
-          </svg>
+          {/* Brazil map via background image */}
+          <div style={{
+            position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+            backgroundImage: `url("https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Brazil_location_map.svg/500px-Brazil_location_map.svg.png")`,
+            backgroundSize: "65%",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "52% 48%",
+            opacity: 0.18,
+            filter: "invert(1) sepia(1) saturate(2) hue-rotate(180deg) brightness(1.2)",
+          }} />
           {CITIES.map(city => (
             <button key={city.name} onClick={() => setSel(city)} style={{ position:"absolute", left:`${city.x}%`, top:`${city.y}%`, transform:"translate(-50%,-50%)", background:"none", border:"none", cursor:"pointer", padding:0, zIndex:2 }}>
               <div style={{ width:sel.name===city.name?42:32, height:sel.name===city.name?42:32, borderRadius:"50%", background:`${SC[city.status]}18`, border:`2px solid ${SC[city.status]}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:SC[city.status], transition:"all 0.2s", boxShadow:sel.name===city.name?`0 0 0 5px ${SC[city.status]}20`:"none" }}>{city.telas}</div>
