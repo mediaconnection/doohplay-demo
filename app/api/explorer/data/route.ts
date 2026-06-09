@@ -8,7 +8,11 @@ export async function GET() {
       pool.query(`
         SELECT b.id, b.merkle_root, b.block_hash, b.tx_hash, b.blockchain_tx,
                b.anchored_at, b.created_at,
-               COALESCE((SELECT COUNT(*)::int FROM display_events e WHERE e.merkle_batch_id = b.id), 0) AS event_count
+               COALESCE((
+                 SELECT COUNT(*)::int FROM display_events e
+                 JOIN merkle_batches mb ON mb.id = e.merkle_batch_id
+                 WHERE mb.merkle_root = b.merkle_root
+               ), 0) AS event_count
         FROM event_blocks b
         ORDER BY b.created_at DESC LIMIT 5
       `),
@@ -24,7 +28,9 @@ export async function GET() {
         SELECT COUNT(*)::int AS total_blocks,
                MAX(created_at)::text AS latest_block,
                (SELECT merkle_root FROM event_blocks ORDER BY created_at DESC LIMIT 1) AS latest_merkle,
-               (SELECT COALESCE(tx_hash, blockchain_tx) FROM event_blocks WHERE (tx_hash IS NOT NULL OR blockchain_tx IS NOT NULL) ORDER BY created_at DESC LIMIT 1) AS latest_tx
+               (SELECT COALESCE(tx_hash, blockchain_tx) FROM event_blocks
+                WHERE tx_hash IS NOT NULL OR blockchain_tx IS NOT NULL
+                ORDER BY created_at DESC LIMIT 1) AS latest_tx
         FROM event_blocks
       `),
       pool.query(`SELECT COUNT(*)::int AS total_events FROM display_events`),
