@@ -1,0 +1,55 @@
+import { getPool } from "@/lib/db";
+
+export async function GET(request, { params }) {
+  const { code } = params;
+  const pool = getPool();
+
+  try {
+    // Busca anunciante
+    const advResult = await pool.query(
+      `SELECT * FROM "Advertiser" WHERE code = $1`,
+      [code.toUpperCase()]
+    );
+
+    if (advResult.rows.length === 0) {
+      return Response.json({ error: "Advertiser not found" }, { status: 404 });
+    }
+
+    const advertiser = advResult.rows[0];
+
+    // Busca campanhas
+    const campResult = await pool.query(
+      `SELECT c.*, 
+        COALESCE(
+          json_agg(
+            json_build_object('id', cs.id, 'city', cs.city, 'screenId', cs."screenId", 'screenName', cs."screenName")
+          ) FILTER (WHERE cs.id IS NOT NULL), '[]'
+        ) as screens
+       FROM "Campaign" c
+       LEFT JOIN "CampaignScreen" cs ON cs."campaignId" = c.id
+       WHERE c."advertiserCode" = $1
+       GROUP BY c.id
+       ORDER BY c."createdAt" DESC`,
+      [code.toUpperCase()]
+    );
+
+    // Busca mídias
+    const mediaResult = await pool.query(
+      `SELECT m.*, c.name as "campaignName"
+       FROM "CampaignMedia" m
+       JOIN "Campaign" c ON c.id = m."campaignId"
+       WHERE c."advertiserCode" = $1
+       ORDER BY m."createdAt" DESC`,
+      [code.toUpperCase()]
+    );
+
+    return Response.json({
+      advertiser,
+      campaigns: campResult.rows,
+      medias: mediaResult.rows,
+    });
+  } catch (err) {
+    console.error("[advertiser GET]", err);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
