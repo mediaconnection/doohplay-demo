@@ -6,15 +6,9 @@ export async function GET() {
   try {
     const [blocksRes, eventsRes, statsRes, totalEventsRes] = await Promise.all([
       pool.query(`
-        SELECT b.id, b.merkle_root, b.block_hash, b.tx_hash, b.blockchain_tx,
-               b.anchored_at, b.created_at,
-               COALESCE((
-                 SELECT COUNT(*)::int FROM display_events e
-                 JOIN merkle_batches mb ON mb.id = e.merkle_batch_id
-                 WHERE mb.merkle_root = b.merkle_root
-               ), 0) AS event_count
-        FROM event_blocks b
-        ORDER BY b.created_at DESC LIMIT 5
+        SELECT id, merkle_root, block_hash, tx_hash, blockchain_tx, anchored_at, created_at
+        FROM event_blocks
+        ORDER BY created_at DESC LIMIT 5
       `),
       pool.query(`
         SELECT e.id::text, e.event_hash, e.screen_id::text, e.played_at,
@@ -49,7 +43,7 @@ export async function GET() {
       id: b.id,
       hash: b.block_hash ? `${b.block_hash.slice(0,10)}...${b.block_hash.slice(-4)}` : "—",
       merkle: b.merkle_root ? `${b.merkle_root.slice(0,10)}...${b.merkle_root.slice(-4)}` : "—",
-      txs: b.event_count,
+      txs: 0,
       time: fmt(b.created_at),
       status: b.anchored_at ? "Ancorado" : "Processando",
     }))
@@ -57,7 +51,7 @@ export async function GET() {
     const events = eventsRes.rows.map(e => ({
       id: e.id,
       hash: e.event_hash ? `${e.event_hash.slice(0,10)}...${e.event_hash.slice(-4)}` : "—",
-      screen: e.screen_label ?? e.screen_id ?? "—",
+      screen: e.screen_label ?? "—",
       campaign: "Exibição",
       time: fmt(e.played_at),
       status: e.anchored ? "Verified" : "Pending",
