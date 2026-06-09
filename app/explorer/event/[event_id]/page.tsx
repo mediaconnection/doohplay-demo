@@ -11,8 +11,6 @@ const TEXT2   = "#94A3B8"
 const MUTED   = "#475569"
 const BLUE    = "#3B82F6"
 const GREEN   = "#10B981"
-const AMBER   = "#F59E0B"
-const PURPLE  = "#6366F1"
 
 function fmt(d?: string | null) {
   if (!d) return "—"
@@ -32,9 +30,9 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
   )
 }
 
-export default async function EventPage({ params }: { params: { event_id: string } }) {
+export default async function EventPage({ params }: { params: Promise<{ event_id: string }> }) {
   const pool = getPool()
-  const { event_id } = params
+  const { event_id } = await params
 
   let event: any = null
   let error: string | null = null
@@ -82,7 +80,6 @@ export default async function EventPage({ params }: { params: { event_id: string
       </nav>
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1.5rem" }}>
-
         {error ? (
           <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "3rem", textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
@@ -91,7 +88,6 @@ export default async function EventPage({ params }: { params: { event_id: string
           </div>
         ) : (
           <>
-            {/* Header */}
             <div style={{ marginBottom: "2rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: GREEN + "22", color: GREEN, border: `1px solid ${GREEN}44` }}>
@@ -105,30 +101,27 @@ export default async function EventPage({ params }: { params: { event_id: string
               <p style={{ fontSize: 13, color: MUTED, margin: 0 }}>{fmt(event.played_at)}</p>
             </div>
 
-            {/* Detalhes */}
             <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "0 1.5rem 0.5rem", marginBottom: "1.5rem" }}>
               <div style={{ padding: "1rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700, color: TEXT }}>Dados do Evento</div>
-              <Row label="Event ID"       value={event.id}                  mono />
-              <Row label="Event Hash"     value={event.event_hash ?? "—"}   mono />
-              <Row label="Previous Hash"  value={event.previous_hash ?? "—"} mono />
-              <Row label="Played At"      value={fmt(event.played_at)}      />
-              <Row label="Duration"       value={event.duration ? `${event.duration}s` : "—"} />
-              <Row label="Asset URL"      value={event.asset_url ?? "—"}    mono />
+              <Row label="Event ID"      value={event.id}                   mono />
+              <Row label="Event Hash"    value={event.event_hash ?? "—"}    mono />
+              <Row label="Previous Hash" value={event.previous_hash ?? "—"} mono />
+              <Row label="Played At"     value={fmt(event.played_at)}       />
+              <Row label="Duration"      value={event.duration ? `${event.duration}s` : "—"} />
+              <Row label="Asset URL"     value={event.asset_url ?? "—"}     mono />
             </div>
 
-            {/* Tela */}
             <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "0 1.5rem 0.5rem", marginBottom: "1.5rem" }}>
               <div style={{ padding: "1rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700, color: TEXT }}>Tela</div>
-              <Row label="Screen ID"   value={event.screen_id ?? "—"}   mono />
-              <Row label="Nome"        value={event.screen_name ?? "—"} />
-              <Row label="Local"       value={event.venue_name ?? "—"}  />
-              <Row label="Cidade"      value={[event.city, event.state].filter(Boolean).join(", ") || "—"} />
+              <Row label="Screen ID" value={event.screen_id ?? "—"}   mono />
+              <Row label="Nome"      value={event.screen_name ?? "—"} />
+              <Row label="Local"     value={event.venue_name ?? "—"}  />
+              <Row label="Cidade"    value={[event.city, event.state].filter(Boolean).join(", ") || "—"} />
             </div>
 
-            {/* Âncora */}
             <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "0 1.5rem 0.5rem", marginBottom: "1.5rem" }}>
               <div style={{ padding: "1rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700, color: TEXT }}>Âncora Blockchain</div>
-              <Row label="Merkle Batch ID"  value={event.merkle_batch_id ?? "—"} mono />
+              <Row label="Merkle Batch ID"  value={event.merkle_batch_id ?? "—"}  mono />
               <Row label="Player Signature" value={event.player_signature ?? "—"} mono />
             </div>
 
