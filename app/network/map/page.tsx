@@ -60,16 +60,20 @@ export default function NetworkMapPage() {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", flex:1, overflow:"hidden" }}>
         {/* MAP */}
         <div style={{ position:"relative", background:"#080D1A", borderRight:`1px solid ${BORDER}`, overflow:"hidden", minHeight:500 }}>
-          {/* Brazil map via background image */}
-          <div style={{
-            position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
-            backgroundImage: `url("https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Brazil_location_map.svg/500px-Brazil_location_map.svg.png")`,
-            backgroundSize: "65%",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "52% 48%",
-            opacity: 0.18,
-            filter: "invert(1) sepia(1) saturate(2) hue-rotate(180deg) brightness(1.2)",
-          }} />
+          {/* Brazil map - real GeoJSON converted to SVG */}
+          <img
+            src="/brazil-map.svg"
+            alt=""
+            style={{
+              position: "absolute", top: "2%", left: "2%",
+              width: "96%", height: "96%",
+              objectFit: "contain",
+              objectPosition: "center",
+              opacity: 0.35,
+              pointerEvents: "none",
+              filter: "brightness(0) invert(1) sepia(1) saturate(3) hue-rotate(190deg) brightness(0.7)",
+            }}
+          />
           {CITIES.map(city => (
             <button key={city.name} onClick={() => setSel(city)} style={{ position:"absolute", left:`${city.x}%`, top:`${city.y}%`, transform:"translate(-50%,-50%)", background:"none", border:"none", cursor:"pointer", padding:0, zIndex:2 }}>
               <div style={{ width:sel.name===city.name?42:32, height:sel.name===city.name?42:32, borderRadius:"50%", background:`${SC[city.status]}18`, border:`2px solid ${SC[city.status]}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:SC[city.status], transition:"all 0.2s", boxShadow:sel.name===city.name?`0 0 0 5px ${SC[city.status]}20`:"none" }}>{city.telas}</div>
