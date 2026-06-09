@@ -8,16 +8,16 @@ const TEXT = "#F1F5F9", TEXT2 = "#94A3B8", MUTED = "#475569"
 const BLUE = "#3B82F6", GREEN = "#10B981", AMBER = "#F59E0B", RED = "#EF4444"
 
 const CITIES = [
-  { name: "São Paulo",      telas: 412, total: 430, camp: 47, sla: 98,  trust: 97.3, status: "Online",   x: 52, y: 69 },
-  { name: "Rio de Janeiro", telas: 218, total: 224, camp: 28, sla: 97,  trust: 96.8, status: "Online",   x: 62, y: 61 },
-  { name: "Belo Horizonte", telas: 142, total: 156, camp: 19, sla: 91,  trust: 94.1, status: "Warning",  x: 57, y: 55 },
-  { name: "Brasília",       telas: 89,  total: 97,  camp: 12, sla: 96,  trust: 95.2, status: "Online",   x: 54, y: 44 },
-  { name: "Curitiba",       telas: 98,  total: 102, camp: 11, sla: 96,  trust: 96.1, status: "Online",   x: 50, y: 76 },
-  { name: "Porto Alegre",   telas: 76,  total: 78,  camp: 9,  sla: 99,  trust: 98.2, status: "Verified", x: 48, y: 83 },
-  { name: "Salvador",       telas: 88,  total: 94,  camp: 10, sla: 94,  trust: 93.7, status: "Online",   x: 68, y: 38 },
-  { name: "Recife",         telas: 54,  total: 64,  camp: 6,  sla: 84,  trust: 89.4, status: "Warning",  x: 75, y: 28 },
-  { name: "Fortaleza",      telas: 32,  total: 41,  camp: 4,  sla: 78,  trust: 85.1, status: "Critical", x: 72, y: 22 },
-  { name: "Manaus",         telas: 8,   total: 10,  camp: 1,  sla: 92,  trust: 91.2, status: "Offline",  x: 28, y: 20 },
+  { name: "São Paulo",      telas: 412, total: 430, camp: 47, sla: 98,  trust: 97.3, status: "Online",   x: 44, y: 76 },
+  { name: "Rio de Janeiro", telas: 218, total: 224, camp: 28, sla: 97,  trust: 96.8, status: "Online",   x: 49, y: 72 },
+  { name: "Belo Horizonte", telas: 142, total: 156, camp: 19, sla: 91,  trust: 94.1, status: "Warning",  x: 47, y: 67 },
+  { name: "Brasília",       telas: 89,  total: 97,  camp: 12, sla: 96,  trust: 95.2, status: "Online",   x: 43, y: 58 },
+  { name: "Curitiba",       telas: 98,  total: 102, camp: 11, sla: 96,  trust: 96.1, status: "Online",   x: 42, y: 82 },
+  { name: "Porto Alegre",   telas: 76,  total: 78,  camp: 9,  sla: 99,  trust: 98.2, status: "Verified", x: 40, y: 88 },
+  { name: "Salvador",       telas: 88,  total: 94,  camp: 10, sla: 94,  trust: 93.7, status: "Online",   x: 62, y: 55 },
+  { name: "Recife",         telas: 54,  total: 64,  camp: 6,  sla: 84,  trust: 89.4, status: "Warning",  x: 72, y: 44 },
+  { name: "Fortaleza",      telas: 32,  total: 41,  camp: 4,  sla: 78,  trust: 85.1, status: "Critical", x: 68, y: 33 },
+  { name: "Manaus",         telas: 8,   total: 10,  camp: 1,  sla: 92,  trust: 91.2, status: "Offline",  x: 22, y: 30 },
 ]
 
 const SC: Record<string,string> = { Online: GREEN, Verified: BLUE, Warning: AMBER, Critical: RED, Offline: "#64748B" }
@@ -60,8 +60,63 @@ export default function NetworkMapPage() {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", flex:1, overflow:"hidden" }}>
         {/* MAP */}
         <div style={{ position:"relative", background:"#080D1A", borderRight:`1px solid ${BORDER}`, overflow:"hidden", minHeight:500 }}>
-          <svg viewBox="0 0 600 600" style={{ width:"100%", height:"100%", opacity:0.1 }} fill="none">
-            <path d="M180,60 L260,40 L340,50 L400,80 L450,130 L470,190 L480,260 L460,330 L430,390 L390,440 L340,480 L280,500 L220,490 L170,460 L140,410 L120,350 L110,280 L120,210 L150,150 Z" stroke="#3B82F6" strokeWidth="1.5" fill="rgba(59,130,246,0.04)"/>
+          <svg viewBox="0 0 800 900" style={{ width:"100%", height:"100%", opacity:0.18, position:"absolute", top:0, left:0 }} fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Brazil mainland */}
+            <path d="
+              M 340,60 L 370,55 L 400,58 L 430,65 L 460,75 L 490,90 L 510,105 L 525,125
+              L 535,148 L 540,170 L 548,188 L 560,200 L 575,208 L 588,218 L 598,232
+              L 602,248 L 598,262 L 590,272 L 578,278 L 568,290 L 562,308 L 558,325
+              L 555,342 L 552,358 L 548,370 L 540,380 L 528,388 L 515,392 L 502,390
+              L 490,385 L 478,388 L 468,395 L 462,408 L 458,422 L 455,438 L 452,454
+              L 448,468 L 442,480 L 432,490 L 420,498 L 408,502 L 395,504 L 382,502
+              L 370,498 L 358,492 L 348,484 L 340,474 L 332,462 L 325,450 L 318,438
+              L 310,426 L 300,416 L 288,408 L 275,402 L 262,398 L 250,398 L 238,400
+              L 228,406 L 220,414 L 214,424 L 210,436 L 208,450 L 208,464 L 210,478
+              L 215,492 L 222,504 L 230,514 L 238,522 L 244,532 L 248,544 L 250,558
+              L 250,572 L 248,585 L 244,596 L 238,605 L 230,612 L 220,616 L 210,618
+              L 200,616 L 190,610 L 182,602 L 175,592 L 170,580 L 168,568 L 168,556
+              L 170,544 L 174,532 L 175,520 L 172,508 L 166,498 L 158,490 L 148,484
+              L 138,480 L 128,478 L 118,478 L 108,480 L 100,485 L 94,492 L 90,501
+              L 88,512 L 88,523 L 90,534 L 94,543 L 100,550 L 108,555 L 116,558
+              L 122,562 L 126,568 L 128,576 L 128,584 L 126,592 L 122,598 L 116,602
+              L 108,604 L 100,602 L 93,598 L 88,592 L 85,584 L 84,574 L 82,564
+              L 78,554 L 72,546 L 64,540 L 55,536 L 46,534 L 38,534 L 30,536
+              L 24,540 L 20,546 L 18,554 L 18,562 L 20,570 L 24,577 L 30,582
+              L 38,586 L 48,588 L 58,588 L 68,586 L 76,582 L 82,577 L 86,572
+              L 90,578 L 96,585 L 104,590 L 113,593 L 123,594 L 132,592 L 140,588
+              L 147,595 L 152,604 L 154,614 L 153,624 L 149,633 L 142,640 L 133,644
+              L 123,646 L 113,644 L 104,640 L 98,634 L 95,626 L 95,618 L 98,642
+              L 104,660 L 112,675 L 122,688 L 134,698 L 148,705 L 163,710 L 178,712
+              L 193,712 L 208,710 L 222,705 L 235,698 L 246,689 L 255,678 L 262,665
+              L 268,650 L 272,635 L 274,620 L 274,605 L 272,591 L 268,578 L 263,567
+              L 258,558 L 255,548 L 255,540 L 258,534 L 263,530 L 270,528 L 278,528
+              L 286,530 L 293,534 L 298,540 L 302,548 L 304,557 L 304,567 L 302,577
+              L 298,586 L 294,594 L 292,602 L 292,610 L 295,618 L 300,625 L 307,630
+              L 315,633 L 323,634 L 331,633 L 338,630 L 344,625 L 348,618 L 350,610
+              L 350,602 L 348,594 L 345,587 L 342,580 L 341,573 L 342,567 L 345,563
+              L 350,560 L 356,559 L 362,560 L 368,563 L 373,568 L 376,575 L 377,583
+              L 376,591 L 373,599 L 369,606 L 367,614 L 367,622 L 369,630 L 373,637
+              L 378,643 L 385,648 L 393,651 L 401,652 L 409,651 L 416,648 L 422,643
+              L 426,637 L 428,630 L 428,622 L 426,615 L 422,609 L 418,604 L 416,598
+              L 416,593 L 418,589 L 422,586 L 427,585 L 433,586 L 438,589 L 442,594
+              L 444,600 L 444,607 L 442,614 L 438,620 L 434,626 L 432,633 L 432,641
+              L 435,649 L 440,656 L 447,661 L 455,664 L 464,665 L 473,663 L 480,659
+              L 486,653 L 489,645 L 490,637 L 488,629 L 484,622 L 479,617 L 474,613
+              L 471,608 L 470,602 L 471,597 L 475,593 L 480,591 L 486,591 L 492,593
+              L 497,597 L 500,603 L 501,610 L 500,617 L 497,624 L 495,631 L 495,639
+              L 498,647 L 503,654 L 510,659 L 518,662 L 527,663 L 536,661 L 543,657
+              L 548,651 L 551,643 L 551,635 L 549,627 L 545,620 L 540,615 L 535,611
+              L 532,606 L 532,600 L 535,595 L 540,592 L 546,591 L 552,592 L 557,596
+              L 560,602 L 561,609 L 559,616 L 555,622 L 551,628 L 549,635 L 550,643
+              L 555,651 L 563,657 L 573,661 L 584,663 L 595,661 L 604,657 L 610,650
+              L 613,641 L 612,632 L 608,624 L 601,618 L 593,614 L 585,612 L 578,612
+              L 572,614 L 568,618 L 567,624 L 568,630 L 570,636 L 570,642 L 568,647
+              L 563,651 L 557,652 L 551,650 L 546,645 L 544,638 L 545,631 L 549,625
+              L 555,621 L 561,619 L 566,619 L 570,622 L 573,627 L 573,633
+              M 340,60 Z
+            " stroke="#3B82F6" strokeWidth="1" fill="rgba(59,130,246,0.06)" strokeLinejoin="round"/>
+            {/* State borders approximation */}
+            <path d="M 340,200 L 420,195 M 300,300 L 380,310 M 250,400 L 340,390 M 200,480 L 280,470" stroke="#3B82F6" strokeWidth="0.4" opacity="0.4"/>
           </svg>
           {CITIES.map(city => (
             <button key={city.name} onClick={() => setSel(city)} style={{ position:"absolute", left:`${city.x}%`, top:`${city.y}%`, transform:"translate(-50%,-50%)", background:"none", border:"none", cursor:"pointer", padding:0, zIndex:2 }}>
