@@ -1,557 +1,143 @@
+export const dynamic = "force-dynamic"
+
 import Link from "next/link"
-import type { ReactNode } from "react"
+import { getPool } from "@/lib/db"
 
-import CopyButton from "@/components/ui/CopyButton"
-import TimeAgo from "@/components/ui/TimeAgo"
-import Badge from "@/components/ui/Badge"
-import MerkleViewer from "@/components/merkle/MerkleViewer"
-import VerifyButton from "@/components/proof/VerifyButton"
-import CertificateButton from "@/components/proof/CertificateButton"
+const BG      = "#080C18"
+const SURFACE = "#0F1629"
+const BORDER  = "rgba(255,255,255,0.07)"
+const TEXT    = "#F1F5F9"
+const TEXT2   = "#94A3B8"
+const MUTED   = "#475569"
+const BLUE    = "#3B82F6"
+const GREEN   = "#10B981"
+const AMBER   = "#F59E0B"
+const PURPLE  = "#6366F1"
 
-export const revalidate = 10
-
-type ProofStep = {
-  hash: string
-  position?: "left" | "right"
+function fmt(d?: string | null) {
+  if (!d) return "—"
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "long", timeStyle: "medium", timeZone: "America/Sao_Paulo"
+    }).format(new Date(d))
+  } catch { return "—" }
 }
 
-type ExplorerEventResponse = {
-  ok: true
-  event: {
-    event_id: string
-    event_hash: string
-    block_hash: string | null
-    merkle_root: string | null
-    occurred_at: string | null
-    tx_hash: string | null
-    merkle_proof: ProofStep[] | null
-  }
-  verification: {
-    anchored: boolean
-    hash_valid: boolean
-    merkle_root_valid: boolean
-    merkle_proof_valid: boolean
-    tx_valid: boolean
-  }
-  blockchain: {
-    network: string
-    anchored: boolean
-    tx_hash: string | null
-  }
-  audit: {
-    integrity_status: "VERIFIED" | "WARNING" | "FAILED"
-    trust_level: "HIGH" | "MEDIUM" | "LOW"
-    reasons: string[]
-    trust_score: number
-  }
-}
-
-type ExplorerEventErrorResponse = {
-  ok: false
-  error: string
-  code:
-    | "INVALID_EVENT_ID"
-    | "EVENT_NOT_FOUND"
-    | "DB_TIMEOUT"
-    | "INTERNAL_ERROR"
-}
-
-type EventPageParams = {
-  event_id: string
-}
-
-function normalizeId(id?: string | null): string {
-  return typeof id === "string" ? id.trim() : ""
-}
-
-function normalizeHex(value?: string | null): string {
-  return typeof value === "string"
-    ? value.trim().toLowerCase().replace(/^0x/, "")
-    : ""
-}
-
-function format0xHash(value?: string | null): string {
-  const normalized = normalizeHex(value)
-  return normalized ? `0x${normalized}` : ""
-}
-
-function shortHash(hash?: string | null, start = 12, end = 8): string {
-  const formatted = format0xHash(hash)
-
-  if (!formatted) return "—"
-  if (formatted.length <= start + end + 3) return formatted
-
-  return `${formatted.slice(0, start)}...${formatted.slice(-end)}`
-}
-
-function isValidId(id: string): boolean {
-  return /^[a-zA-Z0-9_-]{6,}$/.test(id)
-}
-
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
-  }
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
-  }
-
-  return "http://localhost:3000"
-}
-
-function renderErrorCard(message: string) {
+function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
-        {message}
-      </div>
+    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16, padding: "14px 0", borderBottom: `1px solid ${BORDER}` }}>
+      <div style={{ fontSize: 12, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", paddingTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, color: TEXT2, fontFamily: mono ? "monospace" : "inherit", wordBreak: "break-all" }}>{value}</div>
     </div>
   )
 }
 
-function renderNotFoundCard() {
-  return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
-          EVENT NOT FOUND
-        </div>
+export default async function EventPage({ params }: { params: { event_id: string } }) {
+  const pool = getPool()
+  const { event_id } = params
 
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
-          Evento não encontrado
-        </h1>
-
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          Não foi possível localizar este evento no explorer público do DOOHPLAY.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/verify"
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Ir para verificação
-          </Link>
-
-          <Link
-            href="/"
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Ir para o portal
-          </Link>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-async function getEventExplorerData(
-  eventId: string
-): Promise<ExplorerEventResponse | ExplorerEventErrorResponse> {
-  const url = `${getBaseUrl()}/api/explorer/event/${encodeURIComponent(eventId)}`
-
-  const response = await fetch(url, {
-    method: "GET",
-    cache: "no-store",
-    next: { revalidate: 0 }
-  })
-
-  return (await response.json()) as
-    | ExplorerEventResponse
-    | ExplorerEventErrorResponse
-}
-
-export default async function EventPage({
-  params
-}: {
-  params: Promise<EventPageParams>
-}) {
-  const { event_id } = await params
-  const eventId = normalizeId(event_id)
-
-  if (!isValidId(eventId)) {
-    return renderErrorCard("Identificador de evento inválido.")
-  }
-
-  let response: ExplorerEventResponse | ExplorerEventErrorResponse
+  let event: any = null
+  let error: string | null = null
 
   try {
-    response = await getEventExplorerData(eventId)
-  } catch (error) {
-    console.error("EVENT_PAGE_FETCH_ERROR", {
-      event_id: eventId,
-      error: error instanceof Error ? error.message : "UNKNOWN_ERROR"
-    })
+    const res = await pool.query(`
+      SELECT e.id::text, e.event_hash, e.screen_id::text, e.played_at,
+             e.player_signature, e.asset_url, e.duration, e.previous_hash,
+             e.merkle_batch_id::text, e.created_at,
+             s.name AS screen_name, s.city, s.state, s.venue_name
+      FROM display_events e
+      LEFT JOIN screens s ON s.id = e.screen_id
+      WHERE e.id = $1
+    `, [event_id])
 
-    return renderErrorCard("Falha ao consultar a API do explorer do evento.")
+    if (res.rows.length === 0) {
+      error = "Evento não encontrado."
+    } else {
+      event = res.rows[0]
+    }
+  } catch (err) {
+    error = String(err)
   }
-
-  if (!response.ok) {
-    if (response.code === "EVENT_NOT_FOUND") {
-      return renderNotFoundCard()
-    }
-
-    if (response.code === "INVALID_EVENT_ID") {
-      return renderErrorCard("Identificador de evento inválido.")
-    }
-
-    if (response.code === "DB_TIMEOUT") {
-      return renderErrorCard(
-        "Tempo limite excedido ao consultar o evento. Tente novamente em instantes."
-      )
-    }
-
-    return renderErrorCard(
-      response.error || "Erro interno ao carregar os dados do evento."
-    )
-  }
-
-  const { event, verification, blockchain, audit } = response
-
-  const eventHash = format0xHash(event.event_hash)
-  const merkleRoot = format0xHash(event.merkle_root)
-  const blockHash = format0xHash(event.block_hash)
-  const txHash = format0xHash(event.tx_hash)
-  const proof = Array.isArray(event.merkle_proof) ? event.merkle_proof : null
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap gap-3">
-          <Link
-            href="/verify"
-            className="text-sm text-slate-500 transition hover:text-slate-900 hover:underline"
-          >
-            ← Voltar para verificação
-          </Link>
+    <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <nav style={{
+        background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)",
+        borderBottom: `1px solid ${BORDER}`, padding: "0 1.5rem", height: 52,
+        display: "flex", alignItems: "center", gap: 16,
+        position: "sticky", top: 0, zIndex: 50,
+      }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+          <div style={{ width: 26, height: 26, background: "linear-gradient(135deg,#3B82F6,#6366F1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOH<span style={{ color: BLUE }}>PLAY</span></span>
+        </Link>
+        <span style={{ color: MUTED }}>/</span>
+        <Link href="/explorer" style={{ fontSize: 13, color: TEXT2, textDecoration: "none" }}>Explorer</Link>
+        <span style={{ color: MUTED }}>/</span>
+        <span style={{ fontSize: 13, color: MUTED }}>Evento</span>
+      </nav>
 
-          {verification.hash_valid ? (
-            <Link
-              href={`/verify/${normalizeHex(eventHash)}`}
-              className="text-sm text-slate-500 transition hover:text-slate-900 hover:underline"
-            >
-              Abrir prova pública
-            </Link>
-          ) : null}
-        </div>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Explorer do Evento
+        {error ? (
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "3rem", textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+            <div style={{ color: TEXT2 }}>{error}</div>
+            <Link href="/explorer" style={{ display: "inline-block", marginTop: 20, color: BLUE, textDecoration: "none", fontSize: 14 }}>← Voltar ao Explorer</Link>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div style={{ marginBottom: "2rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: GREEN + "22", color: GREEN, border: `1px solid ${GREEN}44` }}>
+                  ⚡ Verified
+                </span>
+                <span style={{ fontSize: 12, color: MUTED }}>Display Event</span>
               </div>
-
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                Event Proof
+              <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
+                Evento #{event.id.slice(0, 8)}…
               </h1>
-
-              <p className="mt-2 text-sm text-slate-600">
-                Visualização pública do evento, integridade criptográfica,
-                evidências Merkle e vínculo com prova auditável.
-              </p>
+              <p style={{ fontSize: 13, color: MUTED, margin: 0 }}>{fmt(event.played_at)}</p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <StatusCard
-                label="Integrity"
-                value={audit.integrity_status}
-                tone={
-                  audit.integrity_status === "VERIFIED"
-                    ? "green"
-                    : audit.integrity_status === "WARNING"
-                      ? "amber"
-                      : "red"
-                }
-              />
-
-              <StatusCard
-                label="Trust Score"
-                value={`${audit.trust_score} · ${audit.trust_level}`}
-                tone={
-                  audit.trust_level === "HIGH"
-                    ? "green"
-                    : audit.trust_level === "MEDIUM"
-                      ? "amber"
-                      : "red"
-                }
-              />
+            {/* Detalhes */}
+            <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "0 1.5rem 0.5rem", marginBottom: "1.5rem" }}>
+              <div style={{ padding: "1rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700, color: TEXT }}>Dados do Evento</div>
+              <Row label="Event ID"       value={event.id}                  mono />
+              <Row label="Event Hash"     value={event.event_hash ?? "—"}   mono />
+              <Row label="Previous Hash"  value={event.previous_hash ?? "—"} mono />
+              <Row label="Played At"      value={fmt(event.played_at)}      />
+              <Row label="Duration"       value={event.duration ? `${event.duration}s` : "—"} />
+              <Row label="Asset URL"      value={event.asset_url ?? "—"}    mono />
             </div>
-          </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <VerifyButton hash={eventHash} entity_id={event.event_id} entity_type="event" />
+            {/* Tela */}
+            <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "0 1.5rem 0.5rem", marginBottom: "1.5rem" }}>
+              <div style={{ padding: "1rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700, color: TEXT }}>Tela</div>
+              <Row label="Screen ID"   value={event.screen_id ?? "—"}   mono />
+              <Row label="Nome"        value={event.screen_name ?? "—"} />
+              <Row label="Local"       value={event.venue_name ?? "—"}  />
+              <Row label="Cidade"      value={[event.city, event.state].filter(Boolean).join(", ") || "—"} />
+            </div>
 
-            <CertificateButton
-              hash={eventHash}
-              entity_id={event.event_id}
-              entity_type="event"
-            />
-          </div>
+            {/* Âncora */}
+            <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "0 1.5rem 0.5rem", marginBottom: "1.5rem" }}>
+              <div style={{ padding: "1rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700, color: TEXT }}>Âncora Blockchain</div>
+              <Row label="Merkle Batch ID"  value={event.merkle_batch_id ?? "—"} mono />
+              <Row label="Player Signature" value={event.player_signature ?? "—"} mono />
+            </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <MetaCard label="Event ID" value={event.event_id} mono />
-
-            <MetaCard
-              label="Event Hash"
-              value={eventHash}
-              mono
-              copyValue={verification.hash_valid ? eventHash : undefined}
-              invalid={!verification.hash_valid}
-              invalidText="Formato de hash inválido."
-            />
-
-            <MetaCard
-              label="Merkle Root"
-              value={merkleRoot || "—"}
-              mono
-              copyValue={verification.merkle_root_valid ? merkleRoot : undefined}
-              invalid={!!merkleRoot && !verification.merkle_root_valid}
-              invalidText="Merkle root inválida."
-            />
-
-            <MetaCard
-              label="Occurred"
-              value={event.occurred_at ? <TimeAgo date={event.occurred_at} /> : "—"}
-            />
-
-            <MetaCard
-              label="Block"
-              value={
-                blockHash ? (
-                  <Link
-                    href={`/explorer/block/${blockHash}`}
-                    className="font-mono text-blue-600 underline"
-                  >
-                    {shortHash(blockHash)}
-                  </Link>
-                ) : (
-                  "—"
-                )
-              }
-            />
-
-            <MetaCard
-              label="Transaction"
-              value={
-                txHash ? (
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={`https://polygonscan.com/tx/${txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-blue-600 underline"
-                    >
-                      {shortHash(txHash)}
-                    </a>
-                    <CopyButton value={txHash} />
-                  </div>
-                ) : (
-                  "—"
-                )
-              }
-              invalid={!!txHash && !verification.tx_valid}
-              invalidText="Formato de transação inválido."
-            />
-
-            <MetaCard
-              label="Anchored"
-              value={
-                <Badge
-                  label={verification.anchored ? "Anchored" : "Pending"}
-                  variant={verification.anchored ? "success" : "warning"}
-                />
-              }
-            />
-
-            <MetaCard
-              label="Blockchain"
-              value={
-                verification.anchored ? (
-                  <span className="text-emerald-600">Verified on-chain</span>
-                ) : (
-                  <span className="text-amber-600">
-                    Awaiting anchor confirmation
-                  </span>
-                )
-              }
-            />
-
-            <MetaCard label="Network" value={blockchain.network || "—"} />
-          </div>
-        </section>
-
-        <section className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_0.85fr]">
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Merkle Proof
-              </h2>
-
-              {verification.merkle_proof_valid &&
-              verification.hash_valid &&
-              verification.merkle_root_valid &&
-              proof ? (
-                <div className="mt-4">
-                  <MerkleViewer leaf={eventHash} root={merkleRoot} proof={proof} />
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  Nenhuma prova Merkle válida disponível para este evento.
-                </div>
-              )}
-            </section>
-          </div>
-
-          <aside className="space-y-6">
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Verification Signals
-              </h2>
-
-              <div className="mt-4 space-y-3">
-                <MetricRow label="Hash Valid" value={verification.hash_valid ? "YES" : "NO"} />
-                <MetricRow
-                  label="Merkle Root Valid"
-                  value={verification.merkle_root_valid ? "YES" : "NO"}
-                />
-                <MetricRow
-                  label="Merkle Proof Valid"
-                  value={verification.merkle_proof_valid ? "YES" : "NO"}
-                />
-                <MetricRow label="TX Valid" value={verification.tx_valid ? "YES" : "NO"} />
-                <MetricRow label="Anchored" value={verification.anchored ? "YES" : "NO"} />
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Audit Signals
-              </h2>
-
-              <div className="mt-4 space-y-2">
-                {audit.reasons.length === 0 ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                    Nenhuma ressalva material foi detectada nesta visão do evento.
-                  </div>
-                ) : (
-                  audit.reasons.map((reason: string) => (
-                    <div
-                      key={reason}
-                      className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-                    >
-                      {reason}
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Executive Summary
-              </h2>
-
-              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                <p>
-                  Este evento representa uma evidência individual no ledger DOOHPLAY,
-                  com hash criptográfico, vínculo Merkle e possível ancoragem pública.
-                </p>
-
-                <p>
-                  O nível atual de integridade foi classificado como{" "}
-                  <strong>{audit.integrity_status}</strong>, com trust level{" "}
-                  <strong>{audit.trust_level}</strong> e score{" "}
-                  <strong>{audit.trust_score}</strong>.
-                </p>
-
-                <p>
-                  A presença de hash válido, Merkle root consistente, prova carregada
-                  e vínculo blockchain influencia diretamente a confiança final do Explorer.
-                </p>
-              </div>
-            </section>
-          </aside>
-        </section>
+            <Link href="/explorer" style={{ display: "inline-flex", alignItems: "center", gap: 8, color: BLUE, textDecoration: "none", fontSize: 14 }}>
+              ← Voltar ao Explorer
+            </Link>
+          </>
+        )}
       </div>
     </main>
-  )
-}
-
-function MetaCard({
-  label,
-  value,
-  mono,
-  copyValue,
-  invalid,
-  invalidText
-}: {
-  label: string
-  value: ReactNode
-  mono?: boolean
-  copyValue?: string
-  invalid?: boolean
-  invalidText?: string
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="text-sm text-slate-500">{label}</div>
-
-      <div
-        className={[
-          "mt-2 break-all text-sm text-slate-900",
-          mono ? "font-mono" : ""
-        ].join(" ")}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <div>{value}</div>
-          {copyValue ? <CopyButton value={copyValue} /> : null}
-        </div>
-      </div>
-
-      {invalid ? (
-        <div className="mt-2 text-xs text-rose-600">
-          {invalidText ?? "Valor inválido."}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-2 last:border-b-0">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="max-w-[65%] break-all text-right text-sm font-medium text-slate-900">
-        {value}
-      </span>
-    </div>
-  )
-}
-
-function StatusCard({
-  label,
-  value,
-  tone
-}: {
-  label: string
-  value: string
-  tone: "green" | "amber" | "red"
-}) {
-  const styles =
-    tone === "green"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-rose-200 bg-rose-50 text-rose-700"
-
-  return (
-    <div className={`rounded-2xl border px-4 py-3 ${styles}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-bold">{value}</div>
-    </div>
   )
 }
