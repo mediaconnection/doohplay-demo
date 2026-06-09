@@ -1,342 +1,615 @@
-export const dynamic = "force-dynamic"
+"use client";
 
-import Link from "next/link"
-import { getPool } from "@/lib/db"
+import { Suspense } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type Block = {
-  id: number
-  merkle_root: string | null
-  block_hash: string | null
-  tx_hash: string | null
-  blockchain_tx: string | null
-  anchored_at: string | null
-  event_count: number
-  created_at: string
+// ─── Paleta dark premium (consistente com /portal/[code]) ───────────────────
+const C = {
+  bg:        "#0B1020",
+  surface:   "#111827",
+  border:    "#1F2937",
+  muted:     "#374151",
+  text:      "#F9FAFB",
+  textSub:   "#9CA3AF",
+  primary:   "#3B82F6",
+  primaryDim:"#1D4ED8",
+  success:   "#10B981",
+  warning:   "#F59E0B",
+  danger:    "#EF4444",
+  purple:    "#8B5CF6",
+};
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const fmt = (n) => new Intl.NumberFormat("pt-BR").format(n ?? 0);
+const brl = (n) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n ?? 0);
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+
+const STATUS_LABEL = {
+  pending:  { label: "Pendente",  color: C.warning },
+  active:   { label: "Ativo",     color: C.success },
+  paused:   { label: "Pausado",   color: C.textSub },
+  finished: { label: "Encerrado", color: C.muted   },
+  approved: { label: "Aprovado",  color: C.success },
+  rejected: { label: "Rejeitado", color: C.danger  },
+};
+
+function Badge({ status }) {
+  const s = STATUS_LABEL[status] ?? { label: status, color: C.textSub };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+      background: s.color + "22", color: s.color, border: `1px solid ${s.color}44`,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+      {s.label}
+    </span>
+  );
 }
 
-type Event = {
-  id: string
-  event_hash: string | null
-  player_id: string | null
-  screen_label: string | null
-  campaign_name: string | null
-  played_at: string
-  anchored: boolean
+function KpiCard({ label, value, sub, color }) {
+  return (
+    <div style={{
+      background: C.surface, border: `1px solid ${C.border}`,
+      borderRadius: 12, padding: "20px 24px", flex: 1, minWidth: 160,
+    }}>
+      <div style={{ fontSize: 12, color: C.textSub, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: color ?? C.text, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: C.textSub, marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
 }
 
-type Stats = {
-  total_blocks: number
-  anchored_blocks: number
-  pending_blocks: number
-  total_events: number
-  latest_block: string | null
-  latest_merkle: string | null
-  latest_tx: string | null
+// ─── Tela de loading ─────────────────────────────────────────────────────────
+function Skeleton({ w = "100%", h = 18, radius = 6 }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: radius,
+      background: `linear-gradient(90deg, ${C.surface} 25%, ${C.border} 50%, ${C.surface} 75%)`,
+      backgroundSize: "200% 100%",
+      animation: "shimmer 1.4s infinite",
+    }} />
+  );
 }
 
-// ─── Colors ───────────────────────────────────────────────────────────────────
-const BG      = "#080C18"
-const SURFACE = "#0F1629"
-const BORDER  = "rgba(255,255,255,0.07)"
-const TEXT     = "#F1F5F9"
-const TEXT2    = "#94A3B8"
-const MUTED   = "#475569"
-const BLUE    = "#3B82F6"
-const GREEN   = "#10B981"
-const AMBER   = "#F59E0B"
-const PURPLE  = "#6366F1"
+// ─── ABAS ────────────────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function shortHash(h?: string | null, len = 10) {
-  if (!h) return "—"
-  return h.length <= len + 4 ? h : `${h.slice(0, len)}...${h.slice(-4)}`
-}
-function fmt(d?: string | null) {
-  if (!d) return "—"
-  try {
-    return new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo"
-    }).format(new Date(d))
-  } catch { return "—" }
-}
-function isAnchored(b: Block) { return !!(b.tx_hash || b.blockchain_tx) && !!b.anchored_at }
-function getTx(b: Block) { return b.tx_hash || b.blockchain_tx || null }
+// ── Campanhas ────────────────────────────────────────────────────────────────
+function TabCampanhas({ code, campaigns, onRefresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    name: "", startDate: "", endDate: "", budget: "",
+    screens: [],
+  });
 
-// ─── Data fetching ─────────────────────────────────────────────────────────────
-async function getBlocks(): Promise<Block[]> {
-  const pool = getPool()
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT b.id, b.merkle_root, b.block_hash, b.tx_hash, b.blockchain_tx,
-               b.anchored_at, b.created_at,
-               COALESCE((SELECT COUNT(*)::int FROM display_events e WHERE e.block_id = b.id), 0) AS event_count
-        FROM event_blocks b
-        ORDER BY b.created_at DESC LIMIT 8
-      `),
-      new Promise<never>((_, j) => setTimeout(() => j(new Error("timeout")), 4000)),
-    ]) as any
-    return r.rows ?? []
-  } catch { return [] }
-}
+  const SCREENS = [
+    { id: "sp-01", city: "São Paulo",      name: "Shopping Ibirapuera - Hall Central" },
+    { id: "rj-01", city: "Rio de Janeiro", name: "Shopping Rio Sul - Piso L2"         },
+    { id: "bh-01", city: "Belo Horizonte", name: "BH Shopping - Entrada Principal"    },
+    { id: "ct-01", city: "Curitiba",       name: "Shopping Muller - Praça de Alimentação" },
+    { id: "rs-01", city: "Porto Alegre",   name: "Shopping Iguatemi - Piso 2"         },
+    { id: "re-01", city: "Recife",         name: "Shopping Recife - Corredor Central" },
+    { id: "ss-01", city: "Salvador",       name: "Shopping da Bahia - Térreo"         },
+    { id: "fo-01", city: "Fortaleza",      name: "North Shopping - Entrada Sul"       },
+    { id: "ma-01", city: "Manaus",         name: "Amazonas Shopping - Piso 1"         },
+    { id: "go-01", city: "Goiânia",        name: "Flamboyant Shopping - Hall Norte"   },
+  ];
 
-async function getRecentEvents(): Promise<Event[]> {
-  const pool = getPool()
-  try {
-    const r = await Promise.race([
-      pool.query(`
-        SELECT e.id::text, e.event_hash, e.player_id::text,
-               p.name AS screen_label,
-               NULL::text AS campaign_name,
-               e.played_at::text,
-               (e.event_hash IS NOT NULL)::boolean AS anchored
-        FROM display_events e
-        LEFT JOIN studio_clients p ON p.player_id = e.player_id
-        ORDER BY e.played_at DESC LIMIT 8
-      `),
-      new Promise<never>((_, j) => setTimeout(() => j(new Error("timeout")), 4000)),
-    ]) as any
-    return r.rows ?? []
-  } catch { return [] }
-}
+  const toggleScreen = (id) => {
+    setForm(f => ({
+      ...f,
+      screens: f.screens.includes(id) ? f.screens.filter(s => s !== id) : [...f.screens, id],
+    }));
+  };
 
-async function getStats(): Promise<Stats> {
-  const pool = getPool()
-  const empty: Stats = { total_blocks: 0, anchored_blocks: 0, pending_blocks: 0, total_events: 0, latest_block: null, latest_merkle: null, latest_tx: null }
-  try {
-    const [br, er] = await Promise.all([
-      Promise.race([
-        pool.query(`SELECT COUNT(*)::int AS total_blocks,
-          COUNT(*) FILTER (WHERE anchored_at IS NOT NULL)::int AS anchored_blocks,
-          COUNT(*) FILTER (WHERE anchored_at IS NULL)::int AS pending_blocks,
-          MAX(created_at)::text AS latest_block,
-          (SELECT merkle_root FROM event_blocks ORDER BY created_at DESC LIMIT 1) AS latest_merkle,
-          (SELECT COALESCE(tx_hash, blockchain_tx) FROM event_blocks WHERE (tx_hash IS NOT NULL OR blockchain_tx IS NOT NULL) ORDER BY created_at DESC LIMIT 1) AS latest_tx
-          FROM event_blocks`),
-        new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 4000)),
-      ]) as any,
-      Promise.race([
-        pool.query(`SELECT COUNT(*)::int AS total_events FROM display_events`),
-        new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 4000)),
-      ]) as any,
-    ])
-    return { ...(br.rows?.[0] ?? empty), total_events: er.rows?.[0]?.total_events ?? 0 }
-  } catch { return empty }
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-export default async function ExplorerPage() {
-  const [blocks, events, stats] = await Promise.all([getBlocks(), getRecentEvents(), getStats()])
-
-  const DEMO_BLOCKS = [
-    { id: 19284721, hash: "0x7f3a...d4b2", merkle: "0x9b4c...f21a", tx: "0x9b1d...a337", txs: 847, size: "1.2 MB", status: "Ancorado" },
-    { id: 19284720, hash: "0x2c8e...f91a", merkle: "0x3d8f...b09c", tx: "0x2c8e...f91a", txs: 923, size: "1.4 MB", status: "Ancorado" },
-    { id: 19284719, hash: "0x9b1d...a337", merkle: "0x7a2e...c34d", tx: "0x9b1d...a337", txs: 701, size: "1.1 MB", status: "Ancorado" },
-    { id: 19284718, hash: "0x4e7f...c28b", merkle: "0x1f5b...e87f", tx: null,            txs: 1024,size: "1.6 MB", status: "Processando" },
-    { id: 19284717, hash: "0x1b3c...e84a", merkle: "0x6c9d...a12e", tx: "0x1b3c...e84a", txs: 612, size: "0.9 MB", status: "Ancorado" },
-  ]
-
-  const DEMO_EVENTS = [
-    { hash: "0x7f3a...d4b2", screen: "SCR-00847", campaign: "Bradesco Black Friday", time: "14:32:01", status: "Verified" },
-    { hash: "0x2c8e...f91a", screen: "SCR-00123", campaign: "iFood Cupons",          time: "14:31:58", status: "Verified" },
-    { hash: "0x9b1d...a337", screen: "SCR-00512", campaign: "Samsung Galaxy",        time: "14:31:55", status: "Verified" },
-    { hash: "0x4e7f...c28b", screen: "SCR-00089", campaign: "Natura Perfumes",       time: "14:31:51", status: "Pending"  },
-    { hash: "0x1b3c...e84a", screen: "SCR-01024", campaign: "Ambev Verão",           time: "14:31:47", status: "Verified" },
-  ]
-
-  const displayBlocks = blocks.length > 0 ? null : DEMO_BLOCKS
-  const displayEvents = events.length > 0 ? null : DEMO_EVENTS
-
-  const totalBlocks = stats.total_blocks > 0 ? stats.total_blocks : 2847
-  const latestMerkle = stats.latest_merkle ?? "0x9b4c...f21a"
-  const latestTx = stats.latest_tx ?? "0x9b1d...a337"
+  const handleSubmit = async () => {
+    if (!form.name || !form.startDate || !form.endDate) {
+      alert("Preencha nome e datas da campanha.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/advertiser/${code}/campaigns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error();
+      setShowForm(false);
+      setForm({ name: "", startDate: "", endDate: "", budget: "", screens: [] });
+      onRefresh();
+    } catch {
+      alert("Erro ao criar campanha. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Inter', system-ui, sans-serif" }}>
-
-      {/* ── NAV ── */}
-      <nav style={{
-        background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${BORDER}`,
-        padding: "0 1.5rem", height: 52,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        position: "sticky", top: 0, zIndex: 10,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-            <div style={{ width: 26, height: 26, background: "linear-gradient(135deg,#3B82F6,#6366F1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-            </div>
-            <span style={{ fontSize: 14, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>
-              DOOH<span style={{ color: BLUE }}>PLAY</span>
-            </span>
-          </Link>
-          <span style={{ color: MUTED, fontSize: 14 }}>/</span>
-          <span style={{ fontSize: 13, color: TEXT2 }}>ProofChain Explorer</span>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Campanhas</div>
+          <div style={{ fontSize: 13, color: C.textSub, marginTop: 2 }}>{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} criada{campaigns.length !== 1 ? "s" : ""}</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>⚡ Sincronizado</span>
-          <span style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", color: PURPLE, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>
-            Bloco #{(19284720 + Math.max(0, stats.total_blocks)).toLocaleString("pt-BR")}
-          </span>
-        </div>
-      </nav>
-
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "2rem 1.5rem" }}>
-
-        {/* ── HEADER ── */}
-        <div style={{ marginBottom: "2rem" }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>ProofChain Explorer</h1>
-          <p style={{ fontSize: 14, color: TEXT2, margin: 0 }}>Blockchain · Ethereum Mainnet · ICP Brasil</p>
-        </div>
-
-        {/* ── SEARCH ── */}
-        <div style={{ display: "flex", gap: 10, marginBottom: "2rem" }}>
-          <div style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span style={{ fontSize: 13, color: MUTED }}>Buscar por TX hash, block hash, Screen ID ou Campaign ID...</span>
-          </div>
-          <Link href="/verify" style={{ display: "flex", alignItems: "center", gap: 8, background: BLUE, color: "#fff", borderRadius: 12, padding: "12px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
-            🔍 Verificar hash
-          </Link>
-        </div>
-
-        {/* ── TOP STATS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: "2rem" }}>
-          {[
-            { label: "Último Merkle Root",  value: shortHash(latestMerkle, 10), icon: "#",  color: BLUE   },
-            { label: "Último Block Hash",   value: shortHash(stats.latest_block ? "0x7f3a...d4b2" : "0x7f3a...d4b2", 10), icon: "□", color: BLUE },
-            { label: "Última TX Hash",      value: shortHash(latestTx, 10),     icon: "🔗", color: BLUE   },
-            { label: "Network",             value: "Ethereum",                   icon: "◎",  color: AMBER  },
-            { label: "Anchored Events",     value: `${(totalBlocks * 847 / 2847).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")}K`, icon: "📌", color: PURPLE },
-          ].map(s => (
-            <div key={s.label} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1rem 1.25rem" }}>
-              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 16, color: s.color }}>{s.icon}</span>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, fontFamily: "monospace", marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── TWO COLUMNS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: "2rem" }}>
-
-          {/* Últimos Blocos */}
-          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ padding: "1rem 1.5rem", borderBottom: `1px solid ${BORDER}`, fontSize: 15, fontWeight: 700 }}>
-              Últimos Blocos
-            </div>
-            {(displayBlocks ?? blocks.map(b => ({
-              id: b.id,
-              hash: shortHash(b.block_hash, 8),
-              merkle: shortHash(b.merkle_root, 8),
-              tx: getTx(b) ? shortHash(getTx(b), 8) : null,
-              txs: b.event_count,
-              size: "—",
-              status: isAnchored(b) ? "Ancorado" : "Processando",
-            }))).map((b, i, arr) => (
-              <div key={b.id} style={{ padding: "12px 1.5rem", borderBottom: i < arr.length - 1 ? `1px solid rgba(255,255,255,0.04)` : "none", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>#{b.id.toLocaleString("pt-BR")}</span>
-                    <span style={{ fontSize: 11, color: MUTED }}>{typeof b.id === 'number' && b.id > 19000000 ? "14:32:01" : fmt(blocks[i]?.created_at)}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: MUTED, fontFamily: "monospace" }}>Hash: <span style={{ color: TEXT2 }}>{b.hash}</span></div>
-                  <div style={{ fontSize: 11, color: MUTED, fontFamily: "monospace" }}>Merkle: <span style={{ color: TEXT2 }}>{b.merkle}</span></div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, color: TEXT2 }}>{b.txs} TXs</div>
-                  <div style={{ fontSize: 11, color: MUTED }}>{b.size}</div>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, marginTop: 4, display: "inline-block",
-                    background: b.status === "Ancorado" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
-                    color: b.status === "Ancorado" ? GREEN : AMBER,
-                  }}>{b.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Últimos Eventos */}
-          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ padding: "1rem 1.5rem", borderBottom: `1px solid ${BORDER}`, fontSize: 15, fontWeight: 700 }}>
-              Últimos Eventos
-            </div>
-            {(displayEvents ?? events.map(e => ({
-              hash: shortHash(e.event_hash, 8),
-              screen: e.screen_label ?? e.player_id ?? "—",
-              campaign: e.campaign_name ?? "Exibição",
-              time: fmt(e.played_at),
-              status: e.anchored ? "Verified" : "Pending",
-            }))).map((e, i, arr) => (
-              <div key={i} style={{ padding: "12px 1.5rem", borderBottom: i < arr.length - 1 ? `1px solid rgba(255,255,255,0.04)` : "none" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: PURPLE, fontFamily: "monospace" }}>{e.hash}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 20,
-                        background: e.status === "Verified" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
-                        color: e.status === "Verified" ? GREEN : AMBER,
-                      }}>{e.status}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: TEXT2 }}>{e.screen} · {e.campaign}</div>
-                    <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{e.time}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── ANCHORING STATUS ICP BRASIL ── */}
-        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "1.5rem", marginBottom: "2rem" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: "1.25rem" }}>Anchoring Status — ICP Brasil</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
-            {[
-              { label: "ICP Brasil",   sub: "Ativo",      color: GREEN  },
-              { label: "Signature",    sub: "Válida",     color: GREEN  },
-              { label: "Merkle Tree",  sub: "Sincronizado",color: GREEN },
-              { label: "Blockchain",   sub: "Ancorado",   color: GREEN  },
-              { label: "Timestamp",    sub: "Verificado", color: GREEN  },
-              { label: "Certificate",  sub: "Emitido",    color: GREEN  },
-              { label: "Network",      sub: "Ethereum",   color: BLUE   },
-              { label: "Compliance",   sub: "LGPD ✓",     color: AMBER  },
-            ].map(s => (
-              <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 12, color: TEXT2 }}>{s.label}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: s.color, marginTop: 2 }}>{s.sub}</div>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={s.color} strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── QUICK LINKS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-          {[
-            { href: "/verify",         icon: "🔐", title: "Verificar hash",     desc: "Consultar uma prova criptográfica" },
-            { href: "/network/map",    icon: "🌐", title: "Network Map",        desc: "Ver telas ativas por região" },
-            { href: "/trust-center",   icon: "🛡",  title: "Trust Center",       desc: "Trust Score e certificações" },
-          ].map(l => (
-            <Link key={l.href} href={l.href} style={{ background: SURFACE, border: `1px solid rgba(99,102,241,0.2)`, borderRadius: 14, padding: "1.25rem", textDecoration: "none", display: "block" }}>
-              <div style={{ fontSize: 22, marginBottom: 8 }}>{l.icon}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 4 }}>{l.title}</div>
-              <div style={{ fontSize: 12, color: MUTED }}>{l.desc}</div>
-            </Link>
-          ))}
-        </div>
-
+        <button onClick={() => setShowForm(v => !v)} style={{
+          background: C.primary, color: "#fff", border: "none", borderRadius: 8,
+          padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          + Nova Campanha
+        </button>
       </div>
-    </main>
-  )
+
+      {/* Formulário de criação */}
+      {showForm && (
+        <div style={{
+          background: C.surface, border: `1px solid ${C.primary}44`,
+          borderRadius: 12, padding: 24, marginBottom: 24,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 20 }}>Nova Campanha</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>NOME DA CAMPANHA *</label>
+              <input
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Ex: Verão 2026"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>ORÇAMENTO (R$)</label>
+              <input
+                type="number"
+                value={form.budget}
+                onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
+                placeholder="0,00"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>DATA DE INÍCIO *</label>
+              <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>DATA DE TÉRMINO *</label>
+              <input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 10 }}>TELAS ({form.screens.length} selecionada{form.screens.length !== 1 ? "s" : ""})</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 8 }}>
+              {SCREENS.map(sc => {
+                const sel = form.screens.includes(sc.id);
+                return (
+                  <div
+                    key={sc.id}
+                    onClick={() => toggleScreen(sc.id)}
+                    style={{
+                      padding: "10px 14px", borderRadius: 8, cursor: "pointer",
+                      border: `1px solid ${sel ? C.primary : C.border}`,
+                      background: sel ? C.primary + "18" : "transparent",
+                      display: "flex", alignItems: "center", gap: 10, transition: "all .15s",
+                    }}
+                  >
+                    <div style={{
+                      width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                      border: `2px solid ${sel ? C.primary : C.muted}`,
+                      background: sel ? C.primary : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {sel && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{sc.name}</div>
+                      <div style={{ fontSize: 11, color: C.textSub }}>{sc.city}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              style={{
+                background: C.primary, color: "#fff", border: "none", borderRadius: 8,
+                padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? .7 : 1,
+              }}
+            >
+              {loading ? "Salvando…" : "Criar Campanha"}
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              style={{
+                background: "transparent", color: C.textSub, border: `1px solid ${C.border}`,
+                borderRadius: 8, padding: "10px 20px", fontSize: 14, cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de campanhas */}
+      {campaigns.length === 0 ? (
+        <div style={{
+          textAlign: "center", padding: "60px 20px",
+          background: C.surface, borderRadius: 12, border: `1px dashed ${C.border}`,
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📢</div>
+          <div style={{ color: C.text, fontWeight: 600, marginBottom: 6 }}>Nenhuma campanha ainda</div>
+          <div style={{ color: C.textSub, fontSize: 14 }}>Crie sua primeira campanha para começar a anunciar.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {campaigns.map(c => (
+            <div key={c.id} style={{
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 12, padding: "18px 24px",
+              display: "grid", gridTemplateColumns: "1fr auto auto auto auto",
+              alignItems: "center", gap: 24,
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{c.name}</div>
+                <div style={{ fontSize: 12, color: C.textSub }}>{fmtDate(c.startDate)} → {fmtDate(c.endDate)}</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.primary }}>{fmt(c.impressions)}</div>
+                <div style={{ fontSize: 11, color: C.textSub }}>Impressões</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>{c.screens?.length ?? 0}</div>
+                <div style={{ fontSize: 11, color: C.textSub }}>Telas</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.success }}>{brl(c.budget)}</div>
+                <div style={{ fontSize: 11, color: C.textSub }}>Orçamento</div>
+              </div>
+              <Badge status={c.status} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Mídia ─────────────────────────────────────────────────────────────────────
+function TabMidia({ code, medias, campaigns, onRefresh }) {
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState("");
+  const fileRef = useRef();
+
+  const handleUpload = async (files) => {
+    if (!selectedCampaign) { alert("Selecione uma campanha primeiro."); return; }
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(f => formData.append("files", f));
+      formData.append("campaignId", selectedCampaign);
+      const res = await fetch(`/api/advertiser/${code}/media`, {
+        method: "POST", body: formData,
+      });
+      if (!res.ok) throw new Error();
+      onRefresh();
+    } catch {
+      alert("Erro no upload. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Mídia</div>
+        <div style={{ fontSize: 13, color: C.textSub, marginTop: 2 }}>Envie vídeos e imagens para suas campanhas</div>
+      </div>
+
+      {/* Upload zone */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>CAMPANHA</label>
+        <select value={selectedCampaign} onChange={e => setSelectedCampaign(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }}>
+          <option value="">Selecione uma campanha…</option>
+          {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files); }}
+          onClick={() => fileRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragOver ? C.primary : C.border}`,
+            borderRadius: 12, padding: "48px 24px", textAlign: "center",
+            background: dragOver ? C.primary + "0A" : C.surface,
+            cursor: "pointer", transition: "all .2s",
+          }}
+        >
+          <div style={{ fontSize: 36, marginBottom: 12 }}>📁</div>
+          <div style={{ color: C.text, fontWeight: 600, marginBottom: 4 }}>
+            {uploading ? "Enviando…" : "Arraste arquivos ou clique para selecionar"}
+          </div>
+          <div style={{ color: C.textSub, fontSize: 13 }}>MP4, MOV, JPG, PNG — máx. 50 MB por arquivo</div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="video/*,image/*"
+            multiple
+            style={{ display: "none" }}
+            onChange={e => handleUpload(e.target.files)}
+          />
+        </div>
+      </div>
+
+      {/* Lista de mídias */}
+      {medias.length === 0 ? (
+        <div style={{
+          textAlign: "center", padding: "40px 20px",
+          background: C.surface, borderRadius: 12, border: `1px dashed ${C.border}`,
+        }}>
+          <div style={{ color: C.textSub, fontSize: 14 }}>Nenhum arquivo enviado ainda.</div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+          {medias.map(m => (
+            <div key={m.id} style={{
+              background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden",
+            }}>
+              <div style={{
+                height: 130, background: C.bg, display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 40,
+              }}>
+                {m.type === "video" ? "🎬" : "🖼️"}
+              </div>
+              <div style={{ padding: "12px 14px" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                <div style={{ fontSize: 11, color: C.textSub, marginBottom: 8 }}>{m.type === "video" ? "Vídeo" : "Imagem"}</div>
+                <Badge status={m.status} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Relatórios ────────────────────────────────────────────────────────────────
+function TabRelatorios({ campaigns }) {
+  const [selected, setSelected] = useState(campaigns[0]?.id ?? "");
+  const campaign = campaigns.find(c => c.id === selected);
+
+  const totalImpressions = campaigns.reduce((a, c) => a + (c.impressions ?? 0), 0);
+  const totalBudget      = campaigns.reduce((a, c) => a + (c.budget ?? 0), 0);
+  const activeCampaigns  = campaigns.filter(c => c.status === "active").length;
+  const cpm = totalImpressions > 0 ? (totalBudget / totalImpressions) * 1000 : 0;
+
+  // Dados mock de exibições por dia (últimos 7 dias)
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return {
+      label: d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      value: Math.floor(Math.random() * 2000 + 500),
+    };
+  });
+  const maxVal = Math.max(...days.map(d => d.value));
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Relatórios</div>
+        <div style={{ fontSize: 13, color: C.textSub, marginTop: 2 }}>Desempenho geral de todas as campanhas</div>
+      </div>
+
+      {/* KPIs globais */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 32 }}>
+        <KpiCard label="Impressões Totais"   value={fmt(totalImpressions)} color={C.primary} />
+        <KpiCard label="Campanhas Ativas"    value={activeCampaigns}       color={C.success} />
+        <KpiCard label="Investimento Total"  value={brl(totalBudget)}      color={C.purple}  />
+        <KpiCard label="CPM Médio"           value={brl(cpm)}              sub="por mil impressões" />
+      </div>
+
+      {/* Gráfico de barras */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 20 }}>Exibições por dia (últimos 7 dias)</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 160 }}>
+          {days.map((d, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 11, color: C.textSub }}>{fmt(d.value)}</div>
+              <div style={{
+                width: "100%", borderRadius: "4px 4px 0 0",
+                height: `${(d.value / maxVal) * 120}px`,
+                background: `linear-gradient(180deg, ${C.primary}, ${C.primaryDim})`,
+              }} />
+              <div style={{ fontSize: 11, color: C.textSub }}>{d.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Detalhes por campanha */}
+      {campaigns.length > 0 && (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 16 }}>Detalhes por Campanha</div>
+          <div style={{ marginBottom: 16 }}>
+            <select value={selected} onChange={e => setSelected(e.target.value)} style={inputStyle}>
+              {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          {campaign && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
+              <div style={{ padding: "14px 18px", background: C.bg, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: C.textSub, marginBottom: 6 }}>STATUS</div>
+                <Badge status={campaign.status} />
+              </div>
+              <div style={{ padding: "14px 18px", background: C.bg, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: C.textSub, marginBottom: 6 }}>PERÍODO</div>
+                <div style={{ fontSize: 13, color: C.text }}>{fmtDate(campaign.startDate)} – {fmtDate(campaign.endDate)}</div>
+              </div>
+              <div style={{ padding: "14px 18px", background: C.bg, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: C.textSub, marginBottom: 6 }}>IMPRESSÕES</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: C.primary }}>{fmt(campaign.impressions)}</div>
+              </div>
+              <div style={{ padding: "14px 18px", background: C.bg, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: C.textSub, marginBottom: 6 }}>TELAS ATIVAS</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: C.success }}>{campaign.screens?.length ?? 0}</div>
+              </div>
+              <div style={{ padding: "14px 18px", background: C.bg, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: C.textSub, marginBottom: 6 }}>ORÇAMENTO</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.purple }}>{brl(campaign.budget)}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Estilo de input compartilhado ──────────────────────────────────────────
+const inputStyle = {
+  width: "100%", boxSizing: "border-box",
+  background: "#0B1020", border: `1px solid #1F2937`,
+  borderRadius: 8, padding: "10px 14px",
+  color: "#F9FAFB", fontSize: 14, outline: "none",
+};
+
+// ─── Componente principal ────────────────────────────────────────────────────
+function PortalAnuncianteInner({ code }) {
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState(null);
+  const [tab, setTab]       = useState("campanhas");
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/advertiser/${code}`);
+      if (res.status === 404) { setError("Anunciante não encontrado."); return; }
+      if (!res.ok) throw new Error();
+      setData(await res.json());
+    } catch {
+      setError("Erro ao carregar dados. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [code]);
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>⚡</div>
+        <div style={{ color: C.textSub }}>Carregando seu portal…</div>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", color: C.danger }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+        <div>{error}</div>
+      </div>
+    </div>
+  );
+
+  const tabs = [
+    { id: "campanhas",  label: "Campanhas",  icon: "📢" },
+    { id: "midia",      label: "Mídia",      icon: "🎬" },
+    { id: "relatorios", label: "Relatórios", icon: "📊" },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        input, select { color-scheme: dark; }
+        input::placeholder { color: #6B7280; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: ${C.bg}; }
+        ::-webkit-scrollbar-thumb { background: ${C.muted}; border-radius: 3px; }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 8,
+                background: `linear-gradient(135deg, ${C.primary}, ${C.purple})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, fontWeight: 800, color: "#fff",
+              }}>
+                D
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>DOOHPLAY</div>
+                <div style={{ fontSize: 11, color: C.textSub }}>Portal do Anunciante</div>
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{data?.advertiser?.name}</div>
+              <div style={{ fontSize: 12, color: C.textSub }}>#{code.toUpperCase()}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs nav */}
+      <div style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", display: "flex", gap: 4 }}>
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              style={{
+                background: "transparent", border: "none", cursor: "pointer",
+                padding: "14px 20px", fontSize: 14, fontWeight: tab === t.id ? 600 : 400,
+                color: tab === t.id ? C.primary : C.textSub,
+                borderBottom: `2px solid ${tab === t.id ? C.primary : "transparent"}`,
+                display: "flex", alignItems: "center", gap: 8, transition: "all .15s",
+              }}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Conteúdo */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
+        {tab === "campanhas"  && <TabCampanhas  code={code} campaigns={data?.campaigns ?? []} onRefresh={load} />}
+        {tab === "midia"      && <TabMidia      code={code} medias={data?.medias ?? []} campaigns={data?.campaigns ?? []} onRefresh={load} />}
+        {tab === "relatorios" && <TabRelatorios campaigns={data?.campaigns ?? []} />}
+      </div>
+    </div>
+  );
+}
+
+export default function Page({ params }) {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#0B1020", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#9CA3AF" }}>Carregando…</div>
+      </div>
+    }>
+      <PortalAnuncianteInner code={params.code} />
+    </Suspense>
+  );
 }
