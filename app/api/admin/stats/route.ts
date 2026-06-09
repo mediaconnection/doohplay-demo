@@ -16,7 +16,12 @@ export async function GET(req: NextRequest) {
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
                sc.phone, sc.address, sc.created_at,
-               p.id::text AS player_id, p.status AS player_status, p.last_seen_at
+               p.id::text AS player_id, p.last_seen_at,
+               CASE
+                 WHEN p.last_seen_at > NOW() - INTERVAL '5 minutes' THEN 'online'
+                 WHEN p.last_seen_at IS NOT NULL THEN 'offline'
+                 ELSE 'never'
+               END AS player_status
         FROM studio_clients sc
         LEFT JOIN players p ON p.id = sc.player_id
         ORDER BY sc.created_at DESC
