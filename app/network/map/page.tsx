@@ -8,16 +8,16 @@ const TEXT = "#F1F5F9", TEXT2 = "#94A3B8", MUTED = "#475569"
 const BLUE = "#3B82F6", GREEN = "#10B981", AMBER = "#F59E0B", RED = "#EF4444"
 
 const CITIES = [
-  { name: "São Paulo",      telas: 412, total: 430, camp: 47, sla: 98,  trust: 97.3, status: "Online",   svgX: 436, svgY: 491 },
-  { name: "Rio de Janeiro", telas: 218, total: 224, camp: 28, sla: 97,  trust: 96.8, status: "Online",   svgX: 502, svgY: 485 },
-  { name: "Belo Horizonte", telas: 142, total: 156, camp: 19, sla: 91,  trust: 94.1, status: "Warning",  svgX: 478, svgY: 419 },
-  { name: "Brasília",       telas: 89,  total: 97,  camp: 12, sla: 96,  trust: 95.2, status: "Online",   svgX: 435, svgY: 376 },
-  { name: "Curitiba",       telas: 98,  total: 102, camp: 11, sla: 96,  trust: 96.1, status: "Online",   svgX: 381, svgY: 528 },
-  { name: "Porto Alegre",   telas: 76,  total: 78,  camp: 9,  sla: 99,  trust: 98.2, status: "Verified", svgX: 350, svgY: 612 },
-  { name: "Salvador",       telas: 88,  total: 94,  camp: 10, sla: 94,  trust: 93.7, status: "Online",   svgX: 524, svgY: 333 },
-  { name: "Recife",         telas: 54,  total: 64,  camp: 6,  sla: 84,  trust: 89.4, status: "Warning",  svgX: 587, svgY: 253 },
-  { name: "Fortaleza",      telas: 32,  total: 41,  camp: 4,  sla: 78,  trust: 85.1, status: "Critical", svgX: 560, svgY: 201 },
-  { name: "Manaus",         telas: 8,   total: 10,  camp: 1,  sla: 92,  trust: 91.2, status: "Offline",  svgX: 157, svgY: 159 },
+  { name: "São Paulo",      telas: 412, total: 430, camp: 47, sla: 98,  trust: 97.3, status: "Online",   svgX: 451, svgY: 503 },
+  { name: "Rio de Janeiro", telas: 218, total: 224, camp: 28, sla: 97,  trust: 96.8, status: "Online",   svgX: 504, svgY: 492 },
+  { name: "Belo Horizonte", telas: 142, total: 156, camp: 19, sla: 91,  trust: 94.1, status: "Warning",  svgX: 492, svgY: 443 },
+  { name: "Brasília",       telas: 89,  total: 97,  camp: 12, sla: 96,  trust: 95.2, status: "Online",   svgX: 431, svgY: 375 },
+  { name: "Curitiba",       telas: 98,  total: 102, camp: 11, sla: 96,  trust: 96.1, status: "Online",   svgX: 410, svgY: 534 },
+  { name: "Porto Alegre",   telas: 76,  total: 78,  camp: 9,  sla: 99,  trust: 98.2, status: "Verified", svgX: 380, svgY: 609 },
+  { name: "Salvador",       telas: 88,  total: 94,  camp: 10, sla: 94,  trust: 93.7, status: "Online",   svgX: 576, svgY: 329 },
+  { name: "Recife",         telas: 54,  total: 64,  camp: 6,  sla: 84,  trust: 89.4, status: "Warning",  svgX: 632, svgY: 249 },
+  { name: "Fortaleza",      telas: 32,  total: 41,  camp: 4,  sla: 78,  trust: 85.1, status: "Critical", svgX: 575, svgY: 177 },
+  { name: "Manaus",         telas: 8,   total: 10,  camp: 1,  sla: 92,  trust: 91.2, status: "Offline",  svgX: 245, svgY: 167 },
 ]
 
 const SC: Record<string,string> = { Online: GREEN, Verified: BLUE, Warning: AMBER, Critical: RED, Offline: "#64748B" }
@@ -62,7 +62,7 @@ export default function NetworkMapPage() {
         <div style={{ position:"relative", background:"#080D1A", borderRight:`1px solid ${BORDER}`, overflow:"hidden", minHeight:500 }}>
           {/* Brazil map + city dots — single SVG, perfectly aligned */}
           <svg
-            viewBox="0 0 700 700"
+            viewBox="0 0 700 720"
             xmlns="http://www.w3.org/2000/svg"
             style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", pointerEvents:"none" }}
           >
@@ -71,62 +71,62 @@ export default function NetworkMapPage() {
             {/* City dots — same coordinate space as map */}
             <g style={{pointerEvents:"all"}}>
               <g key="São Paulo" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="São Paulo"))}>
-                <circle cx={436} cy={491} r={sel.name==="São Paulo"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="São Paulo"?2.5:1.5}/>
-                <text x={524} y={333+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="São Paulo"?12:10} fontWeight="700">{412}</text>
+                <circle cx={451} cy={503} r={sel.name==="São Paulo"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="São Paulo"?2.5:1.5}/>
+                <text x={451} y={503+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="São Paulo"?12:10} fontWeight="700">{412}</text>
                 {sel.name==="São Paulo" && <text x={451} y={503+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>São Paulo</text>}
                 {false && <text x={451} y={503+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>São Paulo</text>}
               </g>
               <g key="Rio de Janeiro" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Rio de Janeiro"))}>
-                <circle cx={502} cy={485} r={sel.name==="Rio de Janeiro"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Rio de Janeiro"?2.5:1.5}/>
-                <text x={524} y={333+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Rio de Janeiro"?12:10} fontWeight="700">{218}</text>
+                <circle cx={504} cy={492} r={sel.name==="Rio de Janeiro"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Rio de Janeiro"?2.5:1.5}/>
+                <text x={504} y={492+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Rio de Janeiro"?12:10} fontWeight="700">{218}</text>
                 {sel.name==="Rio de Janeiro" && <text x={504} y={492+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Rio de Janeiro</text>}
                 {false && <text x={504} y={492+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Rio de Janeiro</text>}
               </g>
               <g key="Belo Horizonte" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Belo Horizonte"))}>
-                <circle cx={478} cy={419} r={sel.name==="Belo Horizonte"?20:15} fill={`${"#F59E0B"}20`} stroke={"#F59E0B"} strokeWidth={sel.name==="Belo Horizonte"?2.5:1.5}/>
-                <text x={587} y={253+5} textAnchor="middle" fill={"#F59E0B"} fontSize={sel.name==="Belo Horizonte"?12:10} fontWeight="700">{142}</text>
+                <circle cx={492} cy={443} r={sel.name==="Belo Horizonte"?20:15} fill={`${"#F59E0B"}20`} stroke={"#F59E0B"} strokeWidth={sel.name==="Belo Horizonte"?2.5:1.5}/>
+                <text x={492} y={443+5} textAnchor="middle" fill={"#F59E0B"} fontSize={sel.name==="Belo Horizonte"?12:10} fontWeight="700">{142}</text>
                 {sel.name==="Belo Horizonte" && <text x={492} y={443+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Belo Horizonte</text>}
                 {false && <text x={492} y={443+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Belo Horizonte</text>}
               </g>
               <g key="Brasília" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Brasília"))}>
-                <circle cx={435} cy={376} r={sel.name==="Brasília"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Brasília"?2.5:1.5}/>
-                <text x={524} y={333+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Brasília"?12:10} fontWeight="700">{89}</text>
+                <circle cx={431} cy={375} r={sel.name==="Brasília"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Brasília"?2.5:1.5}/>
+                <text x={431} y={375+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Brasília"?12:10} fontWeight="700">{89}</text>
                 {sel.name==="Brasília" && <text x={431} y={375+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Brasília</text>}
                 {true && <text x={431} y={375+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Brasília</text>}
               </g>
               <g key="Curitiba" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Curitiba"))}>
-                <circle cx={381} cy={528} r={sel.name==="Curitiba"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Curitiba"?2.5:1.5}/>
-                <text x={524} y={333+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Curitiba"?12:10} fontWeight="700">{98}</text>
+                <circle cx={410} cy={534} r={sel.name==="Curitiba"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Curitiba"?2.5:1.5}/>
+                <text x={410} y={534+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Curitiba"?12:10} fontWeight="700">{98}</text>
                 {sel.name==="Curitiba" && <text x={410} y={534+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Curitiba</text>}
                 {false && <text x={410} y={534+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Curitiba</text>}
               </g>
               <g key="Porto Alegre" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Porto Alegre"))}>
-                <circle cx={350} cy={612} r={sel.name==="Porto Alegre"?20:15} fill={`${"#3B82F6"}20`} stroke={"#3B82F6"} strokeWidth={sel.name==="Porto Alegre"?2.5:1.5}/>
-                <text x={350} y={612+5} textAnchor="middle" fill={"#3B82F6"} fontSize={sel.name==="Porto Alegre"?12:10} fontWeight="700">{76}</text>
+                <circle cx={380} cy={609} r={sel.name==="Porto Alegre"?20:15} fill={`${"#3B82F6"}20`} stroke={"#3B82F6"} strokeWidth={sel.name==="Porto Alegre"?2.5:1.5}/>
+                <text x={380} y={609+5} textAnchor="middle" fill={"#3B82F6"} fontSize={sel.name==="Porto Alegre"?12:10} fontWeight="700">{76}</text>
                 {sel.name==="Porto Alegre" && <text x={380} y={609+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Porto Alegre</text>}
                 {false && <text x={380} y={609+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Porto Alegre</text>}
               </g>
               <g key="Salvador" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Salvador"))}>
-                <circle cx={524} cy={333} r={sel.name==="Salvador"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Salvador"?2.5:1.5}/>
-                <text x={524} y={333+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Salvador"?12:10} fontWeight="700">{88}</text>
+                <circle cx={576} cy={329} r={sel.name==="Salvador"?20:15} fill={`${"#10B981"}20`} stroke={"#10B981"} strokeWidth={sel.name==="Salvador"?2.5:1.5}/>
+                <text x={576} y={329+5} textAnchor="middle" fill={"#10B981"} fontSize={sel.name==="Salvador"?12:10} fontWeight="700">{88}</text>
                 {sel.name==="Salvador" && <text x={576} y={329+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Salvador</text>}
                 {false && <text x={576} y={329+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Salvador</text>}
               </g>
               <g key="Recife" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Recife"))}>
-                <circle cx={587} cy={253} r={sel.name==="Recife"?20:15} fill={`${"#F59E0B"}20`} stroke={"#F59E0B"} strokeWidth={sel.name==="Recife"?2.5:1.5}/>
-                <text x={587} y={253+5} textAnchor="middle" fill={"#F59E0B"} fontSize={sel.name==="Recife"?12:10} fontWeight="700">{54}</text>
-                {sel.name==="Recife" && <text x={632} y={248+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Recife</text>}
+                <circle cx={632} cy={249} r={sel.name==="Recife"?20:15} fill={`${"#F59E0B"}20`} stroke={"#F59E0B"} strokeWidth={sel.name==="Recife"?2.5:1.5}/>
+                <text x={632} y={249+5} textAnchor="middle" fill={"#F59E0B"} fontSize={sel.name==="Recife"?12:10} fontWeight="700">{54}</text>
+                {sel.name==="Recife" && <text x={632} y={249+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Recife</text>}
                 {false && <text x={632} y={248+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Recife</text>}
               </g>
               <g key="Fortaleza" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Fortaleza"))}>
-                <circle cx={560} cy={201} r={sel.name==="Fortaleza"?20:15} fill={`${"#EF4444"}20`} stroke={"#EF4444"} strokeWidth={sel.name==="Fortaleza"?2.5:1.5}/>
-                <text x={560} y={201+5} textAnchor="middle" fill={"#EF4444"} fontSize={sel.name==="Fortaleza"?12:10} fontWeight="700">{32}</text>
+                <circle cx={575} cy={177} r={sel.name==="Fortaleza"?20:15} fill={`${"#EF4444"}20`} stroke={"#EF4444"} strokeWidth={sel.name==="Fortaleza"?2.5:1.5}/>
+                <text x={575} y={177+5} textAnchor="middle" fill={"#EF4444"} fontSize={sel.name==="Fortaleza"?12:10} fontWeight="700">{32}</text>
                 {sel.name==="Fortaleza" && <text x={575} y={177+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Fortaleza</text>}
                 {false && <text x={575} y={177+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Fortaleza</text>}
               </g>
               <g key="Manaus" style={{cursor:"pointer"}} onClick={() => setSel(CITIES.find(x=>x.name==="Manaus"))}>
-                <circle cx={157} cy={159} r={sel.name==="Manaus"?20:15} fill={`${"#64748B"}20`} stroke={"#64748B"} strokeWidth={sel.name==="Manaus"?2.5:1.5}/>
-                <text x={157} y={159+5} textAnchor="middle" fill={"#64748B"} fontSize={sel.name==="Manaus"?12:10} fontWeight="700">{8}</text>
+                <circle cx={245} cy={167} r={sel.name==="Manaus"?20:15} fill={`${"#64748B"}20`} stroke={"#64748B"} strokeWidth={sel.name==="Manaus"?2.5:1.5}/>
+                <text x={245} y={167+5} textAnchor="middle" fill={"#64748B"} fontSize={sel.name==="Manaus"?12:10} fontWeight="700">{8}</text>
                 {sel.name==="Manaus" && <text x={245} y={167+30} textAnchor="middle" fill="#94A3B8" fontSize={9}>Manaus</text>}
                 {false && <text x={245} y={167+28} textAnchor="middle" fill="#94A3B8" fontSize={9}>Manaus</text>}
               </g>
