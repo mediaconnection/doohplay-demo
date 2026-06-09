@@ -1,390 +1,367 @@
-export const dynamic = "force-dynamic"
+"use client"
 
-import { pool } from "@/lib/db"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 
-// ── Types ──
-type Screen = {
-  id: string
-  name: string
-  location: string | null
-  status: string
-  last_ping: string | null
-  plays_today: number
-  plays_week: number
-  client_name: string | null
-  client_code: string | null
+const BG      = "#0B1020"
+const SURFACE = "#111827"
+const BORDER  = "#1F2937"
+const TEXT    = "#F9FAFB"
+const TEXT2   = "#9CA3AF"
+const MUTED   = "#4B5563"
+const BLUE    = "#3B82F6"
+const GREEN   = "#10B981"
+const AMBER   = "#F59E0B"
+const RED     = "#EF4444"
+const PURPLE  = "#8B5CF6"
+
+const fmt = (d?: string | null) => {
+  if (!d) return "—"
+  try { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(d)) }
+  catch { return "—" }
+}
+const brl = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n ?? 0)
+
+function Badge({ label, color }: { label: string; color: string }) {
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: color + "22", color, border: `1px solid ${color}44` }}>
+      {label}
+    </span>
+  )
 }
 
-type Alert = {
-  type: "offline" | "no_plays" | "error"
-  screen_name: string
-  message: string
-  since: string | null
+function KpiCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+  return (
+    <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "20px 24px", flex: 1, minWidth: 160 }}>
+      <div style={{ fontSize: 11, color: TEXT2, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: color ?? TEXT }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: TEXT2, marginTop: 4 }}>{sub}</div>}
+    </div>
+  )
 }
 
-type Stats = {
-  total_screens: number
-  online_screens: number
-  offline_screens: number
-  total_plays_today: number
-  total_plays_week: number
-  active_campaigns: number
-  total_clients: number
-}
+// ── Login ────────────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }: { onLogin: (s: string) => void }) {
+  const [secret, setSecret] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-// ── Data fetchers ──
-async function getStats(): Promise<Stats> {
-  try {
-    const [screenRes, playsRes, campaignRes, clientRes] = await Promise.all([
-      pool.query(`
-        SELECT
-          COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE last_ping IS NOT NULL AND last_ping >= NOW() - INTERVAL '5 minutes')::int AS online
-        FROM players
-      `),
-      pool.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE played_at >= CURRENT_DATE)::int AS today,
-          COUNT(*) FILTER (WHERE played_at >= CURRENT_DATE - INTERVAL '7 days')::int AS week
-        FROM display_events
-      `),
-      pool.query(`SELECT COUNT(*)::int AS total FROM campaigns WHERE is_active = true`),
-      pool.query(`SELECT COUNT(*)::int AS total FROM studio_clients WHERE active = true`),
-    ])
-    const s = screenRes.rows[0]
-    const p = playsRes.rows[0]
-    return {
-      total_screens: s.total ?? 0,
-      online_screens: s.online ?? 0,
-      offline_screens: (s.total ?? 0) - (s.online ?? 0),
-      total_plays_today: p.today ?? 0,
-      total_plays_week: p.week ?? 0,
-      active_campaigns: campaignRes.rows[0]?.total ?? 0,
-      total_clients: clientRes.rows[0]?.total ?? 0,
+  const handle = async () => {
+    setLoading(true)
+    setError("")
+    const res = await fetch(`/api/admin/stats?secret=${encodeURIComponent(secret)}`)
+    if (res.ok) {
+      localStorage.setItem("admin_secret", secret)
+      onLogin(secret)
+    } else {
+      setError("Senha incorreta.")
     }
-  } catch { return { total_screens: 0, online_screens: 0, offline_screens: 0, total_plays_today: 0, total_plays_week: 0, active_campaigns: 0, total_clients: 0 } }
-}
-
-async function getScreens(): Promise<Screen[]> {
-  try {
-    const res = await pool.query(`
-      SELECT
-        p.id,
-        p.name,
-        p.location,
-        CASE WHEN p.last_ping >= NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END AS status,
-        p.last_ping::text,
-        COUNT(e.id) FILTER (WHERE e.played_at >= CURRENT_DATE)::int AS plays_today,
-        COUNT(e.id) FILTER (WHERE e.played_at >= CURRENT_DATE - INTERVAL '7 days')::int AS plays_week,
-        sc.name AS client_name,
-        sc.code AS client_code
-      FROM players p
-      LEFT JOIN display_events e ON e.player_id = p.id
-      LEFT JOIN studio_clients sc ON sc.player_id = p.id
-      GROUP BY p.id, p.name, p.location, p.last_ping, sc.name, sc.code
-      ORDER BY status ASC, plays_today DESC
-    `)
-    return res.rows ?? []
-  } catch { return [] }
-}
-
-async function getAlerts(): Promise<Alert[]> {
-  try {
-    const alerts: Alert[] = []
-
-    // Telas offline há mais de 1 hora
-    const offlineRes = await pool.query(`
-      SELECT name, last_ping::text
-      FROM players
-      WHERE (last_ping IS NULL OR last_ping < NOW() - INTERVAL '1 hour') AND is_active = true
-      LIMIT 10
-    `)
-    for (const r of offlineRes.rows) {
-      alerts.push({ type: "offline", screen_name: r.name, message: "Tela offline", since: r.last_ping })
-    }
-
-    // Telas sem exibições hoje
-    const noPlaysRes = await pool.query(`
-      SELECT p.name, p.last_ping::text
-      FROM players p
-      WHERE p.last_ping IS NOT NULL AND p.last_ping >= NOW() - INTERVAL '5 minutes'
-      AND NOT EXISTS (
-        SELECT 1 FROM display_events e
-        WHERE e.player_id = p.id AND e.played_at >= CURRENT_DATE
-      )
-      LIMIT 5
-    `)
-    for (const r of noPlaysRes.rows) {
-      alerts.push({ type: "no_plays", screen_name: r.name, message: "Online mas sem exibições hoje", since: r.last_ping })
-    }
-
-    return alerts
-  } catch { return [] }
-}
-
-async function getRecentActivity() {
-  try {
-    const res = await pool.query(`
-      SELECT
-        e.played_at::text,
-        e.duration,
-        p.name AS player_name,
-        p.location AS player_location,
-        c.name AS campaign_name,
-        sc.name AS client_name
-      FROM display_events e
-      LEFT JOIN players p ON p.id = e.player_id
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
-      LEFT JOIN studio_clients sc ON sc.player_id = p.id
-      ORDER BY e.played_at DESC
-      LIMIT 20
-    `)
-    return res.rows ?? []
-  } catch { return [] }
-}
-
-// ── Helpers ──
-function fmtDate(d?: string | null) {
-  if (!d) return "Nunca"
-  try {
-    const diff = Date.now() - new Date(d).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 1) return "agora"
-    if (mins < 60) return `${mins}min atrás`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h atrás`
-    return `${Math.floor(hrs / 24)}d atrás`
-  } catch { return "—" }
-}
-
-// ── Page ──
-export default async function AdminPage() {
-  const [stats, screens, alerts, activity] = await Promise.all([
-    getStats(), getScreens(), getAlerts(), getRecentActivity()
-  ])
-
-  const BRAND = "#0284C7"
-  const BRAND_LIGHT = "#F0F9FF"
-  const BRAND_DARK = "#0369A1"
-  const BRAND_BORDER = "#BAE6FD"
-
-  const onlineScreens = screens.filter(s => s.status === "online")
-  const offlineScreens = screens.filter(s => s.status === "offline")
-  const slaPercent = stats.total_screens > 0 ? Math.round((stats.online_screens / stats.total_screens) * 100) : 0
+    setLoading(false)
+  }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif", color: "#111827" }}>
-
-      {/* ── HEADER ── */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 28, height: 28, background: BRAND, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg viewBox="0 0 16 16" fill="none" width="16" height="16">
-              <rect x="2" y="2" width="5" height="5" rx="1" fill="white"/>
-              <rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
-              <rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
-              <rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity="0.3"/>
-            </svg>
-          </div>
+    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "2.5rem", width: 360 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: `linear-gradient(135deg,${BLUE},${PURPLE})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>D</div>
           <div>
-            <div style={{ fontSize: 10, color: BRAND, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>DOOHPLAY</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", lineHeight: 1 }}>Dashboard Operacional</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>DOOHPLAY</div>
+            <div style={{ fontSize: 11, color: TEXT2 }}>Painel Admin</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {alerts.length > 0 && (
-            <span style={{ background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 600, color: "#dc2626" }}>
-              ⚠ {alerts.length} alerta{alerts.length > 1 ? "s" : ""}
-            </span>
-          )}
-          <span style={{ background: slaPercent >= 90 ? "#DCFCE7" : slaPercent >= 70 ? "#fef9c3" : "#fef2f2", border: `0.5px solid ${slaPercent >= 90 ? "#bbf7d0" : slaPercent >= 70 ? "#fde047" : "#fecaca"}`, borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 600, color: slaPercent >= 90 ? "#15803d" : slaPercent >= 70 ? "#854d0e" : "#dc2626" }}>
-            SLA {slaPercent}%
-          </span>
-          <Link href="/advertiser" style={{ background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 8, padding: "6px 14px", fontSize: 12, color: BRAND_DARK, textDecoration: "none", fontWeight: 500 }}>Portal Anunciante</Link>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>SENHA DE ACESSO</label>
+          <input
+            type="password"
+            value={secret}
+            onChange={e => setSecret(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handle()}
+            placeholder="••••••••••••"
+            style={{ width: "100%", boxSizing: "border-box", background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 14px", color: TEXT, fontSize: 14, outline: "none" }}
+          />
         </div>
-      </header>
+        {error && <div style={{ fontSize: 12, color: RED, marginBottom: 12 }}>{error}</div>}
+        <button
+          onClick={handle}
+          disabled={loading || !secret}
+          style={{ width: "100%", background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontSize: 14, fontWeight: 600, cursor: loading || !secret ? "not-allowed" : "pointer", opacity: loading || !secret ? 0.7 : 1 }}
+        >
+          {loading ? "Verificando…" : "Entrar"}
+        </button>
+      </div>
+    </div>
+  )
+}
 
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "1.5rem" }}>
+// ── Aba Clientes ─────────────────────────────────────────────────────────────
+function TabClientes({ data }: { data: any }) {
+  const { clients, subscriptions } = data
+  const subMap = Object.fromEntries(subscriptions.map((s: any) => [s.code, s]))
 
-        {/* ── MÉTRICAS PRINCIPAIS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: "1.5rem" }}>
-          {[
-            { label: "Telas online", value: `${stats.online_screens}/${stats.total_screens}`, sub: `${stats.offline_screens} offline`, color: stats.offline_screens === 0 ? "#15803d" : "#dc2626", bg: stats.offline_screens === 0 ? "#DCFCE7" : "#fef2f2", border: stats.offline_screens === 0 ? "#bbf7d0" : "#fecaca" },
-            { label: "Exibições hoje", value: stats.total_plays_today.toLocaleString("pt-BR"), sub: `${stats.total_plays_week.toLocaleString("pt-BR")} esta semana`, color: BRAND, bg: BRAND_LIGHT, border: BRAND_BORDER },
-            { label: "Campanhas ativas", value: stats.active_campaigns, sub: "em veiculação", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-            { label: "Clientes ativos", value: stats.total_clients, sub: "estabelecimentos", color: "#0369A1", bg: BRAND_LIGHT, border: BRAND_BORDER },
-          ].map(m => (
-            <div key={m.label} style={{ background: m.bg, border: `0.5px solid ${m.border}`, borderRadius: 14, padding: "1.25rem" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{m.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: m.color, letterSpacing: "-0.02em", lineHeight: 1 }}>{m.value}</div>
-              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>{m.sub}</div>
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 20 }}>Clientes <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({clients.length})</span></div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {clients.map((c: any) => {
+          const sub = subMap[c.code]
+          return (
+            <div key={c.code} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: TEXT, fontSize: 15 }}>{c.name}</span>
+                  <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "1px 7px", borderRadius: 10 }}>{c.code}</span>
+                </div>
+                <div style={{ fontSize: 12, color: TEXT2 }}>{c.business_type} · {c.address ?? "Sem endereço"}</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Player</div>
+                <Badge label={c.player_status ?? "offline"} color={c.player_status === "online" ? GREEN : MUTED} />
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Plano</div>
+                <Badge label={sub?.plan ?? "—"} color={sub ? BLUE : MUTED} />
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Assinatura</div>
+                <Badge label={sub?.status ?? "sem assinatura"} color={sub?.status === "ACTIVE" ? GREEN : AMBER} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Link href={`/portal/${c.code}`} target="_blank" style={{ fontSize: 12, color: BLUE, textDecoration: "none", padding: "5px 10px", border: `1px solid ${BLUE}44`, borderRadius: 6 }}>Portal</Link>
+                <Link href={`/dashboard/local/${c.code}`} target="_blank" style={{ fontSize: 12, color: PURPLE, textDecoration: "none", padding: "5px 10px", border: `1px solid ${PURPLE}44`, borderRadius: 6 }}>Dashboard</Link>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Aba Assinaturas ───────────────────────────────────────────────────────────
+function TabAssinaturas({ data }: { data: any }) {
+  const { subscriptions, clients } = data
+  const clientMap = Object.fromEntries(clients.map((c: any) => [c.code, c]))
+  const mrr = subscriptions.filter((s: any) => s.status === "ACTIVE").reduce((a: number, s: any) => a + Number(s.value), 0)
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
+        <KpiCard label="MRR" value={brl(mrr)} color={GREEN} />
+        <KpiCard label="Assinaturas Ativas" value={subscriptions.filter((s: any) => s.status === "ACTIVE").length} color={BLUE} />
+        <KpiCard label="ARR Projetado" value={brl(mrr * 12)} color={PURPLE} />
+        <KpiCard label="Ticket Médio" value={brl(subscriptions.length > 0 ? mrr / subscriptions.length : 0)} />
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>Assinaturas</div>
+      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+              {["Cliente", "Plano", "Valor", "Status", "Asaas ID", "Criado em"].map(h => (
+                <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {subscriptions.map((s: any, i: number) => (
+              <tr key={s.code} style={{ borderBottom: i < subscriptions.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+                <td style={{ padding: "12px 16px" }}>
+                  <div style={{ fontWeight: 600, color: TEXT }}>{clientMap[s.code]?.name ?? s.code}</div>
+                  <div style={{ fontSize: 11, color: TEXT2 }}>{s.code}</div>
+                </td>
+                <td style={{ padding: "12px 16px" }}><Badge label={s.plan} color={BLUE} /></td>
+                <td style={{ padding: "12px 16px", color: GREEN, fontWeight: 600 }}>{brl(s.value)}</td>
+                <td style={{ padding: "12px 16px" }}><Badge label={s.status} color={s.status === "ACTIVE" ? GREEN : AMBER} /></td>
+                <td style={{ padding: "12px 16px", fontSize: 11, color: TEXT2, fontFamily: "monospace" }}>{s.asaas_subscription_id ?? "—"}</td>
+                <td style={{ padding: "12px 16px", fontSize: 12, color: TEXT2 }}>{fmt(s.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── Aba Anunciantes ───────────────────────────────────────────────────────────
+function TabAnunciantes({ data }: { data: any }) {
+  const { advertisers, campaigns } = data
+  const campByAdv = campaigns.reduce((acc: any, c: any) => {
+    acc[c.advertiserCode] = (acc[c.advertiserCode] ?? 0) + 1
+    return acc
+  }, {})
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
+        <KpiCard label="Anunciantes" value={advertisers.length} color={BLUE} />
+        <KpiCard label="Campanhas" value={campaigns.length} color={PURPLE} />
+        <KpiCard label="Campanhas Ativas" value={campaigns.filter((c: any) => c.status === "active").length} color={GREEN} />
+        <KpiCard label="Invest. Total" value={brl(campaigns.reduce((a: number, c: any) => a + Number(c.budget ?? 0), 0))} color={AMBER} />
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>Anunciantes</div>
+      {advertisers.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: `1px dashed ${BORDER}`, color: TEXT2 }}>Nenhum anunciante cadastrado.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {advertisers.map((a: any) => (
+            <div key={a.id} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto", alignItems: "center", gap: 20 }}>
+              <div>
+                <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>{a.name}</div>
+                <div style={{ fontSize: 12, color: TEXT2 }}>{a.email ?? "—"} · {a.phone ?? "—"}</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: PURPLE }}>{campByAdv[a.code] ?? 0}</div>
+                <div style={{ fontSize: 11, color: TEXT2 }}>Campanhas</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "2px 8px", borderRadius: 10 }}>#{a.code}</span>
+              </div>
+              <Link href={`/anunciante/${a.code}`} target="_blank" style={{ fontSize: 12, color: BLUE, textDecoration: "none", padding: "5px 10px", border: `1px solid ${BLUE}44`, borderRadius: 6 }}>Portal</Link>
             </div>
           ))}
         </div>
+      )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.5rem" }}>
-
-          {/* ── COLUNA PRINCIPAL ── */}
-          <div>
-
-            {/* Alertas */}
-            {alerts.length > 0 && (
-              <div style={{ background: "#fff", border: "0.5px solid #fecaca", borderRadius: 14, marginBottom: "1.5rem", overflow: "hidden" }}>
-                <div style={{ padding: "12px 16px", background: "#fef2f2", borderBottom: "0.5px solid #fecaca", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14 }}>⚠️</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#dc2626" }}>Alertas operacionais ({alerts.length})</span>
-                </div>
-                {alerts.map((a, i) => (
-                  <div key={i} style={{ padding: "12px 16px", borderBottom: i < alerts.length - 1 ? "0.5px solid #f9fafb" : "none", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.type === "offline" ? "#dc2626" : "#f59e0b", flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{a.screen_name}</div>
-                      <div style={{ fontSize: 11, color: "#9ca3af" }}>{a.message} · {fmtDate(a.since)}</div>
-                    </div>
-                    <span style={{ fontSize: 10, background: a.type === "offline" ? "#fef2f2" : "#fef9c3", color: a.type === "offline" ? "#dc2626" : "#92400e", border: `0.5px solid ${a.type === "offline" ? "#fecaca" : "#fde047"}`, borderRadius: 20, padding: "2px 8px", fontWeight: 500 }}>
-                      {a.type === "offline" ? "OFFLINE" : "SEM PLAYS"}
-                    </span>
-                  </div>
+      {campaigns.length > 0 && (
+        <>
+          <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, margin: "28px 0 16px" }}>Campanhas Recentes</div>
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  {["Campanha", "Anunciante", "Período", "Telas", "Budget", "Status"].map(h => (
+                    <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((c: any, i: number) => (
+                  <tr key={c.id} style={{ borderBottom: i < campaigns.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 600, color: TEXT }}>{c.name}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: TEXT2 }}>{c.advertiserCode}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: TEXT2 }}>{fmt(c.startDate)} → {fmt(c.endDate)}</td>
+                    <td style={{ padding: "12px 16px", color: TEXT }}>{c.screen_count}</td>
+                    <td style={{ padding: "12px 16px", color: GREEN, fontWeight: 600 }}>{brl(c.budget)}</td>
+                    <td style={{ padding: "12px 16px" }}><Badge label={c.status} color={c.status === "active" ? GREEN : AMBER} /></td>
+                  </tr>
                 ))}
-              </div>
-            )}
-
-            {/* Telas Online */}
-            <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, marginBottom: "1.5rem", overflow: "hidden" }}>
-              <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Telas online</div>
-                <span style={{ background: "#DCFCE7", border: "0.5px solid #bbf7d0", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600, color: "#15803d", display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
-                  {onlineScreens.length} online
-                </span>
-              </div>
-              {onlineScreens.length === 0 ? (
-                <div style={{ padding: "2rem", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Nenhuma tela online agora</div>
-              ) : onlineScreens.map((s, i) => (
-                <div key={s.id} style={{ padding: "12px 20px", borderBottom: i < onlineScreens.length - 1 ? "0.5px solid #f9fafb" : "none", display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#16a34a", flexShrink: 0, boxShadow: "0 0 0 3px #bbf7d0" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{s.location || "Sem localização"} {s.client_name ? `· ${s.client_name}` : ""}</div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: BRAND }}>{s.plays_today}</div>
-                    <div style={{ fontSize: 10, color: "#9ca3af" }}>plays hoje</div>
-                  </div>
-                  <div style={{ fontSize: 10, color: "#9ca3af", flexShrink: 0 }}>{fmtDate(s.last_ping)}</div>
-                  {s.client_code && (
-                    <Link href={`/studio/${s.client_code}`} style={{ background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: BRAND_DARK, textDecoration: "none" }}>Studio</Link>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Telas Offline */}
-            {offlineScreens.length > 0 && (
-              <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, marginBottom: "1.5rem", overflow: "hidden" }}>
-                <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Telas offline</div>
-                  <span style={{ background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600, color: "#dc2626" }}>
-                    {offlineScreens.length} offline
-                  </span>
-                </div>
-                {offlineScreens.map((s, i) => (
-                  <div key={s.id} style={{ padding: "12px 20px", borderBottom: i < offlineScreens.length - 1 ? "0.5px solid #f9fafb" : "none", display: "flex", alignItems: "center", gap: 12, opacity: 0.7 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#9ca3af", flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{s.name}</div>
-                      <div style={{ fontSize: 11, color: "#9ca3af" }}>{s.location || "Sem localização"} {s.client_name ? `· ${s.client_name}` : ""}</div>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>Último: {fmtDate(s.last_ping)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Atividade recente */}
-            <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Atividade recente</div>
-                <span style={{ background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 500, color: BRAND_DARK }}>🔐 Verificado</span>
-              </div>
-              {activity.length === 0 ? (
-                <div style={{ padding: "2rem", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Nenhuma atividade registrada</div>
-              ) : activity.map((a, i) => (
-                <div key={i} style={{ padding: "10px 20px", borderBottom: i < activity.length - 1 ? "0.5px solid #f9fafb" : "none", display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: BRAND_LIGHT, border: `0.5px solid ${BRAND_BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, color: BRAND }}>▶</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{a.campaign_name || a.client_name || "Exibição"}</div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{a.player_name} {a.player_location ? `· ${a.player_location}` : ""}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>{fmtDate(a.played_at)}</div>
-                  {a.duration && <span style={{ background: "#f3f4f6", borderRadius: 20, padding: "1px 8px", fontSize: 10, color: "#6b7280" }}>{a.duration}s</span>}
-                </div>
-              ))}
-            </div>
+              </tbody>
+            </table>
           </div>
+        </>
+      )}
+    </div>
+  )
+}
 
-          {/* ── SIDEBAR ── */}
+// ── Aba Eventos ───────────────────────────────────────────────────────────────
+function TabEventos({ data }: { data: any }) {
+  const { events, blocks } = data
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
+        <KpiCard label="Total de Eventos" value={events.total?.toLocaleString("pt-BR")} color={BLUE} />
+        <KpiCard label="Últimas 24h" value={events.last_24h?.toLocaleString("pt-BR")} color={GREEN} />
+        <KpiCard label="Últimos 7 dias" value={events.last_7d?.toLocaleString("pt-BR")} color={PURPLE} />
+        <KpiCard label="Blocos Totais" value={blocks.total?.toLocaleString("pt-BR")} />
+        <KpiCard label="Blocos Ancorados" value={blocks.anchored?.toLocaleString("pt-BR")} color={AMBER} sub={`${Math.round((blocks.anchored / blocks.total) * 100) || 0}% do total`} />
+      </div>
+      <div style={{ display: "flex", gap: 12 }}>
+        <Link href="/explorer" target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: SURFACE, border: `1px solid ${BORDER}`, color: TEXT, textDecoration: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13 }}>
+          🔍 Abrir ProofChain Explorer
+        </Link>
+        <Link href="/trust-center" target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: SURFACE, border: `1px solid ${BORDER}`, color: TEXT, textDecoration: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13 }}>
+          🛡 Trust Center
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+export default function AdminPage() {
+  const [secret, setSecret] = useState<string | null>(null)
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [tab, setTab] = useState("clientes")
+
+  useEffect(() => {
+    const saved = localStorage.getItem("admin_secret")
+    if (saved) tryLoad(saved)
+  }, [])
+
+  const tryLoad = async (s: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/stats?secret=${encodeURIComponent(s)}`)
+      if (res.ok) { setData(await res.json()); setSecret(s) }
+      else { localStorage.removeItem("admin_secret") }
+    } catch {}
+    setLoading(false)
+  }
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", color: TEXT2, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      Carregando…
+    </div>
+  )
+
+  if (!secret || !data) return <LoginScreen onLogin={s => tryLoad(s)} />
+
+  const TABS = [
+    { id: "clientes",     label: "Clientes",     icon: "👥", count: data.clients?.length },
+    { id: "assinaturas",  label: "Assinaturas",  icon: "💳", count: data.subscriptions?.length },
+    { id: "anunciantes",  label: "Anunciantes",  icon: "📢", count: data.advertisers?.length },
+    { id: "eventos",      label: "Eventos",      icon: "⚡" },
+  ]
+
+  return (
+    <div style={{ minHeight: "100vh", background: BG, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder { color: #4B5563; }`}</style>
+
+      {/* Header */}
+      <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 7, background: `linear-gradient(135deg,${BLUE},${PURPLE})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>D</div>
           <div>
-
-            {/* SLA Card */}
-            <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "1.25rem", marginBottom: "1rem" }}>
-              <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>SLA da Rede</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
-                <div style={{ fontSize: 40, fontWeight: 700, color: slaPercent >= 90 ? "#16a34a" : slaPercent >= 70 ? "#d97706" : "#dc2626", letterSpacing: "-0.02em", lineHeight: 1 }}>{slaPercent}%</div>
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>uptime</div>
-              </div>
-              <div style={{ height: 8, background: "#f3f4f6", borderRadius: 999, overflow: "hidden", marginBottom: 8 }}>
-                <div style={{ height: "100%", width: `${slaPercent}%`, background: slaPercent >= 90 ? "#16a34a" : slaPercent >= 70 ? "#d97706" : "#dc2626", borderRadius: 999, transition: "width 0.5s" }} />
-              </div>
-              <div style={{ fontSize: 11, color: "#9ca3af" }}>{stats.online_screens} de {stats.total_screens} telas operacionais</div>
-            </div>
-
-            {/* Clientes */}
-            <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "1.25rem", marginBottom: "1rem" }}>
-              <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Acesso rápido</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  { label: "Zimermam", path: "/zimerman", code: "ZIMERM", color: "#C9A84C" },
-                  { label: "Meninos da Vila", path: "/meninos-da-vila", code: "LEE001", color: "#EA580C" },
-                  { label: "Portal Anunciante", path: "/advertiser", code: null, color: BRAND },
-                ].map(c => (
-                  <Link key={c.label} href={c.path} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f9fafb", borderRadius: 8, border: "0.5px solid #e5e7eb", textDecoration: "none" }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>{c.label}</div>
-                      {c.code && <div style={{ fontSize: 10, color: "#9ca3af" }}>{c.code}</div>}
-                    </div>
-                    <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Plays por tela hoje */}
-            <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "1.25rem" }}>
-              <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Plays hoje por tela</div>
-              {screens.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>Sem dados</div>
-              ) : screens.slice(0, 8).map(s => {
-                const maxPlays = Math.max(...screens.map(x => x.plays_today), 1)
-                const pct = Math.round((s.plays_today / maxPlays) * 100)
-                return (
-                  <div key={s.id} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 11, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{s.name}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: BRAND }}>{s.plays_today}</span>
-                    </div>
-                    <div style={{ height: 4, background: "#f3f4f6", borderRadius: 999 }}>
-                      <div style={{ height: 4, background: s.status === "online" ? BRAND : "#9ca3af", borderRadius: 999, width: `${pct}%`, transition: "width 0.3s" }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>DOOHPLAY</div>
+            <div style={{ fontSize: 11, color: TEXT2 }}>Painel Admin</div>
           </div>
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Link href="/" style={{ fontSize: 12, color: TEXT2, textDecoration: "none" }}>← Site</Link>
+          <button onClick={() => { localStorage.removeItem("admin_secret"); setSecret(null); setData(null) }}
+            style={{ fontSize: 12, color: RED, background: "transparent", border: `1px solid ${RED}44`, borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>
+            Sair
+          </button>
+        </div>
       </div>
-    </main>
+
+      {/* Tabs */}
+      <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 24px", display: "flex", gap: 4 }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            background: "transparent", border: "none", cursor: "pointer",
+            padding: "14px 18px", fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
+            color: tab === t.id ? BLUE : TEXT2,
+            borderBottom: `2px solid ${tab === t.id ? BLUE : "transparent"}`,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            {t.icon} {t.label}
+            {t.count !== undefined && (
+              <span style={{ fontSize: 11, background: BORDER, color: TEXT2, padding: "1px 6px", borderRadius: 10 }}>{t.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Conteúdo */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
+        {tab === "clientes"    && <TabClientes    data={data} />}
+        {tab === "assinaturas" && <TabAssinaturas data={data} />}
+        {tab === "anunciantes" && <TabAnunciantes data={data} />}
+        {tab === "eventos"     && <TabEventos     data={data} />}
+      </div>
+    </div>
   )
 }
