@@ -221,7 +221,6 @@ function TabAnunciantes({ data }: { data: any }) {
           ))}
         </div>
       )}
-
       {campaigns.length > 0 && (
         <>
           <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, margin: "28px 0 16px" }}>Campanhas Recentes</div>
@@ -278,6 +277,137 @@ function TabEventos({ data }: { data: any }) {
   )
 }
 
+// ── Aba Mídias ────────────────────────────────────────────────────────────────
+function TabMidias({ data, secret, onRefresh }: { data: any; secret: string; onRefresh: () => void }) {
+  const [loading, setLoading] = useState<string | null>(null)
+  const [rejectId, setRejectId] = useState<string | null>(null)
+  const [reason, setReason] = useState("")
+
+  const medias = data.medias ?? []
+  const pending = medias.filter((m: any) => m.status === "pending")
+  const others  = medias.filter((m: any) => m.status !== "pending")
+
+  const handle = async (id: string, status: "approved" | "rejected", r?: string) => {
+    setLoading(id)
+    try {
+      await fetch(`/api/admin/media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, reason: r, secret }),
+      })
+      setRejectId(null)
+      setReason("")
+      onRefresh()
+    } catch {}
+    setLoading(null)
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 20 }}>
+        Mídias <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
+      </div>
+
+      {pending.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: `1px dashed ${BORDER}`, color: TEXT2, marginBottom: 24 }}>
+          Nenhuma mídia pendente de aprovação. ✅
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 600, color: AMBER, marginBottom: 12 }}>⏳ Aguardando aprovação</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+            {pending.map((m: any) => (
+              <div key={m.id} style={{ background: SURFACE, border: `1px solid ${AMBER}44`, borderRadius: 12, padding: "16px 20px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 16 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, background: BORDER, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
+                    {m.type === "video" ? "🎬" : "🖼️"}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>{m.name}</div>
+                    <div style={{ fontSize: 12, color: TEXT2 }}>{m.advertiser_name} · {m.campaign_name}</div>
+                    <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{fmt(m.createdAt)}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => handle(m.id, "approved")}
+                      disabled={loading === m.id}
+                      style={{ background: GREEN + "22", color: GREEN, border: `1px solid ${GREEN}44`, borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {loading === m.id ? "…" : "✓ Aprovar"}
+                    </button>
+                    <button
+                      onClick={() => setRejectId(rejectId === m.id ? null : m.id)}
+                      disabled={loading === m.id}
+                      style={{ background: RED + "22", color: RED, border: `1px solid ${RED}44`, borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      ✕ Rejeitar
+                    </button>
+                  </div>
+                </div>
+                {rejectId === m.id && (
+                  <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
+                    <input
+                      value={reason}
+                      onChange={e => setReason(e.target.value)}
+                      placeholder="Motivo da rejeição…"
+                      style={{ flex: 1, background: BG, border: `1px solid ${BORDER}`, borderRadius: 7, padding: "8px 12px", color: TEXT, fontSize: 13, outline: "none" }}
+                    />
+                    <button
+                      onClick={() => handle(m.id, "rejected", reason)}
+                      style={{ background: RED, color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      onClick={() => { setRejectId(null); setReason("") }}
+                      style={{ background: "transparent", color: TEXT2, border: `1px solid ${BORDER}`, borderRadius: 7, padding: "8px 12px", fontSize: 13, cursor: "pointer" }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {others.length > 0 && (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: 12 }}>Histórico</div>
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  {["Mídia", "Anunciante", "Campanha", "Tipo", "Status", "Data"].map(h => (
+                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {others.map((m: any, i: number) => (
+                  <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+                    <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{m.name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.advertiser_name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.campaign_name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
+                    <td style={{ padding: "10px 16px" }}>
+                      <Badge label={m.status} color={m.status === "approved" ? GREEN : m.status === "rejected" ? RED : AMBER} />
+                    </td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{fmt(m.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [secret, setSecret] = useState<string | null>(null)
@@ -308,11 +438,14 @@ export default function AdminPage() {
 
   if (!secret || !data) return <LoginScreen onLogin={s => tryLoad(s)} />
 
+  const pendingMedias = data.medias?.filter((m: any) => m.status === "pending").length ?? 0
+
   const TABS = [
-    { id: "clientes",     label: "Clientes",     icon: "👥", count: data.clients?.length },
-    { id: "assinaturas",  label: "Assinaturas",  icon: "💳", count: data.subscriptions?.length },
-    { id: "anunciantes",  label: "Anunciantes",  icon: "📢", count: data.advertisers?.length },
-    { id: "eventos",      label: "Eventos",      icon: "⚡" },
+    { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
+    { id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length },
+    { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
+    { id: "midias",      label: "Mídias",      icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
+    { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
 
   return (
@@ -349,7 +482,12 @@ export default function AdminPage() {
           }}>
             {t.icon} {t.label}
             {t.count !== undefined && (
-              <span style={{ fontSize: 11, background: BORDER, color: TEXT2, padding: "1px 6px", borderRadius: 10 }}>{t.count}</span>
+              <span style={{
+                fontSize: 11, padding: "1px 6px", borderRadius: 10,
+                background: (t as any).alert ? AMBER + "33" : BORDER,
+                color: (t as any).alert ? AMBER : TEXT2,
+                fontWeight: (t as any).alert ? 700 : 400,
+              }}>{t.count}</span>
             )}
           </button>
         ))}
@@ -360,6 +498,7 @@ export default function AdminPage() {
         {tab === "clientes"    && <TabClientes    data={data} />}
         {tab === "assinaturas" && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} />}
+        {tab === "midias"      && <TabMidias      data={data} secret={secret} onRefresh={() => tryLoad(secret!)} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
     </div>
