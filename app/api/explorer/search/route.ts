@@ -8,19 +8,25 @@ export async function GET(req: NextRequest) {
   const pool = getPool()
   const results: any[] = []
 
+  const fmt = (d: string) => {
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo"
+      }).format(new Date(d))
+    } catch { return "—" }
+  }
+
   try {
     // Busca em event_blocks
     const blockRes = await pool.query(`
-      SELECT id, block_hash, merkle_root, tx_hash, blockchain_tx, anchored_at, created_at,
-        COALESCE((SELECT COUNT(*)::int FROM display_events e WHERE e.merkle_batch_id = id), 0) AS event_count
+      SELECT id, block_hash, merkle_root, tx_hash, anchored_at
       FROM event_blocks
       WHERE block_hash ILIKE $1
          OR merkle_root ILIKE $1
          OR tx_hash ILIKE $1
-         OR blockchain_tx ILIKE $1
-         OR id::text ILIKE $1
+         OR id::text = $2
       LIMIT 5
-    `, [`%${q}%`])
+    `, [`%${q}%`, q])
 
     for (const b of blockRes.rows) {
       results.push({
@@ -30,11 +36,11 @@ export async function GET(req: NextRequest) {
         sub: b.block_hash ?? b.merkle_root ?? "—",
         status: b.anchored_at ? "Ancorado" : "Pendente",
         href: `/explorer/block/${b.block_hash ?? b.id}`,
-        meta: `${b.event_count} eventos`,
+        meta: b.anchored_at ? "Ancorado" : "Pendente",
       })
     }
 
-    // Busca em display_events
+    // Busca em display_events por hash
     const eventRes = await pool.query(`
       SELECT e.id::text, e.event_hash, e.screen_id::text, e.played_at,
              s.name AS screen_label,
@@ -43,16 +49,11 @@ export async function GET(req: NextRequest) {
       LEFT JOIN screens s ON s.id = e.screen_id
       WHERE e.event_hash ILIKE $1
          OR e.id::text ILIKE $1
-         OR s.name ILIKE $1
       ORDER BY e.played_at DESC
       LIMIT 5
     `, [`%${q}%`])
 
     for (const e of eventRes.rows) {
-      const fmt = (d: string) => {
-        try { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(d)) }
-        catch { return "—" }
-      }
       results.push({
         type: "event",
         id: e.id,
@@ -64,12 +65,12 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Busca em screens
+    // Busca em screens por nome
     const screenRes = await pool.query(`
-      SELECT id::text, name, code
+      SELECT id::text, name, city, state
       FROM screens
       WHERE name ILIKE $1
-         OR code ILIKE $1
+         OR city ILIKE $1
          OR id::text ILIKE $1
       LIMIT 5
     `, [`%${q}%`])
@@ -79,10 +80,10 @@ export async function GET(req: NextRequest) {
         type: "screen",
         id: s.id,
         title: s.name ?? `Screen ${s.id}`,
-        sub: `ID: ${s.id}`,
+        sub: [s.city, s.state].filter(Boolean).join(", ") || s.id,
         status: "Ativo",
         href: `/explorer/event/${s.id}`,
-        meta: s.code ?? "",
+        meta: s.city ?? "",
       })
     }
 
