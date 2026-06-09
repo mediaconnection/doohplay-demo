@@ -463,7 +463,7 @@ function TabAnuncios({ stats, payments }: any) {
   )
 }
 
-function TabGanhos({ stats, payments }: any) {
+function TabGanhos({ stats, payments, code }: any) {
   const days = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
   const dayVals = [42, 38, 55, 61, 85, 72, 48]
   const maxDay = Math.max(...dayVals)
@@ -576,6 +576,9 @@ function TabRelatorios({ stats, payments }: any) {
             <button style={{ width: "100%", background: C.greenLt, color: C.green, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 4 }}>
               $ Ver meus ganhos
             </button>
+            <a href={`/dashboard/financeiro/${code}`} style={{ display:"block", textAlign:"center", marginTop:8, fontSize:12, color:C.blue, textDecoration:"none", fontWeight:500 }}>
+              Ver dashboard financeiro completo →
+            </a>
           </div>
         </div>
       </div>
@@ -605,7 +608,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     tv:        <TabTV client={client} player={player} playlist={playlist} />,
     conteudo:  <TabConteudo client={client} />,
     anuncios:  <TabAnuncios stats={stats} payments={payments} />,
-    ganhos:    <TabGanhos stats={stats} payments={payments} />,
+    ganhos:    <TabGanhos stats={stats} payments={payments} code={client.code} />,
     relatorios:<TabRelatorios stats={stats} payments={payments} />,
     config:    <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Configurações em breve</div>,
   }
