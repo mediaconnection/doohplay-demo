@@ -328,10 +328,7 @@ export default async function ExplorerPage() {
             { href: "/network/map",    icon: "🌐", title: "Network Map",        desc: "Ver telas ativas por região" },
             { href: "/trust-center",   icon: "🛡",  title: "Trust Center",       desc: "Trust Score e certificações" },
           ].map(l => (
-            <Link key={l.href} href={l.href} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1.25rem", textDecoration: "none", display: "block" }}
-              onMouseEnter={(e: any) => e.currentTarget.style.borderColor = "rgba(99,102,241,0.4)"}
-              onMouseLeave={(e: any) => e.currentTarget.style.borderColor = BORDER}
-            >
+            <Link key={l.href} href={l.href} style={{ background: SURFACE, border: `1px solid rgba(99,102,241,0.2)`, borderRadius: 14, padding: "1.25rem", textDecoration: "none", display: "block" }}>
               <div style={{ fontSize: 22, marginBottom: 8 }}>{l.icon}</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 4 }}>{l.title}</div>
               <div style={{ fontSize: 12, color: MUTED }}>{l.desc}</div>
