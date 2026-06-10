@@ -210,4 +210,20 @@ function PlayerInner() {
         }}>
           <div style={{ fontSize: 48, fontWeight: 800, color: TEXT, marginBottom: 8 }}>DOOHPLAY</div>
           <div style={{ fontSize: 18, color: "#9CA3AF", marginBottom: 24 }}>Tela não configurada</div>
-          <div style={{ background: GRAY,
+          <div style={{ background: GRAY, borderRadius: 12, padding: "20px 32px", textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Acesse no seu celular:</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: BLUE }}>doohplay.com.br/install</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function PlayerPage() {
+  return (
+    <Suspense fallback={<div style={{ width: "100vw", height: "100vh", background: "#000" }} />}>
+      <PlayerInner />
+    </Suspense>
+  )
+}
