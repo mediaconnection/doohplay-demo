@@ -133,7 +133,7 @@ export default function LandingPage() {
           ))}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/studio" style={{ padding: "8px 16px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
+          <Link href="/admin" style={{ padding: "8px 16px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
             Entrar
           </Link>
           <Link href="/onboarding" style={{ padding: "8px 16px", fontSize: 13, color: "#fff", textDecoration: "none", borderRadius: 8, background: "#3B82F6", fontWeight: 600 }}>
@@ -145,7 +145,6 @@ export default function LandingPage() {
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem 3rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
         <div>
-          {/* Tags */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: "1.5rem" }}>
             {TAGS.map(tag => (
               <span key={tag} style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#3B82F6", fontWeight: 500 }}>
@@ -153,16 +152,13 @@ export default function LandingPage() {
               </span>
             ))}
           </div>
-
           <h1 style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 20px" }}>
             Transforme qualquer TV em uma plataforma de{" "}
             <span style={{ color: "#3B82F6" }}>conteúdo, publicidade e receita.</span>
           </h1>
-
           <p style={{ fontSize: 18, color: "#94A3B8", lineHeight: 1.6, margin: "0 0 2rem", maxWidth: 500 }}>
             Digital Signage, Retail Media e Proof-of-Play Auditável em uma única plataforma Enterprise.
           </p>
-
           <div style={{ display: "flex", gap: 12, marginBottom: "2rem" }}>
             <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -173,7 +169,6 @@ export default function LandingPage() {
               Solicitar Demonstração
             </Link>
           </div>
-
           <Link href="#video" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Assistir Vídeo
@@ -193,7 +188,6 @@ export default function LandingPage() {
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} /> LIVE · NOC
               </div>
             </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: "1rem" }}>
               {[
                 { value: "12.847", label: "Telas", color: "#3B82F6" },
@@ -206,7 +200,6 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-
             <div style={{ fontSize: 11, color: "#64748B", marginBottom: 8 }}>Receita Mensal (R$ M)</div>
             <div style={{ height: 60, background: "rgba(59,130,246,0.05)", borderRadius: 8, overflow: "hidden", position: "relative", marginBottom: "1rem" }}>
               <svg width="100%" height="100%" viewBox="0 0 300 60" preserveAspectRatio="none">
@@ -214,7 +207,6 @@ export default function LandingPage() {
                 <polygon points="0,50 50,40 100,35 150,28 200,20 250,15 300,8 300,60 0,60" fill="rgba(59,130,246,0.1)"/>
               </svg>
             </div>
-
             <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
               <div>
@@ -223,8 +215,6 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-
-          {/* Floating card */}
           <div style={{ position: "absolute", top: -20, right: -20, background: "#12182B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 16px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>Retail Media</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#10B981" }}>R$8.4M</div>
@@ -289,7 +279,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── REDE NACIONAL ── */}
+      {/* REDE NACIONAL */}
       <section style={{ background: "#0A0F1E", padding: "5rem 2rem" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "3rem" }}>
@@ -300,21 +290,19 @@ export default function LandingPage() {
             <p style={{ fontSize: 16, color: "#64748B" }}>Monitoramento operacional de toda a infraestrutura DOOHPLAY.</p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
-            {/* Brazil map mockup */}
             <div style={{ background: "#080C18", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, padding: "2rem", minHeight: 340, position: "relative", overflow: "hidden" }}>
               <svg viewBox="0 0 600 500" style={{ width: "100%", height: 300, opacity: 0.15 }} fill="none">
                 <path d="M200,80 L280,60 L360,80 L420,140 L440,220 L420,300 L380,360 L320,400 L260,420 L200,400 L160,340 L140,260 L150,180 Z" stroke="#3B82F6" strokeWidth="1.5" fill="rgba(59,130,246,0.05)"/>
               </svg>
-              {/* City dots */}
               {[
-                { city: "São Paulo",    x: "52%", y: "68%", color: "#10B981", count: 412 },
-                { city: "Rio de Janeiro",x:"62%", y: "60%", color: "#3B82F6", count: 218 },
-                { city: "Belo Horizonte",x:"55%",y: "55%", color: "#F59E0B", count: 142 },
-                { city: "Curitiba",     x: "50%", y: "76%", color: "#10B981", count: 76 },
-                { city: "Brasília",     x: "55%", y: "44%", color: "#3B82F6", count: 89 },
-                { city: "Salvador",     x: "68%", y: "38%", color: "#3B82F6", count: 88 },
-                { city: "Fortaleza",    x: "72%", y: "22%", color: "#EF4444", count: 32 },
-                { city: "Manaus",       x: "28%", y: "20%", color: "#94A3B8", count: 8 },
+                { city: "São Paulo",     x: "52%", y: "68%", color: "#10B981", count: 412 },
+                { city: "Rio de Janeiro",x: "62%", y: "60%", color: "#3B82F6", count: 218 },
+                { city: "Belo Horizonte",x: "55%", y: "55%", color: "#F59E0B", count: 142 },
+                { city: "Curitiba",      x: "50%", y: "76%", color: "#10B981", count: 76  },
+                { city: "Brasília",      x: "55%", y: "44%", color: "#3B82F6", count: 89  },
+                { city: "Salvador",      x: "68%", y: "38%", color: "#3B82F6", count: 88  },
+                { city: "Fortaleza",     x: "72%", y: "22%", color: "#EF4444", count: 32  },
+                { city: "Manaus",        x: "28%", y: "20%", color: "#94A3B8", count: 8   },
               ].map(c => (
                 <div key={c.city} style={{ position: "absolute", left: c.x, top: c.y, transform: "translate(-50%,-50%)" }}>
                   <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${c.color}20`, border: `2px solid ${c.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: c.color }}>
@@ -323,7 +311,6 @@ export default function LandingPage() {
                   {c.city === "São Paulo" && <div style={{ fontSize: 9, color: "#94A3B8", textAlign: "center", marginTop: 2, whiteSpace: "nowrap" }}>{c.city}</div>}
                 </div>
               ))}
-              {/* Legend */}
               <div style={{ position: "absolute", bottom: 16, left: 16, display: "flex", gap: 12, fontSize: 10 }}>
                 {[["#10B981","Online"],["#3B82F6","Verified"],["#F59E0B","Warning"],["#EF4444","Offline"]].map(([c,l]) => (
                   <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, color: "#64748B" }}>
@@ -332,7 +319,6 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            {/* City stats */}
             <div style={{ background: "#080C18", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden" }}>
               <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#F1F5F9", marginBottom: 2 }}>São Paulo</div>
@@ -372,19 +358,18 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── MONETIZE / RECEITA ── */}
+      {/* MONETIZE */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem" }}>
         <div style={{ textAlign: "center", marginBottom: "3rem" }}>
           <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Monetize suas telas automaticamente.</h2>
           <p style={{ fontSize: 16, color: "#64748B" }}>Anunciantes nacionais chegam diretamente na sua tela.</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          {/* Revenue cards */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[
-              { icon: "📺", label: "Receita Local",    value: "R$847",   sub: "Por tela / mês",    color: "#10B981" },
+              { icon: "📺", label: "Receita Local",    value: "R$847",   sub: "Por tela / mês",     color: "#10B981" },
               { icon: "🔗", label: "Receita Regional", value: "R$12.4K", sub: "Rede de lojas / mês", color: "#3B82F6" },
-              { icon: "🌐", label: "Receita Nacional",  value: "R$8.4M",  sub: "Total rede / mês",  color: "#8B5CF6" },
+              { icon: "🌐", label: "Receita Nacional",  value: "R$8.4M",  sub: "Total rede / mês",   color: "#8B5CF6" },
             ].map(r => (
               <div key={r.label} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -399,7 +384,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          {/* Growth chart */}
           <div style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, padding: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
               <div>
@@ -408,7 +392,6 @@ export default function LandingPage() {
               </div>
               <span style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>+23% / mês</span>
             </div>
-            {/* Chart */}
             <div style={{ height: 120, display: "flex", alignItems: "flex-end", gap: 6, marginBottom: "1rem" }}>
               {[35, 45, 52, 60, 72, 85].map((h, i) => (
                 <div key={i} style={{ flex: 1, background: i === 5 ? "#3B82F6" : "rgba(59,130,246,0.2)", borderRadius: "4px 4px 0 0", height: `${h}%` }} />
@@ -419,85 +402,15 @@ export default function LandingPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               {[
-                { label: "Fill Rate",     value: "78%",    color: "#10B981" },
-                { label: "CPM",           value: "R$18.40",color: "#3B82F6" },
-                { label: "Anunciantes",   value: "1.247",  color: "#8B5CF6" },
+                { label: "Fill Rate",   value: "78%",     color: "#10B981" },
+                { label: "CPM",         value: "R$18.40", color: "#3B82F6" },
+                { label: "Anunciantes", value: "1.247",   color: "#8B5CF6" },
               ].map(s => (
                 <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px", textAlign: "center" }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: s.color }}>{s.value}</div>
                   <div style={{ fontSize: 10, color: "#64748B", marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── AI REVENUE ENGINE ── */}
-      <section style={{ background: "#0A0F1E", padding: "5rem 2rem" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 20, padding: "4px 14px", fontSize: 12, color: "#8B5CF6", fontWeight: 500, marginBottom: 16 }}>
-              🤖 AI Revenue Engine
-            </div>
-            <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Inteligência Artificial para maximizar receita.</h2>
-            <p style={{ fontSize: 16, color: "#64748B" }}>O motor de IA do DOOHPLAY otimiza campanhas, ocupação e faturamento.</p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
-            {/* Neural Engine card */}
-            <div style={{ background: "#080C18", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 20, padding: "1.75rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: "1.5rem" }}>
-                <div style={{ width: 40, height: 40, background: "rgba(139,92,246,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🧠</div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>Neural Revenue Engine</div>
-                  <div style={{ fontSize: 12, color: "#64748B" }}>Processando 84.2M impressões</div>
-                </div>
-                <div style={{ marginLeft: "auto", width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: "1.5rem" }}>
-                {[
-                  { label: "Modelos Ativos", value: "14",   color: "#3B82F6" },
-                  { label: "Precisão",       value: "97%",  color: "#3B82F6" },
-                  { label: "ROI",            value: "+31%", color: "#10B981" },
-                ].map(s => (
-                  <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: "#64748B", marginTop: 2 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              {/* Pulse lines */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[80, 60, 90, 40, 75].map((w, i) => (
-                  <div key={i} style={{ height: 3, background: "rgba(139,92,246,0.15)", borderRadius: 2, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${w}%`, background: "linear-gradient(90deg, #8B5CF6, #6366F1)", borderRadius: 2 }} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* AI metrics */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                { icon: "📈", label: "Revenue Optimization", sub: "vs mês anterior",    value: "+21%",  color: "#10B981" },
-                { icon: "📊", label: "Fill Rate",            sub: "Ocupação média",      value: "68%",   color: "#3B82F6" },
-                { icon: "💵", label: "Dynamic Pricing",      sub: "CPM otimizado",       value: "+14%",  color: "#10B981" },
-                { icon: "🎯", label: "Campaign Matching",    sub: "Precisão de targeting", value: "97%",  color: "#F59E0B" },
-                { icon: "👥", label: "Audience Prediction",  sub: "Acurácia do modelo",  value: "93%",   color: "#8B5CF6" },
-              ].map(m => (
-                <div key={m.label} style={{ background: "#080C18", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{m.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</div>
-                      <div style={{ fontSize: 11, color: "#64748B" }}>{m.sub}</div>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: m.color }}>{m.value}</span>
-                </div>
-              ))}
-              <Link href="/planos" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#8B5CF6", borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                🤖 Explorar AI Revenue Engine →
-              </Link>
             </div>
           </div>
         </div>
@@ -512,7 +425,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {FEATURES.map(f => (
-              <div key={f.title} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1.5rem", transition: "border-color 0.2s" }}
+              <div key={f.title} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1.5rem" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(59,130,246,0.3)")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
               >
@@ -533,13 +446,11 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
           {PERSONAS.map(p => (
-            <div key={p.tag} style={{ background: "#0F1629", border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
+            <div key={p.tag} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                 <span style={{ background: p.badgeColor, color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{p.badge}</span>
                 <span style={{ fontSize: 11, color: p.badgeColor, fontWeight: 600 }}>● {p.tag}</span>
               </div>
-
-              {/* Mini dashboard */}
               <div style={{ background: "#080C18", borderRadius: 12, padding: "1rem", marginBottom: "1rem" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
                   {p.stats.map(s => (
@@ -553,9 +464,7 @@ export default function LandingPage() {
                   <div style={{ height: "100%", width: "70%", background: p.badgeColor, borderRadius: 2 }} />
                 </div>
               </div>
-
               <div style={{ fontSize: 18, fontWeight: 700, marginBottom: "1rem", lineHeight: 1.3 }}>{p.title}</div>
-
               <div style={{ flex: 1, marginBottom: "1.5rem" }}>
                 {p.features.map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, color: "#CBD5E1" }}>
@@ -564,7 +473,6 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-
               <Link href={p.href} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: p.badgeColor, color: "#fff", padding: "13px", borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
                 {p.cta} →
               </Link>
@@ -573,7 +481,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TRUST CENTER WIDGET ── */}
+      {/* TRUST CENTER */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem" }}>
         <div style={{ textAlign: "center", marginBottom: "3rem" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "4px 14px", fontSize: 12, color: "#3B82F6", fontWeight: 500, marginBottom: 16 }}>
@@ -583,26 +491,23 @@ export default function LandingPage() {
           <p style={{ fontSize: 16, color: "#64748B" }}>Trust Score em tempo real com auditoria pública e certificação ICP Brasil.</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "center" }}>
-          {/* Gauge */}
           <div style={{ textAlign: "center" }}>
-            <div style={{ position: "relative", display: "inline-block" }}>
-              <svg width="200" height="200" viewBox="0 0 200 200">
-                <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(59,130,246,0.1)" strokeWidth="16"/>
-                <circle cx="100" cy="100" r="80" fill="none" stroke="#3B82F6" strokeWidth="16"
-                  strokeDasharray={`${0.973 * 502} ${502}`} strokeLinecap="round"
-                  transform="rotate(-90 100 100)"/>
-                <text x="100" y="95" textAnchor="middle" fill="#F1F5F9" fontSize="32" fontWeight="800">97.3</text>
-                <text x="100" y="118" textAnchor="middle" fill="#64748B" fontSize="12">TRUST SCORE</text>
-              </svg>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 280, margin: "0 auto", marginTop: 16 }}>
+            <svg width="200" height="200" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(59,130,246,0.1)" strokeWidth="16"/>
+              <circle cx="100" cy="100" r="80" fill="none" stroke="#3B82F6" strokeWidth="16"
+                strokeDasharray={`${0.973 * 502} ${502}`} strokeLinecap="round"
+                transform="rotate(-90 100 100)"/>
+              <text x="100" y="95" textAnchor="middle" fill="#F1F5F9" fontSize="32" fontWeight="800">97.3</text>
+              <text x="100" y="118" textAnchor="middle" fill="#64748B" fontSize="12">TRUST SCORE</text>
+            </svg>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 280, margin: "16px auto 0" }}>
               {[
-                { label: "Assinatura ICP", value: "A3 Ativo",  color: "#10B981" },
-                { label: "Blockchain",     value: "Sync",      color: "#10B981" },
-                { label: "Merkle Root",    value: "Verified",  color: "#10B981" },
-                { label: "SLA",            value: "99.9%",     color: "#10B981" },
-                { label: "Auditoria",      value: "Pública",   color: "#3B82F6" },
-                { label: "LGPD",           value: "Compliance",color: "#F59E0B" },
+                { label: "Assinatura ICP", value: "A3 Ativo",   color: "#10B981" },
+                { label: "Blockchain",     value: "Sync",       color: "#10B981" },
+                { label: "Merkle Root",    value: "Verified",   color: "#10B981" },
+                { label: "SLA",            value: "99.9%",      color: "#10B981" },
+                { label: "Auditoria",      value: "Pública",    color: "#3B82F6" },
+                { label: "LGPD",           value: "Compliance", color: "#F59E0B" },
               ].map(b => (
                 <div key={b.label} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#64748B" }}>{b.label}</span>
@@ -611,14 +516,13 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          {/* Stats grid */}
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               {[
-                { icon: "🛡", label: "Trust Score",    value: "97.3",   color: "#3B82F6" },
-                { icon: "✅", label: "Provas Auditadas", value: "4.8M",  color: "#10B981" },
-                { icon: "📈", label: "SLA",             value: "99.9%",  color: "#10B981" },
-                { icon: "👁", label: "Auditável",       value: "100%",   color: "#8B5CF6" },
+                { icon: "🛡", label: "Trust Score",     value: "97.3", color: "#3B82F6" },
+                { icon: "✅", label: "Provas Auditadas", value: "4.8M", color: "#10B981" },
+                { icon: "📈", label: "SLA",              value: "99.9%",color: "#10B981" },
+                { icon: "👁", label: "Auditável",        value: "100%", color: "#8B5CF6" },
               ].map(s => (
                 <div key={s.label} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.25rem" }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -634,7 +538,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PROOFCHAIN EXPLORER PREVIEW ── */}
+      {/* PROOFCHAIN EXPLORER */}
       <section style={{ background: "#080C18", padding: "5rem 2rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "3rem" }}>
@@ -644,8 +548,6 @@ export default function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Cada prova verificável por qualquer pessoa.</h2>
             <p style={{ fontSize: 16, color: "#64748B" }}>Blockchain público · Ethereum Mainnet · ICP Brasil</p>
           </div>
-
-          {/* Search bar */}
           <div style={{ maxWidth: 800, margin: "0 auto 2rem", display: "flex", gap: 10 }}>
             <div style={{ flex: 1, background: "#0F1629", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#475569" }}>
               🔍 Pesquisar hash, tela ou campanha...
@@ -654,18 +556,16 @@ export default function LandingPage() {
               Verificar hash
             </Link>
           </div>
-
-          {/* Table */}
           <div style={{ background: "#0A0F1E", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden", maxWidth: 900, margin: "0 auto" }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1.5fr 1fr", padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 11, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               <span>Hash</span><span>Tela</span><span>Bloco</span><span>Status</span>
             </div>
             {[
-              { hash: "0x7f2a...c4e1", tela: "SP-Centro-01",  bloco: "#18,241,872", status: "Verificado", ok: true },
-              { hash: "0x3b9c...f8d2", tela: "RJ-Copac-04",   bloco: "#18,241,871", status: "Verificado", ok: true },
-              { hash: "0xac4f...1e73", tela: "BH-Savas-02",   bloco: "#18,241,870", status: "Verificado", ok: true },
-              { hash: "0x2d8e...9b51", tela: "BSB-Pilot-07",  bloco: "#18,241,869", status: "Pendente",   ok: false },
-              { hash: "0xf71b...4c29", tela: "CTB-Agua-03",   bloco: "#18,241,868", status: "Verificado", ok: true },
+              { hash: "0x7f2a...c4e1", tela: "SP-Centro-01", bloco: "#18,241,872", status: "Verificado", ok: true  },
+              { hash: "0x3b9c...f8d2", tela: "RJ-Copac-04",  bloco: "#18,241,871", status: "Verificado", ok: true  },
+              { hash: "0xac4f...1e73", tela: "BH-Savas-02",  bloco: "#18,241,870", status: "Verificado", ok: true  },
+              { hash: "0x2d8e...9b51", tela: "BSB-Pilot-07", bloco: "#18,241,869", status: "Pendente",   ok: false },
+              { hash: "0xf71b...4c29", tela: "CTB-Agua-03",  bloco: "#18,241,868", status: "Verificado", ok: true  },
             ].map((row, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1.5fr 1fr", padding: "13px 20px", borderBottom: i < 4 ? "1px solid rgba(255,255,255,0.04)" : "none", alignItems: "center" }}>
                 <span style={{ fontSize: 13, fontWeight: 500, color: "#6366F1", fontFamily: "monospace" }}>{row.hash}</span>
@@ -685,7 +585,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PROOFCHAIN BANNER */}
+      {/* TRUST BADGES BANNER */}
       <section style={{ background: "#080C18", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "1.25rem 2rem" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
@@ -708,12 +608,8 @@ export default function LandingPage() {
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
           {screens.toLocaleString("pt-BR")} telas ativas agora
         </div>
-        <h2 style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 16px" }}>
-          Comece a monetizar sua TV hoje.
-        </h2>
-        <p style={{ fontSize: 18, color: "#64748B", margin: "0 0 2rem" }}>
-          Grátis para comércios locais. Sem contrato. Sem taxa de adesão.
-        </p>
+        <h2 style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 16px" }}>Comece a monetizar sua TV hoje.</h2>
+        <p style={{ fontSize: 18, color: "#64748B", margin: "0 0 2rem" }}>Grátis para comércios locais. Sem contrato. Sem taxa de adesão.</p>
         <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
           <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 700, textDecoration: "none" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
