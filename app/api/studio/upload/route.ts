@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getPool } from "@/lib/db"
 
-export const dynamic = "force-dynamic"
+export const dynamic     = "force-dynamic"
+export const maxDuration = 60
 
 // ── Limites por plano ─────────────────────────────────────────────────────────
 const LIMITS = {
   image: {
-    maxSize:  10 * 1024 * 1024,  // 10MB
+    maxSize:  10 * 1024 * 1024,   // 10MB
     maxCount: 20,
     types:    ["image/jpeg", "image/png", "image/webp", "image/gif"],
     ext:      (mime: string) => mime.split("/")[1] || "jpg",
   },
   video: {
-    maxSize:  100 * 1024 * 1024, // 100MB
+    maxSize:  100 * 1024 * 1024,  // 100MB
     maxCount: 5,
     types:    ["video/mp4", "video/webm", "video/quicktime"],
     ext:      (_mime: string) => "mp4",
@@ -31,6 +32,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file     = formData.get("file") as File | null
     const code     = (formData.get("code") as string)?.trim().toUpperCase()
+    const name     = (formData.get("name") as string)?.trim() || "Promoção"
+    const duration = parseInt((formData.get("duration") as string) || "15", 10)
 
     if (!file || !code) {
       return NextResponse.json({ error: "file e code obrigatórios" }, { status: 400 })
@@ -60,8 +63,13 @@ export async function POST(request: NextRequest) {
     if (file.size > limit.maxSize) {
       const maxMB = limit.maxSize / 1024 / 1024
       return NextResponse.json({
-        error: `Arquivo muito grande. Máximo ${maxMB}MB para ${category === "image" ? "imagens" : "vídeos"}.`,
+        error: `Arquivo muito grande. Máximo ${maxMB}MB para ${category === "image" ? "imagens" : "vídeos"}. Comprima o vídeo antes de enviar.`,
       }, { status: 400 })
+    }
+
+    // Aviso para vídeos grandes (> 30MB) — não bloqueia, apenas loga
+    if (category === "video" && file.size > 30 * 1024 * 1024) {
+      console.warn(`[studio/upload] Vídeo grande: ${(file.size / 1024 / 1024).toFixed(1)}MB · code=${code}`)
     }
 
     // ── Valida quantidade no storage ─────────────────────────────────────────
@@ -77,9 +85,9 @@ export async function POST(request: NextRequest) {
 
     if (existingFiles) {
       const categoryFiles = existingFiles.filter(f => {
-        const name = f.name.toLowerCase()
-        if (category === "image") return /\.(jpg|jpeg|png|webp|gif)$/i.test(name)
-        if (category === "video") return /\.(mp4|webm|mov|quicktime)$/i.test(name)
+        const fname = f.name.toLowerCase()
+        if (category === "image") return /\.(jpg|jpeg|png|webp|gif)$/i.test(fname)
+        if (category === "video") return /\.(mp4|webm|mov|quicktime)$/i.test(fname)
         return false
       })
 
@@ -116,23 +124,56 @@ export async function POST(request: NextRequest) {
       .from("dooh-media")
       .getPublicUrl(fileName)
 
+    // ── Salva no banco como CampaignMedia pendente ────────────────────────────
+    try {
+      // Busca ou cria campanha padrão para o cliente
+      const campRes = await pool.query(
+        `SELECT id FROM "Campaign" WHERE "advertiserCode" = $1 AND name = 'Promoções da Loja' LIMIT 1`,
+        [code]
+      )
+
+      let campaignId: string
+      if (campRes.rows.length > 0) {
+        campaignId = campRes.rows[0].id
+      } else {
+        const newCamp = await pool.query(
+          `INSERT INTO "Campaign" (id, "advertiserCode", name, status, "createdAt")
+           VALUES (gen_random_uuid()::text, $1, 'Promoções da Loja', 'active', NOW())
+           RETURNING id`,
+          [code]
+        )
+        campaignId = newCamp.rows[0].id
+      }
+
+      await pool.query(
+        `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending', NOW())`,
+        [campaignId, name, category, urlData.publicUrl]
+      )
+    } catch (dbErr) {
+      // Não falha o upload se o banco der erro
+      console.error("[studio/upload] db insert error:", dbErr)
+    }
+
     return NextResponse.json({
       ok:       true,
       url:      urlData.publicUrl,
       path:     fileName,
       category,
       size_mb:  +(file.size / 1024 / 1024).toFixed(2),
+      warning:  category === "video" && file.size > 30 * 1024 * 1024
+        ? "Vídeo grande — pode demorar para carregar na TV. Considere comprimir para menos de 30MB."
+        : undefined,
     })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     console.error("[studio/upload] error:", message)
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+    return NextResponse.json({ error: "Erro interno: " + message }, { status: 500 })
   }
 }
 
 // ── GET — lista arquivos do cliente ──────────────────────────────────────────
-// GET /api/studio/upload?code=ZIMERM
 export async function GET(request: NextRequest) {
   try {
     const code = new URL(request.url).searchParams.get("code")?.toUpperCase()
