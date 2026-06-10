@@ -1,297 +1,213 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 
-interface PlaylistItem {
+const BG    = "#000000"
+const TEXT  = "#FFFFFF"
+const BLUE  = "#3B82F6"
+const GREEN = "#10B981"
+const GRAY  = "#1F2937"
+
+type Slide = {
   id: string
-  type: "image" | "video" | "url" | "youtube" | "hls"
-  url: string
+  type: "image" | "video" | "text"
+  url?: string
+  title?: string
+  subtitle?: string
   duration: number
-  campaign_id?: string
-  asset_url?: string
+  bg?: string
 }
 
-const HEARTBEAT_INTERVAL = 30_000  // 30s
-const RELOAD_INTERVAL    = 60_000  // 1min — atualiza playlist
-const ERROR_RETRY        = 5_000   // 5s — retry em erro
+const DEFAULT_SLIDES: Slide[] = [
+  {
+    id: "d1", type: "text",
+    title: "Bem-vindo ao DOOHPLAY",
+    subtitle: "Publicidade verificada em blockchain",
+    duration: 8000, bg: "#0B1020",
+  },
+  {
+    id: "d2", type: "text",
+    title: "Sua tela está ativa",
+    subtitle: "Anúncios serão exibidos em breve",
+    duration: 8000, bg: "#111827",
+  },
+]
 
-export default function PlayerPage() {
-  const [playlist, setPlaylist]   = useState<PlaylistItem[]>([])
-  const [index, setIndex]         = useState(0)
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState("")
-  const [online, setOnline]       = useState(true)
-  const [lastSync, setLastSync]   = useState<Date | null>(null)
-  const wakeLockRef               = useRef<any>(null)
-  const timerRef                  = useRef<ReturnType<typeof setTimeout> | null>(null)
+function Clock() {
+  const [time, setTime] = useState("")
+  const [date, setDate] = useState("")
 
-  const screenId = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("screen") ?? ""
-    : ""
-
-  // ── Wake Lock — mantém tela ligada ─────────────────────────────────────────
-  const acquireWakeLock = useCallback(async () => {
-    try {
-      if ("wakeLock" in navigator) {
-        wakeLockRef.current = await (navigator as any).wakeLock.request("screen")
-        wakeLockRef.current.addEventListener("release", () => {
-          // Re-adquire se perdeu (ex: tab ficou em background)
-          setTimeout(acquireWakeLock, 1000)
-        })
-      }
-    } catch {}
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date()
+      setTime(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))
+      setDate(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
   }, [])
 
-  // ── Online/Offline ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const onOnline  = () => setOnline(true)
-    const onOffline = () => setOnline(false)
-    window.addEventListener("online",  onOnline)
-    window.addEventListener("offline", onOffline)
-    return () => {
-      window.removeEventListener("online",  onOnline)
-      window.removeEventListener("offline", onOffline)
-    }
-  }, [])
-
-  // ── Visibilidade — re-adquire wake lock quando volta ao foco ───────────────
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible") acquireWakeLock()
-    }
-    document.addEventListener("visibilitychange", onVisible)
-    acquireWakeLock()
-    return () => document.removeEventListener("visibilitychange", onVisible)
-  }, [acquireWakeLock])
-
-  // ── Fullscreen automático (Fire Stick) ─────────────────────────────────────
-  useEffect(() => {
-    const goFullscreen = () => {
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {})
-      }
-    }
-    // Tenta fullscreen no primeiro clique/toque (Fire Stick remote)
-    document.addEventListener("click", goFullscreen, { once: true })
-    document.addEventListener("keydown", goFullscreen, { once: true })
-  }, [])
-
-  // ── Heartbeat ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!screenId) return
-    const sendHeartbeat = () => {
-      fetch("/api/events/players/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ screen_id: screenId }),
-      }).catch(() => {})
-    }
-    sendHeartbeat()
-    const interval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
-    return () => clearInterval(interval)
-  }, [screenId])
-
-  // ── Carrega playlist ────────────────────────────────────────────────────────
-  const loadPlaylist = useCallback(async () => {
-    if (!screenId) {
-      setError("screen_id não informado. Acesse: /player?screen=SEU_ID")
-      setLoading(false)
-      return
-    }
-    try {
-      const res  = await fetch(`/api/player/playlist?screen=${screenId}`)
-      const data = await res.json()
-      if (data.items?.length) {
-        setPlaylist(data.items)
-        setError("")
-        setLastSync(new Date())
-      }
-    } catch {
-      setError("Sem conexão — tentando reconectar...")
-    } finally {
-      setLoading(false)
-    }
-  }, [screenId])
-
-  useEffect(() => {
-    loadPlaylist()
-    const interval = setInterval(loadPlaylist, RELOAD_INTERVAL)
-    return () => clearInterval(interval)
-  }, [loadPlaylist])
-
-  // ── Retry automático em erro ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!error) return
-    const t = setTimeout(loadPlaylist, ERROR_RETRY)
-    return () => clearTimeout(t)
-  }, [error, loadPlaylist])
-
-  // ── Registra exibição ───────────────────────────────────────────────────────
-  const registerDisplay = useCallback((item: PlaylistItem) => {
-    fetch("/api/events/display", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        screen_id:   screenId,
-        campaign_id: item.campaign_id,
-        asset_url:   item.url || item.asset_url,
-        timestamp:   new Date().toISOString(),
-      }),
-    }).catch(() => {})
-  }, [screenId])
-
-  // ── Loop de playback ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!playlist.length) return
-    if (timerRef.current) clearTimeout(timerRef.current)
-
-    const item = playlist[index]
-    registerDisplay(item)
-
-    timerRef.current = setTimeout(() => {
-      setIndex(prev => (prev + 1 >= playlist.length ? 0 : prev + 1))
-    }, (item.duration || 15) * 1000)
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [index, playlist, registerDisplay])
-
-  // ── Tela de loading ─────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={fullscreen("#000")}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📺</div>
-          <div style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 8 }}>DOOHPLAY</div>
-          <div style={{ color: "#6b7280", fontSize: 14 }}>Carregando playlist...</div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Tela de erro / sem playlist ─────────────────────────────────────────────
-  if (error || !playlist.length) {
-    return (
-      <div style={fullscreen("#0a0a0a")}>
-        <div style={{ textAlign: "center", maxWidth: 480, padding: "2rem" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>{online ? "⏳" : "📡"}</div>
-          <div style={{ color: "#fff", fontSize: 20, fontWeight: 700, marginBottom: 8 }}>DOOHPLAY</div>
-          <div style={{ color: "#9ca3af", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
-            {error || "Nenhum conteúdo na playlist ainda."}
-          </div>
-          <div style={{ color: "#4b5563", fontSize: 11 }}>
-            {online ? "🟢 Online" : "🔴 Offline"} · Tentando reconectar...
-            {lastSync && <span> · Última sync: {lastSync.toLocaleTimeString("pt-BR")}</span>}
-          </div>
-          {screenId && (
-            <div style={{ marginTop: 16, background: "#1f2937", borderRadius: 8, padding: "8px 16px", fontSize: 11, color: "#6b7280", fontFamily: "monospace" }}>
-              screen: {screenId}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  const item = playlist[index]
-  const url  = item.url || item.asset_url || ""
-  const type = item.type || detectType(url)
-
-  // ── Renderiza item atual ────────────────────────────────────────────────────
   return (
-    <div style={fullscreen("#000")}>
-
-      {/* Imagem */}
-      {type === "image" && (
-        <img
-          key={url}
-          src={url}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          alt=""
-        />
-      )}
-
-      {/* Vídeo */}
-      {type === "video" && (
-        <video
-          key={url}
-          src={url}
-          autoPlay
-          muted
-          playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          onEnded={() => setIndex(prev => (prev + 1 >= playlist.length ? 0 : prev + 1))}
-        />
-      )}
-
-      {/* Template / URL */}
-      {(type === "url" || type === "template") && (
-        <iframe
-          key={url}
-          src={url}
-          style={{ width: "100%", height: "100%", border: "none" }}
-          allowFullScreen
-        />
-      )}
-
-      {/* YouTube */}
-      {type === "youtube" && (
-        <iframe
-          key={url}
-          src={toYouTubeEmbed(url)}
-          style={{ width: "100%", height: "100%", border: "none" }}
-          allow="autoplay; fullscreen"
-          allowFullScreen
-        />
-      )}
-
-      {/* HLS / Live */}
-      {type === "hls" && (
-        <video
-          key={url}
-          src={url}
-          autoPlay
-          muted
-          playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      )}
-
-      {/* Indicador de status — invisível mas presente para debug */}
-      <div style={{
-        position: "fixed", bottom: 8, right: 8,
-        fontSize: 9, color: "rgba(255,255,255,0.15)",
-        fontFamily: "monospace",
-        pointerEvents: "none",
-      }}>
-        {index + 1}/{playlist.length} · {online ? "●" : "○"}
-      </div>
-
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: TEXT, fontVariantNumeric: "tabular-nums" }}>{time}</div>
+      <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2, textTransform: "capitalize" }}>{date}</div>
     </div>
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function fullscreen(bg: string): React.CSSProperties {
-  return {
-    width: "100vw", height: "100vh", background: bg,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    overflow: "hidden", margin: 0, padding: 0,
-    fontFamily: "system-ui, sans-serif",
+function PlayerInner() {
+  const params      = useSearchParams()
+  const code        = params.get("screen") ?? params.get("code") ?? ""
+  const [slides, setSlides]       = useState<Slide[]>(DEFAULT_SLIDES)
+  const [current, setCurrent]     = useState(0)
+  const [loaded, setLoaded]       = useState(false)
+  const [online, setOnline]       = useState(true)
+  const [clientName, setClientName] = useState("")
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Carrega playlist do cliente
+  useEffect(() => {
+    if (!code) return
+    fetch(`/api/player/playlist?code=${code}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.slides?.length > 0) setSlides(d.slides)
+        if (d.name) setClientName(d.name)
+        setLoaded(true)
+      })
+      .catch(() => setLoaded(true))
+  }, [code])
+
+  // Heartbeat a cada 30s
+  useEffect(() => {
+    if (!code) return
+    const ping = () => {
+      fetch("/api/player/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      })
+        .then(() => setOnline(true))
+        .catch(() => setOnline(false))
+    }
+    ping()
+    heartbeatRef.current = setInterval(ping, 30000)
+    return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current) }
+  }, [code])
+
+  // Avança slides automaticamente
+  useEffect(() => {
+    if (!loaded || slides.length === 0) return
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      setCurrent(c => (c + 1) % slides.length)
+    }, slides[current]?.duration ?? 8000)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [current, slides, loaded])
+
+  // Fullscreen automático ao clicar
+  const handleClick = () => {
+    const el = document.documentElement
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.()
+    }
   }
-}
 
-function detectType(url: string): PlaylistItem["type"] {
-  if (!url) return "image"
-  if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube"
-  if (url.endsWith(".m3u8")) return "hls"
-  if (/\.(mp4|webm|mov)$/i.test(url)) return "video"
-  if (url.startsWith("http") && !url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return "url"
-  return "image"
-}
+  const slide = slides[current]
 
-function toYouTubeEmbed(url: string): string {
-  const id = url.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1] ?? ""
-  return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1`
-}
+  return (
+    <div
+      onClick={handleClick}
+      style={{
+        width: "100vw", height: "100vh", overflow: "hidden",
+        background: BG, cursor: "none", position: "relative",
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}
+    >
+      {/* Slide principal */}
+      {slide.type === "text" && (
+        <div style={{
+          width: "100%", height: "100%",
+          background: slide.bg ?? BG,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          padding: "10%",
+        }}>
+          {/* Logo */}
+          <div style={{ marginBottom: 32, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 10, background: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: TEXT }}>D</div>
+            <span style={{ fontSize: 22, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
+          </div>
+          {clientName && (
+            <div style={{ fontSize: 16, color: "#9CA3AF", marginBottom: 20, fontWeight: 500 }}>{clientName}</div>
+          )}
+          <div style={{ fontSize: 48, fontWeight: 800, color: TEXT, textAlign: "center", lineHeight: 1.2, marginBottom: 16 }}>
+            {slide.title}
+          </div>
+          <div style={{ fontSize: 22, color: "#9CA3AF", textAlign: "center" }}>{slide.subtitle}</div>
+        </div>
+      )}
+
+      {slide.type === "image" && slide.url && (
+        <img
+          src={slide.url}
+          alt=""
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      )}
+
+      {slide.type === "video" && slide.url && (
+        <video
+          key={slide.url}
+          src={slide.url}
+          autoPlay muted playsInline
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onEnded={() => setCurrent(c => (c + 1) % slides.length)}
+        />
+      )}
+
+      {/* HUD — barra inferior */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        padding: "16px 32px",
+        background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
+        display: "flex", alignItems: "flex-end", justifyContent: "space-between",
+      }}>
+        {/* Logo + status */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GREEN : "#EF4444" }} />
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
+            DOOHPLAY {code && `· ${code.toUpperCase()}`}
+          </span>
+        </div>
+
+        {/* Indicador de slides */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {slides.map((_, i) => (
+            <div key={i} style={{
+              width: i === current ? 20 : 6, height: 6,
+              borderRadius: 3,
+              background: i === current ? BLUE : "rgba(255,255,255,0.3)",
+              transition: "all .3s",
+            }} />
+          ))}
+        </div>
+
+        {/* Relógio */}
+        <Clock />
+      </div>
+
+      {/* Tela de pareamento se não tiver código */}
+      {!code && (
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "rgba(0,0,0,0.92)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 16,
+        }}>
+          <div style={{ fontSize: 48, fontWeight: 800, color: TEXT, marginBottom: 8 }}>DOOHPLAY</div>
+          <div style={{ fontSize: 18, color: "#9CA3AF", marginBottom: 24 }}>Tela não configurada</div>
+          <div style={{ background: GRAY,
