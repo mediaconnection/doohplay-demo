@@ -2,55 +2,53 @@
 
 import { useState } from "react"
 
-const BRAND_BLUE   = "#1B4FD8"
-const BRAND_YELLOW = "#F5C300"
-const BRAND_DARK   = "#0F2F8A"
+const BG      = "#0B1020"
+const SURFACE = "#111827"
+const BORDER  = "#1F2937"
+const TEXT    = "#F9FAFB"
+const TEXT2   = "#9CA3AF"
+const MUTED   = "#4B5563"
+const BLUE    = "#3B82F6"
+const BLUE2   = "#1D4ED8"
+const GREEN   = "#10B981"
+const AMBER   = "#F59E0B"
+const PURPLE  = "#8B5CF6"
+const RED     = "#EF4444"
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", boxSizing: "border-box",
+  background: BG, border: `1px solid ${BORDER}`,
+  borderRadius: 8, padding: "11px 14px",
+  color: TEXT, fontSize: 14, outline: "none",
+}
+
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: 12, fontWeight: 600,
+  color: TEXT2, marginBottom: 6, marginTop: 16,
+  textTransform: "uppercase", letterSpacing: "0.04em",
+}
 
 const PLANS = [
   {
-    id: "starter",
-    name: "Starter",
-    price: 197,
+    id: "starter", name: "Starter", price: 197,
     description: "Ideal para começar",
-    features: [
-      "1 tela ativa",
-      "Certificado de veiculação mensal",
-      "Portal público de verificação",
-      "Relatório mensal via WhatsApp",
-      "Score de confiança 100/100",
-    ],
-    adSpace: "30%",
-    highlight: false,
+    color: BLUE,
+    features: ["1 tela ativa", "Certificado de veiculação mensal", "Portal público de verificação", "Relatório mensal via WhatsApp", "Score de confiança 100/100"],
+    adSpace: "30%", highlight: false,
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: 347,
+    id: "pro", name: "Pro", price: 347,
     description: "Mais recursos e visibilidade",
-    features: [
-      "1 tela ativa",
-      "Tudo do Starter",
-      "Conteúdo dinâmico (clima + notícias)",
-      "Relatório de audiência mensal",
-      "10% desconto após 3 meses",
-    ],
-    adSpace: "40%",
-    highlight: true,
+    color: PURPLE,
+    features: ["1 tela ativa", "Tudo do Starter", "Conteúdo dinâmico (clima + notícias)", "Relatório de audiência mensal", "10% desconto após 3 meses"],
+    adSpace: "40%", highlight: true,
   },
   {
-    id: "multi",
-    name: "Multi",
-    price: 547,
+    id: "multi", name: "Multi", price: 547,
     description: "Para quem quer crescer",
-    features: [
-      "2 telas ativas",
-      "Tudo do Pro",
-      "Painel do cliente dedicado",
-      "20% desconto após 6 meses",
-      "Suporte prioritário",
-    ],
-    adSpace: "50%",
-    highlight: false,
+    color: GREEN,
+    features: ["2 telas ativas", "Tudo do Pro", "Painel do cliente dedicado", "20% desconto após 6 meses", "Suporte prioritário"],
+    adSpace: "50%", highlight: false,
   },
 ]
 
@@ -74,19 +72,9 @@ export default function OnboardingPage() {
   const [error, setError]     = useState("")
 
   const [form, setForm] = useState({
-    // Step 1
-    business_name: "",
-    business_type: "",
-    address: "",
-    city: "",
-    // Step 2
+    business_name: "", business_type: "", address: "", city: "",
     plan: "pro",
-    // Step 3
-    contact_name: "",
-    email: "",
-    phone: "",
-    // Meta
-    how_heard: "",
+    contact_name: "", email: "", phone: "", how_heard: "",
     terms: false,
   })
 
@@ -105,7 +93,7 @@ export default function OnboardingPage() {
     if (step === 2) {
       if (!form.contact_name.trim()) { setError("Informe seu nome"); return false }
       if (!form.email.trim() || !form.email.includes("@")) { setError("Informe um email válido"); return false }
-      if (!form.phone.trim() || form.phone.length < 10)    { setError("Informe um WhatsApp válido (com DDD)"); return false }
+      if (!form.phone.trim() || form.phone.length < 10) { setError("Informe um WhatsApp válido (com DDD)"); return false }
     }
     if (step === 3) {
       if (!form.terms) { setError("Aceite os termos para continuar"); return false }
@@ -113,17 +101,8 @@ export default function OnboardingPage() {
     return true
   }
 
-  function next() {
-    if (!validateStep()) return
-    setStep(s => s + 1)
-    window.scrollTo(0, 0)
-  }
-
-  function back() {
-    setStep(s => s - 1)
-    setError("")
-    window.scrollTo(0, 0)
-  }
+  function next() { if (!validateStep()) return; setStep(s => s + 1); window.scrollTo(0, 0) }
+  function back() { setStep(s => s - 1); setError(""); window.scrollTo(0, 0) }
 
   async function submit() {
     if (!validateStep()) return
@@ -147,85 +126,100 @@ export default function OnboardingPage() {
 
   const selectedPlan = PLANS.find(p => p.id === form.plan)!
 
-  // ── DONE ─────────────────────────────────────────────────────────────────
+  // ── DONE ──────────────────────────────────────────────────────────────────
   if (done) {
     return (
-      <main style={{ minHeight: "100vh", background: "#f9fafb", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: "system-ui, sans-serif" }}>
+      <main style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder, textarea::placeholder { color: ${MUTED}; } select option { background: ${SURFACE}; }`}</style>
         <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 8 }}>Cadastro recebido!</h1>
-          <p style={{ fontSize: 15, color: "#6b7280", marginBottom: 32, lineHeight: 1.6 }}>
-            Obrigado, <strong>{form.contact_name}</strong>! Nossa equipe vai entrar em contato em até <strong>24 horas</strong> pelo WhatsApp para agendar a instalação.
-          </p>
-          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.5rem", marginBottom: 24, textAlign: "left" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: BRAND_BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Resumo do pedido</div>
-            <div style={{ fontSize: 14, color: "#374151", lineHeight: 2 }}>
-              <div>🏪 <strong>{form.business_name}</strong></div>
-              <div>📦 Plano <strong>{selectedPlan.name}</strong> — R${selectedPlan.price}/mês</div>
-              <div>📍 {form.city}</div>
-              <div>📱 {form.phone}</div>
-            </div>
+          <div style={{ fontSize: 56, marginBottom: 20 }}>🎉</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: TEXT, marginBottom: 8 }}>Cadastro recebido!</div>
+          <div style={{ fontSize: 14, color: TEXT2, marginBottom: 32, lineHeight: 1.7 }}>
+            Obrigado, <strong style={{ color: TEXT }}>{form.contact_name}</strong>!<br />
+            Nossa equipe entrará em contato em até <strong style={{ color: GREEN }}>24 horas</strong> pelo WhatsApp.
           </div>
-          <p style={{ fontSize: 12, color: "#9ca3af" }}>DOOHPLAY — Trust Infrastructure for DOOH Advertising</p>
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1.5rem", marginBottom: 24, textAlign: "left" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Resumo do pedido</div>
+            {[
+              { icon: "🏪", text: form.business_name },
+              { icon: "📦", text: `Plano ${selectedPlan.name} — R$${selectedPlan.price}/mês` },
+              { icon: "📍", text: form.city },
+              { icon: "📱", text: form.phone },
+            ].map((r, i) => (
+              <div key={i} style={{ fontSize: 14, color: TEXT2, padding: "6px 0", borderBottom: i < 3 ? `1px solid ${BORDER}` : "none" }}>
+                {r.icon} <span style={{ color: TEXT }}>{r.text}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: MUTED }}>DOOHPLAY — Trust Infrastructure for DOOH Advertising</div>
         </div>
       </main>
     )
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: BG, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        input::placeholder { color: ${MUTED}; }
+        input:focus, select:focus { border-color: ${BLUE} !important; outline: none; }
+        select option { background: ${SURFACE}; color: ${TEXT}; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: ${BG}; }
+        ::-webkit-scrollbar-thumb { background: ${MUTED}; border-radius: 3px; }
+      `}</style>
 
       {/* HEADER */}
-      <header style={{ background: BRAND_BLUE, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ background: BRAND_YELLOW, borderRadius: 8, padding: "4px 12px", fontWeight: 800, fontSize: 18, color: BRAND_BLUE, letterSpacing: "-0.02em" }}>
-            DOOH<span style={{ color: BRAND_BLUE }}>PLAY</span>
-          </div>
+          <div style={{ width: 32, height: 32, borderRadius: 7, background: `linear-gradient(135deg,${BLUE},${PURPLE})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>D</div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
         </div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Cadastro gratuito · Sem cartão</div>
+        <span style={{ fontSize: 12, color: TEXT2 }}>Cadastro gratuito · Sem cartão</span>
       </header>
 
       {/* HERO */}
-      <div style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, ${BRAND_DARK} 100%)`, color: "white", padding: "2rem 1.5rem", textAlign: "center" }}>
-        <div style={{ fontSize: 12, color: BRAND_YELLOW, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Comece em 5 minutos</div>
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, letterSpacing: "-0.02em" }}>Coloque uma tela no seu estabelecimento</h1>
-        <p style={{ fontSize: 13, opacity: 0.8, lineHeight: 1.6 }}>Publicidade verificada na blockchain · Certificado ICP-Brasil · Relatório mensal automático</p>
+      <div style={{ background: `linear-gradient(135deg, ${BLUE2} 0%, #0B1020 100%)`, padding: "2.5rem 1.5rem", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: GREEN, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Comece em 5 minutos</div>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: TEXT, marginBottom: 10, letterSpacing: "-0.02em", lineHeight: 1.3 }}>Coloque uma tela no seu estabelecimento</h1>
+        <p style={{ fontSize: 13, color: TEXT2, lineHeight: 1.7 }}>Publicidade verificada na blockchain · Certificado ICP-Brasil · Relatório mensal automático</p>
       </div>
 
       {/* STEPS */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "1rem 1.5rem" }}>
+      <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "1.25rem 1.5rem" }}>
         <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-between", position: "relative" }}>
-          <div style={{ position: "absolute", top: 16, left: "10%", right: "10%", height: 2, background: "#e5e7eb", zIndex: 0 }} />
+          <div style={{ position: "absolute", top: 15, left: "10%", right: "10%", height: 2, background: BORDER, zIndex: 0 }} />
           {STEPS.map((s, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", zIndex: 1 }}>
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative", zIndex: 1 }}>
               <div style={{
-                width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
-                background: i < step ? BRAND_BLUE : i === step ? BRAND_YELLOW : "#f3f4f6",
-                color: i < step ? "white" : i === step ? BRAND_BLUE : "#9ca3af",
-                fontWeight: 700, border: i === step ? `2px solid ${BRAND_BLUE}` : "none",
+                width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
+                background: i < step ? GREEN : i === step ? BLUE : SURFACE,
+                color: i < step || i === step ? "#fff" : MUTED,
+                fontWeight: 700, border: `2px solid ${i < step ? GREEN : i === step ? BLUE : BORDER}`,
+                transition: "all .2s",
               }}>
                 {i < step ? "✓" : s.icon}
               </div>
-              <div style={{ fontSize: 10, color: i === step ? BRAND_BLUE : "#9ca3af", fontWeight: i === step ? 700 : 400, whiteSpace: "nowrap" }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: i === step ? BLUE : MUTED, fontWeight: i === step ? 700 : 400, whiteSpace: "nowrap" }}>{s.label}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* FORM */}
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "1.5rem 1.25rem" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "2rem 1.25rem" }}>
 
-        {/* STEP 0 — Estabelecimento */}
+        {/* STEP 0 */}
         {step === 0 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Seu estabelecimento</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>Conte um pouco sobre o seu negócio</p>
+            <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Seu estabelecimento</div>
+            <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Conte um pouco sobre o seu negócio</div>
 
             <label style={labelStyle}>Nome do estabelecimento *</label>
             <input style={inputStyle} placeholder="Ex: Lanchonete do João" value={form.business_name} onChange={e => update("business_name", e.target.value)} />
 
             <label style={labelStyle}>Tipo do estabelecimento *</label>
-            <select style={inputStyle} value={form.business_type} onChange={e => update("business_type", e.target.value)}>
+            <select style={{ ...inputStyle, color: form.business_type ? TEXT : MUTED }} value={form.business_type} onChange={e => update("business_type", e.target.value)}>
               <option value="">Selecione...</option>
               {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -238,48 +232,50 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* STEP 1 — Plano */}
+        {/* STEP 1 */}
         {step === 1 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Escolha seu plano</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>Todos incluem instalação gratuita e certificado ICP-Brasil</p>
+            <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Escolha seu plano</div>
+            <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Todos incluem instalação gratuita e certificado ICP-Brasil</div>
 
             {PLANS.map(plan => (
               <div key={plan.id} onClick={() => update("plan", plan.id)} style={{
-                border: `2px solid ${form.plan === plan.id ? BRAND_BLUE : "#e5e7eb"}`,
-                borderRadius: 12, padding: "1.25rem", marginBottom: 12, cursor: "pointer",
-                background: form.plan === plan.id ? "#EFF6FF" : "#fff",
-                position: "relative",
+                border: `2px solid ${form.plan === plan.id ? plan.color : BORDER}`,
+                borderRadius: 14, padding: "1.25rem", marginBottom: 12, cursor: "pointer",
+                background: form.plan === plan.id ? plan.color + "12" : SURFACE,
+                position: "relative", transition: "all .15s",
               }}>
                 {plan.highlight && (
-                  <div style={{ position: "absolute", top: -10, right: 16, background: BRAND_YELLOW, color: BRAND_BLUE, fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20 }}>
+                  <div style={{ position: "absolute", top: -11, right: 16, background: AMBER, color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>
                     MAIS POPULAR
                   </div>
                 )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>{plan.name}</div>
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>{plan.description}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>{plan.name}</div>
+                    <div style={{ fontSize: 12, color: TEXT2 }}>{plan.description}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: BRAND_BLUE }}>R${plan.price}</div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>/mês</div>
+                    <span style={{ fontSize: 24, fontWeight: 800, color: plan.color }}>R${plan.price}</span>
+                    <span style={{ fontSize: 11, color: MUTED }}>/mês</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>📺 {plan.adSpace} da tela para anúncios de terceiros</div>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 10 }}>📺 {plan.adSpace} da tela para anúncios de terceiros</div>
                 {plan.features.map(f => (
-                  <div key={f} style={{ fontSize: 12, color: "#374151", padding: "2px 0" }}>✓ {f}</div>
+                  <div key={f} style={{ fontSize: 12, color: TEXT2, padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: GREEN }}>✓</span> {f}
+                  </div>
                 ))}
               </div>
             ))}
           </div>
         )}
 
-        {/* STEP 2 — Contato */}
+        {/* STEP 2 */}
         {step === 2 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Seus dados de contato</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>Entraremos em contato em até 24 horas</p>
+            <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Seus dados de contato</div>
+            <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Entraremos em contato em até 24 horas</div>
 
             <label style={labelStyle}>Seu nome completo *</label>
             <input style={inputStyle} placeholder="João Silva" value={form.contact_name} onChange={e => update("contact_name", e.target.value)} />
@@ -291,7 +287,7 @@ export default function OnboardingPage() {
             <input style={inputStyle} type="tel" placeholder="11 99999-9999" value={form.phone} onChange={e => update("phone", e.target.value.replace(/\D/g, ""))} />
 
             <label style={labelStyle}>Como nos conheceu?</label>
-            <select style={inputStyle} value={form.how_heard} onChange={e => update("how_heard", e.target.value)}>
+            <select style={{ ...inputStyle, color: form.how_heard ? TEXT : MUTED }} value={form.how_heard} onChange={e => update("how_heard", e.target.value)}>
               <option value="">Selecione...</option>
               <option value="indicacao">Indicação de amigo</option>
               <option value="instagram">Instagram</option>
@@ -302,82 +298,88 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* STEP 3 — Resumo */}
+        {/* STEP 3 */}
         {step === 3 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Confirme seu pedido</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>Revise os dados antes de enviar</p>
+            <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Confirme seu pedido</div>
+            <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Revise os dados antes de enviar</div>
 
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.25rem", marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: BRAND_BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Estabelecimento</div>
-              <div style={{ fontSize: 14, color: "#374151", lineHeight: 2 }}>
-                <div>🏪 <strong>{form.business_name}</strong></div>
-                <div>🍽 {form.business_type}</div>
-                <div>📍 {form.address}, {form.city}</div>
+            {[
+              { title: "Estabelecimento", color: BLUE, items: [{ icon: "🏪", text: form.business_name, bold: true }, { icon: "🍽", text: form.business_type }, { icon: "📍", text: `${form.address}, ${form.city}` }] },
+              { title: "Contato", color: PURPLE, items: [{ icon: "👤", text: form.contact_name, bold: true }, { icon: "📧", text: form.email }, { icon: "📱", text: form.phone }] },
+            ].map(section => (
+              <div key={section.title} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "1.25rem", marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: section.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{section.title}</div>
+                {section.items.map((item, i) => (
+                  <div key={i} style={{ fontSize: 13, color: TEXT2, padding: "5px 0", borderBottom: i < section.items.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+                    {item.icon} <span style={{ color: item.bold ? TEXT : TEXT2, fontWeight: item.bold ? 600 : 400 }}>{item.text}</span>
+                  </div>
+                ))}
               </div>
-            </div>
+            ))}
 
-            <div style={{ background: "#EFF6FF", border: `1px solid ${BRAND_BLUE}`, borderRadius: 12, padding: "1.25rem", marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: BRAND_BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Plano selecionado</div>
+            <div style={{ background: BLUE + "12", border: `1px solid ${BLUE}44`, borderRadius: 12, padding: "1.25rem", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Plano selecionado</div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>{selectedPlan.name}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>{selectedPlan.description}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>{selectedPlan.name}</div>
+                  <div style={{ fontSize: 12, color: TEXT2 }}>{selectedPlan.description}</div>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: BRAND_BLUE }}>R${selectedPlan.price}<span style={{ fontSize: 12, fontWeight: 400, color: "#6b7280" }}>/mês</span></div>
+                <div>
+                  <span style={{ fontSize: 24, fontWeight: 800, color: BLUE }}>R${selectedPlan.price}</span>
+                  <span style={{ fontSize: 11, color: MUTED }}>/mês</span>
+                </div>
               </div>
             </div>
 
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.25rem", marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: BRAND_BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Contato</div>
-              <div style={{ fontSize: 14, color: "#374151", lineHeight: 2 }}>
-                <div>👤 {form.contact_name}</div>
-                <div>📧 {form.email}</div>
-                <div>📱 {form.phone}</div>
-              </div>
-            </div>
-
-            <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 12, padding: "1rem", marginBottom: 16, fontSize: 12, color: "#15803D" }}>
+            <div style={{ background: GREEN + "12", border: `1px solid ${GREEN}44`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: GREEN }}>
               ✅ Instalação gratuita · Sem fidelidade · Cancele quando quiser
             </div>
 
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 8 }}>
-              <input type="checkbox" checked={form.terms} onChange={e => update("terms", e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-                Concordo com os <span style={{ color: BRAND_BLUE }}>termos de serviço</span> e <span style={{ color: BRAND_BLUE }}>política de privacidade</span> do DOOHPLAY.
+            <div onClick={() => update("terms", !form.terms)} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 8 }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 2,
+                border: `2px solid ${form.terms ? GREEN : BORDER}`,
+                background: form.terms ? GREEN : "transparent",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {form.terms && <span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>✓</span>}
+              </div>
+              <span style={{ fontSize: 12, color: TEXT2, lineHeight: 1.5 }}>
+                Concordo com os <span style={{ color: BLUE }}>termos de serviço</span> e <span style={{ color: BLUE }}>política de privacidade</span> do DOOHPLAY.
               </span>
-            </label>
+            </div>
           </div>
         )}
 
         {/* ERROR */}
         {error && (
-          <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#DC2626" }}>
+          <div style={{ background: RED + "18", border: `1px solid ${RED}44`, borderRadius: 8, padding: "10px 14px", marginTop: 16, marginBottom: 4, fontSize: 13, color: RED }}>
             ⚠️ {error}
           </div>
         )}
 
         {/* BUTTONS */}
-        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
           {step > 0 && (
-            <button onClick={back} style={{ flex: 1, padding: "14px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", fontSize: 14, fontWeight: 600, color: "#374151", cursor: "pointer" }}>
+            <button onClick={back} style={{ flex: 1, padding: "13px", borderRadius: 10, border: `1px solid ${BORDER}`, background: "transparent", fontSize: 14, fontWeight: 600, color: TEXT2, cursor: "pointer" }}>
               ← Voltar
             </button>
           )}
           {step < 3 ? (
-            <button onClick={next} style={{ flex: 2, padding: "14px", borderRadius: 10, border: "none", background: BRAND_BLUE, color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={next} style={{ flex: 2, padding: "13px", borderRadius: 10, border: "none", background: BLUE, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               Continuar →
             </button>
           ) : (
-            <button onClick={submit} disabled={loading} style={{ flex: 2, padding: "14px", borderRadius: 10, border: "none", background: loading ? "#9ca3af" : BRAND_BLUE, color: "white", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+            <button onClick={submit} disabled={loading} style={{ flex: 2, padding: "13px", borderRadius: 10, border: "none", background: loading ? MUTED : GREEN, color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
               {loading ? "Enviando..." : "🚀 Confirmar cadastro"}
             </button>
           )}
         </div>
 
         {/* TRUST */}
-        <div style={{ textAlign: "center", marginTop: 24, padding: "1rem", borderTop: "1px solid #f3f4f6" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", fontSize: 11, color: "#9ca3af" }}>
+        <div style={{ textAlign: "center", marginTop: 28, paddingTop: 20, borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", fontSize: 11, color: MUTED }}>
             <span>🔐 ICP-Brasil</span>
             <span>⛓ Blockchain</span>
             <span>📋 Certificado mensal</span>
@@ -387,14 +389,4 @@ export default function OnboardingPage() {
       </div>
     </main>
   )
-}
-
-const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, marginTop: 16,
-}
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid #d1d5db",
-  fontSize: 14, color: "#111827", background: "#fff", outline: "none",
-  boxSizing: "border-box",
 }
