@@ -4,10 +4,9 @@ import { getPool } from "@/lib/db"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const EVOLUTION_URL      = process.env.EVOLUTION_API_URL      || "http://2.25.180.53:32768"
+const EVOLUTION_URL      = process.env.EVOLUTION_API_URL      || "https://evo.doohplay.com.br"
 const EVOLUTION_KEY      = process.env.EVOLUTION_API_KEY      || "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI"
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE     || "doohplay"
-const LEAD_EMAIL         = process.env.LEAD_NOTIFICATION_EMAIL || "lead@doohplay.com.br"
 const DOOHPLAY_PHONE     = process.env.DOOHPLAY_PHONE          || "5511962050987"
 
 async function sendWhatsApp(phone: string, message: string) {
@@ -36,7 +35,6 @@ export async function POST(req: NextRequest) {
       plan, contact_name, email, phone, how_heard,
     } = body
 
-    // Validação básica
     if (!business_name || !business_type || !address || !city) {
       return NextResponse.json({ error: "Dados do estabelecimento incompletos" }, { status: 400 })
     }
@@ -50,7 +48,6 @@ export async function POST(req: NextRequest) {
     const pool = getPool()
     const code = generateCode(business_name)
 
-    // Salva o lead no banco
     await pool.query(
       `INSERT INTO studio_clients
          (code, name, business_type, address, phone, active)
@@ -59,7 +56,6 @@ export async function POST(req: NextRequest) {
       [code, business_name, business_type, `${address}, ${city}`, phone.replace(/\D/g, "")]
     )
 
-    // Salva lead completo na tabela de leads (se existir)
     try {
       await pool.query(
         `INSERT INTO leads
@@ -70,7 +66,7 @@ export async function POST(req: NextRequest) {
          contact_name, email, phone.replace(/\D/g, ""), how_heard || ""]
       )
     } catch {
-      // Tabela leads pode não existir ainda — não quebra o fluxo
+      // Tabela leads pode não existir ainda
     }
 
     const planNames: Record<string, string> = {
@@ -79,7 +75,6 @@ export async function POST(req: NextRequest) {
       multi:   "Multi — R$547/mês",
     }
 
-    // WhatsApp para o cliente
     const clientMsg = [
       `🎉 *Olá, ${contact_name}!*`,
       ``,
@@ -97,7 +92,6 @@ export async function POST(req: NextRequest) {
       `_DOOHPLAY — Trust Infrastructure for DOOH Advertising_`,
     ].join("\n")
 
-    // WhatsApp de notificação interna
     const internalMsg = [
       `🔔 *Novo lead DOOHPLAY!*`,
       ``,
@@ -114,10 +108,9 @@ export async function POST(req: NextRequest) {
       ``,
       `🔑 Código: ${code}`,
       ``,
-      `Acesse o painel para ativar: https://doohplay-demo.onrender.com/admin`,
+      `Acesse o painel para ativar: https://doohplay.com.br/admin`,
     ].join("\n")
 
-    // Envia as mensagens em paralelo
     await Promise.allSettled([
       sendWhatsApp(phone.replace(/\D/g, ""), clientMsg),
       sendWhatsApp(DOOHPLAY_PHONE, internalMsg),
