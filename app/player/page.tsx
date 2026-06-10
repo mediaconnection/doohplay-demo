@@ -7,7 +7,6 @@ const BG    = "#000000"
 const TEXT  = "#FFFFFF"
 const BLUE  = "#3B82F6"
 const GREEN = "#10B981"
-const GRAY  = "#1F2937"
 
 type Slide = {
   id: string
@@ -34,7 +33,18 @@ const DEFAULT_SLIDES: Slide[] = [
   },
 ]
 
-function Clock() {
+function useOrientation() {
+  const [portrait, setPortrait] = useState(false)
+  useEffect(() => {
+    const check = () => setPortrait(window.innerHeight > window.innerWidth)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+  return portrait
+}
+
+function Clock({ portrait }: { portrait: boolean }) {
   const [time, setTime] = useState("")
   const [date, setDate] = useState("")
 
@@ -50,25 +60,26 @@ function Clock() {
   }, [])
 
   return (
-    <div style={{ textAlign: "right" }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color: TEXT, fontVariantNumeric: "tabular-nums" }}>{time}</div>
-      <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2, textTransform: "capitalize" }}>{date}</div>
+    <div style={{ textAlign: portrait ? "center" : "right" }}>
+      <div style={{ fontSize: portrait ? 36 : 28, fontWeight: 700, color: TEXT, fontVariantNumeric: "tabular-nums" }}>{time}</div>
+      <div style={{ fontSize: portrait ? 14 : 12, color: "#9CA3AF", marginTop: 2, textTransform: "capitalize" }}>{date}</div>
     </div>
   )
 }
 
 function PlayerInner() {
-  const params      = useSearchParams()
-  const code        = params.get("screen") ?? params.get("code") ?? ""
-  const [slides, setSlides]       = useState<Slide[]>(DEFAULT_SLIDES)
-  const [current, setCurrent]     = useState(0)
-  const [loaded, setLoaded]       = useState(false)
-  const [online, setOnline]       = useState(true)
+  const params   = useSearchParams()
+  const code     = params.get("screen") ?? params.get("code") ?? ""
+  const portrait = useOrientation()
+
+  const [slides, setSlides]         = useState<Slide[]>(DEFAULT_SLIDES)
+  const [current, setCurrent]       = useState(0)
+  const [loaded, setLoaded]         = useState(false)
+  const [online, setOnline]         = useState(true)
   const [clientName, setClientName] = useState("")
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Carrega playlist do cliente
   useEffect(() => {
     if (!code) return
     fetch(`/api/player/playlist?code=${code}`)
@@ -81,7 +92,6 @@ function PlayerInner() {
       .catch(() => setLoaded(true))
   }, [code])
 
-  // Heartbeat a cada 30s
   useEffect(() => {
     if (!code) return
     const ping = () => {
@@ -98,7 +108,6 @@ function PlayerInner() {
     return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current) }
   }, [code])
 
-  // Avança slides automaticamente
   useEffect(() => {
     if (!loaded || slides.length === 0) return
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -108,15 +117,20 @@ function PlayerInner() {
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [current, slides, loaded])
 
-  // Fullscreen automático ao clicar
   const handleClick = () => {
     const el = document.documentElement
-    if (!document.fullscreenElement) {
-      el.requestFullscreen?.()
-    }
+    if (!document.fullscreenElement) el.requestFullscreen?.()
   }
 
   const slide = slides[current]
+
+  // Tamanhos adaptativos
+  const titleSize    = portrait ? "clamp(28px, 6vw, 72px)"  : "clamp(24px, 4vw, 64px)"
+  const subtitleSize = portrait ? "clamp(16px, 3vw, 36px)"  : "clamp(14px, 2vw, 28px)"
+  const logoSize     = portrait ? 64 : 48
+  const logoFont     = portrait ? 28 : 22
+  const logoText     = portrait ? 22 : 18
+  const hudPad       = portrait ? "20px 32px" : "16px 32px"
 
   return (
     <div
@@ -134,20 +148,20 @@ function PlayerInner() {
           background: slide.bg ?? BG,
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
-          padding: "10%",
+          padding: portrait ? "10% 8%" : "10%",
+          textAlign: "center",
         }}>
-          {/* Logo */}
-          <div style={{ marginBottom: 32, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 10, background: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: TEXT }}>D</div>
-            <span style={{ fontSize: 22, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
+          <div style={{ marginBottom: portrait ? 40 : 32, display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ width: logoSize, height: logoSize, borderRadius: 12, background: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: logoFont, fontWeight: 800, color: TEXT, flexShrink: 0 }}>D</div>
+            <span style={{ fontSize: logoText, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
           </div>
           {clientName && (
-            <div style={{ fontSize: 16, color: "#9CA3AF", marginBottom: 20, fontWeight: 500 }}>{clientName}</div>
+            <div style={{ fontSize: portrait ? 20 : 16, color: "#9CA3AF", marginBottom: portrait ? 28 : 20, fontWeight: 500 }}>{clientName}</div>
           )}
-          <div style={{ fontSize: 48, fontWeight: 800, color: TEXT, textAlign: "center", lineHeight: 1.2, marginBottom: 16 }}>
+          <div style={{ fontSize: titleSize, fontWeight: 800, color: TEXT, lineHeight: 1.15, marginBottom: portrait ? 24 : 16, maxWidth: portrait ? "90%" : "80%" }}>
             {slide.title}
           </div>
-          <div style={{ fontSize: 22, color: "#9CA3AF", textAlign: "center" }}>{slide.subtitle}</div>
+          <div style={{ fontSize: subtitleSize, color: "#9CA3AF", maxWidth: portrait ? "85%" : "70%" }}>{slide.subtitle}</div>
         </div>
       )}
 
@@ -155,7 +169,7 @@ function PlayerInner() {
         <img
           src={slide.url}
           alt=""
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: "100%", height: "100%", objectFit: portrait ? "contain" : "cover", background: BG }}
         />
       )}
 
@@ -164,55 +178,89 @@ function PlayerInner() {
           key={slide.url}
           src={slide.url}
           autoPlay muted playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: "100%", height: "100%", objectFit: portrait ? "contain" : "cover" }}
           onEnded={() => setCurrent(c => (c + 1) % slides.length)}
         />
       )}
 
-      {/* HUD — barra inferior */}
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0,
-        padding: "16px 32px",
-        background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
-        display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-      }}>
-        {/* Logo + status */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GREEN : "#EF4444" }} />
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-            DOOHPLAY {code && `· ${code.toUpperCase()}`}
-          </span>
+      {/* HUD */}
+      {portrait ? (
+        // Portrait HUD — dividido em topo e base
+        <>
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0,
+            padding: "20px 28px",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GREEN : "#EF4444" }} />
+              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>
+                DOOHPLAY {code && `· ${code.toUpperCase()}`}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {slides.map((_, i) => (
+                <div key={i} style={{
+                  width: i === current ? 24 : 8, height: 8,
+                  borderRadius: 4,
+                  background: i === current ? BLUE : "rgba(255,255,255,0.3)",
+                  transition: "all .3s",
+                }} />
+              ))}
+            </div>
+          </div>
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0,
+            padding: "20px 28px",
+            background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+            display: "flex", justifyContent: "center",
+          }}>
+            <Clock portrait={portrait} />
+          </div>
+        </>
+      ) : (
+        // Landscape HUD — barra inferior
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          padding: hudPad,
+          background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
+          display: "flex", alignItems: "flex-end", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GREEN : "#EF4444" }} />
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
+              DOOHPLAY {code && `· ${code.toUpperCase()}`}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {slides.map((_, i) => (
+              <div key={i} style={{
+                width: i === current ? 20 : 6, height: 6,
+                borderRadius: 3,
+                background: i === current ? BLUE : "rgba(255,255,255,0.3)",
+                transition: "all .3s",
+              }} />
+            ))}
+          </div>
+          <Clock portrait={portrait} />
         </div>
+      )}
 
-        {/* Indicador de slides */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {slides.map((_, i) => (
-            <div key={i} style={{
-              width: i === current ? 20 : 6, height: 6,
-              borderRadius: 3,
-              background: i === current ? BLUE : "rgba(255,255,255,0.3)",
-              transition: "all .3s",
-            }} />
-          ))}
-        </div>
-
-        {/* Relógio */}
-        <Clock />
-      </div>
-
-      {/* Tela de pareamento se não tiver código */}
+      {/* Sem código */}
       {!code && (
         <div style={{
           position: "absolute", inset: 0,
           background: "rgba(0,0,0,0.92)",
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center", gap: 16,
+          padding: 40, textAlign: "center",
         }}>
-          <div style={{ fontSize: 48, fontWeight: 800, color: TEXT, marginBottom: 8 }}>DOOHPLAY</div>
-          <div style={{ fontSize: 18, color: "#9CA3AF", marginBottom: 24 }}>Tela não configurada</div>
-          <div style={{ background: GRAY, borderRadius: 12, padding: "20px 32px", textAlign: "center" }}>
+          <div style={{ fontSize: portrait ? 56 : 48, fontWeight: 800, color: TEXT, marginBottom: 8 }}>DOOHPLAY</div>
+          <div style={{ fontSize: portrait ? 20 : 18, color: "#9CA3AF", marginBottom: 24 }}>Tela não configurada</div>
+          <div style={{ background: "#1F2937", borderRadius: 12, padding: "20px 32px" }}>
             <div style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Acesse no seu celular:</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: BLUE }}>doohplay.com.br/install</div>
+            <div style={{ fontSize: portrait ? 24 : 20, fontWeight: 700, color: BLUE }}>doohplay.com.br/install</div>
           </div>
         </div>
       )}
