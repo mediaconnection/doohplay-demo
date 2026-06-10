@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -33,22 +33,20 @@ const C = {
   text3:   "#9CA3AF",
 }
 
-// ─── Nav items ────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "dashboard", label: "Dashboard",   icon: "⊞" },
-  { id: "tv",        label: "Minha TV",    icon: "📺" },
-  { id: "conteudo",  label: "Conteúdo",    icon: "🖼" },
-  { id: "anuncios",  label: "Anúncios",    icon: "📢", badge: 3 },
-  { id: "ganhos",    label: "Ganhos",      icon: "💵" },
-  { id: "relatorios",label: "Relatórios",  icon: "📊" },
+  { id: "dashboard", label: "Dashboard",    icon: "⊞" },
+  { id: "tv",        label: "Minha TV",     icon: "📺" },
+  { id: "conteudo",  label: "Conteúdo",     icon: "🖼" },
+  { id: "anuncios",  label: "Anúncios",     icon: "📢", badge: 3 },
+  { id: "ganhos",    label: "Ganhos",       icon: "💵" },
+  { id: "relatorios",label: "Relatórios",   icon: "📊" },
   { id: "config",    label: "Configurações",icon: "⚙" },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmt(n: number, prefix = "") {
-  if (n >= 1000000) return `${prefix}${(n/1000000).toFixed(1)}M`
-  if (n >= 1000) return `${prefix}${(n/1000).toFixed(1)}K`
-  return `${prefix}${n.toLocaleString("pt-BR")}`
+function fmt(n: number) {
+  if (n >= 1000000) return `${(n/1000000).toFixed(1)}M`
+  if (n >= 1000) return `${(n/1000).toFixed(1)}K`
+  return n.toLocaleString("pt-BR")
 }
 function fmtR(n: number) {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -63,7 +61,6 @@ function fmtDate(d?: string | null, short = false) {
   } catch { return "—" }
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
 function KpiCard({ label, value, sub, icon, color = C.blue, onClick }: { label: string; value: string; sub?: string; icon: string; color?: string; onClick?: () => void }) {
   return (
     <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", cursor: onClick ? "pointer" : "default", flex: 1, minWidth: 0 }}>
@@ -86,32 +83,186 @@ function StatusBadge({ online }: { online: boolean }) {
   )
 }
 
+// ─── Modal de Upload ──────────────────────────────────────────────────────────
+function ModalPromocao({ code, onClose }: { code: string; onClose: () => void }) {
+  const [nome, setNome] = useState("")
+  const [duracao, setDuracao] = useState("15")
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = (f: File) => {
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const f = e.dataTransfer.files[0]
+    if (f) handleFile(f)
+  }
+
+  const handleSubmit = async () => {
+    if (!nome.trim()) { setError("Informe o nome da promoção."); return }
+    if (!file) { setError("Selecione uma imagem ou vídeo."); return }
+    setLoading(true)
+    setError("")
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("name", nome)
+      formData.append("duration", duracao)
+      formData.append("code", code)
+
+      const res = await fetch("/api/studio/upload", { method: "POST", body: formData })
+      if (!res.ok) throw new Error("Erro ao enviar.")
+      setSuccess(true)
+    } catch (err: any) {
+      setError(err.message || "Erro ao enviar. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Adicionar promoção</div>
+            <div style={{ fontSize: 12, color: C.text3 }}>Será revisada pela equipe antes de ir ao ar</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.text3, lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: "20px 24px" }}>
+          {success ? (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>Enviado com sucesso!</div>
+              <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>Sua promoção está em análise. Em breve você receberá uma confirmação pelo WhatsApp.</div>
+              <button onClick={onClose} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+            </div>
+          ) : (
+            <>
+              {/* Nome */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Nome da promoção *
+                </label>
+                <input
+                  value={nome}
+                  onChange={e => setNome(e.target.value)}
+                  placeholder="Ex: Combo do Dia, Promoção de Verão…"
+                  style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }}
+                />
+              </div>
+
+              {/* Duração */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Duração em tela
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["10", "15", "20", "30"].map(s => (
+                    <button key={s} onClick={() => setDuracao(s)} style={{
+                      flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      background: duracao === s ? C.blue : C.gray50,
+                      color: duracao === s ? C.white : C.text2,
+                      border: `1px solid ${duracao === s ? C.blue : C.border}`,
+                    }}>
+                      {s}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upload */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Arquivo *
+                </label>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={e => e.preventDefault()}
+                  onClick={() => inputRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${file ? C.green : C.border}`,
+                    borderRadius: 10, padding: "20px", textAlign: "center",
+                    cursor: "pointer", background: file ? C.greenLt : C.gray50,
+                    transition: "all .15s",
+                  }}
+                >
+                  {preview ? (
+                    file?.type.startsWith("video") ? (
+                      <video src={preview} style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6 }} controls />
+                    ) : (
+                      <img src={preview} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6, objectFit: "cover" }} />
+                    )
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>Clique ou arraste o arquivo</div>
+                      <div style={{ fontSize: 11, color: C.text3 }}>Imagem (JPG, PNG) ou Vídeo (MP4) · Máx. 50MB</div>
+                    </>
+                  )}
+                  <input ref={inputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                </div>
+                {file && (
+                  <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name}</div>
+                )}
+              </div>
+
+              {error && (
+                <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>
+                  ⚠️ {error}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>
+                  Cancelar
+                </button>
+                <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "11px", borderRadius: 8, border: "none", background: loading ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
+                  {loading ? "Enviando…" : "Enviar para aprovação →"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-function TabDashboard({ client, player, stats, playlist, payments, onNav }: any) {
+function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo }: any) {
   const online = player?.online ?? false
   const revenue = stats.revenue_month || 0
-  const saldo = revenue // simplificado
+  const saldo = revenue
   const campanhas = 3
   const vizToday = stats.plays_today
 
-  // Mock anúncios rodando
   const ads = [
-    { name: "Bradesco — Black Friday", cat: "Banco", views: 1240, value: 180, status: "Ativo" },
-    { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980, value: 140, status: "Ativo" },
-    { name: "Natura — Perfumes",       cat: "Beleza", views: 650, value: 90,  status: "Pausado" },
+    { name: "Bradesco — Black Friday", cat: "Banco",    views: 1240, value: 180, status: "Ativo"   },
+    { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980,  value: 140, status: "Ativo"   },
+    { name: "Natura — Perfumes",       cat: "Beleza",   views: 650,  value: 90,  status: "Pausado" },
   ]
 
-  // Mock ganhos futuros
   const futuros = [
-    { month: "Jul/26", value: 980,  label: "Receita prevista" },
-    { month: "Ago/26", value: 1120, label: "Estimado pela IA" },
+    { month: "Jul/26", value: 980,  label: "Receita prevista"  },
+    { month: "Ago/26", value: 1120, label: "Estimado pela IA"  },
     { month: "Set/26", value: 1240, label: "Projeção otimista" },
   ]
 
   return (
     <div>
-      {/* TV Status banner */}
       <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 36, height: 36, background: C.green, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -125,25 +276,20 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav }: any)
         <StatusBadge online={online} />
       </div>
 
-      {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <KpiCard label="Receita este mês" value={fmtR(revenue)} sub="+23% vs mai" icon="💵" color={C.green} />
-        <KpiCard label="Saldo a receber"  value={fmtR(saldo)}   sub={`em 10/Jul`}    icon="📅" color={C.blue} />
-        <KpiCard label="Campanhas ativas" value={String(campanhas)} sub="1 pausada"  icon="▶" color={C.blue} />
+        <KpiCard label="Saldo a receber"  value={fmtR(saldo)}   sub="em 10/Jul"   icon="📅" color={C.blue} />
+        <KpiCard label="Campanhas ativas" value={String(campanhas)} sub="1 pausada" icon="▶" color={C.blue} />
         <KpiCard label="Visualizações"    value={fmt(vizToday)} sub="+12% esta semana" icon="👁" color={C.blue} />
         <KpiCard label="Status da TV"     value={online ? "Online" : "Offline"} sub={player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"} icon="📶" color={online ? C.green : C.red} />
       </div>
 
-      {/* Minha TV Agora */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, marginBottom: 20, alignItems: "start" }}>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Minha TV Agora</div>
-            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Minha TV Agora</div>
             <button onClick={() => onNav("tv")} style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ao vivo na sua TV →</button>
           </div>
-          {/* TV mockup */}
           <div style={{ background: "#0F172A", margin: 16, borderRadius: 10, padding: "28px 16px", textAlign: "center", minHeight: 140, position: "relative" }}>
             <div style={{ position: "absolute", top: 10, left: 14, background: C.green, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>● AO VIVO</div>
             <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>☕ PROMOÇÃO DO DIA</div>
@@ -154,12 +300,10 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav }: any)
           </div>
         </div>
 
-        {/* Em exibição + próximo */}
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px" }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Em exibição agora</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>Café + Pão de Queijo</div>
           <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>Bradesco Black Friday · ativo</div>
-          {/* QR placeholder */}
           <div style={{ width: 80, height: 80, background: C.gray100, borderRadius: 8, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>⬛</div>
           <div style={{ fontSize: 10, color: C.text3, textAlign: "center", marginBottom: 16 }}>Escaneie para ver a promoção</div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Próximo anúncio</span><span style={{ fontWeight: 500 }}>iFood · 00:43</span></div>
@@ -168,7 +312,6 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav }: any)
         </div>
       </div>
 
-      {/* Anúncios rodando */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Quais anúncios estão rodando?</div>
@@ -190,7 +333,6 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav }: any)
         ))}
       </div>
 
-      {/* Ganhos futuros */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px" }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Ganhos Futuros</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
@@ -220,7 +362,6 @@ function TabTV({ client, player, playlist }: any) {
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
-        {/* TV preview */}
         <div style={{ background: "#0F172A", height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 40 }}>📺</div>
@@ -237,9 +378,9 @@ function TabTV({ client, player, playlist }: any) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
             {[
-              { label: "Sinal", value: "Excelente", color: C.green },
+              { label: "Sinal",  value: "Excelente", color: C.green },
               { label: "Uptime", value: `${(player?.sla_30d ?? 99.8).toFixed(1)}%`, color: C.blue },
-              { label: "Temp.", value: "42°C", color: C.amber },
+              { label: "Temp.",  value: "42°C", color: C.amber },
             ].map(k => (
               <div key={k.label} style={{ background: C.gray50, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>{k.label}</div>
@@ -250,7 +391,6 @@ function TabTV({ client, player, playlist }: any) {
         </div>
       </div>
 
-      {/* Playlist */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Playlist em execução</div>
@@ -277,23 +417,21 @@ function TabTV({ client, player, playlist }: any) {
   )
 }
 
-function TabConteudo({ client }: any) {
+function TabConteudo({ client, onAddPromo }: any) {
   const mockItems = [
-    { name: "Promoção Pão Francês",     type: "Imagem", duration: 15, views: 2840, status: "Ativo"   },
-    { name: "Cardápio do Dia",           type: "Video",  duration: 30, views: 1920, status: "Ativo"   },
-    { name: "Promoção Fim de Semana",    type: "Imagem", duration: 10, views: 740,  status: "Pausado" },
-    { name: "Boas-vindas Clientes",      type: "Video",  duration: 20, views: 3120, status: "Ativo"   },
+    { name: "Promoção Pão Francês",  type: "Imagem", duration: 15, views: 2840, status: "Ativo"   },
+    { name: "Cardápio do Dia",        type: "Video",  duration: 30, views: 1920, status: "Ativo"   },
+    { name: "Promoção Fim de Semana", type: "Imagem", duration: 10, views: 740,  status: "Pausado" },
+    { name: "Boas-vindas Clientes",   type: "Video",  duration: 20, views: 3120, status: "Ativo"   },
   ]
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           + Adicionar conteúdo
         </button>
       </div>
-
-      {/* Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16, marginBottom: 16 }}>
         {mockItems.map((item, i) => (
           <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -311,8 +449,7 @@ function TabConteudo({ client }: any) {
             </div>
           </div>
         ))}
-        {/* Upload card */}
-        <div style={{ background: C.white, border: `2px dashed ${C.gray300}`, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 8 }}>
+        <div onClick={onAddPromo} style={{ background: C.white, border: `2px dashed ${C.gray300}`, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 8, cursor: "pointer" }}>
           <div style={{ fontSize: 28, color: C.blue }}>+</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Adicionar nova promoção</div>
           <div style={{ fontSize: 12, color: C.text3 }}>Upload de imagem ou vídeo da sua loja</div>
@@ -323,26 +460,24 @@ function TabConteudo({ client }: any) {
   )
 }
 
-function TabAnuncios({ stats, payments, code }: any) {
+function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
   const ads = [
-    { name: "Bradesco — Black Friday", cat: "Banco",   views: 1240, value: 180, status: "Ativo" },
-    { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980,  value: 140, status: "Ativo" },
-    { name: "Natura — Perfumes",       cat: "Beleza",  views: 650,  value: 90,  status: "Pausado" },
+    { name: "Bradesco — Black Friday", cat: "Banco",    views: 1240, value: 180, status: "Ativo"   },
+    { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980,  value: 140, status: "Ativo"   },
+    { name: "Natura — Perfumes",       cat: "Beleza",   views: 650,  value: 90,  status: "Pausado" },
   ]
   const suggestions = [
-    { icon: "🏦", text: "Novo anunciante disponível: Banco Itaú",         sub: "Campanha de 90 dias · CPM R$ 12,00 · alto match com seu público.", value: "+R$ 240/mês",  color: C.green },
-    { icon: "🌤", text: "Adicione promoção de fim de tarde",               sub: "Telas com conteúdo próprio 16h–18h têm 3× mais engajamento.",       value: "+34% views",  color: C.amber },
-    { icon: "💡", text: "Potencial não realizado: R$ 320/mês",            sub: "Com 3 melhorias simples, você pode chegar a R$ 1.167/mês até setembro.", value: "R$ 1.167 em set/26", color: C.blue },
+    { icon: "🏦", text: "Novo anunciante disponível: Banco Itaú",      sub: "Campanha de 90 dias · CPM R$ 12,00 · alto match com seu público.", value: "+R$ 240/mês",       color: C.green },
+    { icon: "🌤", text: "Adicione promoção de fim de tarde",            sub: "Telas com conteúdo próprio 16h–18h têm 3× mais engajamento.",       value: "+34% views",       color: C.amber },
+    { icon: "💡", text: "Potencial não realizado: R$ 320/mês",         sub: "Com 3 melhorias simples, você pode chegar a R$ 1.167/mês até setembro.", value: "R$ 1.167 em set/26", color: C.blue },
   ]
 
-  // Simple bar chart months
   const months = ["Jan","Fev","Mar","Abr","Mai","Jun"]
   const vals   = [420, 520, 580, 640, 720, stats.revenue_month || 847]
   const maxVal = Math.max(...vals)
 
   return (
     <div>
-      {/* Revenue chart */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
@@ -354,7 +489,6 @@ function TabAnuncios({ stats, payments, code }: any) {
             <div style={{ fontSize: 11, color: C.green }}>+23%</div>
           </div>
         </div>
-        {/* Bar chart */}
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 80 }}>
           {vals.map((v, i) => (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -365,9 +499,7 @@ function TabAnuncios({ stats, payments, code }: any) {
         </div>
       </div>
 
-      {/* Two column: anúncios + pagamentos */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, marginBottom: 16 }}>
-        {/* Anúncios */}
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Quais anúncios estão rodando?</div>
@@ -389,7 +521,6 @@ function TabAnuncios({ stats, payments, code }: any) {
           ))}
         </div>
 
-        {/* Calendário de pagamentos */}
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, fontSize: 14, fontWeight: 600 }}>Calendário de pagamentos</div>
           {payments.length > 0 ? payments.slice(0, 3).map((p: Payment, i: number) => (
@@ -406,7 +537,7 @@ function TabAnuncios({ stats, payments, code }: any) {
             </div>
           )) : [
             { label: "10 Jun", value: "R$ 420,00", status: "Processado", bg: C.greenLt, color: C.green },
-            { label: "10 Jul", value: "R$ 847,00", status: "Agendado",   bg: C.blueLt,  color: C.blue },
+            { label: "10 Jul", value: "R$ 847,00", status: "Agendado",   bg: C.blueLt,  color: C.blue  },
             { label: "10 Ago", value: "R$ —",       status: "Pendente",   bg: C.gray100, color: C.text3 },
           ].map((p, i) => (
             <div key={i} style={{ padding: "12px 18px", borderBottom: i < 2 ? `1px solid ${C.border2}` : "none" }}>
@@ -422,7 +553,6 @@ function TabAnuncios({ stats, payments, code }: any) {
         </div>
       </div>
 
-      {/* CTA adicionar promoção */}
       <div style={{ background: C.blueLt, border: `1px solid ${C.blueBd}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <span style={{ fontSize: 20 }}>⚡</span>
@@ -431,10 +561,11 @@ function TabAnuncios({ stats, payments, code }: any) {
             <div style={{ fontSize: 12, color: C.text3 }}>Aumente o engajamento em até 40% com conteúdo próprio.</div>
           </div>
         </div>
-        <button style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>+ Adicionar promoção</button>
+        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+          + Adicionar promoção
+        </button>
       </div>
 
-      {/* Sugestões de IA */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -456,7 +587,9 @@ function TabAnuncios({ stats, payments, code }: any) {
           </div>
         ))}
         <div style={{ padding: "12px 18px" }}>
-          <a href={`/dashboard/local/${code}/ai-revenue`} style={{ display: "block", width: "100%", background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center", textDecoration: "none" }}>⭐ Ver AI Revenue Center completo</a>
+          <a href={`/dashboard/local/${code}/ai-revenue`} style={{ display: "block", width: "100%", background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center", textDecoration: "none" }}>
+            ⭐ Ver AI Revenue Center completo
+          </a>
         </div>
       </div>
     </div>
@@ -477,14 +610,12 @@ function TabGanhos({ stats, payments, code }: any) {
 
   return (
     <div>
-      {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-        <KpiCard label="Este mês" value={fmtR(stats.revenue_month || 847)} sub="+23% vs mai" icon="💵" color={C.green} />
-        <KpiCard label="Média mensal" value="R$ 662,50" sub="últimos 4 meses" icon="📈" color={C.blue} />
-        <KpiCard label="Total acumulado" value="R$ 4.250,00" sub="desde o início" icon="🏆" color={C.blue} />
+        <KpiCard label="Este mês"       value={fmtR(stats.revenue_month || 847)} sub="+23% vs mai"      icon="💵" color={C.green} />
+        <KpiCard label="Média mensal"   value="R$ 662,50"                         sub="últimos 4 meses" icon="📈" color={C.blue}  />
+        <KpiCard label="Total acumulado"value="R$ 4.250,00"                       sub="desde o início"  icon="🏆" color={C.blue}  />
       </div>
 
-      {/* Bar chart por dia */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Ganhos por dia da semana</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
@@ -497,7 +628,6 @@ function TabGanhos({ stats, payments, code }: any) {
         </div>
       </div>
 
-      {/* Histórico */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Histórico de pagamentos</div>
@@ -525,11 +655,10 @@ function TabGanhos({ stats, payments, code }: any) {
   )
 }
 
-function TabRelatorios({ stats, payments }: any) {
+function TabRelatorios({ stats, payments, code }: any) {
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
-        {/* TV preview */}
         <div style={{ background: "#0F172A", height: 160, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: C.white }}>Café + Pão de Queijo</div>
@@ -539,7 +668,6 @@ function TabRelatorios({ stats, payments }: any) {
           </div>
         </div>
         <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 200px", gap: 20 }}>
-          {/* Gráfico receita */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
               <div>
@@ -551,18 +679,15 @@ function TabRelatorios({ stats, payments }: any) {
                 <div style={{ fontSize: 11, color: C.green }}>+23%</div>
               </div>
             </div>
-            {/* Simple line visualization */}
             <div style={{ height: 60, background: C.gray50, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 12, color: C.text3 }}>📈 Gráfico de receita</span>
             </div>
           </div>
-
-          {/* Calendário */}
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Calendário de pagamentos</div>
             {[
               { label: "10 Jun", value: "R$ 420,00", status: "Processado", color: C.green, bg: C.greenLt },
-              { label: "10 Jul", value: "R$ 847,00", status: "Agendado",   color: C.blue,  bg: C.blueLt },
+              { label: "10 Jul", value: "R$ 847,00", status: "Agendado",   color: C.blue,  bg: C.blueLt  },
               { label: "10 Ago", value: "R$ —",       status: "Pendente",   color: C.text3, bg: C.gray100 },
             ].map((p, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -576,7 +701,7 @@ function TabRelatorios({ stats, payments }: any) {
             <button style={{ width: "100%", background: C.greenLt, color: C.green, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 4 }}>
               $ Ver meus ganhos
             </button>
-            <a href={`/dashboard/financeiro/${code}`} style={{ display:"block", textAlign:"center", marginTop:8, fontSize:12, color:C.blue, textDecoration:"none", fontWeight:500 }}>
+            <a href={`/dashboard/financeiro/${code}`} style={{ display: "block", textAlign: "center", marginTop: 8, fontSize: 12, color: C.blue, textDecoration: "none", fontWeight: 500 }}>
               Ver dashboard financeiro completo →
             </a>
           </div>
@@ -597,28 +722,31 @@ interface Props {
 }
 
 export default function DashboardClient({ client, player, stats, playlist, payments }: Props) {
-  const [tab, setTab] = useState("dashboard")
+  const [tab, setTab]           = useState("dashboard")
   const [sideOpen, setSideOpen] = useState(true)
+  const [showModal, setShowModal] = useState(false)
   const onNav = useCallback((t: string) => setTab(t), [])
+  const onAddPromo = useCallback(() => setShowModal(true), [])
 
   const initials = client.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()
 
   const tabContent: Record<string, React.ReactNode> = {
-    dashboard: <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} />,
+    dashboard: <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} />,
     tv:        <TabTV client={client} player={player} playlist={playlist} />,
-    conteudo:  <TabConteudo client={client} />,
-    anuncios:  <TabAnuncios stats={stats} payments={payments} code={client.code} />,
+    conteudo:  <TabConteudo client={client} onAddPromo={onAddPromo} />,
+    anuncios:  <TabAnuncios stats={stats} payments={payments} code={client.code} onAddPromo={onAddPromo} />,
     ganhos:    <TabGanhos stats={stats} payments={payments} code={client.code} />,
-    relatorios:<TabRelatorios stats={stats} payments={payments} />,
+    relatorios:<TabRelatorios stats={stats} payments={payments} code={client.code} />,
     config:    <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Configurações em breve</div>,
   }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* ── SIDEBAR ── */}
+      {showModal && <ModalPromocao code={client.code} onClose={() => setShowModal(false)} />}
+
+      {/* SIDEBAR */}
       <aside style={{ width: sideOpen ? 200 : 60, background: C.sidebar, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", transition: "width 0.2s", flexShrink: 0 }}>
-        {/* Logo */}
         <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${C.border2}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 28, height: 28, background: C.blue, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -629,19 +757,20 @@ export default function DashboardClient({ client, player, stats, playlist, payme
           {sideOpen && <div style={{ fontSize: 10, color: C.green, fontWeight: 600, marginTop: 4 }}>● Local</div>}
         </div>
 
-        {/* Nav */}
         <nav style={{ flex: 1, padding: "8px 0" }}>
           {NAV.map(item => (
             <button key={item.id} onClick={() => setTab(item.id)} style={{
-              width: "100%", display: "flex", alignItems: "center", gap: 10, padding: sideOpen ? "9px 16px" : "9px 0", justifyContent: sideOpen ? "flex-start" : "center",
+              width: "100%", display: "flex", alignItems: "center", gap: 10,
+              padding: sideOpen ? "9px 16px" : "9px 0",
+              justifyContent: sideOpen ? "flex-start" : "center",
               background: tab === item.id ? C.blueLt : "none",
-              border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`,
-              color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 13,
+              border: "none", cursor: "pointer",
+              borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`,
+              color: tab === item.id ? C.blue : C.text2,
+              fontWeight: tab === item.id ? 600 : 400, fontSize: 13,
             }}>
               <span style={{ fontSize: 16 }}>{item.icon}</span>
-              {sideOpen && (
-                <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-              )}
+              {sideOpen && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
               {sideOpen && item.badge && (
                 <span style={{ background: C.blue, color: C.white, fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>{item.badge}</span>
               )}
@@ -649,7 +778,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
           ))}
         </nav>
 
-        {/* User */}
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border2}`, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.blue, color: C.white, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
             {initials}
@@ -663,21 +791,20 @@ export default function DashboardClient({ client, player, stats, playlist, payme
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
+      {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Top bar */}
         <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setSideOpen(!sideOpen)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.text3 }}>☰</button>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>
-                {tab === "dashboard"  && `Dashboard — ${client.name}`}
-                {tab === "tv"         && `Minha TV — ${client.name}`}
-                {tab === "conteudo"   && `Conteúdo — ${client.name}`}
-                {tab === "anuncios"   && `Anúncios — ${client.name}`}
-                {tab === "ganhos"     && `Ganhos — ${client.name}`}
-                {tab === "relatorios" && `Relatórios — ${client.name}`}
-                {tab === "config"     && `Configurações`}
+                {tab === "dashboard"   && `Dashboard — ${client.name}`}
+                {tab === "tv"          && `Minha TV — ${client.name}`}
+                {tab === "conteudo"    && `Conteúdo — ${client.name}`}
+                {tab === "anuncios"    && `Anúncios — ${client.name}`}
+                {tab === "ganhos"      && `Ganhos — ${client.name}`}
+                {tab === "relatorios"  && `Relatórios — ${client.name}`}
+                {tab === "config"      && `Configurações`}
               </div>
               <div style={{ fontSize: 11, color: C.text3 }}>
                 {new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date())}
@@ -686,13 +813,12 @@ export default function DashboardClient({ client, player, stats, playlist, payme
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontSize: 16, color: C.text2 }}>🔔</button>
-            <button style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               + Adicionar promoção
             </button>
           </div>
         </header>
 
-        {/* Content */}
         <main style={{ flex: 1, overflow: "auto", padding: "24px" }}>
           {tabContent[tab]}
         </main>
