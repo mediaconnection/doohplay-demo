@@ -1,37 +1,23 @@
-import { NextRequest, NextResponse } from "next/server"
-import { pool } from "@/lib/db"
+import { getPool } from "@/lib/db"
+import { NextRequest } from "next/server"
 
 export const dynamic = "force-dynamic"
 
-function isUUID(str: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
-}
-
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
+  const pool = getPool()
   try {
-    const body = await request.json()
-    const { screen_id } = body
+    const { code } = await req.json()
+    if (!code) return Response.json({ error: "code obrigatório" }, { status: 400 })
 
-    if (!screen_id) return NextResponse.json({ ok: true }) // silently ignore
+    await pool.query(
+      `UPDATE players SET last_ping = NOW()
+       WHERE id = (SELECT player_id FROM studio_clients WHERE code = $1 LIMIT 1)`,
+      [code.toUpperCase()]
+    )
 
-    // Só atualiza se for UUID válido
-    if (!isUUID(screen_id)) {
-      return NextResponse.json({ ok: true })
-    }
-
-    // Tenta atualizar last_seen na tabela players/screens
-    try {
-      await pool.query(
-        `UPDATE players SET last_ping = NOW() WHERE id = $1`,
-        [screen_id]
-      )
-    } catch {
-      // Tabela pode não ter last_seen — ignora silenciosamente
-    }
-
-    return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    console.error("HEARTBEAT_ROUTE_ERROR", err)
-    return NextResponse.json({ ok: false }, { status: 500 })
+    return Response.json({ ok: true, ts: new Date().toISOString() })
+  } catch (err) {
+    console.error("[heartbeat]", err)
+    return Response.json({ error: String(err) }, { status: 500 })
   }
 }
