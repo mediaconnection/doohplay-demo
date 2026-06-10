@@ -323,7 +323,7 @@ function TabConteudo({ client }: any) {
   )
 }
 
-function TabAnuncios({ stats, payments }: any) {
+function TabAnuncios({ stats, payments, code }: any) {
   const ads = [
     { name: "Bradesco — Black Friday", cat: "Banco",   views: 1240, value: 180, status: "Ativo" },
     { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980,  value: 140, status: "Ativo" },
@@ -456,7 +456,7 @@ function TabAnuncios({ stats, payments }: any) {
           </div>
         ))}
         <div style={{ padding: "12px 18px" }}>
-          <button style={{ width: "100%", background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⭐ Ver AI Revenue Center completo</button>
+          <a href={`/dashboard/local/${code}/ai-revenue`} style={{ display: "block", width: "100%", background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center", textDecoration: "none" }}>⭐ Ver AI Revenue Center completo</a>
         </div>
       </div>
     </div>
@@ -607,7 +607,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     dashboard: <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} />,
     tv:        <TabTV client={client} player={player} playlist={playlist} />,
     conteudo:  <TabConteudo client={client} />,
-    anuncios:  <TabAnuncios stats={stats} payments={payments} />,
+    anuncios:  <TabAnuncios stats={stats} payments={payments} code={client.code} />,
     ganhos:    <TabGanhos stats={stats} payments={payments} code={client.code} />,
     relatorios:<TabRelatorios stats={stats} payments={payments} />,
     config:    <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Configurações em breve</div>,
