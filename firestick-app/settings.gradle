@@ -1,0 +1,2 @@
+rootProject.name = "doohplay-player"
+include ':app'
