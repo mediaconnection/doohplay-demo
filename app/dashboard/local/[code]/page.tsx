@@ -19,7 +19,7 @@ export type ClientData = {
 
 export type PlayerData = {
   id: string
-  last_seen: string | null
+  last_ping: string | null
   sla_30d: number | null
   trust_score: number | null
   online: boolean
@@ -75,15 +75,17 @@ async function fetchPlayer(playerId: string): Promise<PlayerData | null> {
   try {
     const r = await Promise.race([
       pool.query(
-        `SELECT id::text, last_seen::text, sla_30d, trust_score FROM players WHERE id = $1 LIMIT 1`,
+        `SELECT id::text, last_ping::text, sla_30d, trust_score
+         FROM players WHERE id = $1 LIMIT 1`,
         [playerId]
       ),
       new Promise<never>((_, j) => setTimeout(() => j(new Error("timeout")), 4000)),
     ]) as any
     const row = r.rows?.[0]
     if (!row) return null
-    const online = row.last_seen
-      ? (Date.now() - new Date(row.last_seen).getTime()) < 3 * 60 * 1000
+    // Online = last_ping há menos de 3 minutos
+    const online = row.last_ping
+      ? (Date.now() - new Date(row.last_ping).getTime()) < 3 * 60 * 1000
       : false
     return { ...row, online }
   } catch { return null }
@@ -91,7 +93,10 @@ async function fetchPlayer(playerId: string): Promise<PlayerData | null> {
 
 async function fetchStats(playerId: string): Promise<StatsData> {
   const pool = getPool()
-  const empty: StatsData = { total_plays: 0, plays_today: 0, plays_week: 0, plays_month: 0, total_seconds: 0, last_play: null, revenue_month: 0, revenue_today: 0 }
+  const empty: StatsData = {
+    total_plays: 0, plays_today: 0, plays_week: 0, plays_month: 0,
+    total_seconds: 0, last_play: null, revenue_month: 0, revenue_today: 0,
+  }
   try {
     const r = await Promise.race([
       pool.query(
@@ -150,22 +155,35 @@ async function fetchPayments(code: string): Promise<Payment[]> {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function DashboardLocalPage({ params }: { params: { code: string } }) {
-  const code = params.code.toUpperCase()
+export default async function DashboardLocalPage({
+  params,
+}: {
+  params: Promise<{ code: string }>
+}) {
+  // Next.js 15: params é Promise — await obrigatório
+  const { code: rawCode } = await params
+  const code = rawCode.toUpperCase()
+
   let client = null
   try { client = await fetchClient(code) } catch {}
   if (!client) notFound()
 
   const [player, stats, playlist, payments] = await Promise.all([
     client.player_id ? fetchPlayer(client.player_id) : Promise.resolve(null),
-    client.player_id ? fetchStats(client.player_id) : Promise.resolve({ total_plays: 0, plays_today: 0, plays_week: 0, plays_month: 0, total_seconds: 0, last_play: null, revenue_month: 0, revenue_today: 0 }),
+    client.player_id ? fetchStats(client.player_id) : Promise.resolve({
+      total_plays: 0, plays_today: 0, plays_week: 0, plays_month: 0,
+      total_seconds: 0, last_play: null, revenue_month: 0, revenue_today: 0,
+    }),
     fetchPlaylist(code),
     fetchPayments(code),
   ])
 
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{
+        minHeight: "100vh", background: "#F8FAFC",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
         <div style={{ color: "#2563EB", fontSize: 14 }}>Carregando dashboard...</div>
       </div>
     }>
