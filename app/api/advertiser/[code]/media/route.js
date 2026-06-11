@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic"
 
 const s3 = new S3Client({
   region: "auto",
-  endpoint: process.env.R2_ENDPOINT!,
+  endpoint: process.env.R2_ENDPOINT as string,
   credentials: {
-    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID as string,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY as string,
   },
 })
 
@@ -18,12 +18,11 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-0ad4cd3201ce4219
 const MAX_IMAGE_MB  = 10
 const MAX_VIDEO_MB  = 100
 
-// POST — upload de mídia para campanha do anunciante
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
+  context: { params: Promise<{ code: string }> }
 ) {
-  const { code } = await params
+  const { code } = await context.params
   const pool = getPool()
 
   try {
@@ -31,15 +30,20 @@ export async function POST(
     const campaignId = formData.get("campaignId") as string
     const files      = formData.getAll("files") as File[]
 
-    if (!campaignId) return Response.json({ error: "campaignId obrigatório" }, { status: 400 })
-    if (!files || files.length === 0) return Response.json({ error: "Nenhum arquivo enviado" }, { status: 400 })
+    if (!campaignId) {
+      return Response.json({ error: "campaignId obrigatorio" }, { status: 400 })
+    }
+    if (!files || files.length === 0) {
+      return Response.json({ error: "Nenhum arquivo enviado" }, { status: 400 })
+    }
 
-    // Verifica que a campanha pertence ao anunciante
     const { rows: camp } = await pool.query(
       `SELECT id FROM "Campaign" WHERE id = $1 AND "advertiserCode" = $2 LIMIT 1`,
       [campaignId, code.toUpperCase()]
     )
-    if (!camp[0]) return Response.json({ error: "Campanha não encontrada" }, { status: 404 })
+    if (!camp[0]) {
+      return Response.json({ error: "Campanha nao encontrada" }, { status: 404 })
+    }
 
     const uploaded: any[] = []
 
@@ -56,8 +60,8 @@ export async function POST(
       const ext       = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
       const timestamp = Date.now()
       const key       = `advertiser/${code.toUpperCase()}/${isVideo ? "video" : "image"}_${timestamp}.${ext}`
+      const buffer    = Buffer.from(await file.arrayBuffer())
 
-      const buffer = Buffer.from(await file.arrayBuffer())
       await s3.send(new PutObjectCommand({
         Bucket:      "dooh-media",
         Key:         key,
@@ -67,7 +71,6 @@ export async function POST(
 
       const url = `${R2_PUBLIC_URL}/${key}`
 
-      // Salva no banco como pending (aguarda aprovação admin)
       const { rows } = await pool.query(
         `INSERT INTO "CampaignMedia" ("campaignId", name, type, url, status)
          VALUES ($1, $2, $3, $4, 'pending')
