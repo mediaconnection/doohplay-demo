@@ -1,16 +1,23 @@
+// app/api/admin/stats/route.ts
 import { getPool } from "@/lib/db"
 import { NextRequest } from "next/server"
+import { getServerSession } from "next-auth"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret")
-  if (secret !== process.env.ADMIN_SECRET) {
+  // Aceita tanto sessão NextAuth quanto secret legacy (retrocompatibilidade)
+  const session = await getServerSession()
+  const secret  = req.nextUrl.searchParams.get("secret")
+
+  const isNextAuth = !!session?.user
+  const isLegacy   = secret && secret === process.env.ADMIN_SECRET
+
+  if (!isNextAuth && !isLegacy) {
     return Response.json({ error: "unauthorized" }, { status: 401 })
   }
 
   const pool = getPool()
-
   try {
     const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes] = await Promise.all([
       pool.query(`
@@ -28,13 +35,11 @@ export async function GET(req: NextRequest) {
       `),
       pool.query(`
         SELECT code, asaas_customer_id, asaas_subscription_id, plan, value, status, created_at
-        FROM financial_subscriptions
-        ORDER BY code
+        FROM financial_subscriptions ORDER BY code
       `),
       pool.query(`
         SELECT id::text, code, name, email, phone, "createdAt"
-        FROM "Advertiser"
-        ORDER BY "createdAt" DESC
+        FROM "Advertiser" ORDER BY "createdAt" DESC
       `),
       pool.query(`
         SELECT c.id::text, c."advertiserCode", c.name, c.status,
