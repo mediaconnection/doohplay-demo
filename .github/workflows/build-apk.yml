@@ -1,4 +1,4 @@
-# v7
+# v8
 name: Build Fire Stick APK
 
 on:
@@ -20,9 +20,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Gradle 8.6 and generate wrapper
         run: |
           curl -sL https://services.gradle.org/distributions/gradle-8.6-bin.zip -o /tmp/gradle.zip
@@ -32,7 +29,9 @@ jobs:
 
       - name: Build Release APK
         working-directory: firestick-app
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
