@@ -65,16 +65,32 @@ const STEPS = [
   { label: "Resumo",          icon: "✅" },
 ]
 
+function formatCpfCnpj(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 14)
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2")
+}
+
 export default function OnboardingPage() {
   const [step, setStep]       = useState(0)
   const [loading, setLoading] = useState(false)
   const [done, setDone]       = useState(false)
   const [error, setError]     = useState("")
+  const [result, setResult]   = useState<{ code: string; trial_end: string } | null>(null)
 
   const [form, setForm] = useState({
     business_name: "", business_type: "", address: "", city: "",
     plan: "pro",
-    contact_name: "", email: "", phone: "", how_heard: "",
+    contact_name: "", email: "", phone: "", cpf_cnpj: "", how_heard: "",
     terms: false,
   })
 
@@ -94,6 +110,10 @@ export default function OnboardingPage() {
       if (!form.contact_name.trim()) { setError("Informe seu nome"); return false }
       if (!form.email.trim() || !form.email.includes("@")) { setError("Informe um email válido"); return false }
       if (!form.phone.trim() || form.phone.length < 10) { setError("Informe um WhatsApp válido (com DDD)"); return false }
+      const digits = form.cpf_cnpj.replace(/\D/g, "")
+      if (digits && digits.length !== 11 && digits.length !== 14) {
+        setError("CPF deve ter 11 dígitos ou CNPJ 14 dígitos"); return false
+      }
     }
     if (step === 3) {
       if (!form.terms) { setError("Aceite os termos para continuar"); return false }
@@ -116,6 +136,7 @@ export default function OnboardingPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar")
+      setResult({ code: data.code, trial_end: data.trial_end })
       setDone(true)
     } catch (err: any) {
       setError(err.message || "Erro ao enviar. Tente novamente.")
@@ -126,17 +147,22 @@ export default function OnboardingPage() {
 
   const selectedPlan = PLANS.find(p => p.id === form.plan)!
 
-  // ── DONE ──────────────────────────────────────────────────────────────────
-  if (done) {
+  if (done && result) {
     return (
       <main style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder, textarea::placeholder { color: ${MUTED}; } select option { background: ${SURFACE}; }`}</style>
+        <style>{`* { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
         <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
           <div style={{ fontSize: 56, marginBottom: 20 }}>🎉</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: TEXT, marginBottom: 8 }}>Cadastro recebido!</div>
-          <div style={{ fontSize: 14, color: TEXT2, marginBottom: 32, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: TEXT, marginBottom: 8 }}>Cadastro realizado!</div>
+          <div style={{ fontSize: 14, color: TEXT2, marginBottom: 24, lineHeight: 1.7 }}>
             Obrigado, <strong style={{ color: TEXT }}>{form.contact_name}</strong>!<br />
             Nossa equipe entrará em contato em até <strong style={{ color: GREEN }}>24 horas</strong> pelo WhatsApp.
+          </div>
+          <div style={{ background: AMBER + "18", border: `1px solid ${AMBER}44`, borderRadius: 12, padding: "16px 20px", marginBottom: 20, textAlign: "left" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: AMBER, marginBottom: 6 }}>🎁 7 dias grátis ativados!</div>
+            <div style={{ fontSize: 12, color: TEXT2 }}>
+              A primeira cobrança será apenas no dia <strong style={{ color: TEXT }}>{result.trial_end}</strong>. Cancele quando quiser antes disso.
+            </div>
           </div>
           <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1.5rem", marginBottom: 24, textAlign: "left" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Resumo do pedido</div>
@@ -169,23 +195,20 @@ export default function OnboardingPage() {
         ::-webkit-scrollbar-thumb { background: ${MUTED}; border-radius: 3px; }
       `}</style>
 
-      {/* HEADER */}
       <header style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 7, background: `linear-gradient(135deg,${BLUE},${PURPLE})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>D</div>
           <span style={{ fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
         </div>
-        <span style={{ fontSize: 12, color: TEXT2 }}>Cadastro gratuito · Sem cartão</span>
+        <span style={{ fontSize: 12, color: TEXT2 }}>7 dias grátis · Sem cartão agora</span>
       </header>
 
-      {/* HERO */}
       <div style={{ background: `linear-gradient(135deg, ${BLUE2} 0%, #0B1020 100%)`, padding: "2.5rem 1.5rem", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: GREEN, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Comece em 5 minutos</div>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: TEXT, marginBottom: 10, letterSpacing: "-0.02em", lineHeight: 1.3 }}>Coloque uma tela no seu estabelecimento</h1>
         <p style={{ fontSize: 13, color: TEXT2, lineHeight: 1.7 }}>Publicidade verificada na blockchain · Certificado ICP-Brasil · Relatório mensal automático</p>
       </div>
 
-      {/* STEPS */}
       <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "1.25rem 1.5rem" }}>
         <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-between", position: "relative" }}>
           <div style={{ position: "absolute", top: 15, left: "10%", right: "10%", height: 2, background: BORDER, zIndex: 0 }} />
@@ -206,38 +229,30 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* FORM */}
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "2rem 1.25rem" }}>
 
-        {/* STEP 0 */}
         {step === 0 && (
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Seu estabelecimento</div>
             <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Conte um pouco sobre o seu negócio</div>
-
             <label style={labelStyle}>Nome do estabelecimento *</label>
             <input style={inputStyle} placeholder="Ex: Lanchonete do João" value={form.business_name} onChange={e => update("business_name", e.target.value)} />
-
             <label style={labelStyle}>Tipo do estabelecimento *</label>
             <select style={{ ...inputStyle, color: form.business_type ? TEXT : MUTED }} value={form.business_type} onChange={e => update("business_type", e.target.value)}>
               <option value="">Selecione...</option>
               {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-
             <label style={labelStyle}>Endereço *</label>
             <input style={inputStyle} placeholder="Rua, número, bairro" value={form.address} onChange={e => update("address", e.target.value)} />
-
             <label style={labelStyle}>Cidade *</label>
             <input style={inputStyle} placeholder="São Paulo" value={form.city} onChange={e => update("city", e.target.value)} />
           </div>
         )}
 
-        {/* STEP 1 */}
         {step === 1 && (
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Escolha seu plano</div>
-            <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Todos incluem instalação gratuita e certificado ICP-Brasil</div>
-
+            <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Todos incluem 7 dias grátis e certificado ICP-Brasil</div>
             {PLANS.map(plan => (
               <div key={plan.id} onClick={() => update("plan", plan.id)} style={{
                 border: `2px solid ${form.plan === plan.id ? plan.color : BORDER}`,
@@ -246,9 +261,7 @@ export default function OnboardingPage() {
                 position: "relative", transition: "all .15s",
               }}>
                 {plan.highlight && (
-                  <div style={{ position: "absolute", top: -11, right: 16, background: AMBER, color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>
-                    MAIS POPULAR
-                  </div>
+                  <div style={{ position: "absolute", top: -11, right: 16, background: AMBER, color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>MAIS POPULAR</div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                   <div>
@@ -271,21 +284,24 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* STEP 2 */}
         {step === 2 && (
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Seus dados de contato</div>
             <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Entraremos em contato em até 24 horas</div>
-
             <label style={labelStyle}>Seu nome completo *</label>
             <input style={inputStyle} placeholder="João Silva" value={form.contact_name} onChange={e => update("contact_name", e.target.value)} />
-
             <label style={labelStyle}>Email *</label>
             <input style={inputStyle} type="email" placeholder="joao@email.com" value={form.email} onChange={e => update("email", e.target.value)} />
-
             <label style={labelStyle}>WhatsApp (com DDD) *</label>
             <input style={inputStyle} type="tel" placeholder="11 99999-9999" value={form.phone} onChange={e => update("phone", e.target.value.replace(/\D/g, ""))} />
-
+            <label style={labelStyle}>CPF ou CNPJ</label>
+            <input
+              style={inputStyle}
+              placeholder="000.000.000-00 ou 00.000.000/0001-00"
+              value={form.cpf_cnpj}
+              onChange={e => update("cpf_cnpj", formatCpfCnpj(e.target.value))}
+            />
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Necessário para emissão do boleto/PIX. Pode informar depois.</div>
             <label style={labelStyle}>Como nos conheceu?</label>
             <select style={{ ...inputStyle, color: form.how_heard ? TEXT : MUTED }} value={form.how_heard} onChange={e => update("how_heard", e.target.value)}>
               <option value="">Selecione...</option>
@@ -298,15 +314,13 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* STEP 3 */}
         {step === 3 && (
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Confirme seu pedido</div>
             <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Revise os dados antes de enviar</div>
-
             {[
               { title: "Estabelecimento", color: BLUE, items: [{ icon: "🏪", text: form.business_name, bold: true }, { icon: "🍽", text: form.business_type }, { icon: "📍", text: `${form.address}, ${form.city}` }] },
-              { title: "Contato", color: PURPLE, items: [{ icon: "👤", text: form.contact_name, bold: true }, { icon: "📧", text: form.email }, { icon: "📱", text: form.phone }] },
+              { title: "Contato", color: PURPLE, items: [{ icon: "👤", text: form.contact_name, bold: true }, { icon: "📧", text: form.email }, { icon: "📱", text: form.phone }, ...(form.cpf_cnpj ? [{ icon: "🪪", text: form.cpf_cnpj, bold: false }] : [])] },
             ].map(section => (
               <div key={section.title} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "1.25rem", marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: section.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{section.title}</div>
@@ -317,7 +331,6 @@ export default function OnboardingPage() {
                 ))}
               </div>
             ))}
-
             <div style={{ background: BLUE + "12", border: `1px solid ${BLUE}44`, borderRadius: 12, padding: "1.25rem", marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Plano selecionado</div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -331,11 +344,12 @@ export default function OnboardingPage() {
                 </div>
               </div>
             </div>
-
+            <div style={{ background: AMBER + "18", border: `1px solid ${AMBER}44`, borderRadius: 10, padding: "12px 16px", marginBottom: 12, fontSize: 12, color: AMBER }}>
+              🎁 <strong>7 dias grátis</strong> — primeira cobrança só após a instalação
+            </div>
             <div style={{ background: GREEN + "12", border: `1px solid ${GREEN}44`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: GREEN }}>
               ✅ Instalação gratuita · Sem fidelidade · Cancele quando quiser
             </div>
-
             <div onClick={() => update("terms", !form.terms)} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 8 }}>
               <div style={{
                 width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 2,
@@ -352,14 +366,12 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ERROR */}
         {error && (
           <div style={{ background: RED + "18", border: `1px solid ${RED}44`, borderRadius: 8, padding: "10px 14px", marginTop: 16, marginBottom: 4, fontSize: 13, color: RED }}>
             ⚠️ {error}
           </div>
         )}
 
-        {/* BUTTONS */}
         <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
           {step > 0 && (
             <button onClick={back} style={{ flex: 1, padding: "13px", borderRadius: 10, border: `1px solid ${BORDER}`, background: "transparent", fontSize: 14, fontWeight: 600, color: TEXT2, cursor: "pointer" }}>
@@ -372,12 +384,11 @@ export default function OnboardingPage() {
             </button>
           ) : (
             <button onClick={submit} disabled={loading} style={{ flex: 2, padding: "13px", borderRadius: 10, border: "none", background: loading ? MUTED : GREEN, color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
-              {loading ? "Enviando..." : "🚀 Confirmar cadastro"}
+              {loading ? "Enviando..." : "🚀 Iniciar 7 dias grátis"}
             </button>
           )}
         </div>
 
-        {/* TRUST */}
         <div style={{ textAlign: "center", marginTop: 28, paddingTop: 20, borderTop: `1px solid ${BORDER}` }}>
           <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", fontSize: 11, color: MUTED }}>
             <span>🔐 ICP-Brasil</span>
