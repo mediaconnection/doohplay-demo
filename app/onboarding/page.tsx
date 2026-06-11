@@ -80,6 +80,10 @@ function formatCpfCnpj(value: string): string {
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2")
 }
 
+function scrollTop() {
+  if (typeof window !== "undefined") window.scrollTo(0, 0)
+}
+
 export default function OnboardingPage() {
   const [step, setStep]       = useState(0)
   const [loading, setLoading] = useState(false)
@@ -121,8 +125,8 @@ export default function OnboardingPage() {
     return true
   }
 
-  function next() { if (!validateStep()) return; setStep(s => s + 1); window.scrollTo(0, 0) }
-  function back() { setStep(s => s - 1); setError(""); window.scrollTo(0, 0) }
+  function next() { if (!validateStep()) return; setStep(s => s + 1); scrollTop() }
+  function back() { setStep(s => s - 1); setError(""); scrollTop() }
 
   async function submit() {
     if (!validateStep()) return
@@ -197,8 +201,16 @@ export default function OnboardingPage() {
 
       <header style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 7, background: `linear-gradient(135deg,${BLUE},${PURPLE})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>D</div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
+          <div style={{ width: 32, height: 32, borderRadius: 7, background: `linear-gradient(135deg,${BLUE},${PURPLE})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em" }}>
+            <span style={{ color: TEXT }}>DOOH</span><span style={{ color: BLUE }}>PLAY</span>
+          </span>
         </div>
         <span style={{ fontSize: 12, color: TEXT2 }}>7 dias grátis · Sem cartão agora</span>
       </header>
