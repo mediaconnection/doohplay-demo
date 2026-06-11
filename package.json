@@ -54,6 +54,7 @@
     "leaflet.markercluster": "^1.5.3",
     "mapbox-gl": "^3.19.1",
     "next": "^15.1.11",
+    "next-auth": "^4.24.11",
     "node-fetch": "^3.3.2",
     "node-forge": "^1.4.0",
     "node-signpdf": "^3.0.0",
