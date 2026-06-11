@@ -5,10 +5,10 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 
 export const dynamic = "force-dynamic"
 
-const R2_ENDPOINT        = process.env.R2_ENDPOINT        || ""
-const R2_ACCESS_KEY_ID   = process.env.R2_ACCESS_KEY_ID   || ""
+const R2_ENDPOINT          = process.env.R2_ENDPOINT          || ""
+const R2_ACCESS_KEY_ID     = process.env.R2_ACCESS_KEY_ID     || ""
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ""
-const R2_PUBLIC_URL      = process.env.R2_PUBLIC_URL      || "https://pub-0ad4cd3201ce42198c5211fe201ff660.r2.dev"
+const R2_PUBLIC_URL        = process.env.R2_PUBLIC_URL        || "https://pub-0ad4cd3201ce42198c5211fe201ff660.r2.dev"
 
 const s3 = new S3Client({
   region: "auto",
@@ -22,10 +22,7 @@ const s3 = new S3Client({
 const MAX_IMAGE_MB = 10
 const MAX_VIDEO_MB = 100
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ code: string }> }
-) {
+export async function POST(req: NextRequest, context: any) {
   const { code } = await context.params
   const pool = getPool()
 
@@ -61,11 +58,10 @@ export async function POST(
         return Response.json({ error: "Arquivo " + file.name + " excede " + maxMB + "MB" }, { status: 400 })
       }
 
-      const ext       = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
-      const timestamp = Date.now()
-      const fileType  = isVideo ? "video" : "image"
-      const key       = "advertiser/" + code.toUpperCase() + "/" + fileType + "_" + timestamp + "." + ext
-      const buffer    = Buffer.from(await file.arrayBuffer())
+      const ext      = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
+      const fileType = isVideo ? "video" : "image"
+      const key      = "advertiser/" + code.toUpperCase() + "/" + fileType + "_" + Date.now() + "." + ext
+      const buffer   = Buffer.from(await file.arrayBuffer())
 
       await s3.send(new PutObjectCommand({
         Bucket:      "dooh-media",
