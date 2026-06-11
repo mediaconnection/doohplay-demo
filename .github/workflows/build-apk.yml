@@ -1,4 +1,4 @@
-# v4
+# v5
 name: Build Fire Stick APK
 
 on:
@@ -23,15 +23,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Create Gradle Wrapper
-        working-directory: firestick-app
-        run: |
-          gradle wrapper --gradle-version 8.6
-          chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.6'
+
+      - name: Make gradlew executable
+        run: chmod +x firestick-app/gradlew
 
       - name: Build Release APK
         working-directory: firestick-app
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
