@@ -1,5 +1,6 @@
+// app/api/studio/auth/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { pool } from "@/lib/db"
+import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
@@ -8,6 +9,7 @@ export async function GET(request: NextRequest) {
   if (!code) return NextResponse.json({ ok: false, error: "code required" }, { status: 400 })
 
   try {
+    const pool = getPool()
     const r = await pool.query(
       `SELECT id, name, business_type, primary_color FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
       [code]
