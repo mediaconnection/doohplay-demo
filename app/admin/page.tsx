@@ -43,6 +43,68 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string | 
   )
 }
 
+// ── Preview de mídia ──────────────────────────────────────────────────────────
+function MediaPreview({ url, type, name }: { url: string; type: string; name: string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!url) return (
+    <div style={{ width: 80, height: 60, background: BORDER, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+      {type === "video" ? "🎬" : "🖼️"}
+    </div>
+  )
+
+  if (type === "video") {
+    return (
+      <div style={{ flexShrink: 0 }}>
+        {expanded ? (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setExpanded(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ maxWidth: 800, width: "90%" }}>
+              <video src={url} controls autoPlay style={{ width: "100%", borderRadius: 12, maxHeight: "80vh" }} />
+              <button onClick={() => setExpanded(false)} style={{ marginTop: 12, background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div onClick={() => setExpanded(true)} style={{ width: 100, height: 70, background: BORDER, borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 4, border: "1px solid " + MUTED }}>
+            <span style={{ fontSize: 24 }}>🎬</span>
+            <span style={{ fontSize: 9, color: TEXT2 }}>▶ Ver vídeo</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Imagem
+  return (
+    <div style={{ flexShrink: 0 }}>
+      {expanded ? (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setExpanded(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: "90%" }}>
+            <img src={url} alt={name} style={{ width: "100%", borderRadius: 12, maxHeight: "85vh", objectFit: "contain" }} />
+            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              <button onClick={() => setExpanded(false)} style={{ background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
+                Fechar
+              </button>
+              <a href={url} target="_blank" rel="noreferrer" style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>
+                Abrir original ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <img
+          src={url}
+          alt={name}
+          onClick={() => setExpanded(true)}
+          style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8, cursor: "pointer", border: "1px solid " + MUTED, display: "block" }}
+          onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
+        />
+      )}
+    </div>
+  )
+}
+
 function TabClientes({ data }: { data: any }) {
   const { clients, subscriptions } = data
   const subMap = Object.fromEntries(subscriptions.map((s: any) => [s.code, s]))
@@ -210,23 +272,34 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 20 }}>
         Mídias <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
       </div>
+
       {pending.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2, marginBottom: 24 }}>
           Nenhuma mídia pendente. ✅
         </div>
       )}
+
       {pending.map((m: any) => (
         <div key={m.id} style={{ background: SURFACE, border: "1px solid " + AMBER + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 8, background: BORDER, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
-              {m.type === "video" ? "🎬" : "🖼️"}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+
+            {/* Preview */}
+            <MediaPreview url={m.url} type={m.type} name={m.name} />
+
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
+              <div style={{ fontSize: 12, color: TEXT2, marginBottom: 2 }}>{m.advertiser_name} · {m.campaign_name}</div>
+              <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>{fmt(m.createdAt)} · {m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</div>
+              {m.url && (
+                <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: BLUE, textDecoration: "none" }}>
+                  ↗ Abrir arquivo original
+                </a>
+              )}
             </div>
-            <div>
-              <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>{m.name}</div>
-              <div style={{ fontSize: 12, color: TEXT2 }}>{m.advertiser_name} · {m.campaign_name}</div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{fmt(m.createdAt)}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
+
+            {/* Ações */}
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 {loading === m.id ? "…" : "✓ Aprovar"}
               </button>
@@ -235,6 +308,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
               </button>
             </div>
           </div>
+
           {rejectId === m.id && (
             <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
               <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da rejeição…" style={{ flex: 1, background: BG, border: "1px solid " + BORDER, borderRadius: 7, padding: "8px 12px", color: TEXT, fontSize: 13, outline: "none" }} />
@@ -244,6 +318,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
           )}
         </div>
       ))}
+
       {others.length > 0 && (
         <>
           <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
@@ -251,7 +326,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid " + BORDER }}>
-                  {["Mídia","Anunciante","Campanha","Tipo","Status","Data"].map(h => (
+                  {["Preview","Mídia","Anunciante","Campanha","Tipo","Status","Data"].map(h => (
                     <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
@@ -259,6 +334,17 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
               <tbody>
                 {others.map((m: any, i: number) => (
                   <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + BORDER : "none" }}>
+                    <td style={{ padding: "10px 16px" }}>
+                      {m.url ? (
+                        m.type === "video" ? (
+                          <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 20, textDecoration: "none" }}>🎬</a>
+                        ) : (
+                          <a href={m.url} target="_blank" rel="noreferrer">
+                            <img src={m.url} alt={m.name} style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 6, display: "block" }} onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
+                          </a>
+                        )
+                      ) : <span style={{ fontSize: 20 }}>{m.type === "video" ? "🎬" : "🖼️"}</span>}
+                    </td>
                     <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{m.name}</td>
                     <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.advertiser_name}</td>
                     <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.campaign_name}</td>
@@ -279,9 +365,9 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router  = useRouter()
-  const [data, setData]   = useState<any>(null)
+  const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [tab, setTab]     = useState("clientes")
+  const [tab, setTab]         = useState("clientes")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/admin/login")
@@ -318,12 +404,12 @@ export default function AdminPage() {
       <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder { color: #4B5563; }`}</style>
 
       <div style={{ background: SURFACE, borderBottom: "1px solid " + BORDER, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 7, background: "linear-gradient(135deg," + BLUE + "," + PURPLE + ")", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>D</div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>DOOHPLAY</div>
-            <div style={{ fontSize: 11, color: TEXT2 }}>Painel Admin</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #3B82F6, #6366F1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOH<span style={{ color: BLUE }}>PLAY</span></span>
+          <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "2px 8px", borderRadius: 10, marginLeft: 4 }}>Admin</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 12, color: TEXT2 }}>{session?.user?.email}</span>
