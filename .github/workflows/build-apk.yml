@@ -1,4 +1,4 @@
-# v5
+# v6
 name: Build Fire Stick APK
 
 on:
@@ -27,9 +27,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.6'
-
-      - name: Make gradlew executable
-        run: chmod +x firestick-app/gradlew
 
       - name: Build Release APK
         working-directory: firestick-app
