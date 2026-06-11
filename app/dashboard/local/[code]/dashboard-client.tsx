@@ -63,9 +63,9 @@ function fmtDate(d?: string | null, short = false) {
 
 // ─── Hook: heartbeat polling ──────────────────────────────────────────────────
 function usePlayerStatus(playerId: string | null, initialOnline: boolean) {
-  const [online, setOnline]       = useState(initialOnline)
-  const [lastSeen, setLastSeen]   = useState<string | null>(null)
-  const [checking, setChecking]   = useState(false)
+  const [online, setOnline]     = useState(initialOnline)
+  const [lastSeen, setLastSeen] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     if (!playerId) return
@@ -76,7 +76,6 @@ function usePlayerStatus(playerId: string | null, initialOnline: boolean) {
         const res = await fetch(`/api/player/status?id=${playerId}`, { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
-          // Online = last_ping há menos de 3 minutos
           const isOnline = data.last_ping
             ? (Date.now() - new Date(data.last_ping).getTime()) < 3 * 60 * 1000
             : false
@@ -87,8 +86,8 @@ function usePlayerStatus(playerId: string | null, initialOnline: boolean) {
       finally { setChecking(false) }
     }
 
-    check() // imediato ao montar
-    const interval = setInterval(check, 30_000) // a cada 30s
+    check()
+    const interval = setInterval(check, 30_000)
     return () => clearInterval(interval)
   }, [playerId])
 
@@ -125,7 +124,6 @@ function StatusBadge({ online, checking = false }: { online: boolean; checking?:
       <span style={{
         width: 6, height: 6, borderRadius: "50%",
         background: "currentColor", display: "inline-block",
-        // pulsa quando online
         animation: online ? "pulse 2s infinite" : "none",
       }} />
       {checking ? "Verificando…" : online ? "Online" : "Offline"}
@@ -133,15 +131,57 @@ function StatusBadge({ online, checking = false }: { online: boolean; checking?:
   )
 }
 
+// ─── Thumbnail de playlist item ───────────────────────────────────────────────
+function PlaylistThumb({ item, name }: { item: PlaylistItem; name: string }) {
+  const [err, setErr] = useState(false)
+  const isVideo = item.type === "video"
+
+  if (item.asset_url && !err) {
+    if (isVideo) {
+      return (
+        <div style={{ height: 140, background: C.gray900, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+          <video
+            src={item.asset_url}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            muted
+            preload="metadata"
+            onError={() => setErr(true)}
+          />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 28, opacity: 0.8 }}>▶</span>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div style={{ height: 140, background: C.gray100, position: "relative" }}>
+        <img
+          src={item.asset_url}
+          alt={name}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={() => setErr(true)}
+        />
+      </div>
+    )
+  }
+
+  // fallback
+  return (
+    <div style={{ height: 140, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: 40 }}>{isVideo ? "🎬" : "🖼"}</span>
+    </div>
+  )
+}
+
 // ─── Modal de Upload ──────────────────────────────────────────────────────────
 function ModalPromocao({ code, onClose }: { code: string; onClose: () => void }) {
-  const [nome, setNome]         = useState("")
-  const [duracao, setDuracao]   = useState("15")
-  const [file, setFile]         = useState<File | null>(null)
-  const [preview, setPreview]   = useState<string | null>(null)
-  const [loading, setLoading]   = useState(false)
-  const [success, setSuccess]   = useState(false)
-  const [error, setError]       = useState("")
+  const [nome, setNome]       = useState("")
+  const [duracao, setDuracao] = useState("15")
+  const [file, setFile]       = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError]     = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = (f: File) => { setFile(f); setPreview(URL.createObjectURL(f)) }
@@ -231,22 +271,21 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo, online, lastSeen, checking }: any) {
-  const revenue  = stats.revenue_month || 0
+  const revenue   = stats.revenue_month || 0
   const campanhas = 3
   const vizToday  = stats.plays_today
 
-  // Tempo desde último ping
   const sinceText = lastSeen
     ? (() => {
         const diff = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 1000)
-        if (diff < 60)  return `${diff}s atrás`
+        if (diff < 60)   return `${diff}s atrás`
         if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`
         return `${Math.floor(diff / 3600)}h atrás`
       })()
     : player?.last_ping
       ? (() => {
           const diff = Math.floor((Date.now() - new Date(player.last_ping).getTime()) / 1000)
-          if (diff < 60)  return `${diff}s atrás`
+          if (diff < 60)   return `${diff}s atrás`
           if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`
           return `${Math.floor(diff / 3600)}h atrás`
         })()
@@ -284,10 +323,10 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
       </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Receita este mês" value={fmtR(revenue)}          sub="+23% vs mai"        icon="💵" color={C.green} />
-        <KpiCard label="Saldo a receber"  value={fmtR(revenue)}          sub="em 10/Jul"          icon="📅" color={C.blue} />
-        <KpiCard label="Campanhas ativas" value={String(campanhas)}      sub="1 pausada"          icon="▶" color={C.blue} />
-        <KpiCard label="Visualizações"    value={fmt(vizToday)}          sub="+12% esta semana"   icon="👁" color={C.blue} />
+        <KpiCard label="Receita este mês" value={fmtR(revenue)}     sub="+23% vs mai"      icon="💵" color={C.green} />
+        <KpiCard label="Saldo a receber"  value={fmtR(revenue)}     sub="em 10/Jul"        icon="📅" color={C.blue}  />
+        <KpiCard label="Campanhas ativas" value={String(campanhas)} sub="1 pausada"        icon="▶"  color={C.blue}  />
+        <KpiCard label="Visualizações"    value={fmt(vizToday)}     sub="+12% esta semana" icon="👁" color={C.blue}  />
         <KpiCard label="Status da TV"     value={online ? "Online" : "Offline"} sub={player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"} icon="📶" color={online ? C.green : C.red} />
       </div>
 
@@ -425,35 +464,50 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   )
 }
 
-function TabConteudo({ client, onAddPromo }: any) {
-  const mockItems = [
-    { name: "Promoção Pão Francês",  type: "Imagem", duration: 15, views: 2840, status: "Ativo"   },
-    { name: "Cardápio do Dia",        type: "Video",  duration: 30, views: 1920, status: "Ativo"   },
-    { name: "Promoção Fim de Semana", type: "Imagem", duration: 10, views: 740,  status: "Pausado" },
-    { name: "Boas-vindas Clientes",   type: "Video",  duration: 20, views: 3120, status: "Ativo"   },
-  ]
+// ── TabConteudo: usa playlist real com imagens do R2 ─────────────────────────
+function TabConteudo({ client, playlist, onAddPromo }: any) {
+  const realItems = (playlist as PlaylistItem[]).filter(i => i.type === "content" || i.type === "image" || i.type === "video")
+
+  // Nomes genéricos se não houver nome no item
+  const nameFor = (item: PlaylistItem, idx: number) =>
+    (item as any).name || `Conteúdo ${idx + 1}`
+
+  const statusFor = (_item: PlaylistItem) => "Ativo"
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
         <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Adicionar conteúdo</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16, marginBottom: 16 }}>
-        {mockItems.map((item, i) => (
-          <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ height: 140, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-              <span style={{ fontSize: 40 }}>{item.type === "Video" ? "🎬" : "🖼"}</span>
-              <div style={{ position: "absolute", bottom: 8, left: 8, background: "rgba(0,0,0,0.6)", color: C.white, fontSize: 10, padding: "2px 7px", borderRadius: 4 }}>{item.type}</div>
-              <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: C.white, fontSize: 10, padding: "2px 7px", borderRadius: 4 }}>{item.duration}s</div>
-            </div>
-            <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{item.name}</div>
-                <div style={{ fontSize: 11, color: C.text3 }}>👁 {item.views.toLocaleString("pt-BR")} views · ⏱ {item.duration}s</div>
+        {realItems.length > 0 ? realItems.map((item, i) => {
+          const name   = nameFor(item, i)
+          const status = statusFor(item)
+          const tipo   = item.type === "video" ? "Video" : "Imagem"
+          return (
+            <div key={item.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ position: "relative" }}>
+                <PlaylistThumb item={item} name={name} />
+                <div style={{ position: "absolute", bottom: 8, left: 8, background: "rgba(0,0,0,0.6)", color: C.white, fontSize: 10, padding: "2px 7px", borderRadius: 4 }}>{tipo}</div>
+                <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: C.white, fontSize: 10, padding: "2px 7px", borderRadius: 4 }}>{item.duration || 15}s</div>
               </div>
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: item.status === "Ativo" ? C.greenLt : C.gray100, color: item.status === "Ativo" ? C.green : C.text3 }}>{item.status}</span>
+              <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{name}</div>
+                  <div style={{ fontSize: 11, color: C.text3 }}>⏱ {item.duration || 15}s</div>
+                </div>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: status === "Ativo" ? C.greenLt : C.gray100, color: status === "Ativo" ? C.green : C.text3 }}>{status}</span>
+              </div>
             </div>
+          )
+        }) : (
+          // Fallback se playlist vazia
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: C.text3, background: C.white, borderRadius: 12, border: `1px solid ${C.border}` }}>
+            Nenhum conteúdo na playlist ainda.
           </div>
-        ))}
+        )}
+
+        {/* Card de upload */}
         <div onClick={onAddPromo} style={{ background: C.white, border: `2px dashed ${C.gray300}`, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 8, cursor: "pointer" }}>
           <div style={{ fontSize: 28, color: C.blue }}>+</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Adicionar nova promoção</div>
@@ -599,7 +653,7 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
 }
 
 function TabGanhos({ stats, payments, code }: any) {
-  const days   = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
+  const days    = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
   const dayVals = [42, 38, 55, 61, 85, 72, 48]
   const maxDay  = Math.max(...dayVals)
   const history = payments.length > 0 ? payments : [
@@ -720,13 +774,12 @@ interface Props {
 }
 
 export default function DashboardClient({ client, player, stats, playlist, payments }: Props) {
-  const [tab, setTab]         = useState("dashboard")
+  const [tab, setTab]           = useState("dashboard")
   const [sideOpen, setSideOpen] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const onNav      = useCallback((t: string) => setTab(t), [])
   const onAddPromo = useCallback(() => setShowModal(true), [])
 
-  // ── Heartbeat real: polling a cada 30s ─────────────────────────────────────
   const { online, lastSeen, checking } = usePlayerStatus(
     client.player_id,
     player?.online ?? false
@@ -737,7 +790,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   const tabContent: Record<string, React.ReactNode> = {
     dashboard: <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} />,
     tv:        <TabTV client={client} player={player} playlist={playlist} online={online} checking={checking} />,
-    conteudo:  <TabConteudo client={client} onAddPromo={onAddPromo} />,
+    conteudo:  <TabConteudo client={client} playlist={playlist} onAddPromo={onAddPromo} />,
     anuncios:  <TabAnuncios stats={stats} payments={payments} code={client.code} onAddPromo={onAddPromo} />,
     ganhos:    <TabGanhos stats={stats} payments={payments} code={client.code} />,
     relatorios:<TabRelatorios stats={stats} payments={payments} code={client.code} />,
@@ -746,7 +799,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
-      {/* CSS para animação do ponto online */}
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
@@ -760,10 +812,20 @@ export default function DashboardClient({ client, player, stats, playlist, payme
       <aside style={{ width: sideOpen ? 200 : 60, background: C.sidebar, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", transition: "width 0.2s", flexShrink: 0 }}>
         <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${C.border2}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, background: C.blue, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            {/* ✅ Logo corrigido: gradiente + ícone monitor */}
+            <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
             </div>
-            {sideOpen && <span style={{ fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: "-0.02em" }}>DOOHPLAY</span>}
+            {/* ✅ Texto: DOOH branco + PLAY azul */}
+            {sideOpen && (
+              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em" }}>
+                <span style={{ color: C.text }}>DOOH</span><span style={{ color: C.blue }}>PLAY</span>
+              </span>
+            )}
           </div>
           {sideOpen && <div style={{ fontSize: 10, color: C.green, fontWeight: 600, marginTop: 4 }}>● Local</div>}
         </div>
@@ -823,7 +885,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {/* Badge de status no header */}
             <StatusBadge online={online} checking={checking} />
             <button style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontSize: 16, color: C.text2 }}>🔔</button>
             <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
