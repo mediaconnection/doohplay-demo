@@ -5,18 +5,23 @@ import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "")
+  return digits.startsWith("55") ? digits : "55" + digits
+}
+
 async function sendWhatsApp(phone: string, message: string) {
-  // Lê as variáveis em runtime — não no momento do build
   const url      = process.env.EVOLUTION_API_URL  || "http://2.25.180.53:32768"
   const key      = process.env.EVOLUTION_API_KEY  || "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI"
   const instance = process.env.EVOLUTION_INSTANCE || "doohplay"
+  const number   = normalizePhone(phone)
   try {
     const res = await fetch(url + "/message/sendText/" + instance, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: key },
-      body: JSON.stringify({ number: phone, text: message }),
+      body: JSON.stringify({ number, text: message }),
     })
-    console.log("[sendWhatsApp] status:", res.status, "phone:", phone)
+    console.log("[sendWhatsApp] status:", res.status, "number:", number)
   } catch (err) {
     console.error("[sendWhatsApp] erro:", err)
   }
