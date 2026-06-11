@@ -1,7 +1,7 @@
 // app/admin/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -46,13 +46,11 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string | 
 // ── Preview de mídia ──────────────────────────────────────────────────────────
 function MediaPreview({ url, type, name }: { url: string; type: string; name: string }) {
   const [expanded, setExpanded] = useState(false)
-
   if (!url) return (
     <div style={{ width: 80, height: 60, background: BORDER, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
       {type === "video" ? "🎬" : "🖼️"}
     </div>
   )
-
   if (type === "video") {
     return (
       <div style={{ flexShrink: 0 }}>
@@ -60,9 +58,7 @@ function MediaPreview({ url, type, name }: { url: string; type: string; name: st
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setExpanded(false)}>
             <div onClick={e => e.stopPropagation()} style={{ maxWidth: 800, width: "90%" }}>
               <video src={url} controls autoPlay style={{ width: "100%", borderRadius: 12, maxHeight: "80vh" }} />
-              <button onClick={() => setExpanded(false)} style={{ marginTop: 12, background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
-                Fechar
-              </button>
+              <button onClick={() => setExpanded(false)} style={{ marginTop: 12, background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>Fechar</button>
             </div>
           </div>
         ) : (
@@ -74,8 +70,6 @@ function MediaPreview({ url, type, name }: { url: string; type: string; name: st
       </div>
     )
   }
-
-  // Imagem
   return (
     <div style={{ flexShrink: 0 }}>
       {expanded ? (
@@ -83,20 +77,13 @@ function MediaPreview({ url, type, name }: { url: string; type: string; name: st
           <div onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: "90%" }}>
             <img src={url} alt={name} style={{ width: "100%", borderRadius: 12, maxHeight: "85vh", objectFit: "contain" }} />
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              <button onClick={() => setExpanded(false)} style={{ background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
-                Fechar
-              </button>
-              <a href={url} target="_blank" rel="noreferrer" style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>
-                Abrir original ↗
-              </a>
+              <button onClick={() => setExpanded(false)} style={{ background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>Fechar</button>
+              <a href={url} target="_blank" rel="noreferrer" style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>Abrir original ↗</a>
             </div>
           </div>
         </div>
       ) : (
-        <img
-          src={url}
-          alt={name}
-          onClick={() => setExpanded(true)}
+        <img src={url} alt={name} onClick={() => setExpanded(true)}
           style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8, cursor: "pointer", border: "1px solid " + MUTED, display: "block" }}
           onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
         />
@@ -105,12 +92,237 @@ function MediaPreview({ url, type, name }: { url: string; type: string; name: st
   )
 }
 
-function TabClientes({ data }: { data: any }) {
+// ── Modal CSV Import ──────────────────────────────────────────────────────────
+function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [step, setStep]         = useState<"upload" | "preview" | "result">("upload")
+  const [preview, setPreview]   = useState<any[]>([])
+  const [results, setResults]   = useState<any[]>([])
+  const [summary, setSummary]   = useState<any>(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState("")
+  const [dragOver, setDragOver] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const CSV_TEMPLATE = "name,business_type,address,city,phone,email,plan\nBarbearia Silva,Barbearia,Rua X 123,São Paulo,11999998888,silva@email.com,pro\nPadaria Central,Padaria,Av Y 456,Campinas,19988887777,padaria@email.com,starter"
+
+  const downloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement("a"); a.href = url; a.download = "clientes-template.csv"; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleFile = async (file: File) => {
+    if (!file.name.endsWith(".csv")) { setError("Selecione um arquivo .csv"); return }
+    setLoading(true); setError("")
+    try {
+      const text = await file.text()
+      const res  = await fetch("/api/admin/clients/import?" + new URLSearchParams({ data: encodeURIComponent(text) }))
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao processar CSV")
+      setPreview(data.preview)
+      setStep("preview")
+    } catch (err: any) {
+      setError(err.message || "Erro ao processar arquivo")
+    }
+    setLoading(false)
+  }
+
+  const handleImport = async () => {
+    setLoading(true); setError("")
+    const validRows = preview.filter(r => r.valid)
+    try {
+      const res  = await fetch("/api/admin/clients/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: preview }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro na importação")
+      setResults(data.results)
+      setSummary(data.summary)
+      setStep("result")
+      if (data.summary.ok > 0) onSuccess()
+    } catch (err: any) {
+      setError(err.message || "Erro na importação")
+    }
+    setLoading(false)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: BG, border: "1px solid " + BORDER, borderRadius: 8,
+    padding: "8px 12px", color: TEXT, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: step === "preview" ? 800 : 520, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>
+              {step === "upload"  && "Importar Clientes via CSV"}
+              {step === "preview" && `Preview — ${preview.length} linhas encontradas`}
+              {step === "result"  && "Importação concluída"}
+            </div>
+            <div style={{ fontSize: 12, color: TEXT2, marginTop: 3 }}>
+              {step === "upload"  && "Cadastre múltiplos clientes de uma vez"}
+              {step === "preview" && `${preview.filter(r => r.valid).length} válidas · ${preview.filter(r => !r.valid).length} com erro`}
+              {step === "result"  && `${summary?.ok} importados · ${summary?.error} erros`}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
+
+          {/* STEP: UPLOAD */}
+          {step === "upload" && (
+            <div>
+              <div style={{ background: BG, border: "1px solid " + BORDER, borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: TEXT2 }}>
+                <div style={{ fontWeight: 600, color: TEXT, marginBottom: 6 }}>Colunas esperadas:</div>
+                <code style={{ fontSize: 11, color: BLUE }}>name, business_type, address, city, phone, email, plan</code>
+                <div style={{ marginTop: 6, color: MUTED }}>Obrigatórios: <strong style={{ color: TEXT }}>name, city, phone</strong> · Planos: starter, pro, multi</div>
+              </div>
+
+              <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+                onClick={() => fileRef.current?.click()}
+                style={{ border: `2px dashed ${dragOver ? BLUE : BORDER}`, borderRadius: 12, padding: "40px 24px", textAlign: "center", cursor: "pointer", background: dragOver ? BLUE + "0A" : BG, transition: "all .2s", marginBottom: 16 }}
+              >
+                <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 6 }}>
+                  {loading ? "Processando…" : "Clique ou arraste o arquivo CSV"}
+                </div>
+                <div style={{ fontSize: 12, color: TEXT2 }}>Apenas arquivos .csv</div>
+                <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+              </div>
+
+              <button onClick={downloadTemplate} style={{ width: "100%", background: "transparent", border: "1px solid " + BORDER, borderRadius: 8, padding: "10px", color: TEXT2, fontSize: 13, cursor: "pointer" }}>
+                ↓ Baixar template CSV
+              </button>
+            </div>
+          )}
+
+          {/* STEP: PREVIEW */}
+          {step === "preview" && (
+            <div>
+              <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid " + BORDER }}>
+                      {["#","Nome","Tipo","Cidade","Telefone","Plano","Status"].map(h => (
+                        <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: i < preview.length - 1 ? "1px solid " + BORDER : "none", background: row.valid ? "transparent" : RED + "08" }}>
+                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.line}</td>
+                        <td style={{ padding: "8px 12px", color: TEXT, fontWeight: 500 }}>{row.name || "—"}</td>
+                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.business_type || "—"}</td>
+                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.city || "—"}</td>
+                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.phone || "—"}</td>
+                        <td style={{ padding: "8px 12px" }}>
+                          <Badge label={row.plan || "starter"} color={BLUE} />
+                        </td>
+                        <td style={{ padding: "8px 12px" }}>
+                          {row.valid
+                            ? <span style={{ color: GREEN, fontSize: 11, fontWeight: 600 }}>✓ OK</span>
+                            : <span style={{ color: RED, fontSize: 11 }}>⚠ {row.errors?.join(", ")}</span>
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* STEP: RESULT */}
+          {step === "result" && (
+            <div>
+              <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+                <div style={{ flex: 1, background: GREEN + "12", border: "1px solid " + GREEN + "33", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: GREEN }}>{summary?.ok}</div>
+                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 4 }}>Importados</div>
+                </div>
+                <div style={{ flex: 1, background: RED + "12", border: "1px solid " + RED + "33", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: RED }}>{summary?.error}</div>
+                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 4 }}>Erros</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {results.map((r, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{r.name}</span>
+                      {r.code && <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "1px 6px", borderRadius: 8, marginLeft: 8 }}>{r.code}</span>}
+                    </div>
+                    {r.status === "ok"
+                      ? <span style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>✓ Criado</span>
+                      : <span style={{ fontSize: 11, color: RED }}>✕ {r.error}</span>
+                    }
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: RED }}>
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
+          {step === "upload" && (
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+          )}
+          {step === "preview" && (
+            <>
+              <button onClick={() => setStep("upload")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>← Voltar</button>
+              <button onClick={handleImport} disabled={loading || preview.filter(r => r.valid).length === 0} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? MUTED : GREEN, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                {loading ? "Importando…" : `Importar ${preview.filter(r => r.valid).length} clientes →`}
+              </button>
+            </>
+          )}
+          {step === "result" && (
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BLUE, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Clientes com botão CSV ────────────────────────────────────────────────
+function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const [showCsv, setShowCsv] = useState(false)
   const { clients, subscriptions } = data
   const subMap = Object.fromEntries(subscriptions.map((s: any) => [s.code, s]))
+
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 20 }}>Clientes <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({clients.length})</span></div>
+      {showCsv && <ModalCsvImport onClose={() => setShowCsv(false)} onSuccess={onRefresh} />}
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>
+          Clientes <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({clients.length})</span>
+        </div>
+        <button onClick={() => setShowCsv(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: BLUE + "18", border: "1px solid " + BLUE + "44", color: BLUE, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          📄 Importar CSV
+        </button>
+      </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {clients.map((c: any) => {
           const sub = subMap[c.code]
@@ -272,33 +484,21 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 20 }}>
         Mídias <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
       </div>
-
       {pending.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2, marginBottom: 24 }}>
           Nenhuma mídia pendente. ✅
         </div>
       )}
-
       {pending.map((m: any) => (
         <div key={m.id} style={{ background: SURFACE, border: "1px solid " + AMBER + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-
-            {/* Preview */}
             <MediaPreview url={m.url} type={m.type} name={m.name} />
-
-            {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
               <div style={{ fontSize: 12, color: TEXT2, marginBottom: 2 }}>{m.advertiser_name} · {m.campaign_name}</div>
               <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>{fmt(m.createdAt)} · {m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</div>
-              {m.url && (
-                <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: BLUE, textDecoration: "none" }}>
-                  ↗ Abrir arquivo original
-                </a>
-              )}
+              {m.url && <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: BLUE, textDecoration: "none" }}>↗ Abrir arquivo original</a>}
             </div>
-
-            {/* Ações */}
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 {loading === m.id ? "…" : "✓ Aprovar"}
@@ -308,7 +508,6 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
               </button>
             </div>
           </div>
-
           {rejectId === m.id && (
             <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
               <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da rejeição…" style={{ flex: 1, background: BG, border: "1px solid " + BORDER, borderRadius: 7, padding: "8px 12px", color: TEXT, fontSize: 13, outline: "none" }} />
@@ -318,7 +517,6 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
           )}
         </div>
       ))}
-
       {others.length > 0 && (
         <>
           <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
@@ -336,13 +534,9 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
                   <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + BORDER : "none" }}>
                     <td style={{ padding: "10px 16px" }}>
                       {m.url ? (
-                        m.type === "video" ? (
-                          <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 20, textDecoration: "none" }}>🎬</a>
-                        ) : (
-                          <a href={m.url} target="_blank" rel="noreferrer">
-                            <img src={m.url} alt={m.name} style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 6, display: "block" }} onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
-                          </a>
-                        )
+                        m.type === "video"
+                          ? <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 20, textDecoration: "none" }}>🎬</a>
+                          : <a href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt={m.name} style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 6, display: "block" }} onError={e => { (e.target as HTMLImageElement).style.display = "none" }} /></a>
                       ) : <span style={{ fontSize: 20 }}>{m.type === "video" ? "🎬" : "🖼️"}</span>}
                     </td>
                     <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{m.name}</td>
@@ -408,7 +602,9 @@ export default function AdminPage() {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #3B82F6, #6366F1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOH<span style={{ color: BLUE }}>PLAY</span></span>
+          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em" }}>
+            <span style={{ color: TEXT }}>DOOH</span><span style={{ color: BLUE }}>PLAY</span>
+          </span>
           <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "2px 8px", borderRadius: 10, marginLeft: 4 }}>Admin</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -432,7 +628,7 @@ export default function AdminPage() {
       </div>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
-        {tab === "clientes"    && <TabClientes    data={data} />}
+        {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} />}
         {tab === "assinaturas" && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
