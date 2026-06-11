@@ -100,9 +100,146 @@ const TRUST_BADGES = [
   { label: "97.3 Trust Score",   color: "#10B981" },
 ]
 
+// ─── Modal Solicitar Demo ─────────────────────────────────────────────────────
+function ModalDemo({ onClose }: { onClose: () => void }) {
+  const [form, setForm]     = useState({ name: "", company: "", phone: "", segment: "" })
+  const [loading, setLoading] = useState(false)
+  const [done, setDone]     = useState(false)
+  const [error, setError]   = useState("")
+
+  const SEGMENTS_DEMO = [
+    "Comércio Local", "Rede de Lojas", "Shopping", "Agência",
+    "Anunciante", "Franquia", "Outro",
+  ]
+
+  const handleSubmit = async () => {
+    if (!form.name.trim())    { setError("Informe seu nome."); return }
+    if (!form.phone.trim() || form.phone.replace(/\D/g,"").length < 10) {
+      setError("Informe um WhatsApp válido com DDD."); return
+    }
+    setLoading(true); setError("")
+    try {
+      const res = await fetch("/api/demo-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error()
+      setDone(true)
+    } catch {
+      setError("Erro ao enviar. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "#111827", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 20, width: "100%", maxWidth: 480,
+        boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
+      }}>
+        {/* Header */}
+        <div style={{ padding: "24px 28px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#F9FAFB", marginBottom: 4 }}>Solicitar Demonstração</div>
+            <div style={{ fontSize: 13, color: "#6B7280" }}>Nossa equipe entra em contato em até 2 horas pelo WhatsApp</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#6B7280", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: 4 }}>×</button>
+        </div>
+
+        <div style={{ padding: "24px 28px" }}>
+          {done ? (
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#F9FAFB", marginBottom: 8 }}>Solicitação enviada!</div>
+              <div style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6, marginBottom: 24 }}>
+                Obrigado, <strong style={{ color: "#F9FAFB" }}>{form.name}</strong>!<br />
+                Nossa equipe vai entrar em contato pelo WhatsApp em até <strong style={{ color: "#10B981" }}>2 horas</strong>.
+              </div>
+              <button onClick={onClose} style={{ background: "#3B82F6", color: "#fff", border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                Fechar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Seu nome *</label>
+                <input
+                  value={form.name}
+                  onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setError("") }}
+                  placeholder="João Silva"
+                  style={{ width: "100%", boxSizing: "border-box", background: "#0B1020", border: "1px solid #1F2937", borderRadius: 8, padding: "11px 14px", color: "#F9FAFB", fontSize: 14, outline: "none" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Empresa / Negócio</label>
+                <input
+                  value={form.company}
+                  onChange={e => setForm(f => ({ ...f, company: e.target.value }))}
+                  placeholder="Nome da empresa ou rede"
+                  style={{ width: "100%", boxSizing: "border-box", background: "#0B1020", border: "1px solid #1F2937", borderRadius: 8, padding: "11px 14px", color: "#F9FAFB", fontSize: 14, outline: "none" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>WhatsApp (com DDD) *</label>
+                <input
+                  value={form.phone}
+                  onChange={e => { setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g,"") })); setError("") }}
+                  placeholder="11 99999-9999"
+                  type="tel"
+                  style={{ width: "100%", boxSizing: "border-box", background: "#0B1020", border: "1px solid #1F2937", borderRadius: 8, padding: "11px 14px", color: "#F9FAFB", fontSize: 14, outline: "none" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Segmento</label>
+                <select
+                  value={form.segment}
+                  onChange={e => setForm(f => ({ ...f, segment: e.target.value }))}
+                  style={{ width: "100%", boxSizing: "border-box", background: "#0B1020", border: "1px solid #1F2937", borderRadius: 8, padding: "11px 14px", color: form.segment ? "#F9FAFB" : "#6B7280", fontSize: 14, outline: "none" }}
+                >
+                  <option value="">Selecione seu segmento…</option>
+                  {SEGMENTS_DEMO.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {error && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#EF4444" }}>
+                  ⚠️ {error}
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: loading ? "#374151" : "#3B82F6", color: "#fff", fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}
+              >
+                {loading ? "Enviando…" : "Solicitar Demo →"}
+              </button>
+
+              <div style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "#4B5563" }}>
+                📱 Resposta em até 2h pelo WhatsApp · Sem compromisso
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LandingPage() {
   const [impressions, setImpressions] = useState(1333)
   const [screens]    = useState(1333)
+  const [showDemo, setShowDemo] = useState(false)
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -113,6 +250,8 @@ export default function LandingPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "#080C18", color: "#fff", fontFamily: "'Inter', system-ui, sans-serif" }}>
+
+      {showDemo && <ModalDemo onClose={() => setShowDemo(false)} />}
 
       {/* NAV */}
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 2rem", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -164,10 +303,14 @@ export default function LandingPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               Instalar uma Tela →
             </Link>
-            <Link href="/enterprise" style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.06)", color: "#fff", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600, textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
+            {/* ✅ Botão corrigido — abre modal em vez de /enterprise */}
+            <button
+              onClick={() => setShowDemo(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.06)", color: "#fff", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
               Solicitar Demonstração
-            </Link>
+            </button>
           </div>
           <Link href="#video" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -615,10 +758,14 @@ export default function LandingPage() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             Instalar uma Tela — Grátis →
           </Link>
-          <Link href="/enterprise" style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.06)", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 600, textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
+          {/* ✅ CTA final também corrigido */}
+          <button
+            onClick={() => setShowDemo(true)}
+            style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.06)", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 600, border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             Solicitar Demo Enterprise
-          </Link>
+          </button>
         </div>
       </section>
 
