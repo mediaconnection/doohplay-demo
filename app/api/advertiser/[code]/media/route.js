@@ -1,70 +1,85 @@
-import { getPool } from "@/lib/db";
+// app/api/advertiser/[code]/media/route.ts
+import { NextRequest } from "next/server"
+import { getPool } from "@/lib/db"
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 
-export async function POST(request, { params }) {
-  const { code } = params;
-  const pool = getPool();
+export const dynamic = "force-dynamic"
+
+const s3 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-0ad4cd3201ce42198c5211fe201ff660.r2.dev"
+const MAX_IMAGE_MB  = 10
+const MAX_VIDEO_MB  = 100
+
+// POST — upload de mídia para campanha do anunciante
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  const { code } = await params
+  const pool = getPool()
 
   try {
-    const formData = await request.formData();
-    const campaignId = formData.get("campaignId");
-    const files = formData.getAll("files");
+    const formData   = await req.formData()
+    const campaignId = formData.get("campaignId") as string
+    const files      = formData.getAll("files") as File[]
 
-    if (!campaignId) {
-      return Response.json({ error: "campaignId is required" }, { status: 400 });
-    }
+    if (!campaignId) return Response.json({ error: "campaignId obrigatório" }, { status: 400 })
+    if (!files || files.length === 0) return Response.json({ error: "Nenhum arquivo enviado" }, { status: 400 })
 
-    const campCheck = await pool.query(
-      `SELECT id FROM "Campaign" WHERE id = $1 AND "advertiserCode" = $2`,
+    // Verifica que a campanha pertence ao anunciante
+    const { rows: camp } = await pool.query(
+      `SELECT id FROM "Campaign" WHERE id = $1 AND "advertiserCode" = $2 LIMIT 1`,
       [campaignId, code.toUpperCase()]
-    );
-    if (campCheck.rows.length === 0) {
-      return Response.json({ error: "Campaign not found" }, { status: 404 });
-    }
+    )
+    if (!camp[0]) return Response.json({ error: "Campanha não encontrada" }, { status: 404 })
 
-    const inserted = [];
+    const uploaded: any[] = []
 
     for (const file of files) {
-      if (!(file instanceof File)) continue;
-      const isVideo = file.type.startsWith("video/");
-      const isImage = file.type.startsWith("image/");
-      if (!isVideo && !isImage) continue;
+      const isVideo = file.type.startsWith("video/")
+      const isImage = file.type.startsWith("image/")
+      if (!isVideo && !isImage) continue
 
-      const url = `/uploads/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+      const maxMB = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB
+      if (file.size > maxMB * 1024 * 1024) {
+        return Response.json({ error: `Arquivo ${file.name} excede ${maxMB}MB` }, { status: 400 })
+      }
 
-      const result = await pool.query(
-        `INSERT INTO "CampaignMedia" (id, "campaignId", url, type, name, status, "createdAt")
-         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending', NOW())
+      const ext       = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
+      const timestamp = Date.now()
+      const key       = `advertiser/${code.toUpperCase()}/${isVideo ? "video" : "image"}_${timestamp}.${ext}`
+
+      const buffer = Buffer.from(await file.arrayBuffer())
+      await s3.send(new PutObjectCommand({
+        Bucket:      "dooh-media",
+        Key:         key,
+        Body:        buffer,
+        ContentType: file.type,
+      }))
+
+      const url = `${R2_PUBLIC_URL}/${key}`
+
+      // Salva no banco como pending (aguarda aprovação admin)
+      const { rows } = await pool.query(
+        `INSERT INTO "CampaignMedia" ("campaignId", name, type, url, status)
+         VALUES ($1, $2, $3, $4, 'pending')
          RETURNING *`,
-        [campaignId, url, isVideo ? "video" : "image", file.name]
-      );
-
-      inserted.push(result.rows[0]);
+        [campaignId, file.name, isVideo ? "video" : "image", url]
+      )
+      uploaded.push(rows[0])
     }
 
-    return Response.json({ medias: inserted }, { status: 201 });
+    return Response.json({ ok: true, uploaded }, { status: 201 })
   } catch (err) {
-    console.error("[media POST]", err);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function GET(request, { params }) {
-  const { code } = params;
-  const pool = getPool();
-
-  try {
-    const result = await pool.query(
-      `SELECT m.*, c.name as "campaignName"
-       FROM "CampaignMedia" m
-       JOIN "Campaign" c ON c.id = m."campaignId"
-       WHERE c."advertiserCode" = $1
-       ORDER BY m."createdAt" DESC`,
-      [code.toUpperCase()]
-    );
-
-    return Response.json({ medias: result.rows });
-  } catch (err) {
-    console.error("[media GET]", err);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    console.error("[advertiser/media POST]", err)
+    return Response.json({ error: String(err) }, { status: 500 })
   }
 }
