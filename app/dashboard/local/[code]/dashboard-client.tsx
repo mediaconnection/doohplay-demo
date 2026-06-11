@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -61,6 +61,42 @@ function fmtDate(d?: string | null, short = false) {
   } catch { return "—" }
 }
 
+// ─── Hook: heartbeat polling ──────────────────────────────────────────────────
+function usePlayerStatus(playerId: string | null, initialOnline: boolean) {
+  const [online, setOnline]       = useState(initialOnline)
+  const [lastSeen, setLastSeen]   = useState<string | null>(null)
+  const [checking, setChecking]   = useState(false)
+
+  useEffect(() => {
+    if (!playerId) return
+
+    async function check() {
+      setChecking(true)
+      try {
+        const res = await fetch(`/api/player/status?id=${playerId}`, { cache: "no-store" })
+        if (res.ok) {
+          const data = await res.json()
+          // Online = last_ping há menos de 3 minutos
+          const isOnline = data.last_ping
+            ? (Date.now() - new Date(data.last_ping).getTime()) < 3 * 60 * 1000
+            : false
+          setOnline(isOnline)
+          setLastSeen(data.last_ping ?? null)
+        }
+      } catch {}
+      finally { setChecking(false) }
+    }
+
+    check() // imediato ao montar
+    const interval = setInterval(check, 30_000) // a cada 30s
+    return () => clearInterval(interval)
+  }, [playerId])
+
+  return { online, lastSeen, checking }
+}
+
+// ─── Components ───────────────────────────────────────────────────────────────
+
 function KpiCard({ label, value, sub, icon, color = C.blue, onClick }: { label: string; value: string; sub?: string; icon: string; color?: string; onClick?: () => void }) {
   return (
     <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", cursor: onClick ? "pointer" : "default", flex: 1, minWidth: 0 }}>
@@ -74,64 +110,64 @@ function KpiCard({ label, value, sub, icon, color = C.blue, onClick }: { label: 
   )
 }
 
-function StatusBadge({ online }: { online: boolean }) {
+function StatusBadge({ online, checking = false }: { online: boolean; checking?: boolean }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : "#FECACA"}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 500, color: online ? C.green : C.red }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
-      {online ? "Online" : "Offline"}
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      background: online ? C.greenLt : C.redLt,
+      border: `1px solid ${online ? C.greenBd : "#FECACA"}`,
+      borderRadius: 20, padding: "3px 10px",
+      fontSize: 12, fontWeight: 500,
+      color: online ? C.green : C.red,
+      opacity: checking ? 0.6 : 1,
+      transition: "opacity 0.3s",
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: "50%",
+        background: "currentColor", display: "inline-block",
+        // pulsa quando online
+        animation: online ? "pulse 2s infinite" : "none",
+      }} />
+      {checking ? "Verificando…" : online ? "Online" : "Offline"}
     </span>
   )
 }
 
 // ─── Modal de Upload ──────────────────────────────────────────────────────────
 function ModalPromocao({ code, onClose }: { code: string; onClose: () => void }) {
-  const [nome, setNome] = useState("")
-  const [duracao, setDuracao] = useState("15")
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState("")
+  const [nome, setNome]         = useState("")
+  const [duracao, setDuracao]   = useState("15")
+  const [file, setFile]         = useState<File | null>(null)
+  const [preview, setPreview]   = useState<string | null>(null)
+  const [loading, setLoading]   = useState(false)
+  const [success, setSuccess]   = useState(false)
+  const [error, setError]       = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const handleFile = (f: File) => {
-    setFile(f)
-    setPreview(URL.createObjectURL(f))
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    const f = e.dataTransfer.files[0]
-    if (f) handleFile(f)
-  }
+  const handleFile = (f: File) => { setFile(f); setPreview(URL.createObjectURL(f)) }
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }
 
   const handleSubmit = async () => {
     if (!nome.trim()) { setError("Informe o nome da promoção."); return }
-    if (!file) { setError("Selecione uma imagem ou vídeo."); return }
-    setLoading(true)
-    setError("")
+    if (!file)        { setError("Selecione uma imagem ou vídeo."); return }
+    setLoading(true); setError("")
     try {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("name", nome)
       formData.append("duration", duracao)
       formData.append("code", code)
-
       const res = await fetch("/api/studio/upload", { method: "POST", body: formData })
       if (!res.ok) throw new Error("Erro ao enviar.")
       setSuccess(true)
     } catch (err: any) {
       setError(err.message || "Erro ao enviar. Tente novamente.")
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-
-        {/* Header */}
         <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Adicionar promoção</div>
@@ -139,7 +175,6 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.text3, lineHeight: 1 }}>×</button>
         </div>
-
         <div style={{ padding: "20px 24px" }}>
           {success ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
@@ -150,60 +185,25 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
             </div>
           ) : (
             <>
-              {/* Nome */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Nome da promoção *
-                </label>
-                <input
-                  value={nome}
-                  onChange={e => setNome(e.target.value)}
-                  placeholder="Ex: Combo do Dia, Promoção de Verão…"
-                  style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }}
-                />
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Nome da promoção *</label>
+                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Combo do Dia, Promoção de Verão…" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
               </div>
-
-              {/* Duração */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Duração em tela
-                </label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Duração em tela</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   {["10", "15", "20", "30"].map(s => (
-                    <button key={s} onClick={() => setDuracao(s)} style={{
-                      flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                      background: duracao === s ? C.blue : C.gray50,
-                      color: duracao === s ? C.white : C.text2,
-                      border: `1px solid ${duracao === s ? C.blue : C.border}`,
-                    }}>
-                      {s}s
-                    </button>
+                    <button key={s} onClick={() => setDuracao(s)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", background: duracao === s ? C.blue : C.gray50, color: duracao === s ? C.white : C.text2, border: `1px solid ${duracao === s ? C.blue : C.border}` }}>{s}s</button>
                   ))}
                 </div>
               </div>
-
-              {/* Upload */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Arquivo *
-                </label>
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={e => e.preventDefault()}
-                  onClick={() => inputRef.current?.click()}
-                  style={{
-                    border: `2px dashed ${file ? C.green : C.border}`,
-                    borderRadius: 10, padding: "20px", textAlign: "center",
-                    cursor: "pointer", background: file ? C.greenLt : C.gray50,
-                    transition: "all .15s",
-                  }}
-                >
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Arquivo *</label>
+                <div onDrop={handleDrop} onDragOver={e => e.preventDefault()} onClick={() => inputRef.current?.click()} style={{ border: `2px dashed ${file ? C.green : C.border}`, borderRadius: 10, padding: "20px", textAlign: "center", cursor: "pointer", background: file ? C.greenLt : C.gray50, transition: "all .15s" }}>
                   {preview ? (
-                    file?.type.startsWith("video") ? (
-                      <video src={preview} style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6 }} controls />
-                    ) : (
-                      <img src={preview} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6, objectFit: "cover" }} />
-                    )
+                    file?.type.startsWith("video")
+                      ? <video src={preview} style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6 }} controls />
+                      : <img src={preview} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6, objectFit: "cover" }} />
                   ) : (
                     <>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
@@ -213,24 +213,12 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
                   )}
                   <input ref={inputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
                 </div>
-                {file && (
-                  <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name}</div>
-                )}
+                {file && <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name}</div>}
               </div>
-
-              {error && (
-                <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>
-                  ⚠️ {error}
-                </div>
-              )}
-
+              {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>
-                  Cancelar
-                </button>
-                <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "11px", borderRadius: 8, border: "none", background: loading ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
-                  {loading ? "Enviando…" : "Enviar para aprovação →"}
-                </button>
+                <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>Cancelar</button>
+                <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "11px", borderRadius: 8, border: "none", background: loading ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>{loading ? "Enviando…" : "Enviar para aprovação →"}</button>
               </div>
             </>
           )}
@@ -242,12 +230,27 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo }: any) {
-  const online = player?.online ?? false
-  const revenue = stats.revenue_month || 0
-  const saldo = revenue
+function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo, online, lastSeen, checking }: any) {
+  const revenue  = stats.revenue_month || 0
   const campanhas = 3
-  const vizToday = stats.plays_today
+  const vizToday  = stats.plays_today
+
+  // Tempo desde último ping
+  const sinceText = lastSeen
+    ? (() => {
+        const diff = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 1000)
+        if (diff < 60)  return `${diff}s atrás`
+        if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`
+        return `${Math.floor(diff / 3600)}h atrás`
+      })()
+    : player?.last_ping
+      ? (() => {
+          const diff = Math.floor((Date.now() - new Date(player.last_ping).getTime()) / 1000)
+          if (diff < 60)  return `${diff}s atrás`
+          if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`
+          return `${Math.floor(diff / 3600)}h atrás`
+        })()
+      : "sem dados"
 
   const ads = [
     { name: "Bradesco — Black Friday", cat: "Banco",    views: 1240, value: 180, status: "Ativo"   },
@@ -263,24 +266,28 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
 
   return (
     <div>
-      <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : "#FECACA"}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 36, height: 36, background: C.green, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 36, height: 36, background: online ? C.green : C.red, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.green }}>Sua TV está online e funcionando</div>
-            <div style={{ fontSize: 12, color: C.green, opacity: 0.8 }}>Última sincronização: 2 minutos atrás · 3 anúncios em exibição</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: online ? C.green : C.red }}>
+              {online ? "Sua TV está online e funcionando" : "Sua TV está offline"}
+            </div>
+            <div style={{ fontSize: 12, color: online ? C.green : C.red, opacity: 0.8 }}>
+              Última sincronização: {sinceText} · {checking ? "verificando…" : "3 anúncios em exibição"}
+            </div>
           </div>
         </div>
-        <StatusBadge online={online} />
+        <StatusBadge online={online} checking={checking} />
       </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Receita este mês" value={fmtR(revenue)} sub="+23% vs mai" icon="💵" color={C.green} />
-        <KpiCard label="Saldo a receber"  value={fmtR(saldo)}   sub="em 10/Jul"   icon="📅" color={C.blue} />
-        <KpiCard label="Campanhas ativas" value={String(campanhas)} sub="1 pausada" icon="▶" color={C.blue} />
-        <KpiCard label="Visualizações"    value={fmt(vizToday)} sub="+12% esta semana" icon="👁" color={C.blue} />
+        <KpiCard label="Receita este mês" value={fmtR(revenue)}          sub="+23% vs mai"        icon="💵" color={C.green} />
+        <KpiCard label="Saldo a receber"  value={fmtR(revenue)}          sub="em 10/Jul"          icon="📅" color={C.blue} />
+        <KpiCard label="Campanhas ativas" value={String(campanhas)}      sub="1 pausada"          icon="▶" color={C.blue} />
+        <KpiCard label="Visualizações"    value={fmt(vizToday)}          sub="+12% esta semana"   icon="👁" color={C.blue} />
         <KpiCard label="Status da TV"     value={online ? "Online" : "Offline"} sub={player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"} icon="📶" color={online ? C.green : C.red} />
       </div>
 
@@ -291,7 +298,9 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
             <button onClick={() => onNav("tv")} style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ao vivo na sua TV →</button>
           </div>
           <div style={{ background: "#0F172A", margin: 16, borderRadius: 10, padding: "28px 16px", textAlign: "center", minHeight: 140, position: "relative" }}>
-            <div style={{ position: "absolute", top: 10, left: 14, background: C.green, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>● AO VIVO</div>
+            <div style={{ position: "absolute", top: 10, left: 14, background: online ? C.green : C.red, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>
+              {online ? "● AO VIVO" : "● OFFLINE"}
+            </div>
             <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>☕ PROMOÇÃO DO DIA</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 4 }}>Café + Pão de Queijo</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: C.green }}>R$ 9,90</div>
@@ -349,8 +358,7 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
   )
 }
 
-function TabTV({ client, player, playlist }: any) {
-  const online = player?.online ?? false
+function TabTV({ client, player, playlist, online, checking }: any) {
   const items = playlist.length > 0 ? playlist : [
     { id: "1", type: "ad",      duration: 15, position: 1, asset_url: null },
     { id: "2", type: "content", duration: 30, position: 2, asset_url: null },
@@ -374,7 +382,7 @@ function TabTV({ client, player, playlist }: any) {
               <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>TV Entrada Principal</div>
               <div style={{ fontSize: 12, color: C.text3 }}>{player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "SCR-00847"} · Android TV 11</div>
             </div>
-            <StatusBadge online={online} />
+            <StatusBadge online={online} checking={checking} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
             {[
@@ -424,13 +432,10 @@ function TabConteudo({ client, onAddPromo }: any) {
     { name: "Promoção Fim de Semana", type: "Imagem", duration: 10, views: 740,  status: "Pausado" },
     { name: "Boas-vindas Clientes",   type: "Video",  duration: 20, views: 3120, status: "Ativo"   },
   ]
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          + Adicionar conteúdo
-        </button>
+        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Adicionar conteúdo</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16, marginBottom: 16 }}>
         {mockItems.map((item, i) => (
@@ -467,11 +472,10 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
     { name: "Natura — Perfumes",       cat: "Beleza",   views: 650,  value: 90,  status: "Pausado" },
   ]
   const suggestions = [
-    { icon: "🏦", text: "Novo anunciante disponível: Banco Itaú",      sub: "Campanha de 90 dias · CPM R$ 12,00 · alto match com seu público.", value: "+R$ 240/mês",       color: C.green },
-    { icon: "🌤", text: "Adicione promoção de fim de tarde",            sub: "Telas com conteúdo próprio 16h–18h têm 3× mais engajamento.",       value: "+34% views",       color: C.amber },
-    { icon: "💡", text: "Potencial não realizado: R$ 320/mês",         sub: "Com 3 melhorias simples, você pode chegar a R$ 1.167/mês até setembro.", value: "R$ 1.167 em set/26", color: C.blue },
+    { icon: "🏦", text: "Novo anunciante disponível: Banco Itaú",   sub: "Campanha de 90 dias · CPM R$ 12,00 · alto match com seu público.", value: "+R$ 240/mês",       color: C.green },
+    { icon: "🌤", text: "Adicione promoção de fim de tarde",         sub: "Telas com conteúdo próprio 16h–18h têm 3× mais engajamento.",     value: "+34% views",       color: C.amber },
+    { icon: "💡", text: "Potencial não realizado: R$ 320/mês",      sub: "Com 3 melhorias simples, você pode chegar a R$ 1.167/mês.",       value: "R$ 1.167 em set/26", color: C.blue },
   ]
-
   const months = ["Jan","Fev","Mar","Abr","Mai","Jun"]
   const vals   = [420, 520, 580, 640, 720, stats.revenue_month || 847]
   const maxVal = Math.max(...vals)
@@ -561,9 +565,7 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
             <div style={{ fontSize: 12, color: C.text3 }}>Aumente o engajamento em até 40% com conteúdo próprio.</div>
           </div>
         </div>
-        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-          + Adicionar promoção
-        </button>
+        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>+ Adicionar promoção</button>
       </div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -597,25 +599,22 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
 }
 
 function TabGanhos({ stats, payments, code }: any) {
-  const days = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
+  const days   = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
   const dayVals = [42, 38, 55, 61, 85, 72, 48]
-  const maxDay = Math.max(...dayVals)
-
+  const maxDay  = Math.max(...dayVals)
   const history = payments.length > 0 ? payments : [
     { id: "1", paid_at: "2026-05-10", value: 720, status: "paid" },
     { id: "2", paid_at: "2026-04-10", value: 680, status: "paid" },
     { id: "3", paid_at: "2026-03-10", value: 590, status: "paid" },
     { id: "4", paid_at: "2026-02-10", value: 640, status: "paid" },
   ]
-
   return (
     <div>
       <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-        <KpiCard label="Este mês"       value={fmtR(stats.revenue_month || 847)} sub="+23% vs mai"      icon="💵" color={C.green} />
-        <KpiCard label="Média mensal"   value="R$ 662,50"                         sub="últimos 4 meses" icon="📈" color={C.blue}  />
-        <KpiCard label="Total acumulado"value="R$ 4.250,00"                       sub="desde o início"  icon="🏆" color={C.blue}  />
+        <KpiCard label="Este mês"        value={fmtR(stats.revenue_month || 847)} sub="+23% vs mai"      icon="💵" color={C.green} />
+        <KpiCard label="Média mensal"    value="R$ 662,50"                         sub="últimos 4 meses" icon="📈" color={C.blue}  />
+        <KpiCard label="Total acumulado" value="R$ 4.250,00"                       sub="desde o início"  icon="🏆" color={C.blue}  />
       </div>
-
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Ganhos por dia da semana</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
@@ -627,7 +626,6 @@ function TabGanhos({ stats, payments, code }: any) {
           ))}
         </div>
       </div>
-
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Histórico de pagamentos</div>
@@ -722,17 +720,23 @@ interface Props {
 }
 
 export default function DashboardClient({ client, player, stats, playlist, payments }: Props) {
-  const [tab, setTab]           = useState("dashboard")
+  const [tab, setTab]         = useState("dashboard")
   const [sideOpen, setSideOpen] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const onNav = useCallback((t: string) => setTab(t), [])
+  const onNav      = useCallback((t: string) => setTab(t), [])
   const onAddPromo = useCallback(() => setShowModal(true), [])
+
+  // ── Heartbeat real: polling a cada 30s ─────────────────────────────────────
+  const { online, lastSeen, checking } = usePlayerStatus(
+    client.player_id,
+    player?.online ?? false
+  )
 
   const initials = client.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()
 
   const tabContent: Record<string, React.ReactNode> = {
-    dashboard: <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} />,
-    tv:        <TabTV client={client} player={player} playlist={playlist} />,
+    dashboard: <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} />,
+    tv:        <TabTV client={client} player={player} playlist={playlist} online={online} checking={checking} />,
     conteudo:  <TabConteudo client={client} onAddPromo={onAddPromo} />,
     anuncios:  <TabAnuncios stats={stats} payments={payments} code={client.code} onAddPromo={onAddPromo} />,
     ganhos:    <TabGanhos stats={stats} payments={payments} code={client.code} />,
@@ -742,6 +746,13 @@ export default function DashboardClient({ client, player, stats, playlist, payme
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {/* CSS para animação do ponto online */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.4; }
+        }
+      `}</style>
 
       {showModal && <ModalPromocao code={client.code} onClose={() => setShowModal(false)} />}
 
@@ -798,13 +809,13 @@ export default function DashboardClient({ client, player, stats, playlist, payme
             <button onClick={() => setSideOpen(!sideOpen)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.text3 }}>☰</button>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>
-                {tab === "dashboard"   && `Dashboard — ${client.name}`}
-                {tab === "tv"          && `Minha TV — ${client.name}`}
-                {tab === "conteudo"    && `Conteúdo — ${client.name}`}
-                {tab === "anuncios"    && `Anúncios — ${client.name}`}
-                {tab === "ganhos"      && `Ganhos — ${client.name}`}
-                {tab === "relatorios"  && `Relatórios — ${client.name}`}
-                {tab === "config"      && `Configurações`}
+                {tab === "dashboard"  && `Dashboard — ${client.name}`}
+                {tab === "tv"         && `Minha TV — ${client.name}`}
+                {tab === "conteudo"   && `Conteúdo — ${client.name}`}
+                {tab === "anuncios"   && `Anúncios — ${client.name}`}
+                {tab === "ganhos"     && `Ganhos — ${client.name}`}
+                {tab === "relatorios" && `Relatórios — ${client.name}`}
+                {tab === "config"     && `Configurações`}
               </div>
               <div style={{ fontSize: 11, color: C.text3 }}>
                 {new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date())}
@@ -812,6 +823,8 @@ export default function DashboardClient({ client, player, stats, playlist, payme
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {/* Badge de status no header */}
+            <StatusBadge online={online} checking={checking} />
             <button style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontSize: 16, color: C.text2 }}>🔔</button>
             <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               + Adicionar promoção
