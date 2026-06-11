@@ -5,18 +5,22 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 
 export const dynamic = "force-dynamic"
 
+const R2_ENDPOINT        = process.env.R2_ENDPOINT        || ""
+const R2_ACCESS_KEY_ID   = process.env.R2_ACCESS_KEY_ID   || ""
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ""
+const R2_PUBLIC_URL      = process.env.R2_PUBLIC_URL      || "https://pub-0ad4cd3201ce42198c5211fe201ff660.r2.dev"
+
 const s3 = new S3Client({
   region: "auto",
-  endpoint: process.env.R2_ENDPOINT as string,
+  endpoint: R2_ENDPOINT,
   credentials: {
-    accessKeyId:     process.env.R2_ACCESS_KEY_ID as string,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY as string,
+    accessKeyId:     R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
   },
 })
 
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-0ad4cd3201ce42198c5211fe201ff660.r2.dev"
-const MAX_IMAGE_MB  = 10
-const MAX_VIDEO_MB  = 100
+const MAX_IMAGE_MB = 10
+const MAX_VIDEO_MB = 100
 
 export async function POST(
   req: NextRequest,
@@ -54,12 +58,13 @@ export async function POST(
 
       const maxMB = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB
       if (file.size > maxMB * 1024 * 1024) {
-        return Response.json({ error: `Arquivo ${file.name} excede ${maxMB}MB` }, { status: 400 })
+        return Response.json({ error: "Arquivo " + file.name + " excede " + maxMB + "MB" }, { status: 400 })
       }
 
       const ext       = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
       const timestamp = Date.now()
-      const key       = `advertiser/${code.toUpperCase()}/${isVideo ? "video" : "image"}_${timestamp}.${ext}`
+      const fileType  = isVideo ? "video" : "image"
+      const key       = "advertiser/" + code.toUpperCase() + "/" + fileType + "_" + timestamp + "." + ext
       const buffer    = Buffer.from(await file.arrayBuffer())
 
       await s3.send(new PutObjectCommand({
@@ -69,13 +74,13 @@ export async function POST(
         ContentType: file.type,
       }))
 
-      const url = `${R2_PUBLIC_URL}/${key}`
+      const url = R2_PUBLIC_URL + "/" + key
 
       const { rows } = await pool.query(
         `INSERT INTO "CampaignMedia" ("campaignId", name, type, url, status)
          VALUES ($1, $2, $3, $4, 'pending')
          RETURNING *`,
-        [campaignId, file.name, isVideo ? "video" : "image", url]
+        [campaignId, file.name, fileType, url]
       )
       uploaded.push(rows[0])
     }
