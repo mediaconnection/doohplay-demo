@@ -1,3 +1,4 @@
+// app/api/studio/upload/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
@@ -18,16 +19,16 @@ const r2 = new S3Client({
 const BUCKET     = "dooh-media"
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
-// ── Limites por plano ─────────────────────────────────────────────────────────
+// ── Limites por tipo ──────────────────────────────────────────────────────────
 const LIMITS = {
   image: {
-    maxSize:  10 * 1024 * 1024,  // 10MB
+    maxSize:  10 * 1024 * 1024,
     maxCount: 20,
     types:    ["image/jpeg", "image/png", "image/webp", "image/gif"],
     ext:      (mime: string) => mime.split("/")[1]?.replace("jpeg", "jpg") || "jpg",
   },
   video: {
-    maxSize:  100 * 1024 * 1024, // 100MB
+    maxSize:  100 * 1024 * 1024,
     maxCount: 5,
     types:    ["video/mp4", "video/webm", "video/quicktime"],
     ext:      (_mime: string) => "mp4",
@@ -38,6 +39,38 @@ function getFileCategory(mime: string): "image" | "video" | null {
   if (LIMITS.image.types.includes(mime)) return "image"
   if (LIMITS.video.types.includes(mime)) return "video"
   return null
+}
+
+// ── Garante que existe Advertiser + Campaign padrão para o cliente ─────────────
+// studio_clients e Advertiser são entidades separadas.
+// Clientes que fazem upload pelo dashboard precisam de um Advertiser shadow.
+async function ensureCampaign(pool: any, code: string, clientName: string): Promise<string> {
+  // 1. Garante Advertiser shadow (mesmo code do studio_client)
+  await pool.query(
+    `INSERT INTO "Advertiser" (id, code, name, email, phone, "createdAt")
+     VALUES (gen_random_uuid()::text, $1, $2, '', '', NOW())
+     ON CONFLICT (code) DO NOTHING`,
+    [code, clientName]
+  )
+
+  // 2. Busca ou cria campanha padrão "Promoções da Loja"
+  const { rows } = await pool.query(
+    `SELECT id FROM "Campaign"
+     WHERE "advertiserCode" = $1 AND name = 'Promoções da Loja'
+     LIMIT 1`,
+    [code]
+  )
+  if (rows.length > 0) return rows[0].id
+
+  const { rows: newRows } = await pool.query(
+    `INSERT INTO "Campaign"
+       (id, "advertiserCode", name, status, "startDate", "endDate", budget, impressions, "createdAt")
+     VALUES (gen_random_uuid()::text, $1, 'Promoções da Loja', 'active',
+             NOW(), NOW() + INTERVAL '1 year', 0, 0, NOW())
+     RETURNING id`,
+    [code]
+  )
+  return newRows[0].id
 }
 
 // ── POST — upload de arquivo ──────────────────────────────────────────────────
@@ -62,6 +95,7 @@ export async function POST(request: NextRequest) {
     if (!clientRes.rows[0]) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
     }
+    const clientName: string = clientRes.rows[0].name
 
     // ── Valida tipo ───────────────────────────────────────────────────────────
     const category = getFileCategory(file.type)
@@ -105,9 +139,7 @@ export async function POST(request: NextRequest) {
     // ── Upload para R2 ────────────────────────────────────────────────────────
     const ext      = limit.ext(file.type)
     const fileName = `studio/${code}/${category}_${Date.now()}.${ext}`
-
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer      = Buffer.from(arrayBuffer)
+    const buffer   = Buffer.from(await file.arrayBuffer())
 
     await r2.send(new PutObjectCommand({
       Bucket:      BUCKET,
@@ -118,25 +150,10 @@ export async function POST(request: NextRequest) {
 
     const publicUrl = `${PUBLIC_URL}/${fileName}`
 
-    // ── Salva no banco como CampaignMedia pendente ────────────────────────────
+    // ── Salva no banco ────────────────────────────────────────────────────────
     try {
-      const campRes = await pool.query(
-        `SELECT id FROM "Campaign" WHERE "advertiserCode" = $1 AND name = 'Promoções da Loja' LIMIT 1`,
-        [code]
-      )
-
-      let campaignId: string
-      if (campRes.rows.length > 0) {
-        campaignId = campRes.rows[0].id
-      } else {
-        const newCamp = await pool.query(
-          `INSERT INTO "Campaign" (id, "advertiserCode", name, status, "startDate", "endDate", budget, impressions, "createdAt")
-           VALUES (gen_random_uuid()::text, $1, 'Promoções da Loja', 'active', NOW(), NOW() + INTERVAL '1 year', 0, 0, NOW())
-           RETURNING id`,
-          [code]
-        )
-        campaignId = newCamp.rows[0].id
-      }
+      // Garante Advertiser shadow + campanha padrão antes do INSERT
+      const campaignId = await ensureCampaign(pool, code, clientName)
 
       await pool.query(
         `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
@@ -145,6 +162,7 @@ export async function POST(request: NextRequest) {
       )
     } catch (dbErr) {
       console.error("[upload] db error:", dbErr)
+      // Upload no R2 já foi feito — não retorna erro pro usuário, só loga
     }
 
     return NextResponse.json({
