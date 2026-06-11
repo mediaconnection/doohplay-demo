@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.DoohPlay" parent="android:Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
