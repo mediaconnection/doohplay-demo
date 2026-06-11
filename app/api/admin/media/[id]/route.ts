@@ -5,22 +5,24 @@ import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
-const EVOLUTION_URL      = process.env.EVOLUTION_API_URL  || "https://evo.doohplay.com.br"
-const EVOLUTION_KEY      = process.env.EVOLUTION_API_KEY  || ""
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || "doohplay"
-
 async function sendWhatsApp(phone: string, message: string) {
+  // Lê as variáveis em runtime — não no momento do build
+  const url      = process.env.EVOLUTION_API_URL  || "http://2.25.180.53:32768"
+  const key      = process.env.EVOLUTION_API_KEY  || "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI"
+  const instance = process.env.EVOLUTION_INSTANCE || "doohplay"
   try {
-    await fetch(EVOLUTION_URL + "/message/sendText/" + EVOLUTION_INSTANCE, {
+    const res = await fetch(url + "/message/sendText/" + instance, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY },
+      headers: { "Content-Type": "application/json", apikey: key },
       body: JSON.stringify({ number: phone, text: message }),
     })
-  } catch {}
+    console.log("[sendWhatsApp] status:", res.status, "phone:", phone)
+  } catch (err) {
+    console.error("[sendWhatsApp] erro:", err)
+  }
 }
 
 export async function PATCH(req: NextRequest, context: any) {
-  // Aceita tanto sessão NextAuth quanto secret legacy
   const session = await getServerSession()
   const body    = await req.json()
 
@@ -35,19 +37,17 @@ export async function PATCH(req: NextRequest, context: any) {
   const { status, reason } = body
 
   if (!["approved", "rejected"].includes(status)) {
-    return Response.json({ error: "status inválido" }, { status: 400 })
+    return Response.json({ error: "status invalido" }, { status: 400 })
   }
 
   const pool = getPool()
 
   try {
-    // Atualiza status da mídia
     await pool.query(
       `UPDATE "CampaignMedia" SET status = $1 WHERE id = $2`,
       [status, id]
     )
 
-    // Busca dados para WhatsApp
     const { rows } = await pool.query(
       `SELECT m.name AS media_name, m.type,
               a.name AS advertiser_name, a.phone AS advertiser_phone,
@@ -60,8 +60,9 @@ export async function PATCH(req: NextRequest, context: any) {
     )
 
     const media = rows[0]
+    console.log("[admin/media PATCH] media:", media?.media_name, "phone:", media?.advertiser_phone, "status:", status)
 
-    if (media?.advertiser_phone) {
+    if (media && media.advertiser_phone) {
       if (status === "approved") {
         await sendWhatsApp(media.advertiser_phone, [
           "✅ *Mídia aprovada!*",
@@ -86,6 +87,8 @@ export async function PATCH(req: NextRequest, context: any) {
           "_DOOHPLAY — Trust Infrastructure for DOOH Advertising_",
         ].filter(Boolean).join("\n"))
       }
+    } else {
+      console.warn("[admin/media PATCH] sem phone — media:", media)
     }
 
     return Response.json({ ok: true, status })
