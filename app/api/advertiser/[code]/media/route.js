@@ -22,8 +22,11 @@ const s3 = new S3Client({
 const MAX_IMAGE_MB = 10
 const MAX_VIDEO_MB = 100
 
-export async function POST(req: NextRequest, context: any) {
-  const { code } = await context.params
+export async function POST(req: NextRequest) {
+  // Extrai code da URL em vez de params
+  const segments = req.nextUrl.pathname.split("/")
+  const code = segments[segments.indexOf("advertiser") + 1]?.toUpperCase() || ""
+
   const pool = getPool()
 
   try {
@@ -40,7 +43,7 @@ export async function POST(req: NextRequest, context: any) {
 
     const { rows: camp } = await pool.query(
       `SELECT id FROM "Campaign" WHERE id = $1 AND "advertiserCode" = $2 LIMIT 1`,
-      [campaignId, code.toUpperCase()]
+      [campaignId, code]
     )
     if (!camp[0]) {
       return Response.json({ error: "Campanha nao encontrada" }, { status: 404 })
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest, context: any) {
 
       const ext      = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
       const fileType = isVideo ? "video" : "image"
-      const key      = "advertiser/" + code.toUpperCase() + "/" + fileType + "_" + Date.now() + "." + ext
+      const key      = "advertiser/" + code + "/" + fileType + "_" + Date.now() + "." + ext
       const buffer   = Buffer.from(await file.arrayBuffer())
 
       await s3.send(new PutObjectCommand({
