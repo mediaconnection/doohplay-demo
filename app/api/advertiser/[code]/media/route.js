@@ -22,11 +22,15 @@ const s3 = new S3Client({
 const MAX_IMAGE_MB = 10
 const MAX_VIDEO_MB = 100
 
-export async function POST(req: NextRequest) {
-  // Extrai code da URL em vez de params
-  const segments = req.nextUrl.pathname.split("/")
-  const code = segments[segments.indexOf("advertiser") + 1]?.toUpperCase() || ""
+function getCodeFromUrl(url: string): string {
+  const parts = url.split("/")
+  const idx = parts.indexOf("advertiser")
+  if (idx === -1 || idx + 1 >= parts.length) return ""
+  return parts[idx + 1].toUpperCase()
+}
 
+export async function POST(req: NextRequest) {
+  const code = getCodeFromUrl(req.nextUrl.pathname)
   const pool = getPool()
 
   try {
@@ -41,30 +45,32 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Nenhum arquivo enviado" }, { status: 400 })
     }
 
-    const { rows: camp } = await pool.query(
+    const campRes = await pool.query(
       `SELECT id FROM "Campaign" WHERE id = $1 AND "advertiserCode" = $2 LIMIT 1`,
       [campaignId, code]
     )
-    if (!camp[0]) {
+    if (!campRes.rows[0]) {
       return Response.json({ error: "Campanha nao encontrada" }, { status: 404 })
     }
 
-    const uploaded: any[] = []
+    const uploaded = []
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
       const isVideo = file.type.startsWith("video/")
       const isImage = file.type.startsWith("image/")
       if (!isVideo && !isImage) continue
 
       const maxMB = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB
       if (file.size > maxMB * 1024 * 1024) {
-        return Response.json({ error: "Arquivo " + file.name + " excede " + maxMB + "MB" }, { status: 400 })
+        return Response.json({ error: "Arquivo excede " + maxMB + "MB" }, { status: 400 })
       }
 
-      const ext      = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg")
-      const fileType = isVideo ? "video" : "image"
-      const key      = "advertiser/" + code + "/" + fileType + "_" + Date.now() + "." + ext
-      const buffer   = Buffer.from(await file.arrayBuffer())
+      const nameParts = file.name.split(".")
+      const ext       = nameParts.length > 1 ? nameParts[nameParts.length - 1].toLowerCase() : (isVideo ? "mp4" : "jpg")
+      const fileType  = isVideo ? "video" : "image"
+      const key       = "advertiser/" + code + "/" + fileType + "_" + Date.now() + "." + ext
+      const buffer    = Buffer.from(await file.arrayBuffer())
 
       await s3.send(new PutObjectCommand({
         Bucket:      "dooh-media",
@@ -75,13 +81,13 @@ export async function POST(req: NextRequest) {
 
       const url = R2_PUBLIC_URL + "/" + key
 
-      const { rows } = await pool.query(
+      const insRes = await pool.query(
         `INSERT INTO "CampaignMedia" ("campaignId", name, type, url, status)
          VALUES ($1, $2, $3, $4, 'pending')
          RETURNING *`,
         [campaignId, file.name, fileType, url]
       )
-      uploaded.push(rows[0])
+      uploaded.push(insRes.rows[0])
     }
 
     return Response.json({ ok: true, uploaded }, { status: 201 })
