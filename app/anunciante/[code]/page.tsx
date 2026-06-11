@@ -252,10 +252,10 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
 
 // ─── Mídia ───────────────────────────────────────────────────────────────────
 function TabMidia({ code, medias, campaigns, onRefresh }: { code: string; medias: any[]; campaigns: any[]; onRefresh: () => void }) {
-  const [uploading, setUploading]           = useState(false);
-  const [dragOver, setDragOver]             = useState(false);
+  const [uploading, setUploading]               = useState(false);
+  const [dragOver, setDragOver]                 = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState("");
-  const [erro, setErro]                     = useState("");
+  const [erro, setErro]                         = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (files: FileList | null) => {
@@ -477,16 +477,32 @@ function PortalAnuncianteInner({ code }: { code: string }) {
         ::-webkit-scrollbar-thumb { background: ${C.muted}; border-radius: 3px; }
       `}</style>
 
+      {/* HEADER */}
       <div style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
+
+            {/* ✅ Logo corrigido: gradiente + ícone monitor + DOOH branco / PLAY azul */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: `linear-gradient(135deg, ${C.primary}, ${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>D</div>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: "linear-gradient(135deg, #3B82F6, #6366F1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>DOOHPLAY</div>
+                <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+                  <span style={{ color: C.text }}>DOOH</span><span style={{ color: C.primary }}>PLAY</span>
+                </div>
                 <div style={{ fontSize: 11, color: C.textSub }}>Portal do Anunciante</div>
               </div>
             </div>
+
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{data?.advertiser?.name}</div>
               <div style={{ fontSize: 12, color: C.textSub }}>#{code.toUpperCase()}</div>
@@ -495,6 +511,7 @@ function PortalAnuncianteInner({ code }: { code: string }) {
         </div>
       </div>
 
+      {/* TABS */}
       <div style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", display: "flex", gap: 4 }}>
           {tabs.map(t => (
