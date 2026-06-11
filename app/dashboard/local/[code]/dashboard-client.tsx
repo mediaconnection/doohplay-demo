@@ -210,8 +210,8 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Adicionar promoção</div>
-            <div style={{ fontSize: 12, color: C.text3 }}>Será revisada pela equipe antes de ir ao ar</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Enviar conteúdo para sua tela</div>
+            <div style={{ fontSize: 12, color: C.text3 }}>Será revisado pela equipe antes de ir ao ar</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.text3, lineHeight: 1 }}>×</button>
         </div>
@@ -477,7 +477,7 @@ function TabConteudo({ client, playlist, onAddPromo }: any) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Adicionar conteúdo</button>
+        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Enviar mídia</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16, marginBottom: 16 }}>
         {realItems.length > 0 ? realItems.map((item, i) => {
@@ -510,7 +510,7 @@ function TabConteudo({ client, playlist, onAddPromo }: any) {
         {/* Card de upload */}
         <div onClick={onAddPromo} style={{ background: C.white, border: `2px dashed ${C.gray300}`, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 8, cursor: "pointer" }}>
           <div style={{ fontSize: 28, color: C.blue }}>+</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Adicionar nova promoção</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Adicionar nova mídia</div>
           <div style={{ fontSize: 12, color: C.text3 }}>Upload de imagem ou vídeo da sua loja</div>
           <button style={{ marginTop: 8, background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Escolher arquivo</button>
         </div>
@@ -888,7 +888,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
             <StatusBadge online={online} checking={checking} />
             <button style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontSize: 16, color: C.text2 }}>🔔</button>
             <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              + Adicionar promoção
+              + Enviar mídia
             </button>
           </div>
         </header>
