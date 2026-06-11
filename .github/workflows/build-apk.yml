@@ -1,4 +1,4 @@
-# v3
+# v4
 name: Build Fire Stick APK
 
 on:
@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +26,7 @@ jobs:
       - name: Create Gradle Wrapper
         working-directory: firestick-app
         run: |
-          gradle wrapper --gradle-version 8.1.1
+          gradle wrapper --gradle-version 8.6
           chmod +x gradlew
 
       - name: Build Release APK
