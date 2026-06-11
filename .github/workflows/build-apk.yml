@@ -1,11 +1,5 @@
 # v2
 name: Build Fire Stick APK
-on:
-  push:
-    paths:
-      - 'firestick-app/**'
-  workflow_dispatch:
-...name: Build Fire Stick APK
 
 on:
   push:
@@ -16,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
