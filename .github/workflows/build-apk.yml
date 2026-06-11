@@ -1,0 +1,42 @@
+name: Build Fire Stick APK
+
+on:
+  push:
+    paths:
+      - 'firestick-app/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x firestick-app/gradlew
+        continue-on-error: true
+
+      - name: Setup Gradle Wrapper
+        working-directory: firestick-app
+        run: |
+          gradle wrapper --gradle-version 8.1.1 || true
+
+      - name: Build Release APK
+        working-directory: firestick-app
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: doohplay-firestick-v1.0
+          path: firestick-app/app/build/outputs/apk/release/*.apk
+          retention-days: 30
