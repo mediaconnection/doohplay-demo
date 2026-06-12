@@ -4,6 +4,9 @@ import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
+const SESSION_COOKIE = "doohplay_session"
+const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 dias
+
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
@@ -58,13 +61,24 @@ export async function POST(req: NextRequest) {
     // Marca token como usado
     await pool.query("UPDATE otp_tokens SET used = true WHERE id = $1", [tokenRow.id])
 
-    // Determina redirect
     const userCode = tokenRow.user_code
     const redirect = role === "client"
       ? `/dashboard/local/${userCode}`
       : `/anunciante/${userCode}`
 
-    return NextResponse.json({ ok: true, redirect, userCode, role })
+    // Cria sessão e seta cookie
+    const sessionData = JSON.stringify({ role, code: userCode, ts: Date.now() })
+
+    const response = NextResponse.json({ ok: true, redirect, userCode, role })
+    response.cookies.set(SESSION_COOKIE, sessionData, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge:   SESSION_MAX_AGE,
+      path:     "/",
+    })
+
+    return response
   } catch (err) {
     console.error("[otp/verify]", err)
     return NextResponse.json({ error: "Erro interno" }, { status: 500 })
