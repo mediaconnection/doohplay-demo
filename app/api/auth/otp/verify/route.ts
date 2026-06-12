@@ -4,8 +4,12 @@ import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
-const SESSION_COOKIE = "doohplay_session"
+const SESSION_COOKIE  = "doohplay_session"
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 dias
+
+function stripPhone(phone: string): string {
+  return (phone ?? "").replace(/\D/g, "")
+}
 
 export async function POST(req: NextRequest) {
   const pool = getPool()
@@ -16,37 +20,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 })
     }
 
-    const searchContact = method === "whatsapp"
-      ? contact.replace(/\D/g, "")
-      : contact.trim().toLowerCase()
-
-    // Busca token válido
     let tokenRow: any = null
 
     if (method === "whatsapp") {
+      const searchDigits = stripPhone(contact)
+      // Busca tokens válidos pelo role e code, compara phone no Node
       const { rows } = await pool.query(
-        `SELECT t.* FROM otp_tokens t
-         WHERE REGEXP_REPLACE(t.phone, '\\D', '', 'g') LIKE $1
-           AND t.code      = $2
-           AND t.role      = $3
-           AND t.used      = false
-           AND t.expires_at > NOW()
-         ORDER BY t.created_at DESC
-         LIMIT 1`,
-        [`%${searchContact}`, otp, role]
+        `SELECT * FROM otp_tokens
+         WHERE code       = $1
+           AND role       = $2
+           AND used       = false
+           AND expires_at > NOW()
+           AND phone IS NOT NULL
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [otp, role]
       )
-      tokenRow = rows[0] ?? null
+      tokenRow = rows.find(r =>
+        stripPhone(r.phone ?? "") === searchDigits ||
+        stripPhone(r.phone ?? "").endsWith(searchDigits) ||
+        searchDigits.endsWith(stripPhone(r.phone ?? ""))
+      ) ?? null
     } else {
+      const searchEmail = contact.trim().toLowerCase()
       const { rows } = await pool.query(
-        `SELECT t.* FROM otp_tokens t
-         WHERE LOWER(t.email) = $1
-           AND t.code         = $2
-           AND t.role         = $3
-           AND t.used         = false
-           AND t.expires_at   > NOW()
-         ORDER BY t.created_at DESC
+        `SELECT * FROM otp_tokens
+         WHERE LOWER(email) = $1
+           AND code         = $2
+           AND role         = $3
+           AND used         = false
+           AND expires_at   > NOW()
+         ORDER BY created_at DESC
          LIMIT 1`,
-        [searchContact, otp, role]
+        [searchEmail, otp, role]
       )
       tokenRow = rows[0] ?? null
     }
@@ -58,7 +64,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Marca token como usado
+    // Marca como usado
     await pool.query("UPDATE otp_tokens SET used = true WHERE id = $1", [tokenRow.id])
 
     const userCode = tokenRow.user_code
@@ -66,9 +72,8 @@ export async function POST(req: NextRequest) {
       ? `/dashboard/local/${userCode}`
       : `/anunciante/${userCode}`
 
-    // Cria sessão e seta cookie
+    // Seta cookie de sessão
     const sessionData = JSON.stringify({ role, code: userCode, ts: Date.now() })
-
     const response = NextResponse.json({ ok: true, redirect, userCode, role })
     response.cookies.set(SESSION_COOKIE, sessionData, {
       httpOnly: true,
