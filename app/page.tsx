@@ -272,7 +272,7 @@ export default function LandingPage() {
           ))}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/admin" style={{ padding: "8px 16px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
+          <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
             Entrar
           </Link>
           <Link href="/onboarding" style={{ padding: "8px 16px", fontSize: 13, color: "#fff", textDecoration: "none", borderRadius: 8, background: "#3B82F6", fontWeight: 600 }}>
