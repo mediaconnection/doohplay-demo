@@ -4,8 +4,8 @@ import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL!
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY!
+const EVOLUTION_API_URL  = process.env.EVOLUTION_API_URL!
+const EVOLUTION_API_KEY  = process.env.EVOLUTION_API_KEY!
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE!
 
 function generateOtp(): string {
@@ -18,13 +18,22 @@ function normalizePhone(phone: string): string {
   return `55${digits}`
 }
 
+function stripPhone(phone: string): string {
+  return (phone ?? "").replace(/\D/g, "")
+}
+
 async function sendWhatsApp(phone: string, code: string) {
   const msg = `🔐 *DOOHPLAY* — Seu código de acesso:\n\n*${code}*\n\nVálido por 10 minutos. Não compartilhe com ninguém.`
-  await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+  const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
     body: JSON.stringify({ number: phone, text: msg }),
   })
+  if (!res.ok) {
+    const body = await res.text()
+    console.error("[otp/send] WhatsApp error:", res.status, body)
+    throw new Error("Falha ao enviar WhatsApp")
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -33,43 +42,43 @@ export async function POST(req: NextRequest) {
     const { contact, method, role } = await req.json()
 
     if (!contact?.trim()) return NextResponse.json({ error: "Contato obrigatório" }, { status: 400 })
-    if (!role || !["client", "advertiser"].includes(role)) return NextResponse.json({ error: "Role inválido" }, { status: 400 })
+    if (!role || !["client", "advertiser"].includes(role)) {
+      return NextResponse.json({ error: "Role inválido" }, { status: 400 })
+    }
 
     const table = role === "client" ? "studio_clients" : "advertisers"
-    const field = method === "email" ? "email" : "phone"
 
-    // Normaliza telefone para busca
-    const searchContact = method === "whatsapp"
-      ? contact.replace(/\D/g, "")
-      : contact.trim().toLowerCase()
-
-    // Busca usuário — tenta com e sem prefixo 55
     let userRow: any = null
+
     if (method === "whatsapp") {
+      // Busca todos e compara digits no Node para evitar REGEXP_REPLACE
+      const searchDigits = stripPhone(contact)
       const { rows } = await pool.query(
-        `SELECT code, name, phone, email FROM ${table}
-         WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') LIKE $1
-            OR REGEXP_REPLACE(phone, '\\D', '', 'g') = $2
-         LIMIT 1`,
-        [`%${searchContact}`, searchContact]
+        `SELECT code, name, phone, email FROM ${table} WHERE phone IS NOT NULL`
       )
-      userRow = rows[0] ?? null
+      userRow = rows.find(r => stripPhone(r.phone ?? "") === searchDigits
+        || stripPhone(r.phone ?? "").endsWith(searchDigits)
+        || searchDigits.endsWith(stripPhone(r.phone ?? ""))
+      ) ?? null
     } else {
+      const searchEmail = contact.trim().toLowerCase()
       const { rows } = await pool.query(
         `SELECT code, name, phone, email FROM ${table} WHERE LOWER(email) = $1 LIMIT 1`,
-        [searchContact]
+        [searchEmail]
       )
       userRow = rows[0] ?? null
     }
 
     if (!userRow) {
       return NextResponse.json(
-        { error: method === "whatsapp" ? "WhatsApp não encontrado. Verifique o número." : "Email não encontrado." },
+        { error: method === "whatsapp"
+            ? "WhatsApp não encontrado. Verifique o número ou fale com o suporte."
+            : "Email não encontrado." },
         { status: 404 }
       )
     }
 
-    // Gera OTP e salva no banco (expira em 10 min)
+    // Gera OTP e salva (expira em 10 min)
     const code    = generateOtp()
     const expires = new Date(Date.now() + 10 * 60 * 1000)
 
@@ -90,13 +99,15 @@ export async function POST(req: NextRequest) {
     if (method === "whatsapp" && userRow.phone) {
       await sendWhatsApp(normalizePhone(userRow.phone), code)
     } else if (method === "email" && userRow.email) {
-      // Email: por ora loga no console — integrar SMTP depois
       console.log(`[OTP EMAIL] Para: ${userRow.email} | Código: ${code}`)
     }
 
     return NextResponse.json({ ok: true, name: userRow.name })
-  } catch (err) {
+  } catch (err: any) {
     console.error("[otp/send]", err)
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+    return NextResponse.json(
+      { error: err.message?.includes("WhatsApp") ? err.message : "Erro interno" },
+      { status: 500 }
+    )
   }
 }
