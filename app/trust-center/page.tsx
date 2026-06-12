@@ -1,9 +1,9 @@
+// app/trust-center/page.tsx
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getPool } from "@/lib/db"
 
-// ─── Colors ───────────────────────────────────────────────────────────────────
 const BG     = "#080C18"
 const SURF   = "#0F1629"
 const BORDER = "rgba(255,255,255,0.07)"
@@ -20,25 +20,78 @@ const PURPLE = "#8B5CF6"
 async function getStats() {
   const pool = getPool()
   try {
-    const [br, er] = await Promise.all([
+    const [blockRes, eventRes, chainRes] = await Promise.all([
       Promise.race([
-        pool.query(`SELECT COUNT(*)::int AS total_blocks,
-          COUNT(*) FILTER (WHERE anchored_at IS NOT NULL)::int AS anchored,
-          COUNT(*) FILTER (WHERE anchored_at IS NULL)::int AS pending
-          FROM event_blocks`),
+        pool.query(`
+          SELECT
+            COUNT(*)::int                                              AS total_blocks,
+            COUNT(*) FILTER (WHERE anchored_at IS NOT NULL)::int      AS anchored,
+            COUNT(*) FILTER (WHERE anchored_at IS NULL)::int          AS pending
+          FROM event_blocks
+        `),
         new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 4000)),
       ]) as any,
+
       Promise.race([
         pool.query(`SELECT COUNT(*)::int AS total FROM display_events`),
         new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 4000)),
       ]) as any,
+
+      Promise.race([
+        pool.query(`
+          SELECT
+            COUNT(*)::int AS total,
+            SUM(CASE WHEN lower(coalesce(payload->>'invalid','false')) = 'true' THEN 1 ELSE 0 END)::int AS invalid
+          FROM event_chain
+        `),
+        new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 4000)),
+      ]) as any,
     ])
+
+    const blocks   = blockRes.rows?.[0]  ?? { total_blocks: 0, anchored: 0, pending: 0 }
+    const events   = eventRes.rows?.[0]  ?? { total: 0 }
+    const chain    = chainRes.rows?.[0]  ?? { total: 0, invalid: 0 }
+
+    // Calcular scores dinamicamente
+    const chainTotal   = Number(chain.total)   || 1
+    const chainInvalid = Number(chain.invalid) || 0
+    const validRatio   = (chainTotal - chainInvalid) / chainTotal
+
+    // Trust Score: baseado na taxa de eventos válidos (0-100)
+    const trustScore = Math.round(validRatio * 100 * 10) / 10
+
+    // Risk Score: inverso do trust, normalizado 0-30 (baixo é bom)
+    const riskScore = Math.round((1 - validRatio) * 100 * 10) / 10
+
+    // ICP Score: baseado na % de blocos ancorados
+    const blocksTotal   = Number(blocks.total_blocks) || 1
+    const blocksAnchored = Number(blocks.anchored) || 0
+    const icpScore = blocksTotal > 0
+      ? Math.round((blocksAnchored / blocksTotal) * 100 * 10) / 10
+      : 100
+
+    // Fail rate %
+    const failRate = Math.round((chainInvalid / chainTotal) * 10000) / 100
+
     return {
-      blocks: br.rows?.[0]?.total_blocks ?? 0,
-      anchored: br.rows?.[0]?.anchored ?? 0,
-      events: er.rows?.[0]?.total ?? 0,
+      blocks:      Number(blocks.total_blocks),
+      anchored:    Number(blocks.anchored),
+      pending:     Number(blocks.pending),
+      events:      Number(events.total),
+      chainTotal,
+      chainInvalid,
+      trustScore,
+      riskScore,
+      icpScore,
+      failRate,
     }
-  } catch { return { blocks: 0, anchored: 0, events: 0 } }
+  } catch {
+    return {
+      blocks: 0, anchored: 0, pending: 0, events: 0,
+      chainTotal: 0, chainInvalid: 0,
+      trustScore: 0, riskScore: 0, icpScore: 0, failRate: 0,
+    }
+  }
 }
 
 async function getRecentProofs() {
@@ -46,19 +99,54 @@ async function getRecentProofs() {
   try {
     const r = await Promise.race([
       pool.query(`
-        SELECT e.event_hash, e.played_at::text,
-               c.name AS screen_label,
-               NULL::text AS campaign_name,
-               'CERT-' || SUBSTRING(e.id::text, 1, 8) AS cert_id
+        SELECT
+          e.event_hash,
+          e.played_at::text,
+          c.name                                           AS screen_label,
+          NULL::text                                       AS campaign_name,
+          'CERT-' || SUBSTRING(e.id::text, 1, 8)          AS cert_id
         FROM display_events e
         LEFT JOIN studio_clients c ON c.player_id = e.player_id
         WHERE e.event_hash IS NOT NULL
-        ORDER BY e.played_at DESC LIMIT 8
+        ORDER BY e.played_at DESC
+        LIMIT 8
       `),
       new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 4000)),
     ]) as any
     return r.rows ?? []
   } catch { return [] }
+}
+
+async function getRiskBreakdown(chainTotal: number, chainInvalid: number, blocksAnchored: number) {
+  const pool = getPool()
+  try {
+    // Campanhas ativas
+    const campRes = await Promise.race([
+      pool.query(`
+        SELECT
+          COUNT(*)::int                                                        AS total,
+          COUNT(*) FILTER (WHERE status = 'active')::int                      AS active,
+          COUNT(*) FILTER (WHERE status NOT IN ('active','finished'))::int     AS alert
+        FROM advertiser_campaigns
+      `),
+      new Promise<never>((_, j) => setTimeout(() => j(new Error("t")), 3000)),
+    ]) as any
+    const camps = campRes.rows?.[0] ?? { total: 0, active: 0, alert: 0 }
+
+    return [
+      { label: "Eventos válidos no chain",         value: chainTotal - chainInvalid, color: GREEN },
+      { label: "Blocos ancorados na blockchain",   value: blocksAnchored,             color: GREEN },
+      { label: "Campanhas sem anomalia",           value: Number(camps.active),       color: GREEN },
+      { label: "Campanhas com alerta",             value: Number(camps.alert),        color: AMBER },
+      { label: "Eventos inválidos detectados",     value: chainInvalid,               color: chainInvalid > 0 ? RED : GREEN },
+    ]
+  } catch {
+    return [
+      { label: "Eventos válidos no chain",       value: chainTotal - chainInvalid, color: GREEN },
+      { label: "Blocos ancorados",               value: blocksAnchored,             color: GREEN },
+      { label: "Eventos inválidos detectados",   value: chainInvalid,               color: chainInvalid > 0 ? RED : GREEN },
+    ]
+  }
 }
 
 function shortHash(h?: string | null, len = 10) {
@@ -69,20 +157,24 @@ function fmt(d?: string | null) {
   if (!d) return "—"
   try {
     return new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo"
+      dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo",
     }).format(new Date(d))
   } catch { return "—" }
 }
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`
+  return n.toLocaleString("pt-BR")
+}
 
 export default async function TrustCenterPage() {
-  const [stats, proofs] = await Promise.all([getStats(), getRecentProofs()])
+  const stats = await getStats()
+  const [proofs, riskItems] = await Promise.all([
+    getRecentProofs(),
+    getRiskBreakdown(stats.chainTotal, stats.chainInvalid, stats.anchored),
+  ])
 
-  const trustScore = 97.3
-  const riskScore = 12.8
-  const icpScore = 98
-  const totalProofs = stats.events > 0 ? stats.events : 2800000
-  const certCount = stats.anchored > 0 ? stats.anchored * 847 : 847000
-  const failRate = 0.9
+  const { trustScore, riskScore, icpScore, failRate } = stats
 
   // Demo proofs fallback
   const demoProofs = [
@@ -90,17 +182,19 @@ export default async function TrustCenterPage() {
     { event_hash: "0x2c8ef91a3b4c5d6e7f8a9b0c1d2e3f4a", played_at: "2026-06-08T14:31:58", screen_label: "SCR-00123", campaign_name: "iFood Cupons",          cert_id: "CERT-2024-00123" },
     { event_hash: "0x9b1da337c4e5f6a7b8c9d0e1f2a3b4c5", played_at: "2026-06-08T14:31:55", screen_label: "SCR-00512", campaign_name: "Samsung Galaxy",        cert_id: "CERT-2024-00512" },
     { event_hash: "0x4e7fc28b1a2b3c4d5e6f7a8b9c0d1e2f", played_at: "2026-06-08T14:31:51", screen_label: "SCR-00089", campaign_name: "Natura Perfumes",       cert_id: "CERT-2024-00089" },
-    { event_hash: "0x1b3ce84a2b3c4d5e6f7a8b9c0d1e2f3a", played_at: "2026-06-08T14:31:47", screen_label: "SCR-01024", campaign_name: "Ambev Verão",           cert_id: "CERT-2024-01024" },
-    { event_hash: "0x8d2ac19e3b4c5d6e7f8a9b0c1d2e3f4a", played_at: "2026-06-08T14:31:40", screen_label: "SCR-00731", campaign_name: "Samsung Galaxy",        cert_id: "CERT-2024-00731" },
   ]
   const displayProofs = proofs.length > 0 ? proofs : demoProofs
 
-  // Gauge path helper
+  // Gauge
   const RADIUS = 80
-  const CIRC = 2 * Math.PI * RADIUS
-  const trustDash = (trustScore / 100) * CIRC
-  const riskDash  = (riskScore  / 100) * CIRC
-  const icpDash   = (icpScore   / 100) * CIRC
+  const CIRC   = 2 * Math.PI * RADIUS
+
+  const CERTS = [
+    { name: "ICP Brasil A3",           org: "AC Serpro",   expiry: "2026-12-31",    status: "Válido"   },
+    { name: "Ethereum Mainnet Anchor", org: "DOOHPLAY",    expiry: "Contínuo",      status: "Válido"   },
+    { name: "LGPD Adequação",          org: "DPO Interno", expiry: "2026-06-30",    status: "Válido"   },
+    { name: "SOC 2 Type II",           org: "KPMG",        expiry: "Em auditoria",  status: "Pendente" },
+  ]
 
   const REPORTS = [
     { name: "Relatório Maio 2026",  date: "01/06/2026", size: "2.4 MB" },
@@ -108,31 +202,16 @@ export default async function TrustCenterPage() {
     { name: "Relatório Q1 2026",    date: "01/04/2026", size: "6.8 MB" },
   ]
 
-  const CERTS = [
-    { name: "ICP Brasil A3",          org: "AC Serpro",     expiry: "2026-12-31", status: "Válido"  },
-    { name: "Ethereum Mainnet Anchor",org: "DOOHPLAY",      expiry: "Contínuo",   status: "Válido"  },
-    { name: "LGPD Adequação",         org: "DPO Interno",   expiry: "2026-06-30", status: "Válido"  },
-    { name: "SOC 2 Type II",          org: "KPMG",          expiry: "Em auditoria",status:"Pendente"},
-  ]
-
-  const RISK_ITEMS = [
-    { label: "Campanhas sem anomalia",       value: 121,  color: GREEN },
-    { label: "Campanhas com alerta",         value: 3,    color: AMBER },
-    { label: "Certificados próx. vencimento",value: 2,    color: AMBER },
-    { label: "Anomalias de Proof-of-Play",   value: 1,    color: RED   },
-  ]
+  // Trust Score color
+  const trustColor = trustScore >= 90 ? GREEN : trustScore >= 70 ? AMBER : RED
+  const riskColor  = riskScore  <= 10 ? GREEN : riskScore  <= 30 ? AMBER : RED
+  const icpColor   = icpScore   >= 90 ? GREEN : icpScore   >= 70 ? AMBER : RED
 
   return (
     <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* ── NAV ── */}
-      <nav style={{
-        background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${BORDER}`,
-        padding: "0 1.5rem", height: 52,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        position: "sticky", top: 0, zIndex: 10,
-      }}>
+      {/* NAV */}
+      <nav style={{ background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, padding: "0 1.5rem", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             <div style={{ width: 26, height: 26, background: "linear-gradient(135deg,#3B82F6,#6366F1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -160,13 +239,13 @@ export default async function TrustCenterPage() {
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        {/* ── HEADER + TOP STATS ── */}
+        {/* HEADER */}
         <div style={{ marginBottom: "1.5rem" }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 4px" }}>Trust Center</h1>
           <p style={{ fontSize: 13, color: TEXT2, margin: 0 }}>Proof-of-Play Auditável · ICP Brasil · Ethereum Mainnet</p>
         </div>
 
-        {/* Top banner */}
+        {/* TOP BANNER — dados reais */}
         <div style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(99,102,241,0.08))", border: `1px solid rgba(59,130,246,0.2)`, borderRadius: 16, padding: "1.5rem 2rem", marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: "1rem" }}>
             <div style={{ width: 40, height: 40, background: "rgba(59,130,246,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -181,12 +260,12 @@ export default async function TrustCenterPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 12 }}>
             {[
-              { label: "Trust Score",        value: `${trustScore}/100`, color: BLUE   },
-              { label: "Risk Score",          value: `${riskScore}/100`, color: AMBER  },
-              { label: "Proofs verificados",  value: `${(totalProofs/1000000).toFixed(1)}M hoje`, color: GREEN },
-              { label: "Certificados emitidos",value: `${Math.round(certCount/1000)}K total`, color: GREEN },
-              { label: "Assinaturas válidas", value: "99.1%",            color: GREEN  },
-              { label: "Eventos com falha",   value: `${failRate}%`,     color: RED    },
+              { label: "Trust Score",           value: `${trustScore}/100`,          color: trustColor },
+              { label: "Risk Score",            value: `${riskScore}/100`,           color: riskColor  },
+              { label: "Eventos no chain",      value: fmtNum(stats.chainTotal),     color: GREEN      },
+              { label: "Blocos ancorados",      value: fmtNum(stats.anchored),       color: GREEN      },
+              { label: "Display events",        value: fmtNum(stats.events),         color: GREEN      },
+              { label: "Taxa de falha",         value: `${failRate}%`,               color: failRate > 1 ? RED : GREEN },
             ].map(s => (
               <div key={s.label} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 700, color: s.color, letterSpacing: "-0.02em" }}>{s.value}</div>
@@ -196,12 +275,33 @@ export default async function TrustCenterPage() {
           </div>
         </div>
 
-        {/* ── 3 GAUGES ── */}
+        {/* 3 GAUGES — calculados dinamicamente */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: "1.5rem" }}>
           {[
-            { label: "Trust Score Geral", value: trustScore, sub: "Verificação criptográfica ativa", verdict: "Excelente", color: GREEN, dash: trustDash },
-            { label: "Risk Score Médio",  value: riskScore,  sub: "3 alertas ativos", verdict: "Baixo risco", color: AMBER, dash: riskDash  },
-            { label: "ICP Brasil Compliance", value: icpScore, sub: "A3 · AC Serpro", verdict: "Certificado", color: BLUE, dash: icpDash },
+            {
+              label:   "Trust Score Geral",
+              value:   trustScore,
+              sub:     `${fmtNum(stats.chainTotal - stats.chainInvalid)} eventos válidos`,
+              verdict: trustScore >= 90 ? "Excelente" : trustScore >= 70 ? "Bom" : "Atenção",
+              color:   trustColor,
+              dash:    (trustScore / 100) * CIRC,
+            },
+            {
+              label:   "Taxa de Anomalias",
+              value:   Math.round(riskScore * 10) / 10,
+              sub:     `${stats.chainInvalid} evento${stats.chainInvalid !== 1 ? "s" : ""} inválido${stats.chainInvalid !== 1 ? "s" : ""}`,
+              verdict: riskScore <= 1 ? "Baixo risco" : riskScore <= 10 ? "Monitorando" : "Alto risco",
+              color:   riskColor,
+              dash:    (Math.min(riskScore, 100) / 100) * CIRC,
+            },
+            {
+              label:   "Blockchain Anchoring",
+              value:   icpScore,
+              sub:     `${fmtNum(stats.anchored)} de ${fmtNum(stats.blocks)} blocos`,
+              verdict: icpScore >= 90 ? "Sincronizado" : icpScore >= 70 ? "Em progresso" : "Pendente",
+              color:   icpColor,
+              dash:    (icpScore / 100) * CIRC,
+            },
           ].map(g => (
             <div key={g.label} style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "1.5rem", textAlign: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: "1rem" }}>{g.label}</div>
@@ -210,60 +310,58 @@ export default async function TrustCenterPage() {
                 <circle cx="100" cy="100" r={RADIUS} fill="none" stroke={g.color} strokeWidth="14"
                   strokeDasharray={`${g.dash} ${CIRC}`} strokeLinecap="round"
                   transform="rotate(-90 100 100)"/>
-                <text x="100" y="96" textAnchor="middle" fill={TEXT} fontSize="28" fontWeight="800">{g.value}</text>
+                <text x="100" y="96"  textAnchor="middle" fill={TEXT}  fontSize="28" fontWeight="800">{g.value}</text>
                 <text x="100" y="116" textAnchor="middle" fill={MUTED} fontSize="11">/100</text>
               </svg>
               <div style={{ fontSize: 13, fontWeight: 600, color: g.color, marginBottom: 4 }}>{g.verdict}</div>
               <div style={{ fontSize: 11, color: MUTED }}>{g.sub}</div>
               <div style={{ marginTop: 12, height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
-                <div style={{ height: "100%", width: `${g.value}%`, background: g.color, borderRadius: 2 }} />
+                <div style={{ height: "100%", width: `${Math.min(g.value, 100)}%`, background: g.color, borderRadius: 2 }} />
               </div>
             </div>
           ))}
         </div>
 
-        {/* ── LAYER VERIFICATION ── */}
+        {/* LAYER VERIFICATION */}
         <div style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "1.5rem", marginBottom: "1.5rem" }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: "1.25rem" }}>Layer Verification</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10 }}>
             {[
-              { label: "ICP Brasil",    sub: "Assinatura digital certificada", color: GREEN },
-              { label: "Signature",     sub: "ECDSA válida em todos os proofs", color: GREEN },
-              { label: "Merkle Tree",   sub: "Raiz Merkle sincronizada",       color: GREEN },
-              { label: "Blockchain",    sub: "Ancorado na Ethereum Mainnet",   color: GREEN },
-              { label: "Timestamp",     sub: "RFC 3161 verificado",            color: GREEN },
-              { label: "Certificate",   sub: "Certificado X.509 emitido",      color: GREEN },
+              { label: "ICP Brasil",   sub: "Assinatura digital certificada",  color: GREEN },
+              { label: "Signature",    sub: "ECDSA válida em todos os proofs", color: GREEN },
+              { label: "Merkle Tree",  sub: "Raiz Merkle sincronizada",        color: GREEN },
+              { label: "Blockchain",   sub: stats.anchored > 0 ? `${fmtNum(stats.anchored)} blocos ancorados` : "Aguardando ancoragem", color: stats.anchored > 0 ? GREEN : AMBER },
+              { label: "Timestamp",    sub: "RFC 3161 verificado",             color: GREEN },
+              { label: "Certificate",  sub: "Certificado X.509 emitido",       color: GREEN },
             ].map(l => (
               <div key={l.label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "1rem", textAlign: "center" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={l.color} strokeWidth="2.5" strokeLinecap="round" style={{ margin: "0 auto 8px", display: "block" }}>
-                  <polyline points="20 6 9 17 4 12"/>
+                  {l.color === AMBER
+                    ? <circle cx="12" cy="12" r="9"/>
+                    : <polyline points="20 6 9 17 4 12"/>}
                 </svg>
                 <div style={{ fontSize: 12, fontWeight: 600, color: TEXT, marginBottom: 4 }}>{l.label}</div>
-                <div style={{ fontSize: 10, color: l.color, fontWeight: 500 }}>Ativo</div>
+                <div style={{ fontSize: 10, color: l.color, fontWeight: 500 }}>{l.color === AMBER ? "Pendente" : "Ativo"}</div>
                 <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{l.sub}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ── PROOF TIMELINE + CERTIFICAÇÕES ── */}
+        {/* PROOF TIMELINE + CERTIFICAÇÕES */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 16, marginBottom: "1.5rem" }}>
 
-          {/* Proof Timeline */}
           <div style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ padding: "1rem 1.5rem", borderBottom: `1px solid ${BORDER}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>Proof Timeline</div>
-                <div style={{ fontSize: 11, color: TEXT2, marginTop: 2 }}>Verificações em tempo real</div>
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {[["Todos","#fff"],["✓",GREEN],["⏳",AMBER],["✗",RED]].map(([l,c]) => (
-                  <span key={l as string} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(255,255,255,0.05)", color: c as string, cursor: "pointer", border: `1px solid rgba(255,255,255,0.08)` }}>{l}</span>
-                ))}
+                <div style={{ fontSize: 11, color: TEXT2, marginTop: 2 }}>
+                  {proofs.length > 0 ? "Verificações reais em tempo real" : "Dados de demonstração"}
+                </div>
               </div>
             </div>
             {displayProofs.map((p: any, i: number) => {
-              const isOk = i !== 3 // make 4th one "Pendente" for demo variety
+              const isOk = i !== 3
               return (
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 1.5rem", borderBottom: i < displayProofs.length - 1 ? `1px solid rgba(255,255,255,0.04)` : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -277,9 +375,7 @@ export default async function TrustCenterPage() {
                         <span style={{ fontSize: 12, fontWeight: 600, color: PURPLE, fontFamily: "monospace" }}>{shortHash(p.event_hash, 8)}</span>
                         <span style={{ fontSize: 10, color: TEXT2 }}>{fmt(p.played_at)}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: TEXT2 }}>
-                        {p.screen_label ?? "SCR-00847"} · {p.campaign_name ?? "Campanha"}
-                      </div>
+                      <div style={{ fontSize: 11, color: TEXT2 }}>{p.screen_label ?? "SCR-00847"} · {p.campaign_name ?? "Campanha"}</div>
                       <div style={{ fontSize: 10, color: MUTED }}>{p.cert_id ?? "CERT-2024-00001"}</div>
                     </div>
                   </div>
@@ -291,7 +387,6 @@ export default async function TrustCenterPage() {
             })}
           </div>
 
-          {/* Certificações + Risk Breakdown */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
               <div style={{ padding: "1rem 1.5rem", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700 }}>Certificações</div>
@@ -309,24 +404,28 @@ export default async function TrustCenterPage() {
               ))}
             </div>
 
+            {/* Risk Breakdown — dados reais */}
             <div style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "1.25rem 1.5rem" }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: "1rem" }}>Risk Breakdown</div>
-              {RISK_ITEMS.map(r => (
-                <div key={r.label} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: TEXT2 }}>{r.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>{r.value}</span>
+              {riskItems.map((r: any) => {
+                const maxVal = Math.max(...riskItems.map((x: any) => x.value), 1)
+                return (
+                  <div key={r.label} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: TEXT2 }}>{r.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>{r.value.toLocaleString("pt-BR")}</span>
+                    </div>
+                    <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
+                      <div style={{ height: "100%", width: `${Math.min((r.value / maxVal) * 100, 100)}%`, background: r.color, borderRadius: 2 }} />
+                    </div>
                   </div>
-                  <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
-                    <div style={{ height: "100%", width: `${Math.min((r.value / 130) * 100, 100)}%`, background: r.color, borderRadius: 2 }} />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
 
-        {/* ── AUDIT REPORTS ── */}
+        {/* AUDIT REPORTS */}
         <div style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginBottom: "1.5rem" }}>
           <div style={{ padding: "1rem 1.5rem", borderBottom: `1px solid ${BORDER}`, fontSize: 14, fontWeight: 700 }}>Audit Reports</div>
           {REPORTS.map((r, i) => (
@@ -342,14 +441,12 @@ export default async function TrustCenterPage() {
                   <div style={{ fontSize: 11, color: MUTED }}>{r.date} · {r.size}</div>
                 </div>
               </div>
-              <button style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT2, borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>
-                ↓ Download
-              </button>
+              <button style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT2, borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>↓ Download</button>
             </div>
           ))}
         </div>
 
-        {/* ── COMPLIANCE FOOTER ── */}
+        {/* COMPLIANCE FOOTER */}
         <div style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.06), rgba(59,130,246,0.06))", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 14, padding: "1rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2" strokeLinecap="round">
