@@ -1,6 +1,5 @@
 // app/admin/login/page.tsx
 "use client"
-
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -11,7 +10,6 @@ const BORDER  = "#1F2937"
 const TEXT    = "#F9FAFB"
 const TEXT2   = "#9CA3AF"
 const BLUE    = "#3B82F6"
-const PURPLE  = "#8B5CF6"
 const RED     = "#EF4444"
 
 export default function AdminLoginPage() {
@@ -24,9 +22,7 @@ export default function AdminLoginPage() {
   const handle = async () => {
     if (!email || !password) { setError("Preencha email e senha."); return }
     setLoading(true); setError("")
-    const res = await signIn("credentials", {
-      email, password, redirect: false,
-    })
+    const res = await signIn("credentials", { email, password, redirect: false })
     if (res?.ok) {
       router.push("/admin")
     } else {
@@ -39,10 +35,20 @@ export default function AdminLoginPage() {
     <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder { color: #4B5563; }`}</style>
       <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, padding: "2.5rem", width: 380 }}>
+
+        {/* ✅ Logo corrigido */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg," + BLUE + "," + PURPLE + ")", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>D</div>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg, #3B82F6, #6366F1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>DOOHPLAY</div>
+            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em" }}>
+              <span style={{ color: TEXT }}>DOOH</span><span style={{ color: BLUE }}>PLAY</span>
+            </div>
             <div style={{ fontSize: 11, color: TEXT2 }}>Painel Admin</div>
           </div>
         </div>
@@ -58,7 +64,6 @@ export default function AdminLoginPage() {
             style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 8, padding: "10px 14px", color: TEXT, fontSize: 14, outline: "none" }}
           />
         </div>
-
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Senha</label>
           <input
@@ -70,13 +75,11 @@ export default function AdminLoginPage() {
             style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 8, padding: "10px 14px", color: TEXT, fontSize: 14, outline: "none" }}
           />
         </div>
-
         {error && (
           <div style={{ fontSize: 12, color: RED, marginBottom: 16, background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "8px 12px" }}>
             ⚠️ {error}
           </div>
         )}
-
         <button
           onClick={handle}
           disabled={loading || !email || !password}
