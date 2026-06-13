@@ -43,9 +43,9 @@ export async function GET(
         END AS online,
         COALESCE(de.plays_today, 0)    AS plays_today,
         COALESCE(de.plays_month, 0)    AS plays_month,
-        COALESCE(cs.value, 0)::float   AS revenue_month,
-        cs.plan,
-        cs.status AS subscription_status
+        COALESCE(fs.value, 0)::float   AS revenue_month,
+        fs.plan,
+        fs.status AS subscription_status
       FROM agency_clients ac
       JOIN studio_clients sc ON sc.code = ac.client_code
       LEFT JOIN players p ON p.id = sc.player_id
@@ -56,7 +56,7 @@ export async function GET(
         FROM display_events
         GROUP BY player_id
       ) de ON de.player_id = sc.player_id
-      LEFT JOIN client_subscriptions cs ON cs.code = sc.code AND cs.status = 'ACTIVE'
+      LEFT JOIN financial_subscriptions fs ON fs.code = sc.code AND fs.status = 'ACTIVE'
       WHERE UPPER(ac.agency_code) = $1
       ORDER BY sc.name ASC
     `, [code])
