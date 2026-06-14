@@ -276,6 +276,17 @@ export default function LandingPage() {
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .hero-title { font-size: 28px !important; }
         }
+        @media (max-width: 768px) {
+          .explorer-table { overflow-x: auto !important; display: block !important; }
+          .explorer-row { min-width: 500px !important; }
+          .trust-badges { flex-wrap: wrap !important; gap: 8px !important; }
+          .trust-banner { flex-direction: column !important; gap: 16px !important; }
+          .nav-bar { padding: 0 1rem !important; }
+          .section-inner { padding-left: 1rem !important; padding-right: 1rem !important; }
+          .live-status { flex-direction: column !important; gap: 8px !important; }
+          .monetize-cards { gap: 8px !important; }
+          .hero-tags { display: none !important; }
+        }
       `}</style>
 
       {/* NAV */}
@@ -724,7 +735,7 @@ export default function LandingPage() {
               Verificar hash
             </Link>
           </div>
-          <div style={{ background: "#0A0F1E", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden", maxWidth: 900, margin: "0 auto" }}>
+          <div className="explorer-table" style={{ background: "#0A0F1E", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden", maxWidth: 900, margin: "0 auto" }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1.5fr 1fr", padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 11, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               <span>Hash</span><span>Tela</span><span>Bloco</span><span>Status</span>
             </div>
@@ -755,7 +766,7 @@ export default function LandingPage() {
 
       {/* TRUST BADGES BANNER */}
       <section style={{ background: "#080C18", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "1.25rem 2rem" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="trust-banner" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Proof-of-Play Auditável com ICP Brasil & Blockchain</div>
             <div style={{ fontSize: 13, color: "#64748B" }}>Cada exibição registrada de forma imutável. Trust Score em tempo real. LGPD compliance.</div>
