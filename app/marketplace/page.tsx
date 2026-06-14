@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getPool } from "@/lib/db"
+import MarketplaceFilters from "./filters"
 
 const BG     = "#080C18"
 const SURF   = "#0F1629"
@@ -194,81 +195,7 @@ export default async function MarketplacePage() {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        {/* FILTROS — client component via searchParams */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Filtrar por cidade</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            {["Todas", ...cities].map(city => (
-              <span key={city} className="filter-btn" style={{ fontSize: 12, padding: "5px 14px", borderRadius: 20, border: `1px solid ${BORDER}`, color: TEXT2, cursor: "pointer", background: "transparent" }}>
-                {city}
-              </span>
-            ))}
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Filtrar por segmento</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {["Todos", ...segments].map(seg => (
-              <span key={seg} className="filter-btn" style={{ fontSize: 12, padding: "5px 14px", borderRadius: 20, border: `1px solid ${BORDER}`, color: TEXT2, cursor: "pointer", background: "transparent" }}>
-                {segmentIcon(seg)} {seg}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* GRID DE TELAS */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16, marginBottom: 32 }}>
-          {screens.map(s => {
-            const isOnline = s.last_ping && (Date.now() - new Date(s.last_ping).getTime()) < 3 * 60 * 1000
-            return (
-              <div key={s.id} className="screen-card" style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden" }}>
-                {/* Preview header */}
-                <div style={{ background: "#0A0F1E", height: 100, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 32 }}>{segmentIcon(s.segment)}</div>
-                    <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{s.device_type ?? "TV"}</div>
-                  </div>
-                  {/* Status badge */}
-                  <div style={{ position: "absolute", top: 10, right: 12, display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, color: isOnline ? GREEN : MUTED }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: isOnline ? GREEN : MUTED, display: "inline-block", animation: isOnline ? "pulse 2s infinite" : "none" }}/>
-                    {isOnline ? "Online" : "Ativo"}
-                  </div>
-                  {/* Trust badge */}
-                  <div style={{ position: "absolute", top: 10, left: 12, fontSize: 10, fontWeight: 600, color: GREEN, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", padding: "2px 8px", borderRadius: 10 }}>
-                    ✓ Verificado
-                  </div>
-                </div>
-
-                {/* Info */}
-                <div style={{ padding: "14px 16px" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {s.client_name ?? s.name.replace("Tela ", "")}
-                  </div>
-                  <div style={{ fontSize: 12, color: TEXT2, marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    📍 {s.location ?? s.city}
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-                    {[
-                      { label: "Audiência",  value: audienceEstimate(s.total_plays) },
-                      { label: "CPM",        value: cpmEstimate(s.total_plays)       },
-                      { label: "Segmento",   value: s.segment                        },
-                    ].map(m => (
-                      <div key={m.label} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2 }}>{m.value}</div>
-                        <div style={{ fontSize: 9, color: MUTED }}>{m.label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* CTA — abre modal via URL param */}
-                  <a href={`/marketplace?anunciar=${s.id}&tela=${encodeURIComponent(s.client_name ?? s.name.replace("Tela ",""))}&cidade=${encodeURIComponent(s.city)}`}
-                    style={{ display: "block", width: "100%", background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center", textDecoration: "none" }}>
-                    Anunciar nessa tela →
-                  </a>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <MarketplaceFilters screens={screens} cities={cities} segments={segments} />
 
         {/* CTA FINAL */}
         <div style={{ background: `linear-gradient(135deg, rgba(59,130,246,0.1), rgba(99,102,241,0.1))`, border: `1px solid rgba(59,130,246,0.2)`, borderRadius: 16, padding: "2rem", textAlign: "center" }}>
