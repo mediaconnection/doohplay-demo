@@ -125,6 +125,17 @@ export default function PlanosPage() {
   return (
     <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Inter', system-ui, sans-serif" }}>
 
+      <style>{`
+        @media (max-width: 768px) {
+          .plans-grid { grid-template-columns: 1fr !important; }
+          .faq-grid { grid-template-columns: 1fr !important; }
+          .compare-table { font-size: 11px !important; }
+          .plans-title { font-size: 28px !important; }
+          .cta-btns { flex-direction: column !important; align-items: stretch !important; }
+          .cta-btns a { text-align: center !important; }
+        }
+      `}</style>
+
       {/* NAV */}
       <nav style={{ background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, padding: "0 1.5rem", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
@@ -146,7 +157,7 @@ export default function PlanosPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "4px 14px", fontSize: 12, color: BLUE, fontWeight: 500, marginBottom: 16 }}>
             💰 Planos e Preços
           </div>
-          <h1 style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em", marginBottom: 12 }}>
+          <h1 className="plans-title" style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em", marginBottom: 12 }}>
             Simples, transparente,<br />
             <span style={{ color: BLUE }}>sem surpresas.</span>
           </h1>
@@ -156,7 +167,7 @@ export default function PlanosPage() {
         </div>
 
         {/* PLANOS */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: "4rem" }}>
+        <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: "4rem" }}>
           {PLANS.map(plan => (
             <div key={plan.id} style={{
               background: SURF,
@@ -266,7 +277,7 @@ export default function PlanosPage() {
         {/* FAQ */}
         <div style={{ marginBottom: "4rem" }}>
           <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: "2rem", textAlign: "center" }}>Perguntas frequentes</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="faq-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {FAQ.map((item, i) => (
               <div key={i} style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "1.25rem 1.5rem" }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 8 }}>{item.q}</div>
@@ -280,7 +291,7 @@ export default function PlanosPage() {
         <div style={{ background: `linear-gradient(135deg, rgba(59,130,246,0.1), rgba(99,102,241,0.1))`, border: `1px solid rgba(59,130,246,0.2)`, borderRadius: 16, padding: "2.5rem", textAlign: "center" }}>
           <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Pronto para começar?</h2>
           <p style={{ fontSize: 15, color: TEXT2, marginBottom: 24 }}>Instale grátis em menos de 5 minutos. Sem contrato, sem cartão de crédito.</p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+          <div className="cta-btns" style={{ display: "flex", gap: 12, justifyContent: "center" }}>
             <Link href="/onboarding" style={{ background: BLUE, color: "#fff", borderRadius: 10, padding: "13px 28px", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
               Instalar uma Tela — Grátis →
             </Link>
