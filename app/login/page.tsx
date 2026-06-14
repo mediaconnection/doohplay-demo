@@ -14,13 +14,14 @@ const BLUE    = "#3B82F6"
 const GREEN   = "#10B981"
 const RED     = "#EF4444"
 
-type Role = "client" | "advertiser" | "admin"
+type Role = "client" | "advertiser" | "agency" | "admin"
 type Step = "role" | "contact" | "otp"
 type Method = "whatsapp" | "email"
 
 const ROLES = [
   { id: "client",     label: "Sou dono de tela",  icon: "📺", desc: "Acesse seu dashboard e relatórios"     },
   { id: "advertiser", label: "Sou anunciante",     icon: "📢", desc: "Gerencie campanhas e mídias"           },
+  { id: "agency",     label: "Sou agência",        icon: "🏢", desc: "Gerencie múltiplos clientes"           },
   { id: "admin",      label: "Administrador",      icon: "⚙️", desc: "Acesso ao painel administrativo"       },
 ]
 
@@ -148,7 +149,7 @@ export default function LoginPage() {
               ← Voltar
             </button>
             <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>
-              {role === "client" ? "Acesso — Dono de tela" : "Acesso — Anunciante"}
+              {role === "client" ? "Acesso — Dono de tela" : role === "agency" ? "Acesso — Agência" : "Acesso — Anunciante"}
             </div>
             <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>
               Enviaremos um código de verificação
