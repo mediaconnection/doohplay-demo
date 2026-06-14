@@ -607,6 +607,111 @@ function TabConfiguracoes({ code }: { code: string }) {
 }
 
 
+
+// ─── Calendário Semanal Visual ────────────────────────────────────────────────
+function CalendarioSemanal({ items }: { items: any[] }) {
+  const DAYS_PT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]
+  const DAYS_EN = ["sun","mon","tue","wed","thu","fri","sat"]
+  const HOURS   = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
+
+  const COLORS = [
+    { bg: "#EFF6FF", border: "#BFDBFE", text: "#1D4ED8" },
+    { bg: "#DCFCE7", border: "#86EFAC", text: "#15803D" },
+    { bg: "#FEF3C7", border: "#FDE68A", text: "#B45309" },
+    { bg: "#FEE2E2", border: "#FECACA", text: "#B91C1C" },
+    { bg: "#F3E8FF", border: "#DDD6FE", text: "#7C3AED" },
+    { bg: "#ECFDF5", border: "#A7F3D0", text: "#065F46" },
+    { bg: "#FFF7ED", border: "#FED7AA", text: "#C2410C" },
+    { bg: "#F0F9FF", border: "#BAE6FD", text: "#0369A1" },
+  ]
+
+  // Para cada mídia ativa com programação, calcula quais células cobrir
+  const activeItems = items.filter(i => i.active)
+
+  const getItemsForCell = (dayEN: string, hour: number) => {
+    return activeItems.filter(item => {
+      // Verifica dia
+      const dayOk = !item.days_of_week || item.days_of_week.length === 0 || item.days_of_week.includes(dayEN)
+      if (!dayOk) return false
+
+      // Verifica horário
+      if (item.start_time && item.end_time) {
+        const startH = parseInt(item.start_time.split(":")[0])
+        const endH   = parseInt(item.end_time.split(":")[0])
+        return hour >= startH && hour < endH
+      }
+
+      return true // sem restrição de horário
+    })
+  }
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+      <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>📅 Calendário Semanal</div>
+        <div style={{ fontSize: 11, color: C.text3 }}>Visualização de programação por dia e horário</div>
+      </div>
+
+      {/* Legenda */}
+      <div style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {activeItems.map((item, idx) => (
+          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: COLORS[idx % COLORS.length].bg, border: `1px solid ${COLORS[idx % COLORS.length].border}` }} />
+            <span style={{ fontSize: 11, color: C.text2 }}>{item.name}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+          <thead>
+            <tr>
+              <th style={{ width: 50, padding: "8px 6px", fontSize: 11, color: C.text3, fontWeight: 500, textAlign: "right", borderBottom: `1px solid ${C.border2}` }}>Hora</th>
+              {DAYS_PT.map(day => (
+                <th key={day} style={{ padding: "8px 4px", fontSize: 11, fontWeight: 600, color: C.text, textAlign: "center", borderBottom: `1px solid ${C.border2}` }}>{day}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {HOURS.map(hour => (
+              <tr key={hour}>
+                <td style={{ padding: "4px 6px", fontSize: 10, color: C.text3, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap", borderBottom: `1px solid ${C.border2}` }}>
+                  {hour}:00
+                </td>
+                {DAYS_EN.map(day => {
+                  const cellItems = getItemsForCell(day, hour)
+                  return (
+                    <td key={day} style={{ padding: 2, borderBottom: `1px solid ${C.border2}`, borderLeft: `1px solid ${C.border2}`, verticalAlign: "top", minWidth: 80 }}>
+                      {cellItems.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                          {cellItems.map((item, idx) => {
+                            const color = COLORS[activeItems.indexOf(item) % COLORS.length]
+                            return (
+                              <div key={item.id} style={{ background: color.bg, border: `1px solid ${color.border}`, borderRadius: 4, padding: "2px 4px", fontSize: 9, color: color.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {item.name}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ height: 20 }} />
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ padding: "10px 18px", borderTop: `1px solid ${C.border2}`, fontSize: 11, color: C.text3 }}>
+        💡 Mídias sem restrição de horário aparecem em todos os slots · Configure em "⚙ Programar"
+      </div>
+    </div>
+  )
+}
+
 // ─── Tab Playlist ─────────────────────────────────────────────────────────────
 const DAYS_PT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]
 const DAYS_EN = ["sun","mon","tue","wed","thu","fri","sat"]
@@ -718,6 +823,8 @@ function TabPlaylist({ code }: { code: string }) {
           <div style={{ fontSize: 11, color: C.text3 }}>por loop</div>
         </div>
       </div>
+
+      <CalendarioSemanal items={items} />
 
       {/* Lista */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
