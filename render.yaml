@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: doohplay-demo
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+
+crons:
+  - name: monthly-report
+    schedule: "0 12 1 * *"
+    buildCommand: npm install
+    startCommand: node -e "fetch('https://doohplay.com.br/api/cron/monthly-report', { method: 'POST', headers: { 'x-cron-secret': process.env.CRON_SECRET } }).then(r => r.json()).then(console.log).catch(console.error)"
