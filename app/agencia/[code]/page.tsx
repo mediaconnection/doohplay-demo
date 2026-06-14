@@ -100,7 +100,7 @@ export default function AgencyPage() {
             <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#3B82F6,#6366F1)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             </div>
-            <span style={{ fontSize: 15, fontWeight: 800 }}>DOOH<span style={{ color: BLUE }}>PLAY</span></span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: TEXT }}>DOOH<span style={{ color: BLUE }}>PLAY</span></span>
           </Link>
           <span style={{ color: MUTED }}>/</span>
           <span style={{ fontSize: 13, color: TEXT2 }}>Agência</span>
@@ -216,3 +216,5 @@ export default function AgencyPage() {
     </div>
   )
 }
+
+
