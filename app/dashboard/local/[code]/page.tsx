@@ -148,28 +148,25 @@ export default async function DashboardPage({
 
   // 4. Playlist
   let playlist: PlaylistItem[] = []
-  if (client.player_id) {
-    try {
-      const plRes = await pool.query(
-        `SELECT
-           pi.id::text,
-           COALESCE(pi.type, 'content') AS type,
-           COALESCE(pi.duration, 15)    AS duration,
-           COALESCE(pi.position, 0)     AS position,
-           m.url                        AS asset_url,
-           m.name
-         FROM playlist_items pi
-         LEFT JOIN playlists pl ON pl.id = pi.playlist_id
-         LEFT JOIN studio_clients sc ON sc.playlist_id = pl.id
-         LEFT JOIN media_files m ON m.id = pi.media_id
-         WHERE sc.code = $1
-         ORDER BY pi.position ASC
-         LIMIT 20`,
-        [code]
-      )
-      playlist = plRes.rows
-    } catch {}
-  }
+  try {
+    const plRes = await pool.query(
+      `SELECT
+         pi.id::text,
+         COALESCE(pi.type, 'content') AS type,
+         COALESCE(pi.duration, 15)    AS duration,
+         COALESCE(pi.position, 0)     AS position,
+         pi.asset_url,
+         NULL::text                   AS name
+       FROM playlist_items pi
+       JOIN playlists pl ON pl.id = pi.playlist_id
+       JOIN studio_clients sc ON sc.playlist_id = pl.id
+       WHERE sc.code = $1
+       ORDER BY pi.position ASC
+       LIMIT 20`,
+      [code]
+    )
+    playlist = plRes.rows
+  } catch {}
 
   // 5. Payments
   let payments: Payment[] = []
