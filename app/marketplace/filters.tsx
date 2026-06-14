@@ -167,6 +167,15 @@ export default function MarketplaceFilters({ screens, cities, segments }: {
 
   return (
     <div>
+      <style>{`
+        @media (max-width: 768px) {
+          .mkt-grid { grid-template-columns: 1fr !important; }
+          .mkt-card-metrics { grid-template-columns: 1fr 1fr !important; }
+        }
+        @media (min-width: 480px) and (max-width: 768px) {
+          .mkt-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
       {modal && <Modal screenId={modal.id} screenName={modal.name} screenCity={modal.city} onClose={closeModal} />}
 
       {/* Busca */}
@@ -234,7 +243,7 @@ export default function MarketplaceFilters({ screens, cities, segments }: {
           <div style={{ fontSize: 13 }}>Tente outros filtros ou limpe a busca</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16, marginBottom: 32 }}>
+        <div className="mkt-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16, marginBottom: 32 }}>
           {filtered.map(s => {
             const isOnline = s.last_ping && (Date.now() - new Date(s.last_ping).getTime()) < 3 * 60 * 1000
             return (
@@ -262,7 +271,7 @@ export default function MarketplaceFilters({ screens, cities, segments }: {
                   <div style={{ fontSize: 12, color: TEXT2, marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     📍 {s.location ?? s.city}
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                  <div className="mkt-card-metrics" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
                     {[
                       { label: "Audiência", value: audienceEstimate(s.total_plays) },
                       { label: "CPM",       value: cpmEstimate(s.total_plays) },
