@@ -146,22 +146,21 @@ export default async function DashboardPage({
     } catch {}
   }
 
-  // 4. Playlist
+  // 4. Playlist — lê de CampaignMedia (onde o upload realmente salva)
   let playlist: PlaylistItem[] = []
   try {
     const plRes = await pool.query(
       `SELECT
-         pi.id::text,
-         COALESCE(pi.type, 'content') AS type,
-         COALESCE(pi.duration, 15)    AS duration,
-         COALESCE(pi.position, 0)     AS position,
-         pi.asset_url,
-         NULL::text                   AS name
-       FROM playlist_items pi
-       JOIN playlists pl ON pl.id = pi.playlist_id
-       JOIN studio_clients sc ON sc.playlist_id = pl.id
-       WHERE sc.code = $1
-       ORDER BY pi.position ASC
+         cm.id::text,
+         cm.type,
+         15                AS duration,
+         ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int AS position,
+         cm.url            AS asset_url,
+         cm.name
+       FROM "CampaignMedia" cm
+       JOIN "Campaign" c ON c.id = cm."campaignId"
+       WHERE c."advertiserCode" = $1
+       ORDER BY cm."createdAt" ASC
        LIMIT 20`,
       [code]
     )
