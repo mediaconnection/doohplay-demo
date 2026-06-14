@@ -608,18 +608,15 @@ function TabConfiguracoes({ code }: { code: string }) {
 
 
 // ─── Tab Playlist ─────────────────────────────────────────────────────────────
-function TabPlaylist({ code }: { code: string }) {
-  const [items,   setItems]   = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving,  setSaving]  = useState(false)
-  const [success, setSuccess] = useState(false)
+const DAYS_PT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]
+const DAYS_EN = ["sun","mon","tue","wed","thu","fri","sat"]
 
-  const PERIODS = [
-    { id: "all",   label: "Dia todo",  icon: "🌅" },
-    { id: "manha", label: "Manhã",     icon: "☀️" },
-    { id: "tarde", label: "Tarde",     icon: "🌤" },
-    { id: "noite", label: "Noite",     icon: "🌙" },
-  ]
+function TabPlaylist({ code }: { code: string }) {
+  const [items,    setItems]    = useState<any[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+  const [success,  setSuccess]  = useState(false)
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/client/playlist/${code}`)
@@ -641,13 +638,33 @@ function TabPlaylist({ code }: { code: string }) {
     setItems(items.map((it, i) => i === idx ? { ...it, [field]: val } : it))
   }
 
+  const toggleDay = (idx: number, day: string) => {
+    const item = items[idx]
+    const days = item.days_of_week ?? []
+    const next = days.includes(day) ? days.filter((d: string) => d !== day) : [...days, day]
+    update(idx, "days_of_week", next.length === 0 ? null : next)
+  }
+
   const save = async () => {
     setSaving(true)
     try {
       await fetch(`/api/client/playlist/${code}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: items.map((it, i) => ({ id: it.id, position: i + 1, period: it.period, duration: it.duration, active: it.active })) }),
+        body: JSON.stringify({
+          items: items.map((it, i) => ({
+            id:           it.id,
+            position:     i + 1,
+            period:       it.period,
+            duration:     it.duration,
+            active:       it.active,
+            days_of_week: it.days_of_week ?? null,
+            start_time:   it.start_time   ?? null,
+            end_time:     it.end_time     ?? null,
+            start_date:   it.start_date   ?? null,
+            end_date:     it.end_date     ?? null,
+          }))
+        }),
       })
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
@@ -657,28 +674,31 @@ function TabPlaylist({ code }: { code: string }) {
 
   const totalLoop = items.filter(i => i.active).reduce((a, i) => a + (Number(i.duration) || 15), 0)
 
+  const scheduleLabel = (item: any) => {
+    const parts: string[] = []
+    if (item.days_of_week?.length > 0) {
+      parts.push(item.days_of_week.map((d: string) => DAYS_PT[DAYS_EN.indexOf(d)] ?? d).join(", "))
+    }
+    if (item.start_time && item.end_time) parts.push(`${item.start_time}–${item.end_time}`)
+    if (item.start_date && item.end_date) parts.push(`${item.start_date} a ${item.end_date}`)
+    return parts.length > 0 ? parts.join(" · ") : "Sempre"
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Carregando…</div>
 
   return (
     <div>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Programação da Playlist</div>
-          <div style={{ fontSize: 12, color: C.text3 }}>
-            {items.filter(i => i.active).length} mídias ativas · Loop de {totalLoop}s (~{Math.round(totalLoop/60)}min)
-          </div>
+          <div style={{ fontSize: 12, color: C.text3 }}>{items.filter(i => i.active).length} mídias ativas · Loop de {totalLoop}s (~{Math.round(totalLoop/60)}min)</div>
         </div>
         <button onClick={save} disabled={saving} style={{ background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
-          {saving ? "Salvando…" : "💾 Salvar ordem"}
+          {saving ? "Salvando…" : "💾 Salvar programação"}
         </button>
       </div>
 
-      {success && (
-        <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: C.green }}>
-          ✓ Playlist salva com sucesso!
-        </div>
-      )}
+      {success && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: C.green }}>✓ Programação salva com sucesso!</div>}
 
       {/* Loop visual */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
@@ -686,7 +706,7 @@ function TabPlaylist({ code }: { code: string }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>Loop de exibição</div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {items.filter(i => i.active).map((item, i) => (
+            {items.filter(i => i.active).map(item => (
               <div key={item.id} style={{ background: item.type === "video" ? C.blueLt : C.greenLt, border: `1px solid ${item.type === "video" ? C.blueBd : C.greenBd}`, borderRadius: 6, padding: "3px 8px", fontSize: 11, color: item.type === "video" ? C.blue : C.green, fontWeight: 500 }}>
                 {item.name} · {item.duration}s
               </div>
@@ -699,82 +719,119 @@ function TabPlaylist({ code }: { code: string }) {
         </div>
       </div>
 
-      {/* Lista de mídias */}
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border2}`, display: "grid", gridTemplateColumns: "40px 80px 1fr 120px 80px 80px 60px", gap: 8, fontSize: 11, fontWeight: 600, color: C.text3, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          <span>#</span>
-          <span>Preview</span>
-          <span>Nome</span>
-          <span>Período</span>
-          <span>Duração</span>
-          <span>Status</span>
-          <span>Ordem</span>
-        </div>
-
-        {items.length === 0 ? (
-          <div style={{ padding: "40px", textAlign: "center", color: C.text3 }}>
-            Nenhuma mídia na playlist. Faça upload na aba Conteúdo.
+      {/* Lista */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.length === 0 && (
+          <div style={{ padding: "40px", textAlign: "center", color: C.text3, background: C.white, borderRadius: 12, border: `1px solid ${C.border}` }}>
+            Nenhuma mídia. Faça upload na aba Conteúdo.
           </div>
-        ) : items.map((item, i) => (
-          <div key={item.id} style={{ display: "grid", gridTemplateColumns: "40px 80px 1fr 120px 80px 80px 60px", gap: 8, padding: "12px 18px", borderBottom: i < items.length - 1 ? `1px solid ${C.border2}` : "none", alignItems: "center", background: item.active ? C.white : C.gray50 }}>
-            {/* Posição */}
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.text3 }}>{i + 1}</span>
+        )}
+        {items.map((item, i) => (
+          <div key={item.id} style={{ background: C.white, border: `1px solid ${item.active ? C.border : C.border2}`, borderRadius: 12, overflow: "hidden", opacity: item.active ? 1 : 0.6 }}>
+            {/* Row principal */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, width: 20, flexShrink: 0 }}>{i + 1}</span>
 
-            {/* Preview */}
-            <div style={{ width: 72, height: 48, borderRadius: 6, overflow: "hidden", background: C.gray100, flexShrink: 0 }}>
-              {item.asset_url ? (
-                item.type === "video"
-                  ? <video src={item.asset_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
-                  : <img src={item.asset_url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                  {item.type === "video" ? "🎬" : "🖼"}
+              <div style={{ width: 60, height: 40, borderRadius: 6, overflow: "hidden", background: C.gray100, flexShrink: 0 }}>
+                {item.asset_url ? (
+                  item.type === "video"
+                    ? <video src={item.asset_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
+                    : <img src={item.asset_url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>{item.type === "video" ? "🎬" : "🖼"}</div>}
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: C.text3 }}>{scheduleLabel(item)} · {item.duration}s</div>
+              </div>
+
+              {/* Duração */}
+              <select value={item.duration ?? 15} onChange={e => update(i, "duration", Number(e.target.value))} style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 6px", color: C.text, background: C.white, outline: "none" }}>
+                {[5,10,15,20,30,60].map(d => <option key={d} value={d}>{d}s</option>)}
+              </select>
+
+              {/* Ativo */}
+              <div onClick={() => update(i, "active", !item.active)} style={{ cursor: "pointer", flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: item.active ? C.greenLt : C.gray100, color: item.active ? C.green : C.text3, border: `1px solid ${item.active ? C.greenBd : C.border}` }}>
+                  {item.active ? "Ativo" : "Pausado"}
+                </span>
+              </div>
+
+              {/* Reordenar */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
+                <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontSize: 11, cursor: i === 0 ? "default" : "pointer", opacity: i === 0 ? 0.4 : 1 }}>▲</button>
+                <button onClick={() => move(i, 1)} disabled={i === items.length-1} style={{ background: C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontSize: 11, cursor: i === items.length-1 ? "default" : "pointer", opacity: i === items.length-1 ? 0.4 : 1 }}>▼</button>
+              </div>
+
+              {/* Expandir programação */}
+              <button onClick={() => setExpanded(expanded === item.id ? null : item.id)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", color: C.text2, flexShrink: 0 }}>
+                {expanded === item.id ? "▲ Fechar" : "⚙ Programar"}
+              </button>
+            </div>
+
+            {/* Painel de programação avançada */}
+            {expanded === item.id && (
+              <div style={{ borderTop: `1px solid ${C.border2}`, padding: "16px", background: C.gray50 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+
+                  {/* Dias da semana */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dias da semana</div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {DAYS_EN.map((day, di) => {
+                        const active = item.days_of_week?.includes(day)
+                        return (
+                          <button key={day} onClick={() => toggleDay(i, day)} style={{ padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: active ? C.blue : C.white, color: active ? C.white : C.text2, border: `1px solid ${active ? C.blue : C.border}` }}>
+                            {DAYS_PT[di]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.text3, marginTop: 6 }}>Vazio = todos os dias</div>
+                  </div>
+
+                  {/* Horário */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Horário</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: C.text3, marginBottom: 4 }}>De</div>
+                        <input type="time" value={item.start_time ?? ""} onChange={e => update(i, "start_time", e.target.value || null)} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", fontSize: 12, color: C.text, background: C.white, outline: "none" }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: C.text3, marginTop: 16 }}>até</span>
+                      <div>
+                        <div style={{ fontSize: 10, color: C.text3, marginBottom: 4 }}>Até</div>
+                        <input type="time" value={item.end_time ?? ""} onChange={e => update(i, "end_time", e.target.value || null)} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", fontSize: 12, color: C.text, background: C.white, outline: "none" }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 10, color: C.text3, marginTop: 6 }}>Vazio = dia todo</div>
+                  </div>
+
+                  {/* Período */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Data (opcional)</div>
+                    <div>
+                      <div style={{ fontSize: 10, color: C.text3, marginBottom: 4 }}>De</div>
+                      <input type="date" value={item.start_date ?? ""} onChange={e => update(i, "start_date", e.target.value || null)} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", fontSize: 12, color: C.text, background: C.white, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+                    </div>
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ fontSize: 10, color: C.text3, marginBottom: 4 }}>Até</div>
+                      <input type="date" value={item.end_date ?? ""} onChange={e => update(i, "end_date", e.target.value || null)} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", fontSize: 12, color: C.text, background: C.white, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Nome */}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: item.active ? C.text : C.text3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
-              <div style={{ fontSize: 11, color: C.text3 }}>{item.type === "video" ? "Vídeo" : "Imagem"}</div>
-            </div>
-
-            {/* Período */}
-            <select
-              value={item.period ?? "all"}
-              onChange={e => update(i, "period", e.target.value)}
-              style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", color: C.text, background: C.white, cursor: "pointer", outline: "none" }}
-            >
-              {PERIODS.map(p => <option key={p.id} value={p.id}>{p.icon} {p.label}</option>)}
-            </select>
-
-            {/* Duração */}
-            <select
-              value={item.duration ?? 15}
-              onChange={e => update(i, "duration", Number(e.target.value))}
-              style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", color: C.text, background: C.white, cursor: "pointer", outline: "none" }}
-            >
-              {[5, 10, 15, 20, 30, 60].map(d => <option key={d} value={d}>{d}s</option>)}
-            </select>
-
-            {/* Ativo/Inativo */}
-            <div onClick={() => update(i, "active", !item.active)} style={{ cursor: "pointer" }}>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: item.active ? C.greenLt : C.gray100, color: item.active ? C.green : C.text3, border: `1px solid ${item.active ? C.greenBd : C.border}` }}>
-                {item.active ? "Ativo" : "Pausado"}
-              </span>
-            </div>
-
-            {/* Reordenar */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: i === 0 ? C.gray100 : C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 6px", fontSize: 12, cursor: i === 0 ? "default" : "pointer", color: i === 0 ? C.text3 : C.text }}>▲</button>
-              <button onClick={() => move(i, 1)} disabled={i === items.length - 1} style={{ background: i === items.length - 1 ? C.gray100 : C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 6px", fontSize: 12, cursor: i === items.length - 1 ? "default" : "pointer", color: i === items.length - 1 ? C.text3 : C.text }}>▼</button>
-            </div>
+                <button onClick={() => { update(i, "days_of_week", null); update(i, "start_time", null); update(i, "end_time", null); update(i, "start_date", null); update(i, "end_date", null) }} style={{ marginTop: 12, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 11, cursor: "pointer", color: C.text3 }}>
+                  🗑 Limpar programação
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
       <div style={{ marginTop: 12, fontSize: 12, color: C.text3, textAlign: "center" }}>
-        Use ▲▼ para reordenar · Clique em "Ativo" para pausar uma mídia · Clique em "Salvar ordem" para confirmar
+        Clique em "⚙ Programar" para definir dias, horários e datas de cada mídia
       </div>
     </div>
   )
