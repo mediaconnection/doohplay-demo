@@ -39,6 +39,7 @@ const NAV = [
   { id: "anuncios",  label: "Anúncios",     icon: "📢", badge: 3 },
   { id: "ganhos",    label: "Ganhos",       icon: "💵" },
   { id: "relatorios",label: "Relatórios",   icon: "📊" },
+  { id: "playlist",  label: "Playlist",     icon: "▶️" },
   { id: "config",    label: "Configurações",icon: "⚙" },
 ]
 
@@ -605,6 +606,180 @@ function TabConfiguracoes({ code }: { code: string }) {
   )
 }
 
+
+// ─── Tab Playlist ─────────────────────────────────────────────────────────────
+function TabPlaylist({ code }: { code: string }) {
+  const [items,   setItems]   = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const PERIODS = [
+    { id: "all",   label: "Dia todo",  icon: "🌅" },
+    { id: "manha", label: "Manhã",     icon: "☀️" },
+    { id: "tarde", label: "Tarde",     icon: "🌤" },
+    { id: "noite", label: "Noite",     icon: "🌙" },
+  ]
+
+  useEffect(() => {
+    fetch(`/api/client/playlist/${code}`)
+      .then(r => r.json())
+      .then(d => setItems(d.items ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [code])
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const newItems = [...items]
+    const swapIdx = idx + dir
+    if (swapIdx < 0 || swapIdx >= newItems.length) return
+    ;[newItems[idx], newItems[swapIdx]] = [newItems[swapIdx], newItems[idx]]
+    setItems(newItems.map((it, i) => ({ ...it, position: i + 1 })))
+  }
+
+  const update = (idx: number, field: string, val: any) => {
+    setItems(items.map((it, i) => i === idx ? { ...it, [field]: val } : it))
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await fetch(`/api/client/playlist/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: items.map((it, i) => ({ id: it.id, position: i + 1, period: it.period, duration: it.duration, active: it.active })) }),
+      })
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch {}
+    setSaving(false)
+  }
+
+  const totalLoop = items.filter(i => i.active).reduce((a, i) => a + (Number(i.duration) || 15), 0)
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Carregando…</div>
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Programação da Playlist</div>
+          <div style={{ fontSize: 12, color: C.text3 }}>
+            {items.filter(i => i.active).length} mídias ativas · Loop de {totalLoop}s (~{Math.round(totalLoop/60)}min)
+          </div>
+        </div>
+        <button onClick={save} disabled={saving} style={{ background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
+          {saving ? "Salvando…" : "💾 Salvar ordem"}
+        </button>
+      </div>
+
+      {success && (
+        <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: C.green }}>
+          ✓ Playlist salva com sucesso!
+        </div>
+      )}
+
+      {/* Loop visual */}
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 20 }}>🔄</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>Loop de exibição</div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {items.filter(i => i.active).map((item, i) => (
+              <div key={item.id} style={{ background: item.type === "video" ? C.blueLt : C.greenLt, border: `1px solid ${item.type === "video" ? C.blueBd : C.greenBd}`, borderRadius: 6, padding: "3px 8px", fontSize: 11, color: item.type === "video" ? C.blue : C.green, fontWeight: 500 }}>
+                {item.name} · {item.duration}s
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ textAlign: "center", flexShrink: 0 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.blue }}>{totalLoop}s</div>
+          <div style={{ fontSize: 11, color: C.text3 }}>por loop</div>
+        </div>
+      </div>
+
+      {/* Lista de mídias */}
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border2}`, display: "grid", gridTemplateColumns: "40px 80px 1fr 120px 80px 80px 60px", gap: 8, fontSize: 11, fontWeight: 600, color: C.text3, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <span>#</span>
+          <span>Preview</span>
+          <span>Nome</span>
+          <span>Período</span>
+          <span>Duração</span>
+          <span>Status</span>
+          <span>Ordem</span>
+        </div>
+
+        {items.length === 0 ? (
+          <div style={{ padding: "40px", textAlign: "center", color: C.text3 }}>
+            Nenhuma mídia na playlist. Faça upload na aba Conteúdo.
+          </div>
+        ) : items.map((item, i) => (
+          <div key={item.id} style={{ display: "grid", gridTemplateColumns: "40px 80px 1fr 120px 80px 80px 60px", gap: 8, padding: "12px 18px", borderBottom: i < items.length - 1 ? `1px solid ${C.border2}` : "none", alignItems: "center", background: item.active ? C.white : C.gray50 }}>
+            {/* Posição */}
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text3 }}>{i + 1}</span>
+
+            {/* Preview */}
+            <div style={{ width: 72, height: 48, borderRadius: 6, overflow: "hidden", background: C.gray100, flexShrink: 0 }}>
+              {item.asset_url ? (
+                item.type === "video"
+                  ? <video src={item.asset_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
+                  : <img src={item.asset_url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+                  {item.type === "video" ? "🎬" : "🖼"}
+                </div>
+              )}
+            </div>
+
+            {/* Nome */}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: item.active ? C.text : C.text3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
+              <div style={{ fontSize: 11, color: C.text3 }}>{item.type === "video" ? "Vídeo" : "Imagem"}</div>
+            </div>
+
+            {/* Período */}
+            <select
+              value={item.period ?? "all"}
+              onChange={e => update(i, "period", e.target.value)}
+              style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", color: C.text, background: C.white, cursor: "pointer", outline: "none" }}
+            >
+              {PERIODS.map(p => <option key={p.id} value={p.id}>{p.icon} {p.label}</option>)}
+            </select>
+
+            {/* Duração */}
+            <select
+              value={item.duration ?? 15}
+              onChange={e => update(i, "duration", Number(e.target.value))}
+              style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", color: C.text, background: C.white, cursor: "pointer", outline: "none" }}
+            >
+              {[5, 10, 15, 20, 30, 60].map(d => <option key={d} value={d}>{d}s</option>)}
+            </select>
+
+            {/* Ativo/Inativo */}
+            <div onClick={() => update(i, "active", !item.active)} style={{ cursor: "pointer" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: item.active ? C.greenLt : C.gray100, color: item.active ? C.green : C.text3, border: `1px solid ${item.active ? C.greenBd : C.border}` }}>
+                {item.active ? "Ativo" : "Pausado"}
+              </span>
+            </div>
+
+            {/* Reordenar */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: i === 0 ? C.gray100 : C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 6px", fontSize: 12, cursor: i === 0 ? "default" : "pointer", color: i === 0 ? C.text3 : C.text }}>▲</button>
+              <button onClick={() => move(i, 1)} disabled={i === items.length - 1} style={{ background: i === items.length - 1 ? C.gray100 : C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 6px", fontSize: 12, cursor: i === items.length - 1 ? "default" : "pointer", color: i === items.length - 1 ? C.text3 : C.text }}>▼</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 12, fontSize: 12, color: C.text3, textAlign: "center" }}>
+        Use ▲▼ para reordenar · Clique em "Ativo" para pausar uma mídia · Clique em "Salvar ordem" para confirmar
+      </div>
+    </div>
+  )
+}
+
 interface Props { client: ClientData; player: PlayerData | null; stats: StatsData; playlist: PlaylistItem[]; payments: Payment[] }
 
 export default function DashboardClient({ client, player, stats, playlist, payments }: Props) {
@@ -633,6 +808,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     anuncios:   <TabAnuncios stats={stats} payments={payments} code={client.code} onAddPromo={onAddPromo} />,
     ganhos:     <TabGanhos stats={stats} payments={payments} code={client.code} />,
     relatorios: <TabRelatorios stats={stats} payments={payments} code={client.code} />,
+    playlist:   <TabPlaylist code={client.code} />,
     config:     <TabConfiguracoes code={client.code} />,
   }
 
