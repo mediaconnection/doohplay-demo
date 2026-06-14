@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getPool } from "@/lib/db"
 import MarketplaceFilters from "./filters"
+import MarketplaceCTA from "./cta"
 
 const BG     = "#080C18"
 const SURF   = "#0F1629"
@@ -198,28 +199,15 @@ export default async function MarketplacePage() {
         <MarketplaceFilters screens={screens} cities={cities} segments={segments} />
 
         {/* CTA FINAL */}
-        <div style={{ background: `linear-gradient(135deg, rgba(59,130,246,0.1), rgba(99,102,241,0.1))`, border: `1px solid rgba(59,130,246,0.2)`, borderRadius: 16, padding: "2rem", textAlign: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Quer anunciar em toda a rede?</div>
-          <div style={{ fontSize: 14, color: TEXT2, marginBottom: 20 }}>Acesso a {summary.total}+ telas verificadas em {cities.length}+ cidades com Proof-of-Play auditável.</div>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <a href="/marketplace?demo=1" style={{ background: BLUE, color: "#fff", borderRadius: 10, padding: "12px 24px", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
-              Solicitar proposta →
-            </a>
-            <Link href="/trust-center" style={{ background: "transparent", color: TEXT2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 24px", fontSize: 14, textDecoration: "none" }}>
-              Ver Trust Center
-            </Link>
-          </div>
-        </div>
+        <MarketplaceCTA total={summary.total} cities={cities.length} />
       </div>
 
-      {/* MODAL — renderizado via client component abaixo */}
-      <MarketplaceModal />
     </main>
   )
 }
 
-// ─── Modal client-side via script inline ─────────────────────────────────────
-function MarketplaceModal() {
+// REMOVIDO - modal agora está em filters.tsx
+function _unused() {
   return (
     <>
       <div id="modal-overlay" style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, alignItems: "center", justifyContent: "center", padding: 24 }}>
