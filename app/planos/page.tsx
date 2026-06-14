@@ -1,6 +1,6 @@
 // app/planos/page.tsx
 import Link from "next/link"
-import DemoModalButton from "@/_components/DemoModalButton"
+import DemoModalButton from "../_components/DemoModalButton"
 
 const BG     = "#080C18"
 const SURF   = "#0F1629"
