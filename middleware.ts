@@ -70,5 +70,6 @@ export const config = {
     "/admin/((?!login).*)",
     "/dashboard/local/:path*",
     "/anunciante/:path*",
+    "/agencia/:path*",
   ],
 }
