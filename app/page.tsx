@@ -252,6 +252,31 @@ export default function LandingPage() {
     <main style={{ minHeight: "100vh", background: "#080C18", color: "#fff", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {showDemo && <ModalDemo onClose={() => setShowDemo(false)} />}
+      <style>{`
+        @media (max-width: 768px) {
+          .nav-links { display: none !important; }
+          .hero-grid { grid-template-columns: 1fr !important; gap: 2rem !important; padding: 3rem 1rem 2rem !important; }
+          .hero-title { font-size: 32px !important; }
+          .hero-btns { flex-direction: column !important; }
+          .hero-btns a, .hero-btns button { width: 100% !important; justify-content: center !important; }
+          .stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .features-grid { grid-template-columns: 1fr !important; }
+          .personas-grid { grid-template-columns: 1fr !important; }
+          .network-grid { grid-template-columns: 1fr !important; }
+          .monetize-grid { grid-template-columns: 1fr !important; }
+          .trust-grid { grid-template-columns: 1fr !important; }
+          .footer-grid { grid-template-columns: 1fr !important; }
+          .cta-btns { flex-direction: column !important; align-items: center !important; }
+          .hero-dashboard { display: none !important; }
+          .nav-cta-full { display: none !important; }
+          .nav-cta-short { display: flex !important; }
+          .section-pad { padding: 3rem 1rem !important; }
+        }
+        @media (max-width: 480px) {
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hero-title { font-size: 28px !important; }
+        }
+      `}</style>
 
       {/* NAV */}
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(8,12,24,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 2rem", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -261,7 +286,7 @@ export default function LandingPage() {
           </div>
           <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.03em" }}>DOOH<span style={{ color: "#3B82F6" }}>PLAY</span></span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {NAV_LINKS.map(link => (
             <Link key={link.label} href={link.href} style={{ padding: "6px 12px", fontSize: 13, color: "#94A3B8", textDecoration: "none", borderRadius: 8, transition: "color 0.2s" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
@@ -282,7 +307,7 @@ export default function LandingPage() {
       </nav>
 
       {/* HERO */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem 3rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
+      <section className="hero-grid" style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem 3rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
         <div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: "1.5rem" }}>
             {TAGS.map(tag => (
@@ -291,14 +316,14 @@ export default function LandingPage() {
               </span>
             ))}
           </div>
-          <h1 style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 20px" }}>
+          <h1 className="hero-title" style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 20px" }}>
             Transforme qualquer TV em uma plataforma de{" "}
             <span style={{ color: "#3B82F6" }}>conteúdo, publicidade e receita.</span>
           </h1>
           <p style={{ fontSize: 18, color: "#94A3B8", lineHeight: 1.6, margin: "0 0 2rem", maxWidth: 500 }}>
             Digital Signage, Retail Media e Proof-of-Play Auditável em uma única plataforma Enterprise.
           </p>
-          <div style={{ display: "flex", gap: 12, marginBottom: "2rem" }}>
+          <div className="hero-btns" style={{ display: "flex", gap: 12, marginBottom: "2rem" }}>
             <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               Instalar uma Tela →
@@ -319,7 +344,7 @@ export default function LandingPage() {
         </div>
 
         {/* Hero Dashboard */}
-        <div style={{ position: "relative" }}>
+        <div className="hero-dashboard" style={{ position: "relative" }}>
           <div style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "1.25rem", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
               <div style={{ display: "flex", gap: 6 }}>
@@ -393,7 +418,7 @@ export default function LandingPage() {
 
       {/* STATS */}
       <section style={{ background: "#0A0F1E", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "3rem 2rem" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 0 }}>
+        <div className="stats-grid" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 0 }}>
           {STATS.map((s, i) => (
             <div key={s.label} style={{ textAlign: "center", padding: "1rem", borderRight: i < STATS.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
               <div style={{ fontSize: 28, fontWeight: 900, color: s.color, letterSpacing: "-0.02em" }}>{s.value}</div>
@@ -432,7 +457,7 @@ export default function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Rede Nacional em Tempo Real</h2>
             <p style={{ fontSize: 16, color: "#64748B" }}>Monitoramento operacional de toda a infraestrutura DOOHPLAY.</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+          <div className="network-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
             <div style={{ background: "#080C18", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, padding: "2rem", minHeight: 340, position: "relative", overflow: "hidden" }}>
               <svg viewBox="0 0 600 500" style={{ width: "100%", height: 300, opacity: 0.15 }} fill="none">
                 <path d="M200,80 L280,60 L360,80 L420,140 L440,220 L420,300 L380,360 L320,400 L260,420 L200,400 L160,340 L140,260 L150,180 Z" stroke="#3B82F6" strokeWidth="1.5" fill="rgba(59,130,246,0.05)"/>
@@ -507,7 +532,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Monetize suas telas automaticamente.</h2>
           <p style={{ fontSize: 16, color: "#64748B" }}>Anunciantes nacionais chegam diretamente na sua tela.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="monetize-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[
               { icon: "📺", label: "Receita Local",    value: "R$847",   sub: "Por tela / mês",     color: "#10B981" },
@@ -566,7 +591,7 @@ export default function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Tecnologia de ponta. Simplicidade na prática.</h2>
             <p style={{ fontSize: 16, color: "#64748B" }}>Do pequeno comércio à agência global — tudo em uma plataforma.</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {FEATURES.map(f => (
               <div key={f.title} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1.5rem" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(59,130,246,0.3)")}
@@ -587,7 +612,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Como você pretende utilizar o DOOHPLAY?</h2>
           <p style={{ fontSize: 16, color: "#64748B" }}>Escolha a experiência ideal para seu negócio.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+        <div className="personas-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
           {PERSONAS.map(p => (
             <div key={p.tag} style={{ background: "#0F1629", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
@@ -633,7 +658,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Confiança verificável.</h2>
           <p style={{ fontSize: 16, color: "#64748B" }}>Trust Score em tempo real com auditoria pública e certificação ICP Brasil.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "center" }}>
+        <div className="trust-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "center" }}>
           <div style={{ textAlign: "center" }}>
             <svg width="200" height="200" viewBox="0 0 200 200">
               <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(59,130,246,0.1)" strokeWidth="16"/>
@@ -753,7 +778,7 @@ export default function LandingPage() {
         </div>
         <h2 style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 16px" }}>Comece a monetizar sua TV hoje.</h2>
         <p style={{ fontSize: 18, color: "#64748B", margin: "0 0 2rem" }}>Grátis para comércios locais. Sem contrato. Sem taxa de adesão.</p>
-        <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+        <div className="cta-btns" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
           <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 700, textDecoration: "none" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             Instalar uma Tela — Grátis →
@@ -772,7 +797,7 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer style={{ background: "#080C18", borderTop: "1px solid rgba(255,255,255,0.06)", padding: "3rem 2rem 2rem" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "2rem", marginBottom: "2rem" }}>
+          <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "2rem", marginBottom: "2rem" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #3B82F6, #6366F1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
