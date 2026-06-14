@@ -83,11 +83,13 @@ export async function POST(req: NextRequest) {
     const { contact, method, role } = await req.json()
 
     if (!contact?.trim()) return NextResponse.json({ error: "Contato obrigatório" }, { status: 400 })
-    if (!role || !["client", "advertiser"].includes(role)) {
+    if (!role || !["client", "advertiser", "agency"].includes(role)) {
       return NextResponse.json({ error: "Role inválido" }, { status: 400 })
     }
 
-    const table = role === "client" ? "studio_clients" : "advertisers"
+    const table = role === "client" ? "studio_clients"
+                 : role === "agency"     ? "agencies"
+                 : "advertisers"
 
     let userRow: any = null
 
