@@ -70,6 +70,8 @@ export async function POST(req: NextRequest) {
     const userCode = tokenRow.user_code
     const redirect = role === "client"
       ? `/dashboard/local/${userCode}`
+      : role === "agency"
+      ? `/agencia/${userCode}`
       : `/anunciante/${userCode}`
 
     // Seta cookie de sessão
