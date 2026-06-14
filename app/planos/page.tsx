@@ -1,5 +1,6 @@
 // app/planos/page.tsx
 import Link from "next/link"
+import DemoModalButton from "@/_components/DemoModalButton"
 
 const BG     = "#080C18"
 const SURF   = "#0F1629"
@@ -195,15 +196,27 @@ export default function PlanosPage() {
                 ))}
               </div>
 
-              <Link href={plan.ctaHref} style={{
-                display: "block", textAlign: "center", padding: "13px",
-                borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none",
-                background: plan.ctaSecondary ? "transparent" : plan.color,
-                color: plan.ctaSecondary ? plan.color : "#fff",
-                border: `1px solid ${plan.color}`,
-              }}>
-                {plan.cta} →
-              </Link>
+              {plan.ctaSecondary ? (
+                <DemoModalButton
+                  label={plan.cta + " →"}
+                  segment="Enterprise"
+                  style={{
+                    display: "block", width: "100%", textAlign: "center", padding: "13px",
+                    borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                    background: "transparent", color: plan.color,
+                    border: `1px solid ${plan.color}`,
+                  }}
+                />
+              ) : (
+                <Link href={plan.ctaHref} style={{
+                  display: "block", textAlign: "center", padding: "13px",
+                  borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none",
+                  background: plan.color, color: "#fff",
+                  border: `1px solid ${plan.color}`,
+                }}>
+                  {plan.cta} →
+                </Link>
+              )}
             </div>
           ))}
         </div>
