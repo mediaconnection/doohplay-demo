@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 const EVOLUTION_API_URL  = process.env.EVOLUTION_API_URL!
 const EVOLUTION_API_KEY  = process.env.EVOLUTION_API_KEY!
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE!
-const CRON_SECRET        = process.env.CRON_SECRET!
+// CRON_SECRET lido dinamicamente via process.env
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "")
@@ -40,9 +40,10 @@ function monthName(date: Date): string {
 
 export async function POST(req: NextRequest) {
   // Verificar secret
-  const secret = req.headers.get("x-cron-secret")
-  if (CRON_SECRET && secret !== CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const secret = req.headers.get("x-cron-secret") || req.nextUrl?.searchParams?.get("secret") || new URL(req.url).searchParams.get("secret")
+  const expectedSecret = process.env.CRON_SECRET
+  if (expectedSecret && secret !== expectedSecret) {
+    return NextResponse.json({ error: "Unauthorized", expected_set: !!expectedSecret, received: !!secret }, { status: 401 })
   }
 
   const pool = getPool()
@@ -155,8 +156,9 @@ export async function POST(req: NextRequest) {
 // Permite testar via GET no admin
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret")
-  if (CRON_SECRET && secret !== CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const expectedSecret = process.env.CRON_SECRET
+  if (expectedSecret && secret !== expectedSecret) {
+    return NextResponse.json({ error: "Unauthorized", expected_set: !!expectedSecret, received: secret }, { status: 401 })
   }
   return POST(req)
 }
