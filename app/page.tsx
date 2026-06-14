@@ -253,12 +253,16 @@ export default function LandingPage() {
 
       {showDemo && <ModalDemo onClose={() => setShowDemo(false)} />}
       <style>{`
+        html, body { overflow-x: hidden; }
         @media (max-width: 768px) {
           .nav-links { display: none !important; }
+          .nav-bar { padding: 0 1rem !important; gap: 8px !important; }
           .hero-grid { grid-template-columns: 1fr !important; gap: 2rem !important; padding: 3rem 1rem 2rem !important; }
-          .hero-title { font-size: 32px !important; }
+          .hero-title { font-size: 28px !important; line-height: 1.15 !important; }
           .hero-btns { flex-direction: column !important; }
-          .hero-btns a, .hero-btns button { width: 100% !important; justify-content: center !important; }
+          .hero-btns a, .hero-btns button { width: 100% !important; justify-content: center !important; box-sizing: border-box !important; }
+          .hero-tags { display: none !important; }
+          .hero-dashboard { display: none !important; }
           .stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .features-grid { grid-template-columns: 1fr !important; }
           .personas-grid { grid-template-columns: 1fr !important; }
@@ -266,26 +270,16 @@ export default function LandingPage() {
           .monetize-grid { grid-template-columns: 1fr !important; }
           .trust-grid { grid-template-columns: 1fr !important; }
           .footer-grid { grid-template-columns: 1fr !important; }
-          .cta-btns { flex-direction: column !important; align-items: center !important; }
-          .hero-dashboard { display: none !important; }
-          .nav-cta-full { display: none !important; }
-          .nav-cta-short { display: flex !important; }
+          .cta-btns { flex-direction: column !important; align-items: stretch !important; }
+          .cta-btns a, .cta-btns button { text-align: center !important; }
+          .explorer-table { overflow-x: auto !important; }
+          .explorer-table > div { min-width: 520px !important; }
+          .trust-banner { flex-direction: column !important; gap: 12px !important; }
+          .trust-badges { flex-wrap: wrap !important; }
           .section-pad { padding: 3rem 1rem !important; }
         }
         @media (max-width: 480px) {
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .hero-title { font-size: 28px !important; }
-        }
-        @media (max-width: 768px) {
-          .explorer-table { overflow-x: auto !important; display: block !important; }
-          .explorer-row { min-width: 500px !important; }
-          .trust-badges { flex-wrap: wrap !important; gap: 8px !important; }
-          .trust-banner { flex-direction: column !important; gap: 16px !important; }
-          .nav-bar { padding: 0 1rem !important; }
-          .section-inner { padding-left: 1rem !important; padding-right: 1rem !important; }
-          .live-status { flex-direction: column !important; gap: 8px !important; }
-          .monetize-cards { gap: 8px !important; }
-          .hero-tags { display: none !important; }
         }
       `}</style>
 
@@ -320,7 +314,7 @@ export default function LandingPage() {
       {/* HERO */}
       <section className="hero-grid" style={{ maxWidth: 1200, margin: "0 auto", padding: "5rem 2rem 3rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
         <div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: "1.5rem" }}>
+          <div className="hero-tags" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: "1.5rem" }}>
             {TAGS.map(tag => (
               <span key={tag} style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#3B82F6", fontWeight: 500 }}>
                 ✓ {tag}
