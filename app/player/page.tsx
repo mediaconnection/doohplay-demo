@@ -1,277 +1,265 @@
-"use client"
+// app/player/page.tsx
+// Página exibida na TV via Fire Stick — modo kiosk, sem nav, fullscreen
+export const dynamic = "force-dynamic"
 
-import { useEffect, useState, useRef, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { getPool } from "@/lib/db"
 
-const BG    = "#000000"
-const TEXT  = "#FFFFFF"
-const BLUE  = "#3B82F6"
-const GREEN = "#10B981"
+async function getPlayerData(code: string) {
+  const pool = getPool()
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        sc.name,
+        sc.business_type,
+        sc.primary_color,
+        cm.id,
+        cm.name    AS media_name,
+        cm.type    AS media_type,
+        cm.url     AS media_url,
+        COALESCE(ps.duration, 15) AS duration,
+        COALESCE(ps.active, true) AS active,
+        COALESCE(ps.position, 0)  AS position
+      FROM studio_clients sc
+      LEFT JOIN "Campaign" c ON c."advertiserCode" = sc.code
+      LEFT JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
+      LEFT JOIN playlist_schedule ps ON ps.media_id = cm.id AND ps.client_code = sc.code
+      WHERE sc.code = $1
+        AND sc.active = true
+      ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
+    `, [code.toUpperCase()])
 
-type Slide = {
-  id: string
-  type: "image" | "video" | "text"
-  url?: string
-  title?: string
-  subtitle?: string
-  duration: number
-  bg?: string
-}
-
-const DEFAULT_SLIDES: Slide[] = [
-  {
-    id: "d1", type: "text",
-    title: "Bem-vindo ao DOOHPLAY",
-    subtitle: "Publicidade verificada em blockchain",
-    duration: 8000, bg: "#0B1020",
-  },
-  {
-    id: "d2", type: "text",
-    title: "Sua tela está ativa",
-    subtitle: "Anúncios serão exibidos em breve",
-    duration: 8000, bg: "#111827",
-  },
-]
-
-function useOrientation() {
-  const [portrait, setPortrait] = useState(false)
-  useEffect(() => {
-    const check = () => setPortrait(window.innerHeight > window.innerWidth)
-    check()
-    window.addEventListener("resize", check)
-    return () => window.removeEventListener("resize", check)
-  }, [])
-  return portrait
-}
-
-function Clock({ portrait }: { portrait: boolean }) {
-  const [time, setTime] = useState("")
-  const [date, setDate] = useState("")
-
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date()
-      setTime(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))
-      setDate(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }))
+    return {
+      name: rows[0]?.name ?? "DOOHPLAY",
+      business_type: rows[0]?.business_type ?? "",
+      primary_color: rows[0]?.primary_color ?? "#3B82F6",
+      medias: rows.filter(r => r.media_url && r.active).map(r => ({
+        id: r.id,
+        name: r.media_name,
+        type: r.media_type,
+        url: r.media_url,
+        duration: Number(r.duration) || 15,
+      }))
     }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  return (
-    <div style={{ textAlign: portrait ? "center" : "right" }}>
-      <div style={{ fontSize: portrait ? 36 : 28, fontWeight: 700, color: TEXT, fontVariantNumeric: "tabular-nums" }}>{time}</div>
-      <div style={{ fontSize: portrait ? 14 : 12, color: "#9CA3AF", marginTop: 2, textTransform: "capitalize" }}>{date}</div>
-    </div>
-  )
-}
-
-function PlayerInner() {
-  const params   = useSearchParams()
-  const code     = params.get("screen") ?? params.get("code") ?? ""
-  const portrait = useOrientation()
-
-  const [slides, setSlides]         = useState<Slide[]>(DEFAULT_SLIDES)
-  const [current, setCurrent]       = useState(0)
-  const [loaded, setLoaded]         = useState(false)
-  const [online, setOnline]         = useState(true)
-  const [clientName, setClientName] = useState("")
-  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    if (!code) return
-    fetch(`/api/player/playlist?code=${code}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.slides?.length > 0) setSlides(d.slides)
-        if (d.name) setClientName(d.name)
-        setLoaded(true)
-      })
-      .catch(() => setLoaded(true))
-  }, [code])
-
-  useEffect(() => {
-    if (!code) return
-    const ping = () => {
-      fetch("/api/player/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      })
-        .then(() => setOnline(true))
-        .catch(() => setOnline(false))
-    }
-    ping()
-    heartbeatRef.current = setInterval(ping, 30000)
-    return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current) }
-  }, [code])
-
-  useEffect(() => {
-    if (!loaded || slides.length === 0) return
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      setCurrent(c => (c + 1) % slides.length)
-    }, slides[current]?.duration ?? 8000)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [current, slides, loaded])
-
-  const handleClick = () => {
-    const el = document.documentElement
-    if (!document.fullscreenElement) el.requestFullscreen?.()
+  } catch {
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] }
   }
+}
 
-  const slide = slides[current]
+export default async function PlayerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ screen?: string }>
+}) {
+  const { screen } = await searchParams
+  const code = screen?.toUpperCase() ?? ""
+  const data = await getPlayerData(code)
 
-  // Tamanhos adaptativos
-  const titleSize    = portrait ? "clamp(28px, 6vw, 72px)"  : "clamp(24px, 4vw, 64px)"
-  const subtitleSize = portrait ? "clamp(16px, 3vw, 36px)"  : "clamp(14px, 2vw, 28px)"
-  const logoSize     = portrait ? 64 : 48
-  const logoFont     = portrait ? 28 : 22
-  const logoText     = portrait ? 22 : 18
-  const hudPad       = portrait ? "20px 32px" : "16px 32px"
+  const mediasJson = JSON.stringify(data.medias)
 
   return (
-    <div
-      onClick={handleClick}
-      style={{
-        width: "100vw", height: "100vh", overflow: "hidden",
-        background: BG, cursor: "none", position: "relative",
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-    >
-      {/* Slide principal */}
-      {slide.type === "text" && (
-        <div style={{
-          width: "100%", height: "100%",
-          background: slide.bg ?? BG,
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          padding: portrait ? "10% 8%" : "10%",
-          textAlign: "center",
-        }}>
-          <div style={{ marginBottom: portrait ? 40 : 32, display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: logoSize, height: logoSize, borderRadius: 12, background: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: logoFont, fontWeight: 800, color: TEXT, flexShrink: 0 }}>D</div>
-            <span style={{ fontSize: logoText, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em" }}>DOOHPLAY</span>
-          </div>
-          {clientName && (
-            <div style={{ fontSize: portrait ? 20 : 16, color: "#9CA3AF", marginBottom: portrait ? 28 : 20, fontWeight: 500 }}>{clientName}</div>
-          )}
-          <div style={{ fontSize: titleSize, fontWeight: 800, color: TEXT, lineHeight: 1.15, marginBottom: portrait ? 24 : 16, maxWidth: portrait ? "90%" : "80%" }}>
-            {slide.title}
-          </div>
-          <div style={{ fontSize: subtitleSize, color: "#9CA3AF", maxWidth: portrait ? "85%" : "70%" }}>{slide.subtitle}</div>
-        </div>
-      )}
+    <html lang="pt-BR">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>DOOHPLAY Player</title>
+        <style>{`
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body {
+            width: 100vw; height: 100vh;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, sans-serif;
+          }
+          #player {
+            width: 100vw; height: 100vh;
+            position: relative;
+            background: #0F172A;
+          }
+          .slide {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+          }
+          .slide.active { display: flex; }
+          .slide img, .slide video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+          /* Fallback quando não há mídia */
+          .default-screen {
+            width: 100vw; height: 100vh;
+            background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #F1F5F9;
+          }
+          .logo-icon {
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, #3B82F6, #6366F1);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 24px;
+          }
+          .logo-text {
+            font-size: 48px; font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+          }
+          .logo-text span { color: #3B82F6; }
+          .tagline { font-size: 18px; color: #64748B; }
+          .screen-code {
+            margin-top: 32px;
+            font-size: 14px; color: #374151;
+            background: #1E293B;
+            padding: 8px 20px; border-radius: 20px;
+          }
+          /* Barra de progresso */
+          #progress-bar {
+            position: fixed;
+            bottom: 0; left: 0;
+            height: 3px;
+            background: #3B82F6;
+            width: 0%;
+            transition: width linear;
+            z-index: 100;
+          }
+          /* Heartbeat indicator */
+          #heartbeat {
+            position: fixed;
+            top: 12px; right: 12px;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #10B981;
+            opacity: 0;
+            z-index: 100;
+          }
+        `}</style>
+      </head>
+      <body>
+        <div id="player">
+          <div id="progress-bar"></div>
+          <div id="heartbeat"></div>
 
-      {slide.type === "image" && slide.url && (
-        <img
-          src={slide.url}
-          alt=""
-          style={{ width: "100%", height: "100%", objectFit: portrait ? "contain" : "cover", background: BG }}
-        />
-      )}
-
-      {slide.type === "video" && slide.url && (
-        <video
-          key={slide.url}
-          src={slide.url}
-          autoPlay muted playsInline
-          style={{ width: "100%", height: "100%", objectFit: portrait ? "contain" : "cover" }}
-          onEnded={() => setCurrent(c => (c + 1) % slides.length)}
-        />
-      )}
-
-      {/* HUD */}
-      {portrait ? (
-        // Portrait HUD — dividido em topo e base
-        <>
-          <div style={{
-            position: "absolute", top: 0, left: 0, right: 0,
-            padding: "20px 28px",
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GREEN : "#EF4444" }} />
-              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>
-                DOOHPLAY {code && `· ${code.toUpperCase()}`}
-              </span>
+          {data.medias.length === 0 ? (
+            <div class="default-screen">
+              <div class="logo-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+              <div class="logo-text">DOOH<span>PLAY</span></div>
+              <div class="tagline">{data.name}</div>
+              <div class="screen-code">📺 {code} — Aguardando conteúdo</div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {slides.map((_, i) => (
-                <div key={i} style={{
-                  width: i === current ? 24 : 8, height: 8,
-                  borderRadius: 4,
-                  background: i === current ? BLUE : "rgba(255,255,255,0.3)",
-                  transition: "all .3s",
-                }} />
+          ) : (
+            <div id="slides">
+              {data.medias.map((m, i) => (
+                <div key={m.id} className={`slide${i === 0 ? " active" : ""}`} data-duration={m.duration} data-id={m.id}>
+                  {m.type === "video" ? (
+                    <video src={m.url} autoPlay muted playsInline loop={false} />
+                  ) : (
+                    <img src={m.url} alt={m.name} />
+                  )}
+                </div>
               ))}
             </div>
-          </div>
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0,
-            padding: "20px 28px",
-            background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
-            display: "flex", justifyContent: "center",
-          }}>
-            <Clock portrait={portrait} />
-          </div>
-        </>
-      ) : (
-        // Landscape HUD — barra inferior
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
-          padding: hudPad,
-          background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
-          display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GREEN : "#EF4444" }} />
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-              DOOHPLAY {code && `· ${code.toUpperCase()}`}
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {slides.map((_, i) => (
-              <div key={i} style={{
-                width: i === current ? 20 : 6, height: 6,
-                borderRadius: 3,
-                background: i === current ? BLUE : "rgba(255,255,255,0.3)",
-                transition: "all .3s",
-              }} />
-            ))}
-          </div>
-          <Clock portrait={portrait} />
+          )}
         </div>
-      )}
 
-      {/* Sem código */}
-      {!code && (
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "rgba(0,0,0,0.92)",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center", gap: 16,
-          padding: 40, textAlign: "center",
-        }}>
-          <div style={{ fontSize: portrait ? 56 : 48, fontWeight: 800, color: TEXT, marginBottom: 8 }}>DOOHPLAY</div>
-          <div style={{ fontSize: portrait ? 20 : 18, color: "#9CA3AF", marginBottom: 24 }}>Tela não configurada</div>
-          <div style={{ background: "#1F2937", borderRadius: 12, padding: "20px 32px" }}>
-            <div style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Acesse no seu celular:</div>
-            <div style={{ fontSize: portrait ? 24 : 20, fontWeight: 700, color: BLUE }}>doohplay.com.br/install</div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var medias   = ${mediasJson};
+            var code     = ${JSON.stringify(code)};
+            var current  = 0;
+            var timer    = null;
+            var progress = document.getElementById('progress-bar');
+            var hb       = document.getElementById('heartbeat');
 
-export default function PlayerPage() {
-  return (
-    <Suspense fallback={<div style={{ width: "100vw", height: "100vh", background: "#000" }} />}>
-      <PlayerInner />
-    </Suspense>
+            // Sem mídia — apenas heartbeat
+            if (!medias.length) {
+              sendHeartbeat();
+              setInterval(sendHeartbeat, 30000);
+              return;
+            }
+
+            function showSlide(idx) {
+              var slides = document.querySelectorAll('.slide');
+              slides.forEach(function(s) { s.classList.remove('active'); });
+              var slide = slides[idx];
+              if (!slide) return;
+              slide.classList.add('active');
+
+              var dur = parseInt(slide.getAttribute('data-duration') || '15') * 1000;
+              var mediaId = slide.getAttribute('data-id');
+
+              // Vídeo
+              var video = slide.querySelector('video');
+              if (video) {
+                video.currentTime = 0;
+                video.play().catch(function(){});
+                video.onended = function() { nextSlide(); };
+                dur = Math.max(dur, (video.duration || 15) * 1000);
+              }
+
+              // Barra de progresso
+              if (progress) {
+                progress.style.transition = 'none';
+                progress.style.width = '0%';
+                setTimeout(function() {
+                  progress.style.transition = 'width ' + dur + 'ms linear';
+                  progress.style.width = '100%';
+                }, 50);
+              }
+
+              // Registra exibição
+              logDisplay(mediaId, code);
+
+              // Timer para próximo slide
+              if (timer) clearTimeout(timer);
+              if (!video) {
+                timer = setTimeout(nextSlide, dur);
+              }
+            }
+
+            function nextSlide() {
+              current = (current + 1) % medias.length;
+              showSlide(current);
+            }
+
+            function logDisplay(mediaId, screenCode) {
+              fetch('/api/player/event', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_id: mediaId, screen_code: screenCode, played_at: new Date().toISOString() })
+              }).catch(function(){});
+            }
+
+            function sendHeartbeat() {
+              fetch('/api/player/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ screen_code: code })
+              }).then(function() {
+                if (hb) {
+                  hb.style.opacity = '1';
+                  setTimeout(function() { hb.style.opacity = '0'; }, 500);
+                }
+              }).catch(function(){});
+            }
+
+            // Inicia
+            showSlide(0);
+            setInterval(sendHeartbeat, 30000);
+          })();
+        `}} />
+      </body>
+    </html>
   )
 }
