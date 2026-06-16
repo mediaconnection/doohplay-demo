@@ -21,9 +21,6 @@ export default function AtivarPage() {
             height:100vh;
             padding:24px;
           }
-          .logo { font-size:42px; font-weight:900; margin-bottom:8px; letter-spacing:-1px; }
-          .logo span { color:#3B82F6; }
-          .sub { font-size:16px; color:#94A3B8; margin-bottom:48px; text-align:center; }
           input {
             width:100%; max-width:420px;
             padding:22px 28px;
@@ -49,7 +46,6 @@ export default function AtivarPage() {
           #status { font-size:15px; color:#94A3B8; min-height:24px; text-align:center; }
           .error { color:#EF4444 !important; }
           .success { color:#22C55E !important; }
-          .hint { margin-top:32px; font-size:13px; color:#475569; text-align:center; max-width:380px; line-height:1.6; }
         `}</style>
       </head>
       <body>
@@ -81,21 +77,20 @@ export default function AtivarPage() {
           var btn    = document.getElementById('btn');
           var status = document.getElementById('status');
 
-          // Foco automático no input
           setTimeout(function() { try { input.focus(); } catch(e){} }, 500);
 
-          // Clique normal
+          // Clique no botão
           btn.addEventListener('click', ativar);
 
-          // Enter no input
+          // Enter no input — move foco para o botão
           input.addEventListener('keydown', function(e) {
-            if (e.keyCode === 13 || e.key === 'Enter') {
+            if (e.keyCode === 13 || e.key === 'Enter' || e.keyCode === 23) {
               e.preventDefault();
-              ativar();
+              btn.focus();
             }
           });
 
-          // Controle remoto TV: tecla OK/Center (keyCode 13) quando botão está focado
+          // OK/Enter quando botão está focado
           btn.addEventListener('keydown', function(e) {
             if (e.keyCode === 13 || e.key === 'Enter' || e.keyCode === 23) {
               e.preventDefault();
@@ -103,9 +98,10 @@ export default function AtivarPage() {
             }
           });
 
-          // Tecla OK do controle remoto Android TV (keyCode 23 = DPAD_CENTER)
+          // Tecla OK global — só quando foco NÃO está no input
           document.addEventListener('keydown', function(e) {
-            if (e.keyCode === 13 || e.keyCode === 23) {
+            if ((e.keyCode === 13 || e.keyCode === 23) && document.activeElement !== input) {
+              e.preventDefault();
               ativar();
             }
           });
@@ -115,6 +111,7 @@ export default function AtivarPage() {
             if (!code) {
               status.className = 'error';
               status.textContent = 'Digite o código da sua tela';
+              input.focus();
               return;
             }
             if (btn.disabled) return;
@@ -123,7 +120,7 @@ export default function AtivarPage() {
             status.textContent = 'Verificando...';
             btn.disabled = true;
 
-            fetch('/api/client/validate?code=' + encodeURIComponent(code))
+            fetch('https://doohplay.com.br/api/client/validate?code=' + encodeURIComponent(code))
               .then(function(r) { return r.json(); })
               .then(function(data) {
                 if (data.valid) {
@@ -146,9 +143,10 @@ export default function AtivarPage() {
                   status.className = 'error';
                   status.textContent = 'Código inválido. Verifique e tente novamente.';
                   btn.disabled = false;
+                  input.focus();
                 }
               })
-              .catch(function(e) {
+              .catch(function() {
                 status.className = 'error';
                 status.textContent = 'Erro de conexão. Verifique a internet.';
                 btn.disabled = false;
