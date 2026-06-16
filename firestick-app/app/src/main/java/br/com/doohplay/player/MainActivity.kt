@@ -2,6 +2,7 @@ package br.com.doohplay.player
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -12,7 +13,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.*
-import android.widget.FrameLayout
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
 import java.io.*
@@ -22,24 +23,20 @@ import java.net.URL
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var prefs: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
-    private var screenCode = "BARBE332"
+    private var screenCode = ""
     private val API_BASE   = "https://doohplay.com.br"
     private val TAG        = "DOOHPlayer"
     private var pageLoaded = false
 
     private val retryRunnable = object : Runnable {
         override fun run() {
-            if (isOnline()) {
-                syncAndLoad()
-            } else {
-                loadOffline()
-                handler.postDelayed(this, 30_000)
-            }
+            if (isOnline()) syncAndLoad()
+            else { loadOffline(); handler.postDelayed(this, 30_000) }
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -53,16 +50,158 @@ class MainActivity : AppCompatActivity() {
             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
         )
 
-        intent.getStringExtra("screen")?.let { screenCode = it }
+        prefs = getSharedPreferences("doohplay", Context.MODE_PRIVATE)
+        screenCode = prefs.getString("screen_code", "") ?: ""
 
-        val container = FrameLayout(this)
-        container.setBackgroundColor(android.graphics.Color.BLACK)
+        // Se não tem código salvo, mostra tela de ativação
+        if (screenCode.isBlank()) {
+            showActivationScreen()
+        } else {
+            startPlayer()
+        }
+    }
+
+    // ── Tela de ativação ──────────────────────────────────────────────────────
+    private fun showActivationScreen() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
+            setPadding(80, 60, 80, 60)
+        }
+
+        // Logo text
+        val logoText = TextView(this).apply {
+            text = "DOOHPLAY"
+            textSize = 36f
+            setTextColor(android.graphics.Color.WHITE)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER
+        }
+        root.addView(logoText)
+
+        // Subtitle
+        val subtitle = TextView(this).apply {
+            text = "Digite o código da sua tela"
+            textSize = 16f
+            setTextColor(android.graphics.Color.parseColor("#94A3B8"))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 24, 0, 40)
+        }
+        root.addView(subtitle)
+
+        // Input de código
+        val input = EditText(this).apply {
+            hint = "Ex: BARBE332"
+            textSize = 24f
+            setTextColor(android.graphics.Color.WHITE)
+            setHintTextColor(android.graphics.Color.parseColor("#475569"))
+            setBackgroundColor(android.graphics.Color.parseColor("#1E293B"))
+            setPadding(32, 24, 32, 24)
+            inputType = android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            gravity = android.view.Gravity.CENTER
+            maxLines = 1
+        }
+        val inputParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = 24 }
+        root.addView(input, inputParams)
+
+        // Status text (erros/sucesso)
+        val statusText = TextView(this).apply {
+            text = ""
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#EF4444"))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 16)
+        }
+        root.addView(statusText)
+
+        // Botão ativar
+        val btnAtivar = Button(this).apply {
+            text = "ATIVAR"
+            textSize = 16f
+            setTextColor(android.graphics.Color.WHITE)
+            setBackgroundColor(android.graphics.Color.parseColor("#3B82F6"))
+            setPadding(48, 24, 48, 24)
+        }
+        val btnParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        root.addView(btnAtivar, btnParams)
+
+        // Hint
+        val hint = TextView(this).apply {
+            text = "O código foi enviado por WhatsApp ou email"
+            textSize = 12f
+            setTextColor(android.graphics.Color.parseColor("#475569"))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 20, 0, 0)
+        }
+        root.addView(hint)
+
+        setContentView(root)
+
+        btnAtivar.setOnClickListener {
+            val code = input.text.toString().trim().uppercase()
+            if (code.isBlank()) {
+                statusText.text = "Digite o código da sua tela"
+                return@setOnClickListener
+            }
+            statusText.setTextColor(android.graphics.Color.parseColor("#64748B"))
+            statusText.text = "Verificando código..."
+            btnAtivar.isEnabled = false
+
+            Thread {
+                val valid = validateCode(code)
+                handler.post {
+                    if (valid) {
+                        prefs.edit().putString("screen_code", code).apply()
+                        screenCode = code
+                        statusText.setTextColor(android.graphics.Color.parseColor("#22C55E"))
+                        statusText.text = "✓ Código válido! Iniciando..."
+                        handler.postDelayed({ startPlayer() }, 1_000)
+                    } else {
+                        statusText.setTextColor(android.graphics.Color.parseColor("#EF4444"))
+                        statusText.text = "Código inválido. Verifique e tente novamente."
+                        btnAtivar.isEnabled = true
+                    }
+                }
+            }.start()
+        }
+    }
+
+    // ── Valida código no servidor ─────────────────────────────────────────────
+    private fun validateCode(code: String): Boolean {
+        return try {
+            val url  = URL("$API_BASE/api/client/validate?code=$code")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 8_000
+            conn.readTimeout    = 8_000
+            val response = conn.inputStream.bufferedReader().readText()
+            conn.disconnect()
+            val json = org.json.JSONObject(response)
+            json.optBoolean("valid", false)
+        } catch (e: Exception) {
+            Log.e(TAG, "Validate error: ${e.message}")
+            false
+        }
+    }
+
+    // ── Inicia player ─────────────────────────────────────────────────────────
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun startPlayer() {
+        val container = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+        }
         setContentView(container)
 
         webView = WebView(this)
-        container.addView(webView, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
+        container.addView(webView, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT
         ))
 
         webView.settings.apply {
@@ -77,51 +216,40 @@ class MainActivity : AppCompatActivity() {
             displayZoomControls              = false
             allowFileAccess                  = true
             allowContentAccess               = true
-            // ✅ FIX: permite carregar imagens de qualquer origem
             blockNetworkImage                = false
             loadsImagesAutomatically         = true
             cacheMode                        = WebSettings.LOAD_NO_CACHE
             mixedContentMode                 = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            // ✅ FIX: user agent normal de browser para não ser bloqueado
             userAgentString                  = "Mozilla/5.0 (Linux; Android 10; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
-        // ✅ FIX: aceita todos os certificados SSL (para R2 e CDN)
         webView.webViewClient = object : WebViewClient() {
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) {
-                    Log.w(TAG, "Page error: ${error.description} | url: ${request.url}")
+                    Log.w(TAG, "Page error: ${error.description}")
                     handler.postDelayed({ loadOffline() }, 3_000)
                 }
             }
-
             override fun onPageFinished(view: WebView, url: String) {
                 pageLoaded = true
                 Log.d(TAG, "Page loaded: $url")
-                // ✅ FIX: NÃO injeta overflow hidden — deixa o player controlar o próprio layout
             }
-
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: android.net.http.SslError) {
-                // Aceita SSL de CDNs
                 handler.proceed()
             }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
-                Log.d(TAG, "JS [${msg.messageLevel()}]: ${msg.message()} @ ${msg.sourceId()}:${msg.lineNumber()}")
+                Log.d(TAG, "JS: ${msg.message()}")
                 return true
             }
         }
 
         webView.addJavascriptInterface(PlayerInterface(), "AndroidPlayer")
 
-        if (isOnline()) {
-            syncAndLoad()
-        } else {
-            loadOffline()
-            handler.post(retryRunnable)
-        }
+        if (isOnline()) syncAndLoad()
+        else { loadOffline(); handler.post(retryRunnable) }
 
         // Heartbeat a cada 30s
         handler.postDelayed(object : Runnable {
@@ -132,28 +260,24 @@ class MainActivity : AppCompatActivity() {
         }, 30_000)
     }
 
+    // ── Player online ─────────────────────────────────────────────────────────
     private fun syncAndLoad() {
-        val onlineUrl = "$API_BASE/player?screen=$screenCode"
-        Log.d(TAG, "Loading: $onlineUrl")
-        webView.loadUrl(onlineUrl)
+        val url = "$API_BASE/player?screen=$screenCode"
+        Log.d(TAG, "Loading: $url")
+        webView.loadUrl(url)
 
         Thread {
-            try {
-                syncMediaCache()
-            } catch (e: Exception) {
-                Log.e(TAG, "Sync error: ${e.message}")
-            }
+            try { syncMediaCache() }
+            catch (e: Exception) { Log.e(TAG, "Sync error: ${e.message}") }
         }.start()
     }
 
+    // ── Player offline ────────────────────────────────────────────────────────
     private fun loadOffline() {
         val cacheDir  = File(filesDir, "media_cache/$screenCode")
         val indexFile = File(cacheDir, "index.json")
 
-        if (!indexFile.exists()) {
-            loadWaitScreen()
-            return
-        }
+        if (!indexFile.exists()) { loadWaitScreen(); return }
 
         try {
             val index  = JSONArray(indexFile.readText())
@@ -172,15 +296,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            if (medias.isEmpty()) {
-                loadWaitScreen()
-                return
-            }
+            if (medias.isEmpty()) { loadWaitScreen(); return }
 
-            val html = buildOfflineHtml(medias)
             webView.loadDataWithBaseURL(
                 "file://${filesDir.absolutePath}/",
-                html, "text/html", "UTF-8", null
+                buildOfflineHtml(medias), "text/html", "UTF-8", null
             )
         } catch (e: Exception) {
             Log.e(TAG, "Offline load error: ${e.message}")
@@ -188,22 +308,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ── Sincroniza cache ──────────────────────────────────────────────────────
     private fun syncMediaCache() {
-        val apiUrl = URL("$API_BASE/api/client/playlist/$screenCode")
-        val conn   = apiUrl.openConnection() as HttpURLConnection
+        val conn = URL("$API_BASE/api/client/playlist/$screenCode").openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
         conn.readTimeout    = 15_000
-
         val response = conn.inputStream.bufferedReader().readText()
         conn.disconnect()
 
-        val json  = org.json.JSONObject(response)
-        val items = json.getJSONArray("items")
-
-        val cacheDir = File(filesDir, "media_cache/$screenCode")
-        cacheDir.mkdirs()
-
-        val index = JSONArray()
+        val items    = org.json.JSONObject(response).getJSONArray("items")
+        val cacheDir = File(filesDir, "media_cache/$screenCode").also { it.mkdirs() }
+        val index    = JSONArray()
 
         for (i in 0 until items.length()) {
             val item   = items.getJSONObject(i)
@@ -227,21 +342,20 @@ class MainActivity : AppCompatActivity() {
             val localFile = File(cacheDir, filename)
 
             try {
-                val mediaConn = URL(url).openConnection() as HttpURLConnection
-                mediaConn.connectTimeout = 15_000
-                mediaConn.readTimeout    = 60_000
-                val bytes = mediaConn.inputStream.readBytes()
-                mediaConn.disconnect()
+                val mc = URL(url).openConnection() as HttpURLConnection
+                mc.connectTimeout = 15_000
+                mc.readTimeout    = 60_000
+                val bytes = mc.inputStream.readBytes()
+                mc.disconnect()
                 localFile.writeBytes(bytes)
+
+                val idx = org.json.JSONObject()
+                idx.put("filename", filename)
+                idx.put("type",     type)
+                idx.put("name",     name)
+                idx.put("duration", dur.toString())
+                index.put(idx)
                 Log.d(TAG, "Cached: $filename (${bytes.size / 1024}KB)")
-
-                val indexItem = org.json.JSONObject()
-                indexItem.put("filename", filename)
-                indexItem.put("type",     type)
-                indexItem.put("name",     name)
-                indexItem.put("duration", dur.toString())
-                index.put(indexItem)
-
             } catch (e: Exception) {
                 Log.e(TAG, "Download failed $filename: ${e.message}")
             }
@@ -251,14 +365,14 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Cache sync: ${index.length()} files")
     }
 
+    // ── HTML offline ──────────────────────────────────────────────────────────
     private fun buildOfflineHtml(medias: List<Map<String, String>>): String {
         val slides = medias.mapIndexed { i, m ->
             val active  = if (i == 0) " active" else ""
-            val content = if (m["type"] == "video") {
+            val content = if (m["type"] == "video")
                 """<video src="${m["url"]}" autoplay muted playsinline></video>"""
-            } else {
+            else
                 """<img src="${m["url"]}" alt="${m["name"]}">"""
-            }
             """<div class="slide$active" data-duration="${m["duration"]}">$content</div>"""
         }.joinToString("\n")
 
@@ -274,14 +388,13 @@ html, body { width:100vw; height:100vh; background:#000; overflow:hidden; }
 #tag { position:fixed; top:8px; right:8px; font-size:10px; color:#94A3B8;
   background:rgba(0,0,0,0.6); padding:3px 8px; border-radius:10px; font-family:sans-serif; }
 </style></head><body>
-<div id="bar"></div>
-<div id="tag">📴 Offline</div>
+<div id="bar"></div><div id="tag">📴 Offline</div>
 $slides
 <script>
-var cur=0, slides=document.querySelectorAll('.slide'), bar=document.getElementById('bar');
+var cur=0,slides=document.querySelectorAll('.slide'),bar=document.getElementById('bar');
 function show(i){
   slides.forEach(function(s){s.classList.remove('active');});
-  var s=slides[i]; if(!s)return;
+  var s=slides[i];if(!s)return;
   s.classList.add('active');
   var dur=parseInt(s.getAttribute('data-duration')||'15')*1000;
   var vid=s.querySelector('video');
@@ -296,6 +409,7 @@ setInterval(function(){if(typeof AndroidPlayer!=='undefined')AndroidPlayer.check
 </script></body></html>"""
     }
 
+    // ── Tela de espera ────────────────────────────────────────────────────────
     private fun loadWaitScreen() {
         webView.loadData("""<!DOCTYPE html><html><body style="margin:0;background:#0F172A;
 display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -310,6 +424,7 @@ height:100vh;font-family:sans-serif;color:#F1F5F9;">
 </body></html>""", "text/html", "UTF-8")
     }
 
+    // ── Heartbeat ─────────────────────────────────────────────────────────────
     private fun sendHeartbeat() {
         Thread {
             try {
@@ -331,10 +446,7 @@ height:100vh;font-family:sans-serif;color:#F1F5F9;">
     inner class PlayerInterface {
         @JavascriptInterface
         fun checkOnline(): Boolean {
-            if (isOnline()) {
-                handler.post { syncAndLoad() }
-                return true
-            }
+            if (isOnline()) { handler.post { syncAndLoad() }; return true }
             return false
         }
     }
@@ -351,17 +463,16 @@ height:100vh;font-family:sans-serif;color:#F1F5F9;">
         return super.onKeyDown(keyCode, event)
     }
 
-    // ✅ FIX: onResume NÃO recarrega se já carregou — evita loop
     override fun onResume() {
         super.onResume()
-        if (!pageLoaded) {
+        if (screenCode.isNotBlank() && !pageLoaded) {
             if (isOnline()) syncAndLoad() else { loadOffline(); handler.post(retryRunnable) }
         }
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        webView.destroy()
+        if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
 }
