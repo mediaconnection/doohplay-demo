@@ -67,18 +67,18 @@ class MainActivity : AppCompatActivity() {
         ))
 
         webView.settings.apply {
-            javaScriptEnabled              = true
-            domStorageEnabled              = true
+            javaScriptEnabled                = true
+            domStorageEnabled                = true
             mediaPlaybackRequiresUserGesture = false
-            loadWithOverviewMode           = true
-            useWideViewPort                = true
+            loadWithOverviewMode             = true
+            useWideViewPort                  = true
             setSupportZoom(false)
-            builtInZoomControls            = false
-            displayZoomControls            = false
-            allowFileAccess                = true
-            allowContentAccess             = true
-            cacheMode                      = WebSettings.LOAD_DEFAULT
-            mixedContentMode               = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            builtInZoomControls              = false
+            displayZoomControls              = false
+            allowFileAccess                  = true
+            allowContentAccess               = true
+            cacheMode                        = WebSettings.LOAD_DEFAULT
+            mixedContentMode                 = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -100,7 +100,6 @@ class MainActivity : AppCompatActivity() {
             override fun onConsoleMessage(msg: ConsoleMessage): Boolean = true
         }
 
-        // Adiciona interface para heartbeat via JS
         webView.addJavascriptInterface(PlayerInterface(), "AndroidPlayer")
 
         if (isOnline()) {
@@ -121,11 +120,11 @@ class MainActivity : AppCompatActivity() {
 
     // ── Sincroniza mídias e carrega online ────────────────────────────────────
     private fun syncAndLoad() {
-        // Primeiro carrega online para não travar a UI
+        // Carrega online imediatamente — não bloqueia a UI
         val onlineUrl = "$API_BASE/player?screen=$screenCode"
         webView.loadUrl(onlineUrl)
 
-        // Em background, baixa mídias para cache offline
+        // Em background, sincroniza cache para uso offline
         Thread {
             try {
                 syncMediaCache()
@@ -137,27 +136,26 @@ class MainActivity : AppCompatActivity() {
 
     // ── Carrega player offline do cache local ─────────────────────────────────
     private fun loadOffline() {
-        val cacheDir = File(filesDir, "media_cache/$screenCode")
+        val cacheDir  = File(filesDir, "media_cache/$screenCode")
         val indexFile = File(cacheDir, "index.json")
 
         if (!indexFile.exists()) {
-            // Sem cache — mostra tela de espera
             loadWaitScreen()
             return
         }
 
         try {
-            val index = JSONArray(indexFile.readText())
+            val index  = JSONArray(indexFile.readText())
             val medias = mutableListOf<Map<String, String>>()
 
             for (i in 0 until index.length()) {
-                val item = index.getJSONObject(i)
+                val item      = index.getJSONObject(i)
                 val localFile = File(cacheDir, item.getString("filename"))
                 if (localFile.exists()) {
                     medias.add(mapOf(
-                        "type" to item.getString("type"),
-                        "url"  to "file://${localFile.absolutePath}",
-                        "name" to item.optString("name", ""),
+                        "type"     to item.getString("type"),
+                        "url"      to "file://${localFile.absolutePath}",
+                        "name"     to item.optString("name", ""),
                         "duration" to item.optString("duration", "15")
                     ))
                 }
@@ -168,7 +166,6 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            // Gera HTML local com as mídias cacheadas
             val html = buildOfflineHtml(medias, screenCode)
             webView.loadDataWithBaseURL(
                 "file://${filesDir.absolutePath}/",
@@ -186,15 +183,15 @@ class MainActivity : AppCompatActivity() {
     // ── Baixa e cacheia mídias localmente ─────────────────────────────────────
     private fun syncMediaCache() {
         val apiUrl = URL("$API_BASE/api/client/playlist/$screenCode")
-        val conn = apiUrl.openConnection() as HttpURLConnection
+        val conn   = apiUrl.openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
         conn.readTimeout    = 15_000
 
         val response = conn.inputStream.bufferedReader().readText()
         conn.disconnect()
 
-        val json   = org.json.JSONObject(response)
-        val items  = json.getJSONArray("items")
+        val json  = org.json.JSONObject(response)
+        val items = json.getJSONArray("items")
 
         val cacheDir = File(filesDir, "media_cache/$screenCode")
         cacheDir.mkdirs()
@@ -202,20 +199,28 @@ class MainActivity : AppCompatActivity() {
         val index = JSONArray()
 
         for (i in 0 until items.length()) {
-            val item    = items.getJSONObject(i)
-            val url     = item.optString("asset_url") ?: continue
-            val type    = item.optString("type", "image")
-            val name    = item.optString("name", "media_$i")
-            val duration = item.optInt("duration", 15)
-            val active  = item.optBoolean("active", true)
+            val item   = items.getJSONObject(i)
+            val url    = item.optString("asset_url")
+            val type   = item.optString("type", "image")
+            val name   = item.optString("name", "media_$i")
+            val dur    = item.optInt("duration", 15)
+            val active = item.optBoolean("active", true)
 
             if (!active || url.isBlank()) continue
 
-            val ext      = if (type == "video") "mp4" else "jpg"
-            val filename = "media_${i}.$ext"
+            // ✅ FIX 1: detecta extensão real da URL em vez de assumir .jpg
+            val ext = when {
+                type == "video"        -> "mp4"
+                url.endsWith(".webp")  -> "webp"
+                url.endsWith(".png")   -> "png"
+                url.endsWith(".gif")   -> "gif"
+                else                   -> "jpg"
+            }
+
+            val filename  = "media_$i.$ext"
             val localFile = File(cacheDir, filename)
 
-            // Baixa só se não tiver ou for diferente
+            // ✅ FIX 2: cada download isolado — se falhar, pula e continua
             try {
                 val mediaConn = URL(url).openConnection() as HttpURLConnection
                 mediaConn.connectTimeout = 15_000
@@ -224,17 +229,18 @@ class MainActivity : AppCompatActivity() {
                 mediaConn.disconnect()
                 localFile.writeBytes(bytes)
                 Log.d(TAG, "Cached: $filename (${bytes.size / 1024}KB)")
-            } catch (e: Exception) {
-                Log.e(TAG, "Download error $filename: ${e.message}")
-                continue
-            }
 
-            val indexItem = org.json.JSONObject()
-            indexItem.put("filename", filename)
-            indexItem.put("type",     type)
-            indexItem.put("name",     name)
-            indexItem.put("duration", duration.toString())
-            index.put(indexItem)
+                val indexItem = org.json.JSONObject()
+                indexItem.put("filename", filename)
+                indexItem.put("type",     type)
+                indexItem.put("name",     name)
+                indexItem.put("duration", dur.toString())
+                index.put(indexItem)
+
+            } catch (e: Exception) {
+                // ✅ FIX 2: loga o erro mas NÃO derruba o app
+                Log.e(TAG, "Download failed for $filename — skipping: ${e.message}")
+            }
         }
 
         File(cacheDir, "index.json").writeText(index.toString())
@@ -244,7 +250,7 @@ class MainActivity : AppCompatActivity() {
     // ── HTML offline gerado localmente ────────────────────────────────────────
     private fun buildOfflineHtml(medias: List<Map<String, String>>, code: String): String {
         val slides = medias.mapIndexed { i, m ->
-            val active = if (i == 0) " active" else ""
+            val active  = if (i == 0) " active" else ""
             val content = if (m["type"] == "video") {
                 """<video src="${m["url"]}" autoplay muted playsinline></video>"""
             } else {
@@ -265,8 +271,8 @@ html, body { width:100vw; height:100vh; background:#000; overflow:hidden; }
 .slide.active { display:flex; align-items:center; justify-content:center; }
 .slide img, .slide video { width:100%; height:100%; object-fit:cover; }
 #bar { position:fixed; bottom:0; left:0; height:3px; background:#3B82F6; width:0%; }
-#offline { position:fixed; top:8px; right:8px; font-size:10px; color:#374151;
-  background:rgba(0,0,0,0.5); padding:3px 8px; border-radius:10px; font-family:sans-serif; }
+#offline { position:fixed; top:8px; right:8px; font-size:10px; color:#94A3B8;
+  background:rgba(0,0,0,0.6); padding:3px 8px; border-radius:10px; font-family:sans-serif; }
 </style>
 </head>
 <body>
@@ -285,18 +291,23 @@ function show(idx) {
   s.classList.add('active');
   var dur = parseInt(s.getAttribute('data-duration') || '15') * 1000;
   var vid = s.querySelector('video');
-  if (bar) { bar.style.transition='none'; bar.style.width='0%';
-    setTimeout(function(){ bar.style.transition='width '+dur+'ms linear'; bar.style.width='100%'; },50); }
-  if (vid) { vid.currentTime=0; vid.play(); vid.onended=next; }
+  if (bar) {
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    setTimeout(function() {
+      bar.style.transition = 'width ' + dur + 'ms linear';
+      bar.style.width = '100%';
+    }, 50);
+  }
+  if (vid) { vid.currentTime = 0; vid.play(); vid.onended = next; }
   else { setTimeout(next, dur); }
 }
 
-function next() { current = (current+1) % slides.length; show(current); }
+function next() { current = (current + 1) % slides.length; show(current); }
 show(0);
 
-// Tenta reconectar
 setInterval(function() {
-  if (AndroidPlayer) { AndroidPlayer.checkOnline(); }
+  if (typeof AndroidPlayer !== 'undefined') { AndroidPlayer.checkOnline(); }
 }, 30000);
 </script>
 </body>
@@ -331,7 +342,7 @@ height:100vh;font-family:sans-serif;color:#F1F5F9;">
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
-                conn.doOutput = true
+                conn.doOutput      = true
                 conn.connectTimeout = 5_000
                 conn.readTimeout    = 5_000
                 val body = """{"code":"$screenCode"}"""
@@ -358,7 +369,7 @@ height:100vh;font-family:sans-serif;color:#F1F5F9;">
     }
 
     private fun isOnline(): Boolean {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cm      = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork ?: return false
         val caps    = cm.getNetworkCapabilities(network) ?: return false
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
