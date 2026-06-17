@@ -20,6 +20,12 @@ async function sendWhatsApp(phone: string, message: string) {
   }
 }
 
+// GET — validação do webhook pelo Asaas
+export async function GET() {
+  return NextResponse.json({ ok: true, service: "doohplay-webhook-asaas" })
+}
+
+// POST — recebe eventos do Asaas
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
