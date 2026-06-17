@@ -19,11 +19,26 @@ export async function POST(req: NextRequest) {
 
     if (!rows[0]?.player_id) return NextResponse.json({ ok: true, skipped: "sem player" })
 
-    // Registra display event
-    await pool.query(`
-      INSERT INTO display_events (player_id, played_at)
-      VALUES ($1::uuid, $2::timestamptz)
-    `, [rows[0].player_id, played_at ?? new Date().toISOString()])
+    const playedAt = played_at ?? new Date().toISOString()
+
+    // Tenta inserir — se falhar por estrutura diferente, loga mas não quebra
+    try {
+      await pool.query(`
+        INSERT INTO display_events (player_id, played_at, media_id)
+        VALUES ($1::uuid, $2::timestamptz, $3)
+        ON CONFLICT DO NOTHING
+      `, [rows[0].player_id, playedAt, media_id ?? null])
+    } catch {
+      // Tenta sem media_id caso a coluna não exista
+      try {
+        await pool.query(`
+          INSERT INTO display_events (player_id, played_at)
+          VALUES ($1::uuid, $2::timestamptz)
+        `, [rows[0].player_id, playedAt])
+      } catch (e2) {
+        console.error("[player/event] insert fallback error:", e2)
+      }
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
