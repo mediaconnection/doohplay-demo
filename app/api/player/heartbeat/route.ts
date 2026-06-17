@@ -4,17 +4,18 @@ import { NextRequest } from "next/server"
 
 export const dynamic = "force-dynamic"
 
-// POST — player atualiza last_ping (chamado pelo Fire Stick a cada 30s)
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
-    const { code } = await req.json()
+    const body = await req.json()
+    // ✅ aceita tanto "code" (APK) quanto "screen_code" (player web)
+    const code = body.code ?? body.screen_code
     if (!code) return Response.json({ error: "code obrigatório" }, { status: 400 })
 
     await pool.query(
       `UPDATE players SET last_ping = NOW()
-       WHERE id = (SELECT player_id FROM studio_clients WHERE code = $1 LIMIT 1)`,
-      [code.toUpperCase()]
+       WHERE id = (SELECT player_id FROM studio_clients WHERE UPPER(code) = UPPER($1) LIMIT 1)`,
+      [code]
     )
 
     return Response.json({ ok: true, ts: new Date().toISOString() })
@@ -24,8 +25,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET — dashboard consulta status do player pelo UUID do player
-// Chamado pelo hook usePlayerStatus a cada 30s
 export async function GET(req: NextRequest) {
   const pool = getPool()
   try {
