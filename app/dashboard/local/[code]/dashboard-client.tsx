@@ -87,6 +87,79 @@ function usePlayerStatus(playerId: string | null, initialOnline: boolean) {
   return { online, lastSeen, checking }
 }
 
+// ── Trial Banner ──────────────────────────────────────────────────────────────
+function TrialBanner({ code }: { code: string }) {
+  const [trial, setTrial] = useState<{ trial: boolean; days_left: number; plan: string; value: number; status: string } | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/client/trial/${code}`)
+      .then(r => r.json())
+      .then(data => setTrial(data))
+      .catch(() => {})
+  }, [code])
+
+  if (!trial || !trial.trial) return null
+
+  const isUrgent  = trial.days_left <= 1
+  const isWarning = trial.days_left <= 2
+
+  const bg     = isUrgent ? "#450a0a" : isWarning ? "#431407" : "#052e16"
+  const border = isUrgent ? "#ef444433" : isWarning ? "#f59e0b33" : "#16653433"
+  const color  = isUrgent ? "#EF4444" : isWarning ? "#F59E0B" : "#4ade80"
+  const icon   = isUrgent ? "⚠️" : isWarning ? "⏰" : "🎁"
+
+  const message = trial.days_left === 0
+    ? "Seu período grátis termina hoje! A cobrança começa amanhã."
+    : trial.days_left === 1
+    ? "Último dia do seu período grátis. A cobrança começa amanhã."
+    : `Você tem ${trial.days_left} dias grátis restantes.`
+
+  return (
+    <div style={{
+      background: bg,
+      border: `1px solid ${border}`,
+      borderRadius: 12,
+      padding: "14px 20px",
+      marginBottom: 20,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 20 }}>{icon}</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color }}>{message}</div>
+          <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
+            Após o período, cobramos R$ {Number(trial.value).toFixed(2).replace(".", ",")} /mês via PIX ou boleto · Cancele quando quiser
+          </div>
+        </div>
+      </div>
+      {isWarning && (
+        <a
+          href={`https://wa.me/5511999999999?text=Oi! Sou o cliente ${code} e quero continuar com o DOOHPLAY`}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            background: color,
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Falar com suporte
+        </a>
+      )}
+    </div>
+  )
+}
+
 function KpiCard({ label, value, sub, icon, color = C.blue, onClick }: { label: string; value: string; sub?: string; icon: string; color?: string; onClick?: () => void }) {
   return (
     <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", cursor: onClick ? "pointer" : "default", flex: 1, minWidth: 0 }}>
@@ -225,6 +298,9 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
   ]
   return (
     <div>
+      {/* Trial Banner */}
+      <TrialBanner code={client.code} />
+
       <div style={{ background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : "#FECACA"}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 36, height: 36, background: online ? C.green : C.red, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -426,7 +502,6 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
           ))}
         </div>
       </div>
-
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Anúncios ativos</div>
@@ -445,7 +520,6 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
           </div>
         ))}
       </div>
-
       <div style={{ background: C.blueLt, border: `1px solid ${C.blueBd}`, borderRadius: 12, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.blue }}>Adicione uma promoção da sua loja</div>
@@ -606,14 +680,10 @@ function TabConfiguracoes({ code }: { code: string }) {
   )
 }
 
-
-
-// ─── Calendário Semanal Visual ────────────────────────────────────────────────
 function CalendarioSemanal({ items }: { items: any[] }) {
   const DAYS_PT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]
   const DAYS_EN = ["sun","mon","tue","wed","thu","fri","sat"]
   const HOURS   = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
-
   const COLORS = [
     { bg: "#EFF6FF", border: "#BFDBFE", text: "#1D4ED8" },
     { bg: "#DCFCE7", border: "#86EFAC", text: "#15803D" },
@@ -624,35 +694,25 @@ function CalendarioSemanal({ items }: { items: any[] }) {
     { bg: "#FFF7ED", border: "#FED7AA", text: "#C2410C" },
     { bg: "#F0F9FF", border: "#BAE6FD", text: "#0369A1" },
   ]
-
-  // Para cada mídia ativa com programação, calcula quais células cobrir
   const activeItems = items.filter(i => i.active)
-
   const getItemsForCell = (dayEN: string, hour: number) => {
     return activeItems.filter(item => {
-      // Verifica dia
       const dayOk = !item.days_of_week || item.days_of_week.length === 0 || item.days_of_week.includes(dayEN)
       if (!dayOk) return false
-
-      // Verifica horário
       if (item.start_time && item.end_time) {
         const startH = parseInt(item.start_time.split(":")[0])
         const endH   = parseInt(item.end_time.split(":")[0])
         return hour >= startH && hour < endH
       }
-
-      return true // sem restrição de horário
+      return true
     })
   }
-
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
       <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>📅 Calendário Semanal</div>
         <div style={{ fontSize: 11, color: C.text3 }}>Visualização de programação por dia e horário</div>
       </div>
-
-      {/* Legenda */}
       <div style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", gap: 8, flexWrap: "wrap" }}>
         {activeItems.map((item, idx) => (
           <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -661,7 +721,6 @@ function CalendarioSemanal({ items }: { items: any[] }) {
           </div>
         ))}
       </div>
-
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
           <thead>
@@ -675,9 +734,7 @@ function CalendarioSemanal({ items }: { items: any[] }) {
           <tbody>
             {HOURS.map(hour => (
               <tr key={hour}>
-                <td style={{ padding: "4px 6px", fontSize: 10, color: C.text3, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap", borderBottom: `1px solid ${C.border2}` }}>
-                  {hour}:00
-                </td>
+                <td style={{ padding: "4px 6px", fontSize: 10, color: C.text3, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap", borderBottom: `1px solid ${C.border2}` }}>{hour}:00</td>
                 {DAYS_EN.map(day => {
                   const cellItems = getItemsForCell(day, hour)
                   return (
@@ -693,9 +750,7 @@ function CalendarioSemanal({ items }: { items: any[] }) {
                             )
                           })}
                         </div>
-                      ) : (
-                        <div style={{ height: 20 }} />
-                      )}
+                      ) : <div style={{ height: 20 }} />}
                     </td>
                   )
                 })}
@@ -704,7 +759,6 @@ function CalendarioSemanal({ items }: { items: any[] }) {
           </tbody>
         </table>
       </div>
-
       <div style={{ padding: "10px 18px", borderTop: `1px solid ${C.border2}`, fontSize: 11, color: C.text3 }}>
         💡 Mídias sem restrição de horário aparecem em todos os slots · Configure em "⚙ Programar"
       </div>
@@ -712,7 +766,6 @@ function CalendarioSemanal({ items }: { items: any[] }) {
   )
 }
 
-// ─── Tab Playlist ─────────────────────────────────────────────────────────────
 const DAYS_PT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]
 const DAYS_EN = ["sun","mon","tue","wed","thu","fri","sat"]
 
@@ -805,7 +858,6 @@ function TabPlaylist({ code }: { code: string }) {
 
       {success && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: C.green }}>✓ Programação salva com sucesso!</div>}
 
-      {/* Loop visual */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 20 }}>🔄</span>
         <div style={{ flex: 1 }}>
@@ -826,7 +878,6 @@ function TabPlaylist({ code }: { code: string }) {
 
       <CalendarioSemanal items={items} />
 
-      {/* Lista */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.length === 0 && (
           <div style={{ padding: "40px", textAlign: "center", color: C.text3, background: C.white, borderRadius: 12, border: `1px solid ${C.border}` }}>
@@ -835,10 +886,8 @@ function TabPlaylist({ code }: { code: string }) {
         )}
         {items.map((item, i) => (
           <div key={item.id} style={{ background: C.white, border: `1px solid ${item.active ? C.border : C.border2}`, borderRadius: 12, overflow: "hidden", opacity: item.active ? 1 : 0.6 }}>
-            {/* Row principal */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, width: 20, flexShrink: 0 }}>{i + 1}</span>
-
               <div style={{ width: 60, height: 40, borderRadius: 6, overflow: "hidden", background: C.gray100, flexShrink: 0 }}>
                 {item.asset_url ? (
                   item.type === "video"
@@ -846,42 +895,29 @@ function TabPlaylist({ code }: { code: string }) {
                     : <img src={item.asset_url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>{item.type === "video" ? "🎬" : "🖼"}</div>}
               </div>
-
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
                 <div style={{ fontSize: 11, color: C.text3 }}>{scheduleLabel(item)} · {item.duration}s</div>
               </div>
-
-              {/* Duração */}
               <select value={item.duration ?? 15} onChange={e => update(i, "duration", Number(e.target.value))} style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 6px", color: C.text, background: C.white, outline: "none" }}>
                 {[5,10,15,20,30,60].map(d => <option key={d} value={d}>{d}s</option>)}
               </select>
-
-              {/* Ativo */}
               <div onClick={() => update(i, "active", !item.active)} style={{ cursor: "pointer", flexShrink: 0 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: item.active ? C.greenLt : C.gray100, color: item.active ? C.green : C.text3, border: `1px solid ${item.active ? C.greenBd : C.border}` }}>
                   {item.active ? "Ativo" : "Pausado"}
                 </span>
               </div>
-
-              {/* Reordenar */}
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
                 <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontSize: 11, cursor: i === 0 ? "default" : "pointer", opacity: i === 0 ? 0.4 : 1 }}>▲</button>
                 <button onClick={() => move(i, 1)} disabled={i === items.length-1} style={{ background: C.gray50, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontSize: 11, cursor: i === items.length-1 ? "default" : "pointer", opacity: i === items.length-1 ? 0.4 : 1 }}>▼</button>
               </div>
-
-              {/* Expandir programação */}
               <button onClick={() => setExpanded(expanded === item.id ? null : item.id)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", color: C.text2, flexShrink: 0 }}>
                 {expanded === item.id ? "▲ Fechar" : "⚙ Programar"}
               </button>
             </div>
-
-            {/* Painel de programação avançada */}
             {expanded === item.id && (
               <div style={{ borderTop: `1px solid ${C.border2}`, padding: "16px", background: C.gray50 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-
-                  {/* Dias da semana */}
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dias da semana</div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -896,8 +932,6 @@ function TabPlaylist({ code }: { code: string }) {
                     </div>
                     <div style={{ fontSize: 10, color: C.text3, marginTop: 6 }}>Vazio = todos os dias</div>
                   </div>
-
-                  {/* Horário */}
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Horário</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -913,8 +947,6 @@ function TabPlaylist({ code }: { code: string }) {
                     </div>
                     <div style={{ fontSize: 10, color: C.text3, marginTop: 6 }}>Vazio = dia todo</div>
                   </div>
-
-                  {/* Período */}
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Data (opcional)</div>
                     <div>
@@ -927,7 +959,6 @@ function TabPlaylist({ code }: { code: string }) {
                     </div>
                   </div>
                 </div>
-
                 <button onClick={() => { update(i, "days_of_week", null); update(i, "start_time", null); update(i, "end_time", null); update(i, "start_date", null); update(i, "end_date", null) }} style={{ marginTop: 12, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 11, cursor: "pointer", color: C.text3 }}>
                   🗑 Limpar programação
                 </button>
@@ -936,7 +967,6 @@ function TabPlaylist({ code }: { code: string }) {
           </div>
         ))}
       </div>
-
       <div style={{ marginTop: 12, fontSize: 12, color: C.text3, textAlign: "center" }}>
         Clique em "⚙ Programar" para definir dias, horários e datas de cada mídia
       </div>
@@ -977,8 +1007,8 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   }
 
   const tabLabel: Record<string, string> = {
-    dashboard: `Dashboard`, tv: `Minha TV`, conteudo: `Conteúdo`,
-    anuncios: `Anúncios`, ganhos: `Ganhos`, relatorios: `Relatórios`, config: `Configurações`,
+    dashboard: "Dashboard", tv: "Minha TV", conteudo: "Conteúdo",
+    anuncios: "Anúncios", ganhos: "Ganhos", relatorios: "Relatórios", config: "Configurações",
   }
 
   return (
@@ -1002,7 +1032,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
 
       {showModal && <ModalPromocao code={client.code} onClose={() => setShowModal(false)} />}
 
-      {/* DRAWER OVERLAY — mobile */}
       {drawerOpen && (
         <div onClick={() => setDrawerOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200 }}>
           <div onClick={e => e.stopPropagation()} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 220, background: C.white, boxShadow: "4px 0 20px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column" }}>
@@ -1035,7 +1064,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
         </div>
       )}
 
-      {/* SIDEBAR — desktop */}
       <aside className="db-sidebar" style={{ width: sideOpen ? 200 : 60, background: C.sidebar, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", transition: "width 0.2s", flexShrink: 0 }}>
         <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${C.border2}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1061,7 +1089,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
         </div>
       </aside>
 
-      {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 16px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1081,7 +1108,6 @@ export default function DashboardClient({ client, player, stats, playlist, payme
           {tabContent[tab]}
         </main>
 
-        {/* BOTTOM NAV — mobile */}
         <nav className="db-bottom-nav" style={{ display: "none", position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.border}`, zIndex: 100, justifyContent: "space-around", padding: "8px 0 4px" }}>
           {NAV.slice(0, 5).map(item => (
             <button key={item.id} onClick={() => onNav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: tab === item.id ? C.blue : C.text3, position: "relative" }}>
