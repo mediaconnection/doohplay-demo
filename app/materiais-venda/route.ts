@@ -1,12 +1,7 @@
-import { NextResponse } from "next/server"
-import { readFileSync } from "fs"
-import { join } from "path"
-
 export const dynamic = "force-dynamic"
 
 export function GET() {
-  const html = readFileSync(join(process.cwd(), "public/materiais-venda.html"), "utf-8")
-  return new NextResponse(html, {
+  return new Response(`SEU_HTML_AQUI`, {
     headers: { "Content-Type": "text/html; charset=utf-8" }
   })
 }
