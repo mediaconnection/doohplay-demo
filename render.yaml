@@ -10,3 +10,8 @@ crons:
     schedule: "0 12 1 * *"
     buildCommand: npm install
     startCommand: node -e "fetch('https://doohplay.com.br/api/cron/monthly-report', { method: 'POST', headers: { 'x-cron-secret': process.env.CRON_SECRET } }).then(r => r.json()).then(console.log).catch(console.error)"
+
+  - name: trial-warning
+    schedule: "0 10 * * *"
+    buildCommand: npm install
+    startCommand: node -e "fetch('https://doohplay.com.br/api/cron/trial-warning', { method: 'POST', headers: { 'x-cron-secret': process.env.CRON_SECRET } }).then(r => r.json()).then(console.log).catch(console.error)"
