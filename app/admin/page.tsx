@@ -130,7 +130,6 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   const handleImport = async () => {
     setLoading(true); setError("")
-    const validRows = preview.filter(r => r.valid)
     try {
       const res  = await fetch("/api/admin/clients/import", {
         method: "POST",
@@ -149,16 +148,10 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
     setLoading(false)
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: BG, border: "1px solid " + BORDER, borderRadius: 8,
-    padding: "8px 12px", color: TEXT, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
-  }
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: step === "preview" ? 800 : 520, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
 
-        {/* Header */}
         <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>
@@ -175,10 +168,7 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
           <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
-        {/* Body */}
         <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
-
-          {/* STEP: UPLOAD */}
           {step === "upload" && (
             <div>
               <div style={{ background: BG, border: "1px solid " + BORDER, borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: TEXT2 }}>
@@ -186,7 +176,6 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
                 <code style={{ fontSize: 11, color: BLUE }}>name, business_type, address, city, phone, email, plan</code>
                 <div style={{ marginTop: 6, color: MUTED }}>Obrigatórios: <strong style={{ color: TEXT }}>name, city, phone</strong> · Planos: starter, pro, multi</div>
               </div>
-
               <div
                 onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
@@ -201,51 +190,44 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
                 <div style={{ fontSize: 12, color: TEXT2 }}>Apenas arquivos .csv</div>
                 <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
               </div>
-
               <button onClick={downloadTemplate} style={{ width: "100%", background: "transparent", border: "1px solid " + BORDER, borderRadius: 8, padding: "10px", color: TEXT2, fontSize: 13, cursor: "pointer" }}>
                 ↓ Baixar template CSV
               </button>
             </div>
           )}
 
-          {/* STEP: PREVIEW */}
           {step === "preview" && (
-            <div>
-              <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid " + BORDER }}>
-                      {["#","Nome","Tipo","Cidade","Telefone","Plano","Status"].map(h => (
-                        <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((row, i) => (
-                      <tr key={i} style={{ borderBottom: i < preview.length - 1 ? "1px solid " + BORDER : "none", background: row.valid ? "transparent" : RED + "08" }}>
-                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.line}</td>
-                        <td style={{ padding: "8px 12px", color: TEXT, fontWeight: 500 }}>{row.name || "—"}</td>
-                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.business_type || "—"}</td>
-                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.city || "—"}</td>
-                        <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.phone || "—"}</td>
-                        <td style={{ padding: "8px 12px" }}>
-                          <Badge label={row.plan || "starter"} color={BLUE} />
-                        </td>
-                        <td style={{ padding: "8px 12px" }}>
-                          {row.valid
-                            ? <span style={{ color: GREEN, fontSize: 11, fontWeight: 600 }}>✓ OK</span>
-                            : <span style={{ color: RED, fontSize: 11 }}>⚠ {row.errors?.join(", ")}</span>
-                          }
-                        </td>
-                      </tr>
+            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid " + BORDER }}>
+                    {["#","Nome","Tipo","Cidade","Telefone","Plano","Status"].map(h => (
+                      <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.map((row, i) => (
+                    <tr key={i} style={{ borderBottom: i < preview.length - 1 ? "1px solid " + BORDER : "none", background: row.valid ? "transparent" : RED + "08" }}>
+                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.line}</td>
+                      <td style={{ padding: "8px 12px", color: TEXT, fontWeight: 500 }}>{row.name || "—"}</td>
+                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.business_type || "—"}</td>
+                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.city || "—"}</td>
+                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.phone || "—"}</td>
+                      <td style={{ padding: "8px 12px" }}><Badge label={row.plan || "starter"} color={BLUE} /></td>
+                      <td style={{ padding: "8px 12px" }}>
+                        {row.valid
+                          ? <span style={{ color: GREEN, fontSize: 11, fontWeight: 600 }}>✓ OK</span>
+                          : <span style={{ color: RED, fontSize: 11 }}>⚠ {row.errors?.join(", ")}</span>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
-          {/* STEP: RESULT */}
           {step === "result" && (
             <div>
               <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
@@ -282,7 +264,6 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
           {step === "upload" && (
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
@@ -304,15 +285,92 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
   )
 }
 
-// ── Tab Clientes com botão CSV ────────────────────────────────────────────────
+// ── Modal Assinatura ──────────────────────────────────────────────────────────
+function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose: () => void; onSuccess: () => void }) {
+  const [plan, setPlan]       = useState("starter")
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState("")
+
+  const PLANS_INFO: Record<string, { label: string; value: string; desc: string }> = {
+    starter:  { label: "Starter",  value: "R$ 97/mês",  desc: "1 TV · Suporte básico" },
+    pro:      { label: "Pro",      value: "R$ 197/mês", desc: "1 TV · Relatórios · Prioridade" },
+    business: { label: "Business", value: "R$ 397/mês", desc: "Até 3 TVs · Suporte dedicado" },
+  }
+
+  const handleCreate = async () => {
+    setLoading(true); setError("")
+    try {
+      const res  = await fetch("/api/admin/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: client.code, plan }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Erro ao criar assinatura")
+      onSuccess()
+      onClose()
+    } catch (err: any) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, padding: 28, width: "100%", maxWidth: 420 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>💳 Criar Assinatura</h3>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer" }}>✕</button>
+        </div>
+
+        <div style={{ background: BG, borderRadius: 10, padding: "12px 16px", marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{client.name}</div>
+          <div style={{ fontSize: 12, color: TEXT2, marginTop: 2 }}>{client.code} · {client.email ?? "sem email"}</div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: TEXT2, display: "block", marginBottom: 8 }}>Selecione o plano</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {Object.entries(PLANS_INFO).map(([key, info]) => (
+              <div key={key} onClick={() => setPlan(key)}
+                style={{ background: plan === key ? "#1e3a5f" : BG, border: `1px solid ${plan === key ? BLUE : BORDER}`, borderRadius: 10, padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{info.label}</div>
+                  <div style={{ fontSize: 12, color: TEXT2 }}>{info.desc}</div>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: BLUE }}>{info.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {error && <div style={{ fontSize: 13, color: RED, background: RED + "18", borderRadius: 8, padding: "10px 14px", marginBottom: 16 }}>{error}</div>}
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", background: "transparent", border: "1px solid " + BORDER, borderRadius: 8, color: TEXT2, fontSize: 14, cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button onClick={handleCreate} disabled={loading}
+            style={{ flex: 2, padding: "10px", background: BLUE, border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+            {loading ? "Criando..." : `Criar · ${PLANS_INFO[plan].value}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Clientes ──────────────────────────────────────────────────────────────
 function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const [showCsv, setShowCsv] = useState(false)
+  const [showSub, setShowSub] = useState<any>(null)
   const { clients, subscriptions } = data
   const subMap = Object.fromEntries(subscriptions.map((s: any) => [s.code, s]))
 
   return (
     <div>
       {showCsv && <ModalCsvImport onClose={() => setShowCsv(false)} onSuccess={onRefresh} />}
+      {showSub && <ModalAssinatura client={showSub} onClose={() => setShowSub(null)} onSuccess={onRefresh} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>
@@ -326,6 +384,7 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {clients.map((c: any) => {
           const sub = subMap[c.code]
+          const hasActiveSub = sub?.status === "ACTIVE"
           return (
             <div key={c.code} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
               <div>
@@ -345,10 +404,19 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Assinatura</div>
-                <Badge label={sub?.status ?? "sem assinatura"} color={sub?.status === "ACTIVE" ? GREEN : AMBER} />
+                <Badge label={sub?.status ?? "sem assinatura"} color={hasActiveSub ? GREEN : AMBER} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <Link href={"/dashboard/local/" + c.code} target="_blank" style={{ fontSize: 12, color: PURPLE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + PURPLE + "44", borderRadius: 6 }}>Dashboard</Link>
+                {!hasActiveSub && (
+                  <button onClick={() => setShowSub(c)}
+                    style={{ fontSize: 12, background: GREEN, border: "none", borderRadius: 6, color: "white", cursor: "pointer", padding: "5px 10px", fontWeight: 600 }}>
+                    💳 Assinar
+                  </button>
+                )}
+                <Link href={"/dashboard/local/" + c.code} target="_blank"
+                  style={{ fontSize: 12, color: PURPLE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + PURPLE + "44", borderRadius: 6 }}>
+                  Dashboard
+                </Link>
               </div>
             </div>
           )
