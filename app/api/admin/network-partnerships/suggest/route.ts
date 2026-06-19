@@ -1,41 +1,34 @@
 /**
- * app/api/admin/network-partnerships/suggest/route.ts
+ * app/api/admin/network-partnerships/respond/route.ts
  *
- * Gera sugestões de parceiros para o Clube de Telas do Bairro.
+ * Permite que um dos dois lados de uma parceria sugerida (requester ou partner)
+ * aceite ou rejeite. Reflete a decisão estratégica de aprovação híbrida:
+ * o sistema sugere, o dono confirma com 1 clique.
  *
- * Regras aplicadas:
- *  - Raio de até 5km (calculado via Haversine sobre client_locations)
- *  - Exclui clientes do mesmo business_type (regra de não-concorrência)
- *  - Respeita o limite de 30 parceiros aceitos por cliente
- *  - Não duplica sugestões já existentes (qualquer status) entre o mesmo par
- *
- * Uso: POST /api/admin/network-partnerships/suggest
- * Body: { "client_code": "BARBE332" }
- *
- * Resultado: cria registros em network_partnerships com status 'suggested'
- * para os melhores candidatos encontrados (não cria se não houver candidatos).
+ * Uso: POST /api/admin/network-partnerships/respond
+ * Body: {
+ *   "partnership_id": "uuid",
+ *   "responding_client_code": "BARBE332",
+ *   "decision": "accepted" | "rejected"
+ * }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getPool } from "@/lib/db";
-import { calculateDistanceKm } from "@/lib/geocoding";
 
 export const dynamic = "force-dynamic";
 
 const MAX_PARTNERS_PER_CLIENT = 30;
-const MAX_RADIUS_KM = 5;
 
-interface ClientLocationRow {
-  code: string;
-  name: string;
-  business_type: string | null;
-  latitude: number;
-  longitude: number;
+interface PartnershipRow {
+  id: string;
+  requester_code: string;
+  partner_code: string;
+  status: string;
 }
 
 export async function POST(req: NextRequest) {
-  // Mesmo padrão de auth usado nas demais rotas admin
   const session = await getServerSession();
   const secret = req.nextUrl.searchParams.get("secret");
 
@@ -47,11 +40,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  const clientCode = body?.client_code;
+  const partnershipId = body?.partnership_id;
+  const respondingCode = body?.responding_client_code;
+  const decision = body?.decision;
 
-  if (!clientCode || typeof clientCode !== "string") {
+  if (!partnershipId || !respondingCode || !["accepted", "rejected"].includes(decision)) {
     return NextResponse.json(
-      { error: "client_code é obrigatório no corpo da requisição" },
+      {
+        error:
+          "partnership_id, responding_client_code e decision ('accepted' ou 'rejected') são obrigatórios",
+      },
       { status: 400 }
     );
   }
@@ -59,133 +57,107 @@ export async function POST(req: NextRequest) {
   const pool = getPool();
 
   try {
-    // 1. Busca o cliente de origem com sua localização e tipo de negócio
-    const { rows: originRows } = await pool.query<ClientLocationRow>(
-      `
-      SELECT sc.code, sc.name, sc.business_type, cl.latitude, cl.longitude
-      FROM studio_clients sc
-      JOIN client_locations cl ON cl.client_code = sc.code
-      WHERE sc.code = $1 AND sc.active = true
-      `,
-      [clientCode]
+    // 1. Busca a parceria e valida que o respondente é parte dela
+    const { rows: partnershipRows } = await pool.query<PartnershipRow>(
+      `SELECT id, requester_code, partner_code, status FROM network_partnerships WHERE id = $1`,
+      [partnershipId]
     );
 
-    const origin = originRows[0];
+    const partnership = partnershipRows[0];
 
-    if (!origin) {
+    if (!partnership) {
+      return NextResponse.json({ error: "Parceria não encontrada" }, { status: 404 });
+    }
+
+    if (
+      partnership.requester_code !== respondingCode &&
+      partnership.partner_code !== respondingCode
+    ) {
+      return NextResponse.json(
+        { error: "Este cliente não faz parte desta parceria" },
+        { status: 403 }
+      );
+    }
+
+    if (partnership.status !== "suggested" && partnership.status !== "pending") {
       return NextResponse.json(
         {
-          error:
-            "Cliente não encontrado, inativo, ou ainda sem geocodificação em client_locations",
+          error: `Esta parceria já está com status '${partnership.status}' e não pode ser respondida novamente`,
         },
-        { status: 404 }
+        { status: 409 }
       );
     }
 
-    // 2. Checa quantos parceiros aceitos esse cliente já tem (limite de 30)
-    const { rows: acceptedCountRows } = await pool.query<{ count: string }>(
-      `
-      SELECT count(*)::text AS count
-      FROM network_partnerships
-      WHERE status = 'accepted'
-        AND (requester_code = $1 OR partner_code = $1)
-      `,
-      [clientCode]
-    );
-
-    const acceptedCount = parseInt(acceptedCountRows[0]?.count ?? "0", 10);
-    const remainingSlots = MAX_PARTNERS_PER_CLIENT - acceptedCount;
-
-    if (remainingSlots <= 0) {
-      return NextResponse.json({
-        message: "Cliente já atingiu o limite de 30 parceiros aceitos.",
-        accepted_count: acceptedCount,
-        suggestions_created: 0,
-      });
-    }
-
-    // 3. Busca todos os outros clientes ativos e geocodificados,
-    //    exceto o próprio, e exceto pares já existentes em qualquer status
-    const { rows: candidates } = await pool.query<ClientLocationRow>(
-      `
-      SELECT sc.code, sc.name, sc.business_type, cl.latitude, cl.longitude
-      FROM studio_clients sc
-      JOIN client_locations cl ON cl.client_code = sc.code
-      WHERE sc.code <> $1
-        AND sc.active = true
-        AND NOT EXISTS (
-          SELECT 1 FROM network_partnerships np
-          WHERE (np.requester_code = $1 AND np.partner_code = sc.code)
-             OR (np.requester_code = sc.code AND np.partner_code = $1)
-        )
-      `,
-      [clientCode]
-    );
-
-    // 4. Aplica as regras de negócio: raio de 5km + não-concorrente (mesmo business_type)
-    const eligible = candidates
-      .map((candidate) => ({
-        ...candidate,
-        distance_km: calculateDistanceKm(
-          origin.latitude,
-          origin.longitude,
-          candidate.latitude,
-          candidate.longitude
-        ),
-      }))
-      .filter((candidate) => candidate.distance_km <= MAX_RADIUS_KM)
-      .filter((candidate) => {
-        // Bloqueia mesmo business_type (concorrente direto).
-        // Se algum dos dois não tiver business_type definido, não bloqueia por precaução.
-        if (!origin.business_type || !candidate.business_type) return true;
-        return candidate.business_type !== origin.business_type;
-      })
-      .sort((a, b) => a.distance_km - b.distance_km)
-      .slice(0, remainingSlots);
-
-    if (eligible.length === 0) {
-      return NextResponse.json({
-        message: "Nenhum candidato elegível encontrado dentro de 5km e sem conflito de categoria.",
-        accepted_count: acceptedCount,
-        remaining_slots: remainingSlots,
-        suggestions_created: 0,
-      });
-    }
-
-    // 5. Cria as sugestões em lote
-    const insertedSuggestions = [];
-    for (const candidate of eligible) {
-      const { rows } = await pool.query(
+    // 2. Se a decisão for aceitar, valida o limite de 30 parceiros para AMBOS os lados
+    if (decision === "accepted") {
+      const { rows: countRows } = await pool.query<{ code: string; count: string }>(
         `
-        INSERT INTO network_partnerships (requester_code, partner_code, status, distance_km)
-        VALUES ($1, $2, 'suggested', $3)
-        ON CONFLICT (requester_code, partner_code) DO NOTHING
-        RETURNING id, requester_code, partner_code, distance_km
+        SELECT code, count(*)::text AS count
+        FROM (
+          SELECT $1::text AS code
+        ) base
+        LEFT JOIN network_partnerships np
+          ON np.status = 'accepted'
+          AND (np.requester_code = base.code OR np.partner_code = base.code)
+        GROUP BY code
+
+        UNION ALL
+
+        SELECT code, count(*)::text AS count
+        FROM (
+          SELECT $2::text AS code
+        ) base
+        LEFT JOIN network_partnerships np
+          ON np.status = 'accepted'
+          AND (np.requester_code = base.code OR np.partner_code = base.code)
+        GROUP BY code
         `,
-        [clientCode, candidate.code, candidate.distance_km.toFixed(2)]
+        [partnership.requester_code, partnership.partner_code]
       );
 
-      if (rows[0]) {
-        insertedSuggestions.push({
-          ...rows[0],
-          partner_name: candidate.name,
-          partner_business_type: candidate.business_type,
-        });
+      const overLimit = countRows.find(
+        (row: { code: string; count: string }) => parseInt(row.count, 10) >= MAX_PARTNERS_PER_CLIENT
+      );
+
+      if (overLimit) {
+        return NextResponse.json(
+          {
+            error: `Cliente ${overLimit.code} já atingiu o limite de ${MAX_PARTNERS_PER_CLIENT} parceiros aceitos. Não é possível aceitar esta parceria.`,
+          },
+          { status: 409 }
+        );
       }
     }
 
+    // 3. Atualiza o status
+    const { rows: updatedRows } = await pool.query<{
+      id: string;
+      requester_code: string;
+      partner_code: string;
+      status: string;
+      distance_km: string | null;
+      responded_at: string;
+    }>(
+      `
+      UPDATE network_partnerships
+      SET status = $1, responded_at = now()
+      WHERE id = $2
+      RETURNING id, requester_code, partner_code, status, distance_km, responded_at
+      `,
+      [decision, partnershipId]
+    );
+
     return NextResponse.json({
-      message: `${insertedSuggestions.length} sugestão(ões) de parceria criada(s).`,
-      origin: { code: origin.code, name: origin.name, business_type: origin.business_type },
-      accepted_count: acceptedCount,
-      remaining_slots: remainingSlots,
-      suggestions_created: insertedSuggestions.length,
-      suggestions: insertedSuggestions,
+      message:
+        decision === "accepted"
+          ? "Parceria aceita com sucesso."
+          : "Parceria rejeitada.",
+      partnership: updatedRows[0],
     });
   } catch (err) {
-    console.error("[network-partnerships/suggest] Erro:", err);
+    console.error("[network-partnerships/respond] Erro:", err);
     return NextResponse.json(
-      { error: "Erro ao gerar sugestões de parceria" },
+      { error: "Erro ao processar resposta da parceria" },
       { status: 500 }
     );
   }
