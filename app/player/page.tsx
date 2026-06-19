@@ -196,9 +196,25 @@ export default async function PlayerPage({
             var hb       = document.getElementById('heartbeat');
             var POLL_INTERVAL_MS = 2 * 60 * 1000; // verifica mudanças a cada 2 minutos
 
+            function releaseOldVideos(container) {
+              // Pausa e libera explicitamente cada <video> antes de remover do DOM.
+              // Em WebViews Android/Fire OS, innerHTML = '' por si só não garante
+              // que o decodificador de vídeo nativo libere o buffer de memória —
+              // isso causa acúmulo progressivo até o app ser encerrado pelo sistema.
+              var oldVideos = container.querySelectorAll('video');
+              oldVideos.forEach(function(v) {
+                try {
+                  v.pause();
+                  v.removeAttribute('src');
+                  v.load(); // força o decodificador a descartar o buffer atual
+                } catch (e) {}
+              });
+            }
+
             function renderSlides(list) {
               var container = document.getElementById('slides');
               if (!container) return;
+              releaseOldVideos(container);
               container.innerHTML = '';
               list.forEach(function(m, i) {
                 var slide = document.createElement('div');
@@ -211,6 +227,7 @@ export default async function PlayerPage({
                   video.autoplay = true;
                   video.muted = true;
                   video.playsInline = true;
+                  video.preload = 'auto';
                   slide.appendChild(video);
                 } else {
                   var img = document.createElement('img');
@@ -281,7 +298,18 @@ export default async function PlayerPage({
 
             function showSlide(idx) {
               var slides = document.querySelectorAll('.slide');
-              slides.forEach(function(s) { s.classList.remove('active'); });
+              slides.forEach(function(s, slideIdx) {
+                s.classList.remove('active');
+                // Pausa qualquer vídeo que não seja o slide atual — evita ter
+                // múltiplos decodificadores de vídeo ativos ao mesmo tempo,
+                // o que sobrecarrega a memória de TVs com hardware limitado.
+                if (slideIdx !== idx) {
+                  var otherVideo = s.querySelector('video');
+                  if (otherVideo && !otherVideo.paused) {
+                    otherVideo.pause();
+                  }
+                }
+              });
               var slide = slides[idx];
               if (!slide) return;
               slide.classList.add('active');
