@@ -181,11 +181,88 @@ export default async function PlayerPage({
             var timer    = null;
             var progress = document.getElementById('progress-bar');
             var hb       = document.getElementById('heartbeat');
+            var POLL_INTERVAL_MS = 2 * 60 * 1000; // verifica mudanças a cada 2 minutos
+
+            function renderSlides(list) {
+              var container = document.getElementById('slides');
+              if (!container) return;
+              container.innerHTML = '';
+              list.forEach(function(m, i) {
+                var slide = document.createElement('div');
+                slide.className = 'slide' + (i === 0 ? ' active' : '');
+                slide.setAttribute('data-duration', m.duration);
+                slide.setAttribute('data-id', m.id);
+                if (m.type === 'video') {
+                  var video = document.createElement('video');
+                  video.src = m.url;
+                  video.autoplay = true;
+                  video.muted = true;
+                  video.playsInline = true;
+                  slide.appendChild(video);
+                } else {
+                  var img = document.createElement('img');
+                  img.src = m.url;
+                  img.alt = m.name || '';
+                  slide.appendChild(img);
+                }
+                container.appendChild(slide);
+              });
+            }
+
+            function mediasChanged(oldList, newList) {
+              if (oldList.length !== newList.length) return true;
+              for (var i = 0; i < oldList.length; i++) {
+                if (oldList[i].id !== newList[i].id) return true;
+                if (oldList[i].url !== newList[i].url) return true;
+                if (oldList[i].duration !== newList[i].duration) return true;
+              }
+              return false;
+            }
+
+            // Busca a playlist atual no servidor; se mudou, atualiza os slides
+            // sem interromper a mídia que está passando agora — a troca só
+            // entra em vigor a partir do próximo ciclo (showSlide seguinte).
+            function pollPlaylist() {
+              fetch('/api/client/playlist/' + encodeURIComponent(code))
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                  if (!data || !Array.isArray(data.items)) return;
+
+                  var fresh = data.items
+                    .filter(function(item) {
+                      return item.asset_url && item.active !== false && item.status !== 'rejected';
+                    })
+                    .map(function(item) {
+                      return {
+                        id: item.id,
+                        name: item.name,
+                        type: item.type,
+                        url: item.asset_url,
+                        duration: Number(item.duration) || 15,
+                      };
+                    });
+
+                  if (fresh.length === 0) return; // evita apagar a tela se a API falhar parcialmente
+
+                  if (mediasChanged(medias, fresh)) {
+                    medias = fresh;
+                    renderSlides(medias);
+                    if (current >= medias.length) current = 0;
+                    // não força troca imediata de slide — deixa o ciclo atual
+                    // terminar normalmente para não cortar o que está exibindo
+                  }
+                })
+                .catch(function() {
+                  // Falha de rede no polling não deve travar o player —
+                  // mantém a playlist atual em memória e tenta de novo no próximo ciclo
+                });
+            }
 
             // Sem mídia — apenas heartbeat
             if (!medias.length) {
               sendHeartbeat();
               setInterval(sendHeartbeat, 30000);
+              setInterval(pollPlaylist, POLL_INTERVAL_MS);
               return;
             }
 
@@ -230,6 +307,9 @@ export default async function PlayerPage({
 
             function nextSlide() {
               current = (current + 1) % medias.length;
+              // Garante que current nunca aponte para fora da lista
+              // se a playlist encolheu durante o polling
+              if (current >= medias.length) current = 0;
               showSlide(current);
             }
 
@@ -257,6 +337,7 @@ export default async function PlayerPage({
             // Inicia
             showSlide(0);
             setInterval(sendHeartbeat, 30000);
+            setInterval(pollPlaylist, POLL_INTERVAL_MS);
           })();
         `}} />
       </body>
