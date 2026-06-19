@@ -198,6 +198,8 @@ function PlaylistThumb({ item, name }: { item: PlaylistItem; name: string }) {
 }
 
 function ModalPromocao({ code, onClose }: { code: string; onClose: () => void }) {
+  const MAX_SIZE_MB = 50
+  const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
   const [nome, setNome]       = useState("")
   const [duracao, setDuracao] = useState("15")
   const [file, setFile]       = useState<File | null>(null)
@@ -206,7 +208,29 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
   const [success, setSuccess] = useState(false)
   const [error, setError]     = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
-  const handleFile = (f: File) => { setFile(f); setPreview(URL.createObjectURL(f)) }
+
+  const fmtSize = (bytes: number) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+    return `${Math.round(bytes / 1024)}KB`
+  }
+
+  const handleFile = (f: File) => {
+    setError("")
+    if (f.size > MAX_SIZE_BYTES) {
+      setError(`Esse arquivo tem ${fmtSize(f.size)}, e o limite é ${MAX_SIZE_MB}MB. Escolha um arquivo menor ou comprima o vídeo antes de enviar.`)
+      setFile(null)
+      setPreview(null)
+      return
+    }
+    if (!f.type.startsWith("image") && !f.type.startsWith("video")) {
+      setError("Formato não suportado. Envie uma imagem (JPG, PNG) ou vídeo (MP4).")
+      setFile(null)
+      setPreview(null)
+      return
+    }
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+  }
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }
   const handleSubmit = async () => {
     if (!nome.trim()) { setError("Informe o nome da promoção."); return }
@@ -216,7 +240,18 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
       const formData = new FormData()
       formData.append("file", file); formData.append("name", nome); formData.append("duration", duracao); formData.append("code", code)
       const res = await fetch("/api/studio/upload", { method: "POST", body: formData })
-      if (!res.ok) throw new Error("Erro ao enviar.")
+      if (!res.ok) {
+        let msg = "Erro ao enviar. Tente novamente."
+        if (res.status === 413) {
+          msg = `Arquivo muito grande para o servidor (limite de ${MAX_SIZE_MB}MB). Tente um arquivo menor.`
+        } else {
+          try {
+            const data = await res.json()
+            if (data?.error) msg = data.error
+          } catch {}
+        }
+        throw new Error(msg)
+      }
       setSuccess(true)
     } catch (err: any) { setError(err.message || "Erro ao enviar. Tente novamente.") }
     finally { setLoading(false) }
@@ -263,7 +298,7 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
                   )}
                   <input ref={inputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
                 </div>
-                {file && <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name}</div>}
+                {file && <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name} ({fmtSize(file.size)})</div>}
               </div>
               {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
               <div style={{ display: "flex", gap: 10 }}>
