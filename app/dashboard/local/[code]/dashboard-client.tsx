@@ -40,6 +40,7 @@ const NAV = [
   { id: "ganhos",    label: "Ganhos",       icon: "💵" },
   { id: "relatorios",label: "Relatórios",   icon: "📊" },
   { id: "playlist",  label: "Playlist",     icon: "▶️" },
+  { id: "clube",     label: "Clube de Telas",icon: "🤝" },
   { id: "config",    label: "Configurações",icon: "⚙" },
 ]
 
@@ -1080,6 +1081,146 @@ function TabPlaylist({ code }: { code: string }) {
   )
 }
 
+// ── Clube de Telas do Bairro ──────────────────────────────────────────────────
+function TabClubeDeTelas({ code }: { code: string }) {
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [accepted,    setAccepted]    = useState<any[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [responding,  setResponding]  = useState<string | null>(null)
+  const [error,       setError]       = useState<string | null>(null)
+
+  const loadPartnerships = () => {
+    setLoading(true)
+    fetch(`/api/client/network-partnerships/${code}`)
+      .then(r => r.json())
+      .then(d => {
+        setSuggestions(d.suggestions ?? [])
+        setAccepted(d.accepted ?? [])
+      })
+      .catch(() => setError("Não foi possível carregar as parcerias."))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadPartnerships()
+  }, [code])
+
+  const respond = async (partnershipId: string, decision: "accepted" | "rejected") => {
+    setResponding(partnershipId)
+    setError(null)
+    try {
+      const res = await fetch(`/api/admin/network-partnerships/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnership_id: partnershipId,
+          responding_client_code: code,
+          decision,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? "Erro ao responder parceria.")
+      } else {
+        loadPartnerships()
+      }
+    } catch {
+      setError("Erro de conexão ao responder parceria.")
+    }
+    setResponding(null)
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Carregando…</div>
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Clube de Telas do Bairro</div>
+        <div style={{ fontSize: 12, color: C.text3 }}>
+          {accepted.length} de 30 parceiros ativos · Sua TV exibe parceiros próximos e aparece nas telas deles também
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: C.redLt, color: C.red, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
+      {/* Sugestões pendentes */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, marginBottom: 10 }}>
+          Sugestões de parceria ({suggestions.length})
+        </div>
+
+        {suggestions.length === 0 ? (
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 24, textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Nenhuma sugestão por agora. Conforme mais parceiros se cadastrarem perto de você, vão aparecer aqui.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {suggestions.map((s) => (
+              <div key={s.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{s.partner_name}</div>
+                  <div style={{ fontSize: 12, color: C.text3 }}>
+                    {s.partner_business_type ?? "Categoria não informada"} · {Number(s.distance_km).toFixed(1)} km de distância
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => respond(s.id, "rejected")}
+                    disabled={responding === s.id}
+                    style={{ background: C.white, color: C.text2, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
+                  >
+                    Recusar
+                  </button>
+                  <button
+                    onClick={() => respond(s.id, "accepted")}
+                    disabled={responding === s.id}
+                    style={{ background: responding === s.id ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
+                  >
+                    {responding === s.id ? "Aguarde…" : "Aceitar parceria"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Parceiros já aceitos */}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, marginBottom: 10 }}>
+          Parceiros ativos ({accepted.length}/30)
+        </div>
+
+        {accepted.length === 0 ? (
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 24, textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Você ainda não tem parceiros na rede. Aceite uma sugestão acima para começar.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {accepted.map((p) => (
+              <div key={p.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{p.partner_name}</div>
+                  <div style={{ fontSize: 12, color: C.text3 }}>
+                    {p.partner_business_type ?? "Categoria não informada"} · {Number(p.distance_km).toFixed(1)} km
+                  </div>
+                </div>
+                <div style={{ background: C.gray100, color: C.text2, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600 }}>
+                  Ativo
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface Props { client: ClientData; player: PlayerData | null; stats: StatsData; playlist: PlaylistItem[]; payments: Payment[] }
 
 export default function DashboardClient({ client, player, stats, playlist, payments }: Props) {
@@ -1110,12 +1251,14 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     ganhos:     <TabGanhos stats={stats} payments={payments} code={client.code} />,
     relatorios: <TabRelatorios stats={stats} payments={payments} code={client.code} />,
     playlist:   <TabPlaylist code={client.code} />,
+    clube:      <TabClubeDeTelas code={client.code} />,
     config:     <TabConfiguracoes code={client.code} />,
   }
 
   const tabLabel: Record<string, string> = {
     dashboard: "Dashboard", tv: "Minha TV", conteudo: "Conteúdo",
-    anuncios: "Anúncios", ganhos: "Ganhos", relatorios: "Relatórios", config: "Configurações",
+    anuncios: "Anúncios", ganhos: "Ganhos", relatorios: "Relatórios",
+    playlist: "Playlist", clube: "Clube de Telas", config: "Configurações",
   }
 
   return (
