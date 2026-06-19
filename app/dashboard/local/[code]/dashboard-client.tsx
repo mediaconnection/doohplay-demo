@@ -247,7 +247,11 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
         } else {
           try {
             const data = await res.json()
-            if (data?.error) msg = data.error
+            if (data?.error) {
+              msg = data.error.toLowerCase().includes("limite")
+                ? `${data.error} Exclua uma mídia antiga na aba Conteúdo para liberar espaço e enviar uma nova.`
+                : data.error
+            }
           } catch {}
         }
         throw new Error(msg)
