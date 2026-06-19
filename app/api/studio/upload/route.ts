@@ -19,33 +19,52 @@ const r2 = new S3Client({
 const BUCKET     = "dooh-media"
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
-// ── Limites por tipo ──────────────────────────────────────────────────────────
-const LIMITS = {
+// ── Limites por tipo (tamanho de arquivo — não muda por plano) ────────────────
+const SIZE_LIMITS = {
   image: {
-    maxSize:  10 * 1024 * 1024,
-    maxCount: 20,
-    types:    ["image/jpeg", "image/png", "image/webp", "image/gif"],
-    ext:      (mime: string) => mime.split("/")[1]?.replace("jpeg", "jpg") || "jpg",
+    maxSize: 10 * 1024 * 1024,
+    types:   ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    ext:     (mime: string) => mime.split("/")[1]?.replace("jpeg", "jpg") || "jpg",
   },
   video: {
-    maxSize:  100 * 1024 * 1024,
-    maxCount: 5,
-    types:    ["video/mp4", "video/webm", "video/quicktime"],
-    ext:      (_mime: string) => "mp4",
+    maxSize: 100 * 1024 * 1024,
+    types:   ["video/mp4", "video/webm", "video/quicktime"],
+    ext:     (_mime: string) => "mp4",
   },
 }
 
+// ── Limite de QUANTIDADE total de mídias (imagens + vídeos somados) por plano ──
+// -1 significa ilimitado
+const PLAN_MEDIA_LIMITS: Record<string, number> = {
+  starter:  10,
+  pro:      25,
+  business: -1,
+}
+const DEFAULT_MEDIA_LIMIT = 10 // fallback se o cliente não tiver assinatura/plano identificado
+
 function getFileCategory(mime: string): "image" | "video" | null {
-  if (LIMITS.image.types.includes(mime)) return "image"
-  if (LIMITS.video.types.includes(mime)) return "video"
+  if (SIZE_LIMITS.image.types.includes(mime)) return "image"
+  if (SIZE_LIMITS.video.types.includes(mime)) return "video"
   return null
 }
 
+async function getMediaLimit(pool: any, code: string): Promise<{ limit: number; plan: string | null }> {
+  try {
+    const { rows } = await pool.query(
+      `SELECT plan FROM financial_subscriptions WHERE code = $1 AND status = 'ACTIVE' LIMIT 1`,
+      [code]
+    )
+    const plan = rows[0]?.plan?.toLowerCase() ?? null
+    const limit = plan && plan in PLAN_MEDIA_LIMITS ? PLAN_MEDIA_LIMITS[plan] : DEFAULT_MEDIA_LIMIT
+    return { limit, plan }
+  } catch (err) {
+    console.warn("[upload] Não foi possível buscar plano:", err)
+    return { limit: DEFAULT_MEDIA_LIMIT, plan: null }
+  }
+}
+
 // ── Garante que existe Advertiser + Campaign padrão para o cliente ─────────────
-// studio_clients e Advertiser são entidades separadas.
-// Clientes que fazem upload pelo dashboard precisam de um Advertiser shadow.
 async function ensureCampaign(pool: any, code: string, clientName: string): Promise<string> {
-  // 1. Garante Advertiser shadow (mesmo code do studio_client)
   await pool.query(
     `INSERT INTO "Advertiser" (id, code, name, email, phone, "createdAt")
      VALUES (gen_random_uuid()::text, $1, $2, '', '', NOW())
@@ -53,7 +72,6 @@ async function ensureCampaign(pool: any, code: string, clientName: string): Prom
     [code, clientName]
   )
 
-  // 2. Busca ou cria campanha padrão "Promoções da Loja"
   const { rows } = await pool.query(
     `SELECT id FROM "Campaign"
      WHERE "advertiserCode" = $1 AND name = 'Promoções da Loja'
@@ -105,39 +123,46 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const limit = LIMITS[category]
+    const sizeLimit = SIZE_LIMITS[category]
 
     // ── Valida tamanho ────────────────────────────────────────────────────────
-    if (file.size > limit.maxSize) {
-      const maxMB = limit.maxSize / 1024 / 1024
+    if (file.size > sizeLimit.maxSize) {
+      const maxMB = sizeLimit.maxSize / 1024 / 1024
       return NextResponse.json({
         error: `Arquivo muito grande. Máximo ${maxMB}MB para ${category === "image" ? "imagens" : "vídeos"}.`,
       }, { status: 400 })
     }
 
-    // ── Valida quantidade ─────────────────────────────────────────────────────
-    try {
-      const list = await r2.send(new ListObjectsV2Command({
-        Bucket: BUCKET,
-        Prefix: `studio/${code}/`,
-      }))
-      const existing = (list.Contents || []).filter(obj => {
-        const key = obj.Key?.toLowerCase() || ""
-        if (category === "image") return /\.(jpg|jpeg|png|webp|gif)$/i.test(key)
-        if (category === "video") return /\.(mp4|webm|mov)$/i.test(key)
-        return false
-      })
-      if (existing.length >= limit.maxCount) {
-        return NextResponse.json({
-          error: `Limite de ${limit.maxCount} ${category === "image" ? "imagens" : "vídeos"} atingido.`,
-        }, { status: 400 })
+    // ── Valida quantidade TOTAL (imagens + vídeos) baseado no plano ───────────
+    const { limit: mediaLimit, plan } = await getMediaLimit(pool, code)
+
+    if (mediaLimit !== -1) {
+      try {
+        const list = await r2.send(new ListObjectsV2Command({
+          Bucket: BUCKET,
+          Prefix: `studio/${code}/`,
+        }))
+        const existingTotal = (list.Contents || []).filter(obj => {
+          const key = obj.Key?.toLowerCase() || ""
+          return /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i.test(key)
+        })
+        if (existingTotal.length >= mediaLimit) {
+          const planLabel = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "atual"
+          return NextResponse.json({
+            error: `Limite de ${mediaLimit} mídias do plano ${planLabel} atingido.`,
+            limit_reached: true,
+            current_plan: plan,
+            current_count: existingTotal.length,
+            max_count: mediaLimit,
+          }, { status: 400 })
+        }
+      } catch (listErr) {
+        console.warn("[upload] Não foi possível verificar quantidade:", listErr)
       }
-    } catch (listErr) {
-      console.warn("[upload] Não foi possível verificar quantidade:", listErr)
     }
 
     // ── Upload para R2 ────────────────────────────────────────────────────────
-    const ext      = limit.ext(file.type)
+    const ext      = sizeLimit.ext(file.type)
     const fileName = `studio/${code}/${category}_${Date.now()}.${ext}`
     const buffer   = Buffer.from(await file.arrayBuffer())
 
@@ -152,7 +177,6 @@ export async function POST(request: NextRequest) {
 
     // ── Salva no banco ────────────────────────────────────────────────────────
     try {
-      // Garante Advertiser shadow + campanha padrão antes do INSERT
       const campaignId = await ensureCampaign(pool, code, clientName)
 
       await pool.query(
@@ -162,7 +186,6 @@ export async function POST(request: NextRequest) {
       )
     } catch (dbErr) {
       console.error("[upload] db error:", dbErr)
-      // Upload no R2 já foi feito — não retorna erro pro usuário, só loga
     }
 
     return NextResponse.json({
@@ -183,11 +206,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ── GET — lista arquivos do cliente ──────────────────────────────────────────
+// ── GET — lista arquivos do cliente + limite do plano ────────────────────────
 export async function GET(request: NextRequest) {
   try {
     const code = new URL(request.url).searchParams.get("code")?.toUpperCase()
     if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
+
+    const pool = getPool()
+    const { limit: mediaLimit, plan } = await getMediaLimit(pool, code)
 
     const list = await r2.send(new ListObjectsV2Command({
       Bucket: BUCKET,
@@ -197,10 +223,13 @@ export async function GET(request: NextRequest) {
     const files  = list.Contents || []
     const images = files.filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.Key || ""))
     const videos = files.filter(f => /\.(mp4|webm|mov)$/i.test(f.Key || ""))
+    const total  = images.length + videos.length
 
     return NextResponse.json({
-      images: { count: images.length, max: LIMITS.image.maxCount },
-      videos: { count: videos.length, max: LIMITS.video.maxCount },
+      plan,
+      total: { count: total, max: mediaLimit === -1 ? null : mediaLimit, unlimited: mediaLimit === -1 },
+      images: { count: images.length },
+      videos: { count: videos.length },
       files:  files.map(f => ({
         name: f.Key?.split("/").pop(),
         size: f.Size,
