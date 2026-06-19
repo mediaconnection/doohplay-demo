@@ -4,10 +4,23 @@ export const dynamic = "force-dynamic"
 
 import { getPool } from "@/lib/db"
 
+interface PlayerMediaRow {
+  name: string;
+  business_type: string;
+  primary_color: string;
+  id: string;
+  media_name: string;
+  media_type: string;
+  media_url: string;
+  duration: number;
+  active: boolean;
+  position: number;
+}
+
 async function getPlayerData(code: string) {
   const pool = getPool()
   try {
-    const { rows } = await pool.query(`
+    const { rows } = await pool.query<PlayerMediaRow>(`
       SELECT
         sc.name,
         sc.business_type,
@@ -32,7 +45,7 @@ async function getPlayerData(code: string) {
       name: rows[0]?.name ?? "DOOHPLAY",
       business_type: rows[0]?.business_type ?? "",
       primary_color: rows[0]?.primary_color ?? "#3B82F6",
-      medias: rows.filter(r => r.media_url && r.active).map(r => ({
+      medias: rows.filter((r: PlayerMediaRow) => r.media_url && r.active).map((r: PlayerMediaRow) => ({
         id: r.id,
         name: r.media_name,
         type: r.media_type,
@@ -146,21 +159,21 @@ export default async function PlayerPage({
           <div id="heartbeat"></div>
 
           {data.medias.length === 0 ? (
-            <div class="default-screen">
-              <div class="logo-icon">
+            <div className="default-screen">
+              <div className="logo-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
                   <rect x="2" y="3" width="20" height="14" rx="2"/>
                   <line x1="8" y1="21" x2="16" y2="21"/>
                   <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
               </div>
-              <div class="logo-text">DOOH<span>PLAY</span></div>
-              <div class="tagline">{data.name}</div>
-              <div class="screen-code">📺 {code} — Aguardando conteúdo</div>
+              <div className="logo-text">DOOH<span>PLAY</span></div>
+              <div className="tagline">{data.name}</div>
+              <div className="screen-code">📺 {code} — Aguardando conteúdo</div>
             </div>
           ) : (
             <div id="slides">
-              {data.medias.map((m, i) => (
+              {data.medias.map((m: { id: string; name: string; type: string; url: string; duration: number }, i: number) => (
                 <div key={m.id} className={`slide${i === 0 ? " active" : ""}`} data-duration={m.duration} data-id={m.id}>
                   {m.type === "video" ? (
                     <video src={m.url} autoPlay muted playsInline loop={false} />
