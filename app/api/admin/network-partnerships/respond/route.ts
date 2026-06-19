@@ -1,359 +1,164 @@
-// app/player/page.tsx
-// Página exibida na TV via Fire Stick — modo kiosk, sem nav, fullscreen
-export const dynamic = "force-dynamic"
+/**
+ * app/api/admin/network-partnerships/respond/route.ts
+ *
+ * Permite que um dos dois lados de uma parceria sugerida (requester ou partner)
+ * aceite ou rejeite. Reflete a decisão estratégica de aprovação híbrida:
+ * o sistema sugere, o dono confirma com 1 clique.
+ *
+ * Uso: POST /api/admin/network-partnerships/respond
+ * Body: {
+ *   "partnership_id": "uuid",
+ *   "responding_client_code": "BARBE332",
+ *   "decision": "accepted" | "rejected"
+ * }
+ */
 
-import { getPool } from "@/lib/db"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { getPool } from "@/lib/db";
 
-interface PlayerMediaRow {
-  name: string;
-  business_type: string;
-  primary_color: string;
+export const dynamic = "force-dynamic";
+
+const MAX_PARTNERS_PER_CLIENT = 30;
+
+interface PartnershipRow {
   id: string;
-  media_name: string;
-  media_type: string;
-  media_url: string;
-  duration: number;
-  active: boolean;
-  position: number;
+  requester_code: string;
+  partner_code: string;
+  status: string;
 }
 
-async function getPlayerData(code: string) {
-  const pool = getPool()
-  try {
-    const { rows } = await pool.query<PlayerMediaRow>(`
-      SELECT
-        sc.name,
-        sc.business_type,
-        sc.primary_color,
-        cm.id,
-        cm.name    AS media_name,
-        cm.type    AS media_type,
-        cm.url     AS media_url,
-        COALESCE(ps.duration, 15) AS duration,
-        COALESCE(ps.active, true) AS active,
-        COALESCE(ps.position, 0)  AS position
-      FROM studio_clients sc
-      LEFT JOIN "Campaign" c ON c."advertiserCode" = sc.code
-      LEFT JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
-      LEFT JOIN playlist_schedule ps ON ps.media_id = cm.id AND ps.client_code = sc.code
-      WHERE sc.code = $1
-        AND sc.active = true
-      ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
-    `, [code.toUpperCase()])
+export async function POST(req: NextRequest) {
+  const session = await getServerSession();
+  const secret = req.nextUrl.searchParams.get("secret");
 
-    return {
-      name: rows[0]?.name ?? "DOOHPLAY",
-      business_type: rows[0]?.business_type ?? "",
-      primary_color: rows[0]?.primary_color ?? "#3B82F6",
-      medias: rows.filter((r: PlayerMediaRow) => r.media_url && r.active).map((r: PlayerMediaRow) => ({
-        id: r.id,
-        name: r.media_name,
-        type: r.media_type,
-        url: r.media_url,
-        duration: Number(r.duration) || 15,
-      }))
-    }
-  } catch {
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] }
+  const isNextAuth = !!session?.user;
+  const isLegacy = secret && secret === process.env.ADMIN_SECRET;
+
+  if (!isNextAuth && !isLegacy) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-}
 
-export default async function PlayerPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ screen?: string }>
-}) {
-  const { screen } = await searchParams
-  const code = screen?.toUpperCase() ?? ""
-  const data = await getPlayerData(code)
+  const body = await req.json().catch(() => null);
+  const partnershipId = body?.partnership_id;
+  const respondingCode = body?.responding_client_code;
+  const decision = body?.decision;
 
-  const mediasJson = JSON.stringify(data.medias)
+  if (!partnershipId || !respondingCode || !["accepted", "rejected"].includes(decision)) {
+    return NextResponse.json(
+      {
+        error:
+          "partnership_id, responding_client_code e decision ('accepted' ou 'rejected') são obrigatórios",
+      },
+      { status: 400 }
+    );
+  }
 
-  return (
-    <html lang="pt-BR">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>DOOHPLAY Player</title>
-        <style>{`
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          html, body {
-            width: 100vw; height: 100vh;
-            background: #000;
-            overflow: hidden;
-            font-family: 'Inter', system-ui, sans-serif;
-          }
-          #player {
-            width: 100vw; height: 100vh;
-            position: relative;
-            background: #0F172A;
-          }
-          .slide {
-            position: absolute;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-          }
-          .slide.active { display: flex; }
-          .slide img, .slide video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-          /* Fallback quando não há mídia */
-          .default-screen {
-            width: 100vw; height: 100vh;
-            background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #F1F5F9;
-          }
-          .logo-icon {
-            width: 80px; height: 80px;
-            background: linear-gradient(135deg, #3B82F6, #6366F1);
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 24px;
-          }
-          .logo-text {
-            font-size: 48px; font-weight: 900;
-            letter-spacing: -0.03em;
-            margin-bottom: 12px;
-          }
-          .logo-text span { color: #3B82F6; }
-          .tagline { font-size: 18px; color: #64748B; }
-          .screen-code {
-            margin-top: 32px;
-            font-size: 14px; color: #374151;
-            background: #1E293B;
-            padding: 8px 20px; border-radius: 20px;
-          }
-          /* Barra de progresso */
-          #progress-bar {
-            position: fixed;
-            bottom: 0; left: 0;
-            height: 3px;
-            background: #3B82F6;
-            width: 0%;
-            transition: width linear;
-            z-index: 100;
-          }
-          /* Heartbeat indicator */
-          #heartbeat {
-            position: fixed;
-            top: 12px; right: 12px;
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: #10B981;
-            opacity: 0;
-            z-index: 100;
-          }
-        `}</style>
-      </head>
-      <body>
-        <div id="player">
-          <div id="progress-bar"></div>
-          <div id="heartbeat"></div>
+  const pool = getPool();
 
-          {data.medias.length === 0 ? (
-            <div className="default-screen">
-              <div className="logo-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/>
-                  <line x1="8" y1="21" x2="16" y2="21"/>
-                  <line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
-              </div>
-              <div className="logo-text">DOOH<span>PLAY</span></div>
-              <div className="tagline">{data.name}</div>
-              <div className="screen-code">📺 {code} — Aguardando conteúdo</div>
-            </div>
-          ) : (
-            <div id="slides">
-              {data.medias.map((m: { id: string; name: string; type: string; url: string; duration: number }, i: number) => (
-                <div key={m.id} className={`slide${i === 0 ? " active" : ""}`} data-duration={m.duration} data-id={m.id}>
-                  {m.type === "video" ? (
-                    <video src={m.url} autoPlay muted playsInline loop={false} />
-                  ) : (
-                    <img src={m.url} alt={m.name} />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+  try {
+    // 1. Busca a parceria e valida que o respondente é parte dela
+    const { rows: partnershipRows } = await pool.query<PartnershipRow>(
+      `SELECT id, requester_code, partner_code, status FROM network_partnerships WHERE id = $1`,
+      [partnershipId]
+    );
 
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            var medias   = ${mediasJson};
-            var code     = ${JSON.stringify(code)};
-            var current  = 0;
-            var timer    = null;
-            var progress = document.getElementById('progress-bar');
-            var hb       = document.getElementById('heartbeat');
-            var POLL_INTERVAL_MS = 2 * 60 * 1000; // verifica mudanças a cada 2 minutos
+    const partnership = partnershipRows[0];
 
-            function renderSlides(list) {
-              var container = document.getElementById('slides');
-              if (!container) return;
-              container.innerHTML = '';
-              list.forEach(function(m, i) {
-                var slide = document.createElement('div');
-                slide.className = 'slide' + (i === 0 ? ' active' : '');
-                slide.setAttribute('data-duration', m.duration);
-                slide.setAttribute('data-id', m.id);
-                if (m.type === 'video') {
-                  var video = document.createElement('video');
-                  video.src = m.url;
-                  video.autoplay = true;
-                  video.muted = true;
-                  video.playsInline = true;
-                  slide.appendChild(video);
-                } else {
-                  var img = document.createElement('img');
-                  img.src = m.url;
-                  img.alt = m.name || '';
-                  slide.appendChild(img);
-                }
-                container.appendChild(slide);
-              });
-            }
+    if (!partnership) {
+      return NextResponse.json({ error: "Parceria não encontrada" }, { status: 404 });
+    }
 
-            function mediasChanged(oldList, newList) {
-              if (oldList.length !== newList.length) return true;
-              for (var i = 0; i < oldList.length; i++) {
-                if (oldList[i].id !== newList[i].id) return true;
-                if (oldList[i].url !== newList[i].url) return true;
-                if (oldList[i].duration !== newList[i].duration) return true;
-              }
-              return false;
-            }
+    if (
+      partnership.requester_code !== respondingCode &&
+      partnership.partner_code !== respondingCode
+    ) {
+      return NextResponse.json(
+        { error: "Este cliente não faz parte desta parceria" },
+        { status: 403 }
+      );
+    }
 
-            // Busca a playlist atual no servidor; se mudou, atualiza os slides
-            // sem interromper a mídia que está passando agora — a troca só
-            // entra em vigor a partir do próximo ciclo (showSlide seguinte).
-            function pollPlaylist() {
-              fetch('/api/client/playlist/' + encodeURIComponent(code))
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                  if (!data || !Array.isArray(data.items)) return;
+    if (partnership.status !== "suggested" && partnership.status !== "pending") {
+      return NextResponse.json(
+        {
+          error: `Esta parceria já está com status '${partnership.status}' e não pode ser respondida novamente`,
+        },
+        { status: 409 }
+      );
+    }
 
-                  var fresh = data.items
-                    .filter(function(item) {
-                      return item.asset_url && item.active !== false && item.status !== 'rejected';
-                    })
-                    .map(function(item) {
-                      return {
-                        id: item.id,
-                        name: item.name,
-                        type: item.type,
-                        url: item.asset_url,
-                        duration: Number(item.duration) || 15,
-                      };
-                    });
+    // 2. Se a decisão for aceitar, valida o limite de 30 parceiros para AMBOS os lados
+    if (decision === "accepted") {
+      const { rows: countRows } = await pool.query<{ code: string; count: string }>(
+        `
+        SELECT code, count(*)::text AS count
+        FROM (
+          SELECT $1::text AS code
+        ) base
+        LEFT JOIN network_partnerships np
+          ON np.status = 'accepted'
+          AND (np.requester_code = base.code OR np.partner_code = base.code)
+        GROUP BY code
 
-                  if (fresh.length === 0) return; // evita apagar a tela se a API falhar parcialmente
+        UNION ALL
 
-                  if (mediasChanged(medias, fresh)) {
-                    medias = fresh;
-                    renderSlides(medias);
-                    if (current >= medias.length) current = 0;
-                    // não força troca imediata de slide — deixa o ciclo atual
-                    // terminar normalmente para não cortar o que está exibindo
-                  }
-                })
-                .catch(function() {
-                  // Falha de rede no polling não deve travar o player —
-                  // mantém a playlist atual em memória e tenta de novo no próximo ciclo
-                });
-            }
+        SELECT code, count(*)::text AS count
+        FROM (
+          SELECT $2::text AS code
+        ) base
+        LEFT JOIN network_partnerships np
+          ON np.status = 'accepted'
+          AND (np.requester_code = base.code OR np.partner_code = base.code)
+        GROUP BY code
+        `,
+        [partnership.requester_code, partnership.partner_code]
+      );
 
-            // Sem mídia — apenas heartbeat
-            if (!medias.length) {
-              sendHeartbeat();
-              setInterval(sendHeartbeat, 30000);
-              setInterval(pollPlaylist, POLL_INTERVAL_MS);
-              return;
-            }
+      const overLimit = countRows.find(
+        (row: { code: string; count: string }) => parseInt(row.count, 10) >= MAX_PARTNERS_PER_CLIENT
+      );
 
-            function showSlide(idx) {
-              var slides = document.querySelectorAll('.slide');
-              slides.forEach(function(s) { s.classList.remove('active'); });
-              var slide = slides[idx];
-              if (!slide) return;
-              slide.classList.add('active');
+      if (overLimit) {
+        return NextResponse.json(
+          {
+            error: `Cliente ${overLimit.code} já atingiu o limite de ${MAX_PARTNERS_PER_CLIENT} parceiros aceitos. Não é possível aceitar esta parceria.`,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
-              var dur = parseInt(slide.getAttribute('data-duration') || '15') * 1000;
-              var mediaId = slide.getAttribute('data-id');
+    // 3. Atualiza o status
+    const { rows: updatedRows } = await pool.query<{
+      id: string;
+      requester_code: string;
+      partner_code: string;
+      status: string;
+      distance_km: string | null;
+      responded_at: string;
+    }>(
+      `
+      UPDATE network_partnerships
+      SET status = $1, responded_at = now()
+      WHERE id = $2
+      RETURNING id, requester_code, partner_code, status, distance_km, responded_at
+      `,
+      [decision, partnershipId]
+    );
 
-              // Vídeo
-              var video = slide.querySelector('video');
-              if (video) {
-                video.currentTime = 0;
-                video.play().catch(function(){});
-                video.onended = function() { nextSlide(); };
-                dur = Math.max(dur, (video.duration || 15) * 1000);
-              }
-
-              // Barra de progresso
-              if (progress) {
-                progress.style.transition = 'none';
-                progress.style.width = '0%';
-                setTimeout(function() {
-                  progress.style.transition = 'width ' + dur + 'ms linear';
-                  progress.style.width = '100%';
-                }, 50);
-              }
-
-              // Registra exibição
-              logDisplay(mediaId, code);
-
-              // Timer para próximo slide
-              if (timer) clearTimeout(timer);
-              if (!video) {
-                timer = setTimeout(nextSlide, dur);
-              }
-            }
-
-            function nextSlide() {
-              current = (current + 1) % medias.length;
-              // Garante que current nunca aponte para fora da lista
-              // se a playlist encolheu durante o polling
-              if (current >= medias.length) current = 0;
-              showSlide(current);
-            }
-
-            function logDisplay(mediaId, screenCode) {
-              fetch('/api/player/event', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ media_id: mediaId, screen_code: screenCode, played_at: new Date().toISOString() })
-              }).catch(function(){});
-            }
-
-            function sendHeartbeat() {
-              fetch('/api/player/heartbeat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ screen_code: code })
-              }).then(function() {
-                if (hb) {
-                  hb.style.opacity = '1';
-                  setTimeout(function() { hb.style.opacity = '0'; }, 500);
-                }
-              }).catch(function(){});
-            }
-
-            // Inicia
-            showSlide(0);
-            setInterval(sendHeartbeat, 30000);
-            setInterval(pollPlaylist, POLL_INTERVAL_MS);
-          })();
-        `}} />
-      </body>
-    </html>
-  )
+    return NextResponse.json({
+      message:
+        decision === "accepted"
+          ? "Parceria aceita com sucesso."
+          : "Parceria rejeitada.",
+      partnership: updatedRows[0],
+    });
+  } catch (err) {
+    console.error("[network-partnerships/respond] Erro:", err);
+    return NextResponse.json(
+      { error: "Erro ao processar resposta da parceria" },
+      { status: 500 }
+    );
+  }
 }
