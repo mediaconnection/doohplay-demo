@@ -110,6 +110,11 @@ async function getPlayerData(code: string) {
   }
 }
 
+export const metadata = {
+  title: "DOOHPLAY Player",
+  viewport: "width=device-width, initial-scale=1",
+}
+
 export default async function PlayerPage({
   searchParams,
 }: {
@@ -122,12 +127,8 @@ export default async function PlayerPage({
   const mediasJson = JSON.stringify(data.medias)
 
   return (
-    <html lang="pt-BR">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>DOOHPLAY Player</title>
-        <style>{`
+    <>
+      <style>{`
           * { margin: 0; padding: 0; box-sizing: border-box; }
           html, body {
             width: 100vw; height: 100vh;
@@ -227,9 +228,7 @@ export default async function PlayerPage({
             max-width: 60px;
           }
         `}</style>
-      </head>
-      <body>
-        <div id="player">
+      <div id="player">
           <div id="progress-bar"></div>
           <div id="heartbeat"></div>
           {code && (
@@ -578,7 +577,6 @@ export default async function PlayerPage({
             setInterval(pollPlaylist, POLL_INTERVAL_MS);
           })();
         `}} />
-      </body>
-    </html>
+    </>
   )
 }
