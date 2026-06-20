@@ -88,14 +88,47 @@ export async function GET(
       ORDER BY im.position ASC
     `)
 
-    const [ownAndAds, network, institutional] = await Promise.all([
-      ownAndAdsQuery, networkQuery, institutionalQuery,
+    // ── Anunciante real — campanhas de terceiros vinculadas explicitamente
+    // a esta tela via CampaignScreen (fluxo de venda real, separado do
+    // upload do próprio dono que usa Campaign "Promoções da Loja").
+    const realAdsQuery = pool.query(`
+      SELECT
+        cm.id,
+        cm.name,
+        cm.type,
+        cm.url                          AS asset_url,
+        cm.status,
+        'anunciante'                     AS slot_category,
+        cm."createdAt"                  AS created_at,
+        999                              AS position,
+        15                               AS duration,
+        true                             AS active,
+        NULL::text[]                     AS days_of_week,
+        NULL::text                       AS start_time,
+        NULL::text                       AS end_time,
+        NULL::text                       AS start_date,
+        NULL::text                       AS end_date
+      FROM "CampaignScreen" cs
+      JOIN "Campaign" c ON c.id = cs."campaignId"
+      JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
+      WHERE cs."screenId" = $1
+        AND c.status = 'active'
+        AND c."startDate" <= NOW()
+        AND c."endDate" >= NOW()
+        AND cm.status != 'rejected'
+    `, [upperCode])
+
+
+
+    const [ownAndAds, network, institutional, realAds] = await Promise.all([
+      ownAndAdsQuery, networkQuery, institutionalQuery, realAdsQuery,
     ])
 
     const items = [
       ...ownAndAds.rows,
       ...network.rows,
       ...institutional.rows,
+      ...realAds.rows,
     ]
 
     return NextResponse.json({ items })
