@@ -151,12 +151,41 @@ export default async function PlayerPage({
             opacity: 0;
             z-index: 100;
           }
+          /* QR code fixo no rodapé — captura de leads via Clube de Telas/CRM */
+          #qr-footer {
+            position: fixed;
+            bottom: 10px; right: 10px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 90;
+          }
+          #qr-footer img {
+            width: 56px; height: 56px;
+            display: block;
+          }
+          #qr-footer .qr-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #0B1120;
+            line-height: 1.3;
+            max-width: 60px;
+          }
         `}</style>
       </head>
       <body>
         <div id="player">
           <div id="progress-bar"></div>
           <div id="heartbeat"></div>
+          {code && (
+            <div id="qr-footer">
+              <img src={`/api/qrcode/${code}`} alt="QR code" />
+              <span className="qr-label">Receba novidades</span>
+            </div>
+          )}
 
           {data.medias.length === 0 ? (
             <div className="default-screen">
