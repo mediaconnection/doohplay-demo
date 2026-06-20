@@ -9,20 +9,24 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params
+  const upperCode = code.toUpperCase()
   const pool = getPool()
   try {
-    const { rows } = await pool.query(`
+    // ── Dono + Anunciante (CampaignMedia, distinguidos por content_source) ──
+    // Mantém o agendamento (playlist_schedule) que o dono configura no dashboard.
+    const ownAndAdsQuery = pool.query(`
       SELECT
         cm.id,
         cm.name,
         cm.type,
-        cm.url                         AS asset_url,
+        cm.url                          AS asset_url,
         cm.status,
-        cm."createdAt"                 AS created_at,
+        cm.content_source               AS slot_category,
+        cm."createdAt"                  AS created_at,
         COALESCE(ps.position,
           ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int) AS position,
-        COALESCE(ps.duration, 15)      AS duration,
-        COALESCE(ps.active,   true)    AS active,
+        COALESCE(ps.duration, 15)       AS duration,
+        COALESCE(ps.active,   true)     AS active,
         ps.days_of_week,
         ps.start_time::text,
         ps.end_time::text,
@@ -34,8 +38,67 @@ export async function GET(
         ON ps.media_id = cm.id AND ps.client_code = $1
       WHERE c."advertiserCode" = $1
       ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
-    `, [code.toUpperCase()])
-    return NextResponse.json({ items: rows })
+    `, [upperCode])
+
+    // ── Rede (Clube de Telas) — mídias de parceiros distribuídas para esta tela ──
+    const networkQuery = pool.query(`
+      SELECT
+        nm.id,
+        nm.name,
+        nm.type,
+        nm.url                          AS asset_url,
+        nm.status,
+        'rede'                          AS slot_category,
+        nm.created_at,
+        999                              AS position,
+        15                               AS duration,
+        true                             AS active,
+        NULL::text[]                     AS days_of_week,
+        NULL::text                       AS start_time,
+        NULL::text                       AS end_time,
+        NULL::text                       AS start_date,
+        NULL::text                       AS end_date
+      FROM network_media_distribution nmd
+      JOIN network_media nm ON nm.id = nmd.network_media_id
+      WHERE nmd.displayed_on_code = $1
+        AND nmd.active = true
+        AND nm.status = 'approved'
+    `, [upperCode])
+
+    // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
+    const institutionalQuery = pool.query(`
+      SELECT
+        im.id,
+        im.name,
+        im.type,
+        im.url                          AS asset_url,
+        'approved'                      AS status,
+        'institucional'                 AS slot_category,
+        im.created_at,
+        im.position,
+        im.duration,
+        im.active,
+        NULL::text[]                     AS days_of_week,
+        NULL::text                       AS start_time,
+        NULL::text                       AS end_time,
+        NULL::text                       AS start_date,
+        NULL::text                       AS end_date
+      FROM institutional_media im
+      WHERE im.active = true
+      ORDER BY im.position ASC
+    `)
+
+    const [ownAndAds, network, institutional] = await Promise.all([
+      ownAndAdsQuery, networkQuery, institutionalQuery,
+    ])
+
+    const items = [
+      ...ownAndAds.rows,
+      ...network.rows,
+      ...institutional.rows,
+    ]
+
+    return NextResponse.json({ items })
   } catch (err) {
     console.error("[playlist GET]", err)
     return NextResponse.json({ error: "Erro interno" }, { status: 500 })
