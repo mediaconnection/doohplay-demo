@@ -124,6 +124,22 @@ export default async function PlayerPage({
   const code = screen?.toUpperCase() ?? ""
   const data = await getPlayerData(code)
 
+  function escapeHtml(s: string) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+  }
+
+  const slidesHtml = data.medias.map((m: PlayerMedia, i: number) => {
+    const cls = `slide${i === 0 ? " active" : ""}`
+    const inner = m.type === "video"
+      ? `<video src="${escapeHtml(m.url)}" autoplay muted playsinline></video>`
+      : `<img src="${escapeHtml(m.url)}" alt="${escapeHtml(m.name)}" />`
+    return `<div class="${cls}" data-duration="${m.duration}" data-id="${escapeHtml(m.id)}">${inner}</div>`
+  }).join("")
+
   const mediasJson = JSON.stringify(data.medias)
 
   return (
@@ -252,17 +268,7 @@ export default async function PlayerPage({
               <div className="screen-code">📺 {code} — Aguardando conteúdo</div>
             </div>
           ) : (
-            <div id="slides">
-              {data.medias.map((m: PlayerMedia, i: number) => (
-                <div key={m.id} className={`slide${i === 0 ? " active" : ""}`} data-duration={m.duration} data-id={m.id}>
-                  {m.type === "video" ? (
-                    <video src={m.url} autoPlay muted playsInline loop={false} />
-                  ) : (
-                    <img src={m.url} alt={m.name} />
-                  )}
-                </div>
-              ))}
-            </div>
+            <div id="slides" dangerouslySetInnerHTML={{ __html: slidesHtml }} />
           )}
         </div>
 
