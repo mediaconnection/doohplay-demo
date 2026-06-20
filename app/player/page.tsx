@@ -140,6 +140,27 @@ export default async function PlayerPage({
     return `<div class="${cls}" data-duration="${m.duration}" data-id="${escapeHtml(m.id)}">${inner}</div>`
   }).join("")
 
+  const qrFooterHtml = code
+    ? `<div id="qr-footer"><img src="/api/qrcode/${escapeHtml(code)}" alt="QR code" /><span class="qr-label">Receba novidades</span></div>`
+    : ""
+
+  const bodyContentHtml = data.medias.length === 0
+    ? `<div class="default-screen">
+        <div class="logo-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <div class="logo-text">DOOH<span>PLAY</span></div>
+        <div class="tagline">${escapeHtml(data.name)}</div>
+        <div class="screen-code">📺 ${escapeHtml(code)} — Aguardando conteúdo</div>
+      </div>`
+    : `<div id="slides">${slidesHtml}</div>`
+
+  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}${bodyContentHtml}`
+
   const mediasJson = JSON.stringify(data.medias)
 
   return (
@@ -244,33 +265,7 @@ export default async function PlayerPage({
             max-width: 60px;
           }
         `}</style>
-      <div id="player">
-          <div id="progress-bar"></div>
-          <div id="heartbeat"></div>
-          {code && (
-            <div id="qr-footer">
-              <img src={`/api/qrcode/${code}`} alt="QR code" />
-              <span className="qr-label">Receba novidades</span>
-            </div>
-          )}
-
-          {data.medias.length === 0 ? (
-            <div className="default-screen">
-              <div className="logo-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/>
-                  <line x1="8" y1="21" x2="16" y2="21"/>
-                  <line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
-              </div>
-              <div className="logo-text">DOOH<span>PLAY</span></div>
-              <div className="tagline">{data.name}</div>
-              <div className="screen-code">📺 {code} — Aguardando conteúdo</div>
-            </div>
-          ) : (
-            <div id="slides" dangerouslySetInnerHTML={{ __html: slidesHtml }} />
-          )}
-        </div>
+      <div id="player" dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
