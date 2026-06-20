@@ -196,47 +196,79 @@ export default async function PlayerPage({
             var hb       = document.getElementById('heartbeat');
             var POLL_INTERVAL_MS = 2 * 60 * 1000; // verifica mudanças a cada 2 minutos
 
-            function releaseOldVideos(container) {
-              // Pausa e libera explicitamente cada <video> antes de remover do DOM.
-              // Em WebViews Android/Fire OS, innerHTML = '' por si só não garante
-              // que o decodificador de vídeo nativo libere o buffer de memória —
-              // isso causa acúmulo progressivo até o app ser encerrado pelo sistema.
-              var oldVideos = container.querySelectorAll('video');
-              oldVideos.forEach(function(v) {
-                try {
-                  v.pause();
-                  v.removeAttribute('src');
-                  v.load(); // força o decodificador a descartar o buffer atual
-                } catch (e) {}
-              });
+            // ── Arquitetura de renderização sob demanda ──────────────────────
+            // Em vez de criar um elemento <img>/<video> para CADA mídia da
+            // playlist de uma vez (o que crescia com o tamanho da rede de
+            // anunciantes e sobrecarregava a memória de TVs com hardware
+            // limitado), mantemos só DOIS slots fixos no DOM:
+            //   slotA / slotB — alternam entre "atual" e "próximo pré-carregado"
+            // Isso mantém o uso de memória constante, não importa se a
+            // playlist tem 5 ou 500 itens.
+
+            var slotA = null;
+            var slotB = null;
+            var activeSlot = null; // referência ao slot atualmente visível
+
+            function createMediaElement(m) {
+              var el;
+              if (m.type === 'video') {
+                el = document.createElement('video');
+                el.muted = true;
+                el.playsInline = true;
+                el.preload = 'auto';
+              } else {
+                el = document.createElement('img');
+                el.alt = m.name || '';
+              }
+              el.setAttribute('data-id', m.id);
+              el.setAttribute('data-duration', m.duration);
+              return el;
             }
 
-            function renderSlides(list) {
+            function releaseSlot(slot) {
+              if (!slot) return;
+              var el = slot.querySelector('video, img');
+              if (el && el.tagName === 'VIDEO') {
+                try {
+                  el.pause();
+                  el.removeAttribute('src');
+                  el.load(); // força o decodificador a descartar o buffer
+                } catch (e) {}
+              }
+              slot.innerHTML = '';
+              slot.classList.remove('active');
+            }
+
+            function fillSlot(slot, m) {
+              releaseSlot(slot);
+              var el = createMediaElement(m);
+              if (m.type === 'video') {
+                el.src = m.url;
+              } else {
+                el.src = m.url;
+              }
+              slot.appendChild(el);
+              return el;
+            }
+
+            function initSlots() {
               var container = document.getElementById('slides');
               if (!container) return;
-              releaseOldVideos(container);
               container.innerHTML = '';
-              list.forEach(function(m, i) {
-                var slide = document.createElement('div');
-                slide.className = 'slide' + (i === 0 ? ' active' : '');
-                slide.setAttribute('data-duration', m.duration);
-                slide.setAttribute('data-id', m.id);
-                if (m.type === 'video') {
-                  var video = document.createElement('video');
-                  video.src = m.url;
-                  video.autoplay = true;
-                  video.muted = true;
-                  video.playsInline = true;
-                  video.preload = 'auto';
-                  slide.appendChild(video);
-                } else {
-                  var img = document.createElement('img');
-                  img.src = m.url;
-                  img.alt = m.name || '';
-                  slide.appendChild(img);
-                }
-                container.appendChild(slide);
-              });
+              slotA = document.createElement('div');
+              slotB = document.createElement('div');
+              slotA.className = 'slide';
+              slotB.className = 'slide';
+              container.appendChild(slotA);
+              container.appendChild(slotB);
+            }
+
+            function preloadNext(idx) {
+              // Pré-carrega a próxima mídia no slot inativo, para a troca
+              // ser instantânea sem precisar esperar o download.
+              var nextIdx = (idx + 1) % medias.length;
+              var inactiveSlot = activeSlot === slotA ? slotB : slotA;
+              fillSlot(inactiveSlot, medias[nextIdx]);
             }
 
             function mediasChanged(oldList, newList) {
@@ -249,9 +281,9 @@ export default async function PlayerPage({
               return false;
             }
 
-            // Busca a playlist atual no servidor; se mudou, atualiza os slides
-            // sem interromper a mídia que está passando agora — a troca só
-            // entra em vigor a partir do próximo ciclo (showSlide seguinte).
+            // Busca a playlist atual no servidor; se mudou, atualiza a lista
+            // em memória sem interromper a mídia que está passando agora —
+            // o próximo preloadNext já vai refletir a playlist nova.
             function pollPlaylist() {
               fetch('/api/client/playlist/' + encodeURIComponent(code))
                 .then(function(res) { return res.json(); })
@@ -276,10 +308,9 @@ export default async function PlayerPage({
 
                   if (mediasChanged(medias, fresh)) {
                     medias = fresh;
-                    renderSlides(medias);
                     if (current >= medias.length) current = 0;
-                    // não força troca imediata de slide — deixa o ciclo atual
-                    // terminar normalmente para não cortar o que está exibindo
+                    // não força troca imediata — deixa o ciclo atual terminar
+                    // normalmente; o próximo preloadNext já usa a lista nova
                   }
                 })
                 .catch(function() {
@@ -296,34 +327,44 @@ export default async function PlayerPage({
               return;
             }
 
+            initSlots();
+
             function showSlide(idx) {
-              var slides = document.querySelectorAll('.slide');
-              slides.forEach(function(s, slideIdx) {
-                s.classList.remove('active');
-                // Pausa qualquer vídeo que não seja o slide atual — evita ter
-                // múltiplos decodificadores de vídeo ativos ao mesmo tempo,
-                // o que sobrecarrega a memória de TVs com hardware limitado.
-                if (slideIdx !== idx) {
-                  var otherVideo = s.querySelector('video');
-                  if (otherVideo && !otherVideo.paused) {
-                    otherVideo.pause();
-                  }
+              var m = medias[idx];
+              if (!m) return;
+
+              var targetSlot;
+
+              if (!activeSlot) {
+                // Primeira chamada: ainda não há nada na tela, usa slotA direto.
+                targetSlot = slotA;
+                fillSlot(targetSlot, m);
+              } else {
+                // Nas chamadas seguintes, o slot inativo já foi pré-carregado
+                // pela chamada anterior de preloadNext().
+                targetSlot = (activeSlot === slotA) ? slotB : slotA;
+                var loadedEl = targetSlot.querySelector('video, img');
+                if (!loadedEl || loadedEl.getAttribute('data-id') !== m.id) {
+                  // Pré-carregado não corresponde ao esperado (playlist mudou
+                  // no meio do caminho) — refaz o conteúdo deste slot agora.
+                  fillSlot(targetSlot, m);
                 }
-              });
-              var slide = slides[idx];
-              if (!slide) return;
-              slide.classList.add('active');
+                // Libera o slot que estava em exibição até agora.
+                releaseSlot(activeSlot);
+              }
 
-              var dur = parseInt(slide.getAttribute('data-duration') || '15') * 1000;
-              var mediaId = slide.getAttribute('data-id');
+              activeSlot = targetSlot;
+              activeSlot.classList.add('active');
 
-              // Vídeo
-              var video = slide.querySelector('video');
-              if (video) {
-                video.currentTime = 0;
-                video.play().catch(function(){});
-                video.onended = function() { nextSlide(); };
-                dur = Math.max(dur, (video.duration || 15) * 1000);
+              var dur = (Number(m.duration) || 15) * 1000;
+              var mediaId = m.id;
+              var el = activeSlot.querySelector('video, img');
+
+              if (el && el.tagName === 'VIDEO') {
+                el.currentTime = 0;
+                el.play().catch(function(){});
+                el.onended = function() { nextSlide(); };
+                dur = Math.max(dur, (el.duration || 15) * 1000);
               }
 
               // Barra de progresso
@@ -339,9 +380,12 @@ export default async function PlayerPage({
               // Registra exibição
               logDisplay(mediaId, code);
 
-              // Timer para próximo slide
+              // Pré-carrega a próxima mídia no slot que ficou de fundo
+              preloadNext(idx);
+
+              // Timer para próximo slide (apenas para imagens; vídeo usa onended)
               if (timer) clearTimeout(timer);
-              if (!video) {
+              if (!el || el.tagName !== 'VIDEO') {
                 timer = setTimeout(nextSlide, dur);
               }
             }
