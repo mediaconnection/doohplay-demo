@@ -586,11 +586,16 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
 }
 
 function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
-  const ads = [
-    { name: "Bradesco — Black Friday", cat: "Banco",    views: 1240, value: 180, status: "Ativo"   },
-    { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980,  value: 140, status: "Ativo"   },
-    { name: "Natura — Perfumes",       cat: "Beleza",   views: 650,  value: 90,  status: "Pausado" },
-  ]
+  const [ads, setAds] = useState<any[]>([])
+  const [loadingAds, setLoadingAds] = useState(true)
+
+  useEffect(() => {
+    fetch(`/api/client/ads/${code}`)
+      .then(r => r.json())
+      .then(d => setAds(d.ads ?? []))
+      .catch(() => setAds([]))
+      .finally(() => setLoadingAds(false))
+  }, [code])
   const vals = [420, 520, 580, 640, 720, stats.revenue_month || 847]
   const maxVal = Math.max(...vals)
   const months = ["Jan","Fev","Mar","Abr","Mai","Jun"]
@@ -612,17 +617,22 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Anúncios ativos</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Anúncios de terceiros na sua tela</div>
         </div>
-        {ads.map((ad, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < ads.length - 1 ? `1px solid ${C.border2}` : "none" }}>
+        {loadingAds ? (
+          <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>Carregando…</div>
+        ) : ads.length === 0 ? (
+          <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Nenhum anunciante rodando na sua tela ainda. Fale com a DOOHPLAY pra começar a receber anúncios pagos.
+          </div>
+        ) : ads.map((ad, i) => (
+          <div key={ad.campaign_id ?? i} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < ads.length - 1 ? `1px solid ${C.border2}` : "none" }}>
             <div style={{ width: 32, height: 32, background: C.gray100, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 10, fontSize: 16, flexShrink: 0 }}>📢</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ad.name}</div>
-              <div style={{ fontSize: 11, color: C.text3 }}>{ad.views.toLocaleString("pt-BR")} views</div>
+              <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ad.advertiser_name ?? ad.campaign_name}</div>
+              <div style={{ fontSize: 11, color: C.text3 }}>{ad.campaign_name} · {Number(ad.views ?? 0).toLocaleString("pt-BR")} exibições</div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.green }}>R$ {ad.value}</div>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: ad.status === "Ativo" ? C.greenLt : C.gray100, color: ad.status === "Ativo" ? C.green : C.text3 }}>{ad.status}</span>
             </div>
           </div>
