@@ -3,19 +3,6 @@ import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
-const SCREEN_MAP = {
-  "sp-01": { city: "Sao Paulo",      name: "Shopping Ibirapuera - Hall Central"     },
-  "rj-01": { city: "Rio de Janeiro", name: "Shopping Rio Sul - Piso L2"             },
-  "bh-01": { city: "Belo Horizonte", name: "BH Shopping - Entrada Principal"        },
-  "ct-01": { city: "Curitiba",       name: "Shopping Muller - Praca de Alimentacao" },
-  "rs-01": { city: "Porto Alegre",   name: "Shopping Iguatemi - Piso 2"             },
-  "re-01": { city: "Recife",         name: "Shopping Recife - Corredor Central"     },
-  "ss-01": { city: "Salvador",       name: "Shopping da Bahia - Terreo"             },
-  "fo-01": { city: "Fortaleza",      name: "North Shopping - Entrada Sul"           },
-  "ma-01": { city: "Manaus",         name: "Amazonas Shopping - Piso 1"             },
-  "go-01": { city: "Goiania",        name: "Flamboyant Shopping - Hall Norte"       },
-}
-
 export async function POST(req: NextRequest) {
   const pool = getPool()
   const parts = req.nextUrl.pathname.split("/")
@@ -38,10 +25,18 @@ export async function POST(req: NextRequest) {
   )
   const campaign = res.rows[0]
   if (Array.isArray(screens) && screens.length > 0) {
-    for (let i = 0; i < screens.length; i++) {
-      const sc = SCREEN_MAP[screens[i]]
-      if (!sc) continue
-      await pool.query(`INSERT INTO "CampaignScreen" ("campaignId", city, "screenId", "screenName") VALUES ($1, $2, $3, $4)`, [campaign.id, sc.city, screens[i], sc.name])
+    // Valida contra telas REAIS (studio_clients ativos) — antes isso usava
+    // uma lista fixa de shoppings fictícios, sem nenhuma ligação com telas
+    // de clientes de verdade.
+    const realScreens = await pool.query(
+      `SELECT code, name, city FROM studio_clients WHERE code = ANY($1) AND active = true`,
+      [screens.map((s: string) => String(s).toUpperCase())]
+    )
+    for (const sc of realScreens.rows) {
+      await pool.query(
+        `INSERT INTO "CampaignScreen" ("campaignId", city, "screenId", "screenName") VALUES ($1, $2, $3, $4)`,
+        [campaign.id, sc.city, sc.code, sc.name]
+      )
     }
   }
   return Response.json({ ok: true, campaign }, { status: 201 })
