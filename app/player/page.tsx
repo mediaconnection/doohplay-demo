@@ -74,8 +74,21 @@ async function getPlayerData(code: string) {
       ORDER BY position ASC
     `)
 
-    const [clientRes, networkRes, institutionalRes] = await Promise.all([
-      clientQuery, networkQuery, institutionalQuery,
+    // ── Anunciante real — campanha de terceiro vinculada a esta tela ──
+    const realAdsQuery = pool.query<{ id: string; name: string; type: string; url: string }>(`
+      SELECT cm.id, cm.name, cm.type, cm.url
+      FROM "CampaignScreen" cs
+      JOIN "Campaign" c ON c.id = cs."campaignId"
+      JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
+      WHERE cs."screenId" = $1
+        AND c.status = 'active'
+        AND c."startDate" <= NOW()
+        AND c."endDate" >= NOW()
+        AND cm.status != 'rejected'
+    `, [upperCode])
+
+    const [clientRes, networkRes, institutionalRes, realAdsRes] = await Promise.all([
+      clientQuery, networkQuery, institutionalQuery, realAdsQuery,
     ])
     const rows = clientRes.rows
 
@@ -99,11 +112,15 @@ async function getPlayerData(code: string) {
       duration: Number(r.duration) || 15, category: "institucional" as SlotCategory,
     }))
 
+    const realAds: PlayerMedia[] = realAdsRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
+      id: r.id, name: r.name, type: r.type, url: r.url, duration: 15, category: "anunciante" as SlotCategory,
+    }))
+
     return {
       name: rows[0]?.name ?? "DOOHPLAY",
       business_type: rows[0]?.business_type ?? "",
       primary_color: rows[0]?.primary_color ?? "#3B82F6",
-      medias: [...ownAndAds, ...network, ...institutional],
+      medias: [...ownAndAds, ...network, ...institutional, ...realAds],
     }
   } catch {
     return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[] }
