@@ -41,6 +41,7 @@ const NAV = [
   { id: "relatorios",label: "Relatórios",   icon: "📊" },
   { id: "playlist",  label: "Playlist",     icon: "▶️" },
   { id: "clube",     label: "Clube de Telas",icon: "🤝" },
+  { id: "clientes",  label: "Meus Clientes",icon: "👥" },
   { id: "config",    label: "Configurações",icon: "⚙" },
 ]
 
@@ -1221,6 +1222,81 @@ function TabClubeDeTelas({ code }: { code: string }) {
   )
 }
 
+// ── Meus Clientes (leads capturados via QR) ──────────────────────────────────
+function TabMeusClientes({ code }: { code: string }) {
+  const [leads, setLeads] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/client/leads/${code}`)
+      .then(r => r.json())
+      .then(d => setLeads(d.leads ?? []))
+      .catch(() => setError("Não foi possível carregar seus clientes."))
+      .finally(() => setLoading(false))
+  }, [code])
+
+  const fmtPhone = (phone: string) => {
+    // 5511999998888 -> (11) 99999-8888
+    const digits = phone.replace(/\D/g, "")
+    const local = digits.length > 11 ? digits.slice(-11) : digits
+    if (local.length === 11) {
+      return `(${local.slice(0,2)}) ${local.slice(2,7)}-${local.slice(7)}`
+    }
+    return phone
+  }
+
+  const waLink = (phone: string) => `https://wa.me/${phone.replace(/\D/g, "")}`
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Carregando…</div>
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Meus Clientes</div>
+        <div style={{ fontSize: 12, color: C.text3 }}>
+          {leads.length} pessoas cadastradas pelo QR code da sua TV
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: C.redLt, color: C.red, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
+      {leads.length === 0 ? (
+        <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 32, textAlign: "center", color: C.text3, fontSize: 13 }}>
+          Nenhum cliente cadastrado ainda. O QR code já está na sua TV — quando alguém escanear e se cadastrar, vai aparecer aqui.
+        </div>
+      ) : (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+          {leads.map((lead, i) => (
+            <div key={lead.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: i < leads.length - 1 ? `1px solid ${C.border2}` : "none" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{lead.name}</div>
+                <div style={{ fontSize: 12, color: C.text3 }}>{fmtPhone(lead.phone)} · {fmtDate(lead.created_at, true)}</div>
+              </div>
+              <a
+                href={waLink(lead.phone)}
+                target="_blank"
+                rel="noreferrer"
+                style={{ background: C.greenLt, color: C.green, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+              >
+                💬 WhatsApp
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, fontSize: 12, color: C.text3, textAlign: "center" }}>
+        Esses contatos aceitaram receber novidades pelo WhatsApp. Em breve você poderá enviar promoções para todos de uma vez.
+      </div>
+    </div>
+  )
+}
+
 interface Props { client: ClientData; player: PlayerData | null; stats: StatsData; playlist: PlaylistItem[]; payments: Payment[] }
 
 export default function DashboardClient({ client, player, stats, playlist, payments }: Props) {
@@ -1252,13 +1328,14 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     relatorios: <TabRelatorios stats={stats} payments={payments} code={client.code} />,
     playlist:   <TabPlaylist code={client.code} />,
     clube:      <TabClubeDeTelas code={client.code} />,
+    clientes:   <TabMeusClientes code={client.code} />,
     config:     <TabConfiguracoes code={client.code} />,
   }
 
   const tabLabel: Record<string, string> = {
     dashboard: "Dashboard", tv: "Minha TV", conteudo: "Conteúdo",
     anuncios: "Anúncios", ganhos: "Ganhos", relatorios: "Relatórios",
-    playlist: "Playlist", clube: "Clube de Telas", config: "Configurações",
+    playlist: "Playlist", clube: "Clube de Telas", clientes: "Meus Clientes", config: "Configurações",
   }
 
   return (
