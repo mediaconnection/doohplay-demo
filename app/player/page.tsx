@@ -15,23 +15,38 @@ interface PlayerMediaRow {
   duration: number;
   active: boolean;
   position: number;
+  slot_category: SlotCategory;
+}
+
+type SlotCategory = "dono" | "anunciante" | "rede" | "institucional";
+
+interface PlayerMedia {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  duration: number;
+  category: SlotCategory;
 }
 
 async function getPlayerData(code: string) {
   const pool = getPool()
+  const upperCode = code.toUpperCase()
   try {
-    const { rows } = await pool.query<PlayerMediaRow>(`
+    // ── Cliente + conteúdo do dono e de anunciantes (CampaignMedia) ──
+    const clientQuery = pool.query<PlayerMediaRow>(`
       SELECT
         sc.name,
         sc.business_type,
         sc.primary_color,
         cm.id,
-        cm.name    AS media_name,
-        cm.type    AS media_type,
-        cm.url     AS media_url,
-        COALESCE(ps.duration, 15) AS duration,
-        COALESCE(ps.active, true) AS active,
-        COALESCE(ps.position, 0)  AS position
+        cm.name              AS media_name,
+        cm.type               AS media_type,
+        cm.url                AS media_url,
+        COALESCE(ps.duration, 15)     AS duration,
+        COALESCE(ps.active, true)     AS active,
+        COALESCE(ps.position, 0)      AS position,
+        cm.content_source             AS slot_category
       FROM studio_clients sc
       LEFT JOIN "Campaign" c ON c."advertiserCode" = sc.code
       LEFT JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
@@ -39,22 +54,59 @@ async function getPlayerData(code: string) {
       WHERE sc.code = $1
         AND sc.active = true
       ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
-    `, [code.toUpperCase()])
+    `, [upperCode])
 
-    return {
-      name: rows[0]?.name ?? "DOOHPLAY",
-      business_type: rows[0]?.business_type ?? "",
-      primary_color: rows[0]?.primary_color ?? "#3B82F6",
-      medias: rows.filter((r: PlayerMediaRow) => r.media_url && r.active).map((r: PlayerMediaRow) => ({
+    // ── Rede (Clube de Telas) — mídias de parceiros distribuídas para esta tela ──
+    const networkQuery = pool.query<{ id: string; name: string; type: string; url: string }>(`
+      SELECT nm.id, nm.name, nm.type, nm.url
+      FROM network_media_distribution nmd
+      JOIN network_media nm ON nm.id = nmd.network_media_id
+      WHERE nmd.displayed_on_code = $1
+        AND nmd.active = true
+        AND nm.status = 'approved'
+    `, [upperCode])
+
+    // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
+    const institutionalQuery = pool.query<{ id: string; name: string; type: string; url: string; duration: number }>(`
+      SELECT id, name, type, url, duration
+      FROM institutional_media
+      WHERE active = true
+      ORDER BY position ASC
+    `)
+
+    const [clientRes, networkRes, institutionalRes] = await Promise.all([
+      clientQuery, networkQuery, institutionalQuery,
+    ])
+    const rows = clientRes.rows
+
+    const ownAndAds: PlayerMedia[] = rows
+      .filter((r: PlayerMediaRow) => r.media_url && r.active)
+      .map((r: PlayerMediaRow) => ({
         id: r.id,
         name: r.media_name,
         type: r.media_type,
         url: r.media_url,
         duration: Number(r.duration) || 15,
+        category: (r.slot_category as SlotCategory) || "dono",
       }))
+
+    const network: PlayerMedia[] = networkRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
+      id: r.id, name: r.name, type: r.type, url: r.url, duration: 15, category: "rede" as SlotCategory,
+    }))
+
+    const institutional: PlayerMedia[] = institutionalRes.rows.map((r: { id: string; name: string; type: string; url: string; duration: number }) => ({
+      id: r.id, name: r.name, type: r.type, url: r.url,
+      duration: Number(r.duration) || 15, category: "institucional" as SlotCategory,
+    }))
+
+    return {
+      name: rows[0]?.name ?? "DOOHPLAY",
+      business_type: rows[0]?.business_type ?? "",
+      primary_color: rows[0]?.primary_color ?? "#3B82F6",
+      medias: [...ownAndAds, ...network, ...institutional],
     }
   } catch {
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[] }
   }
 }
 
@@ -202,7 +254,7 @@ export default async function PlayerPage({
             </div>
           ) : (
             <div id="slides">
-              {data.medias.map((m: { id: string; name: string; type: string; url: string; duration: number }, i: number) => (
+              {data.medias.map((m: PlayerMedia, i: number) => (
                 <div key={m.id} className={`slide${i === 0 ? " active" : ""}`} data-duration={m.duration} data-id={m.id}>
                   {m.type === "video" ? (
                     <video src={m.url} autoPlay muted playsInline loop={false} />
@@ -219,11 +271,57 @@ export default async function PlayerPage({
           (function() {
             var medias   = ${mediasJson};
             var code     = ${JSON.stringify(code)};
-            var current  = 0;
             var timer    = null;
             var progress = document.getElementById('progress-bar');
             var hb       = document.getElementById('heartbeat');
             var POLL_INTERVAL_MS = 2 * 60 * 1000; // verifica mudanças a cada 2 minutos
+
+            // ── Divisão de slots por categoria ────────────────────────────────
+            // 15% dono / 60% anunciante pago / 15% rede (Clube de Telas) / 10% institucional.
+            // Quando uma categoria está vazia (ex: cliente ainda sem anunciante
+            // pago), seu peso é redistribuído proporcionalmente entre as que têm
+            // conteúdo — a tela nunca trava esperando uma categoria inexistente.
+            var CATEGORY_WEIGHTS = { dono: 15, anunciante: 60, rede: 15, institucional: 10 };
+            var groups  = {};  // { dono: [...], anunciante: [...], rede: [...], institucional: [...] }
+            var cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
+            var upcoming = null; // próxima mídia já sorteada e pré-carregada
+
+            function buildGroups(list) {
+              var g = { dono: [], anunciante: [], rede: [], institucional: [] };
+              for (var i = 0; i < list.length; i++) {
+                var cat = list[i].category;
+                if (!g[cat]) g[cat] = [];
+                g[cat].push(list[i]);
+              }
+              return g;
+            }
+
+            function pickNextMedia() {
+              var available = [];
+              var totalWeight = 0;
+              for (var cat in CATEGORY_WEIGHTS) {
+                if (groups[cat] && groups[cat].length > 0) {
+                  available.push(cat);
+                  totalWeight += CATEGORY_WEIGHTS[cat];
+                }
+              }
+              if (available.length === 0) return null;
+
+              var r = Math.random() * totalWeight;
+              var acc = 0;
+              var chosen = available[available.length - 1];
+              for (var j = 0; j < available.length; j++) {
+                acc += CATEGORY_WEIGHTS[available[j]];
+                if (r <= acc) { chosen = available[j]; break; }
+              }
+
+              var list = groups[chosen];
+              var idx = cursors[chosen] % list.length;
+              cursors[chosen] = idx + 1;
+              return list[idx];
+            }
+
+            groups = buildGroups(medias);
 
             // ── Arquitetura de renderização sob demanda ──────────────────────
             // Em vez de criar um elemento <img>/<video> para CADA mídia da
@@ -292,12 +390,12 @@ export default async function PlayerPage({
               container.appendChild(slotB);
             }
 
-            function preloadNext(idx) {
-              // Pré-carrega a próxima mídia no slot inativo, para a troca
-              // ser instantânea sem precisar esperar o download.
-              var nextIdx = (idx + 1) % medias.length;
+            function preloadNext(m) {
+              // Pré-carrega a próxima mídia (já sorteada por pickNextMedia) no
+              // slot inativo, para a troca ser instantânea sem esperar download.
+              if (!m) return;
               var inactiveSlot = activeSlot === slotA ? slotB : slotA;
-              fillSlot(inactiveSlot, medias[nextIdx]);
+              fillSlot(inactiveSlot, m);
             }
 
             function mediasChanged(oldList, newList) {
@@ -330,6 +428,7 @@ export default async function PlayerPage({
                         type: item.type,
                         url: item.asset_url,
                         duration: Number(item.duration) || 15,
+                        category: item.slot_category || 'dono',
                       };
                     });
 
@@ -337,9 +436,10 @@ export default async function PlayerPage({
 
                   if (mediasChanged(medias, fresh)) {
                     medias = fresh;
-                    if (current >= medias.length) current = 0;
+                    groups = buildGroups(medias);
+                    cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
                     // não força troca imediata — deixa o ciclo atual terminar
-                    // normalmente; o próximo preloadNext já usa a lista nova
+                    // normalmente; o próximo pickNextMedia já usa os grupos novos
                   }
                 })
                 .catch(function() {
@@ -358,8 +458,7 @@ export default async function PlayerPage({
 
             initSlots();
 
-            function showSlide(idx) {
-              var m = medias[idx];
+            function showSlide(m) {
               if (!m) return;
 
               var targetSlot;
@@ -409,8 +508,10 @@ export default async function PlayerPage({
               // Registra exibição
               logDisplay(mediaId, code);
 
-              // Pré-carrega a próxima mídia no slot que ficou de fundo
-              preloadNext(idx);
+              // Sorteia (respeitando os pesos de categoria) e pré-carrega a
+              // próxima mídia no slot que ficou de fundo.
+              upcoming = pickNextMedia();
+              preloadNext(upcoming);
 
               // Timer para próximo slide (apenas para imagens; vídeo usa onended)
               if (timer) clearTimeout(timer);
@@ -420,11 +521,10 @@ export default async function PlayerPage({
             }
 
             function nextSlide() {
-              current = (current + 1) % medias.length;
-              // Garante que current nunca aponte para fora da lista
-              // se a playlist encolheu durante o polling
-              if (current >= medias.length) current = 0;
-              showSlide(current);
+              if (!upcoming) upcoming = pickNextMedia();
+              var m = upcoming;
+              upcoming = null;
+              showSlide(m);
             }
 
             function logDisplay(mediaId, screenCode) {
@@ -449,7 +549,7 @@ export default async function PlayerPage({
             }
 
             // Inicia
-            showSlide(0);
+            showSlide(pickNextMedia());
             setInterval(sendHeartbeat, 30000);
             setInterval(pollPlaylist, POLL_INTERVAL_MS);
           })();
