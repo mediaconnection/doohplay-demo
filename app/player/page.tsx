@@ -488,11 +488,41 @@ export default async function PlayerPage({
               var mediaId = m.id;
               var el = activeSlot.querySelector('video, img');
 
+              // Garante que esta mídia só avança UMA vez, seja por onended,
+              // erro de carregamento, falha de autoplay ou pelo timeout de
+              // segurança — nunca mais de uma chamada de nextSlide() por slide.
+              var advanced = false;
+              function advanceOnce() {
+                if (advanced) return;
+                advanced = true;
+                nextSlide();
+              }
+
+              if (timer) clearTimeout(timer);
+
               if (el && el.tagName === 'VIDEO') {
                 el.currentTime = 0;
-                el.play().catch(function(){});
-                el.onended = function() { nextSlide(); };
-                dur = Math.max(dur, (el.duration || 15) * 1000);
+                // Vídeo corrompido, codec incompatível ou erro de rede —
+                // pula para o próximo em vez de travar a tela exibindo o
+                // ícone de play nativo do WebView (causa real do "player
+                // entra e volta pra tela inicial" — a TV mata o app depois
+                // de um tempo preso sem nada acontecendo).
+                el.onerror = function() { advanceOnce(); };
+                var playPromise = el.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                  // Autoplay bloqueado pela TV/WebView — também pula, em vez
+                  // de ficar parado esperando um clique que nunca vai vir.
+                  playPromise.catch(function() { advanceOnce(); });
+                }
+                el.onended = function() { advanceOnce(); };
+                dur = Math.max(dur, (el.duration || 0) * 1000);
+                // Rede de segurança final: mesmo que nenhum evento dispare
+                // (vídeo trava no meio, "stalled" silencioso etc.), nunca
+                // fica preso por mais de ~45s nesse slide.
+                timer = setTimeout(advanceOnce, Math.max(dur, 45000));
+              } else {
+                if (el) el.onerror = function() { advanceOnce(); };
+                timer = setTimeout(advanceOnce, dur);
               }
 
               // Barra de progresso
@@ -512,12 +542,6 @@ export default async function PlayerPage({
               // próxima mídia no slot que ficou de fundo.
               upcoming = pickNextMedia();
               preloadNext(upcoming);
-
-              // Timer para próximo slide (apenas para imagens; vídeo usa onended)
-              if (timer) clearTimeout(timer);
-              if (!el || el.tagName !== 'VIDEO') {
-                timer = setTimeout(nextSlide, dur);
-              }
             }
 
             function nextSlide() {
