@@ -572,6 +572,19 @@ export default async function PlayerPage({
               }).catch(function(){});
             }
 
+            // ── Recarga periódica automática ──────────────────────────────────
+            // Garante, sem precisar de nenhuma ação manual em cada TV, que o
+            // app sempre busca o HTML/JS mais recente (em vez de confiar em
+            // cache do WebView/CDN nunca expirar) e também zera qualquer
+            // acúmulo de memória do processo de tempos em tempos — proteção
+            // adicional contra o tipo de travamento já visto em hardware
+            // mais limitado (Fire Stick / Android TV mais antigas).
+            var RELOAD_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 horas
+            setTimeout(function() {
+              var base = location.pathname + '?screen=' + encodeURIComponent(code);
+              location.href = base + '&_r=' + Date.now(); // cache-buster força recarga real
+            }, RELOAD_INTERVAL_MS);
+
             // Inicia
             showSlide(pickNextMedia());
             setInterval(sendHeartbeat, 30000);
