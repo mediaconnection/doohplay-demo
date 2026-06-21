@@ -108,8 +108,9 @@ export default function AnuncianteNovo() {
           {step === 1 && (
             <div style={{ background: "#1E293B", border: `1px solid ${BLUE}40`, borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: TEXT2, lineHeight: 1.5 }}>
               💡 Este cadastro é para quem quer <strong style={{ color: TEXT }}>anunciar nas telas de outros estabelecimentos</strong>.
-              {" "}Se você tem um bar, barbearia, loja etc. e quer colocar <strong style={{ color: TEXT }}>a TV do seu próprio negócio</strong> no ar, o cadastro certo é o{" "}
+              {" "}Se você tem um bar, barbearia, loja etc. e quer colocar <strong style={{ color: TEXT }}>a TV do seu próprio negócio</strong> no ar (em vez de anunciar na tela de terceiros), o cadastro certo é o{" "}
               <Link href="/cadastro" style={{ color: BLUE, textDecoration: "underline" }}>cadastro de dono de tela</Link>.
+              {" "}(Já tem uma tela com a gente e quer também anunciar nas telas de outros parceiros? Pode seguir aqui mesmo, sem problema.)
             </div>
           )}
 
