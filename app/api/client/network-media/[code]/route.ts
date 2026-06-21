@@ -124,7 +124,7 @@ export async function POST(
 
     const { rows } = await pool.query(
       `INSERT INTO network_media (id, owner_code, url, type, name, status, created_at)
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending_review', NOW())
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, 'pending_review', NOW())
        RETURNING id, name, type, url, status, created_at`,
       [upperCode, publicUrl, category, name]
     )
