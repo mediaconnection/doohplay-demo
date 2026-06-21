@@ -505,6 +505,64 @@ function TabAnunciantes({ data }: { data: any }) {
   )
 }
 
+function TabAlertas({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const alerts: any[] = data.duplicateAlerts ?? []
+  const pending = alerts.filter(a => !a.resolved)
+
+  const markResolved = async (id: string) => {
+    try {
+      await fetch("/api/admin/duplicate-alerts/" + id, { method: "PATCH" })
+      onRefresh()
+    } catch {}
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
+        <KpiCard label="Alertas pendentes" value={pending.length} color={pending.length > 0 ? RED : GREEN} />
+        <KpiCard label="Total já detectado" value={alerts.length} color={AMBER} />
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 8 }}>Cadastros duplicados (dono ↔ anunciante)</div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 16 }}>
+        Mesmo telefone cadastrado como dono de tela E como anunciante — geralmente sinal de que a pessoa usou o portal errado por engano.
+      </div>
+      {alerts.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2 }}>
+          Nenhum cadastro duplicado detectado ainda.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {alerts.map((a: any) => (
+            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + (a.resolved ? BORDER : RED + "66"), borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr auto auto", alignItems: "center", gap: 20 }}>
+              <div>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>DONO DE TELA</div>
+                <div style={{ fontWeight: 600, color: TEXT }}>{a.studio_client_name ?? "—"}</div>
+                <div style={{ fontSize: 12, color: TEXT2 }}>#{a.studio_client_code ?? "—"}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>ANUNCIANTE</div>
+                <div style={{ fontWeight: 600, color: TEXT }}>{a.advertiser_name ?? "—"}</div>
+                <div style={{ fontSize: 12, color: TEXT2 }}>#{a.advertiser_code ?? "—"}</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 13, color: TEXT2 }}>{a.phone}</div>
+                <div style={{ fontSize: 11, color: TEXT2 }}>{new Date(a.detected_at).toLocaleDateString("pt-BR")}</div>
+              </div>
+              {a.resolved ? (
+                <span style={{ fontSize: 11, color: GREEN, background: GREEN + "22", padding: "4px 10px", borderRadius: 10 }}>Resolvido</span>
+              ) : (
+                <button onClick={() => markResolved(a.id)} style={{ fontSize: 12, color: TEXT, background: "transparent", border: "1px solid " + BORDER, borderRadius: 6, padding: "6px 12px", cursor: "pointer" }}>
+                  Marcar resolvido
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TabEventos({ data }: { data: any }) {
   const { events, blocks } = data
   return (
@@ -652,12 +710,14 @@ export default function AdminPage() {
   )
 
   const pendingMedias = data.medias?.filter((m: any) => m.status === "pending").length ?? 0
+  const pendingAlerts = data.duplicateAlerts?.filter((a: any) => !a.resolved).length ?? 0
 
   const TABS = [
     { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
     { id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length },
     { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
     { id: "midias",      label: "Mídias",      icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
+    { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
 
@@ -700,6 +760,7 @@ export default function AdminPage() {
         {tab === "assinaturas" && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
+        {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
     </div>
