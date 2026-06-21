@@ -519,12 +519,12 @@ function TabAlertas({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
-        <KpiCard label="Alertas pendentes" value={pending.length} color={pending.length > 0 ? RED : GREEN} />
-        <KpiCard label="Total já detectado" value={alerts.length} color={AMBER} />
+        <KpiCard label="A verificar" value={pending.length} color={pending.length > 0 ? AMBER : GREEN} />
+        <KpiCard label="Total já detectado" value={alerts.length} color={BLUE} />
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 8 }}>Cadastros duplicados (dono ↔ anunciante)</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 8 }}>Telefones cadastrados como dono de tela E anunciante</div>
       <div style={{ fontSize: 13, color: TEXT2, marginBottom: 16 }}>
-        Mesmo telefone cadastrado como dono de tela E como anunciante — geralmente sinal de que a pessoa usou o portal errado por engano.
+        Não é necessariamente um problema — pode ser um dono de tela anunciando de propósito nas telas de outros parceiros. Mas também é o padrão exato de quando alguém usa o portal errado por engano para fazer upload do próprio conteúdo. Vale dar uma olhada e confirmar com a pessoa se tiver dúvida.
       </div>
       {alerts.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2 }}>
@@ -533,7 +533,7 @@ function TabAlertas({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {alerts.map((a: any) => (
-            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + (a.resolved ? BORDER : RED + "66"), borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr auto auto", alignItems: "center", gap: 20 }}>
+            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + (a.resolved ? BORDER : AMBER + "66"), borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr auto auto", alignItems: "center", gap: 20 }}>
               <div>
                 <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>DONO DE TELA</div>
                 <div style={{ fontWeight: 600, color: TEXT }}>{a.studio_client_name ?? "—"}</div>
