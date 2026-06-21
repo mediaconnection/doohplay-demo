@@ -584,6 +584,89 @@ function TabEventos({ data }: { data: any }) {
   )
 }
 
+function TabRede({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const [loading, setLoading] = useState<string | null>(null)
+  const items = data.networkMedia ?? []
+  const pending = items.filter((m: any) => m.status === "pending_review")
+  const others  = items.filter((m: any) => m.status !== "pending_review")
+
+  const handle = async (id: string, status: "approved" | "rejected") => {
+    setLoading(id)
+    try {
+      await fetch("/api/admin/network-media/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      onRefresh()
+    } catch {}
+    setLoading(null)
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 8 }}>
+        Mídia do Clube de Telas <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
+      </div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+        Ao aprovar, a mídia é distribuída automaticamente para todos os parceiros já aceitos do dono.
+      </div>
+      {pending.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2, marginBottom: 24 }}>
+          Nenhuma mídia de rede pendente. ✅
+        </div>
+      )}
+      {pending.map((m: any) => (
+        <div key={m.id} style={{ background: SURFACE, border: "1px solid " + AMBER + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+            <MediaPreview url={m.url} type={m.type} name={m.name} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
+              <div style={{ fontSize: 12, color: TEXT2, marginBottom: 2 }}>{m.owner_name ?? m.owner_code} · #{m.owner_code}</div>
+              <div style={{ fontSize: 11, color: MUTED }}>{m.partner_count ?? 0} parceiro(s) aceito(s) vão receber essa mídia se aprovada</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                {loading === m.id ? "…" : "✓ Aprovar"}
+              </button>
+              <button onClick={() => handle(m.id, "rejected")} disabled={loading === m.id} style={{ background: RED + "22", color: RED, border: "1px solid " + RED + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                ✕ Rejeitar
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {others.length > 0 && (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
+          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid " + BORDER }}>
+                  {["Mídia","Dono","Tipo","Status","Data"].map(h => (
+                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {others.map((m: any, i: number) => (
+                  <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + BORDER : "none" }}>
+                    <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{m.name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.owner_name ?? m.owner_code}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
+                    <td style={{ padding: "10px 16px" }}><Badge label={m.status} color={m.status === "approved" ? GREEN : m.status === "rejected" ? RED : AMBER} /></td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{fmt(m.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const [loading, setLoading]   = useState<string | null>(null)
   const [rejectId, setRejectId] = useState<string | null>(null)
@@ -711,12 +794,14 @@ export default function AdminPage() {
 
   const pendingMedias = data.medias?.filter((m: any) => m.status === "pending").length ?? 0
   const pendingAlerts = data.duplicateAlerts?.filter((a: any) => !a.resolved).length ?? 0
+  const pendingNetworkMedia = data.networkMedia?.filter((m: any) => m.status === "pending_review").length ?? 0
 
   const TABS = [
     { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
     { id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length },
     { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
     { id: "midias",      label: "Mídias",      icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
+    { id: "rede",        label: "Rede",        icon: "🤝", count: pendingNetworkMedia, alert: pendingNetworkMedia > 0 },
     { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
@@ -760,6 +845,7 @@ export default function AdminPage() {
         {tab === "assinaturas" && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
+        {tab === "rede"        && <TabRede        data={data} onRefresh={load} />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
