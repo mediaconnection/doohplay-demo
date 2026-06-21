@@ -129,8 +129,9 @@ input::placeholder { color:#475569; }
 
     <div style="background:#1E293B;border:1px solid #3B82F640;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#94A3B8;line-height:1.5;">
       💡 Este cadastro é para quem <strong style="color:#F1F5F9">tem um estabelecimento e quer colocar a própria TV no ar</strong>.
-      Se você quer <strong style="color:#F1F5F9">anunciar nas telas de outros parceiros</strong> (sem ter uma tela própria), o cadastro certo é o
+      Se você quer <strong style="color:#F1F5F9">anunciar nas telas de outros parceiros</strong> sem ter uma tela própria, o cadastro certo é o
       <a href="/anunciante/novo" style="color:#3B82F6;text-decoration:underline;">cadastro de anunciante</a>.
+      (Já tem uma tela com a gente e quer também anunciar em outras telas? Sem problema, pode fazer os dois cadastros.)
     </div>
 
     <div class="error" id="err1"></div>
