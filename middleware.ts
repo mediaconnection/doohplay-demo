@@ -1,4 +1,14 @@
 // middleware.ts
+//
+// ⚠️ ATENÇÃO ao adicionar qualquer página pública (cadastro, login, "novo"
+// etc.) dentro de /dashboard/local/, /anunciante/ ou /agencia/:
+// o matcher abaixo protege TUDO que começa com esses prefixos, tratando o
+// próximo segmento da URL como se fosse sempre um código de cliente/anunciante
+// existente. Se a nova página não exigir sessão (ex: /anunciante/novo), ela
+// precisa de uma exceção explícita igual à que existe pra "novo" abaixo —
+// senão fica bloqueada por padrão, redirecionando pra /login pra sempre.
+// Isso já aconteceu de verdade com /anunciante/novo (corrigido em 20/06/2026)
+// e impediu cadastro de novos anunciantes sem que ninguém notasse por um tempo.
 import { withAuth } from "next-auth/middleware"
 import { NextRequest, NextResponse } from "next/server"
 
