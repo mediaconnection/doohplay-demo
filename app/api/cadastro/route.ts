@@ -127,6 +127,29 @@ export async function POST(req: NextRequest) {
       [code, name.trim(), business_type, city.trim(), phone.replace(/\D/g,""), email.toLowerCase().trim(), cpf.replace(/\D/g,"")]
     )
 
+    // Detecta possível cadastro duplicado: mesmo telefone já existe como
+    // Anunciante (fluxo separado, pra quem quer comprar anúncio nas telas
+    // de outros, não pra quem tem a própria tela). Isso já causou confusão
+    // real — um cliente fez upload de todo o conteúdo da própria tela pelo
+    // portal de anunciante por engano. Não bloqueia o cadastro, só alerta.
+    try {
+      const cleanPhone = phone.replace(/\D/g, "")
+      const { rows: dupAdvertiser } = await pool.query(
+        `SELECT code FROM "Advertiser" WHERE phone = $1 LIMIT 1`,
+        [cleanPhone]
+      )
+      if (dupAdvertiser[0]) {
+        await pool.query(
+          `INSERT INTO duplicate_signup_alerts (phone, studio_client_code, advertiser_code)
+           VALUES ($1, $2, $3)`,
+          [cleanPhone, code, dupAdvertiser[0].code]
+        )
+        console.warn(`[cadastro] Possível cadastro duplicado: telefone ${cleanPhone} já é anunciante (${dupAdvertiser[0].code}), agora também dono de tela (${code})`)
+      }
+    } catch (dupErr) {
+      console.error("[cadastro] Erro ao checar duplicidade:", dupErr)
+    }
+
     // Cria cliente e assinatura no Asaas (7 dias grátis)
     try {
       const customer = await getOrCreateAsaasCustomer({
