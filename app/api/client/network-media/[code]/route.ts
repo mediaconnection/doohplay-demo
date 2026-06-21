@@ -5,7 +5,7 @@
 // já documentada: misturar os dois fluxos complicaria saber qual mídia vai
 // pra qual rede.
 import { NextRequest, NextResponse } from "next/server"
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { probeMp4 } from "@/lib/mp4-probe"
 
@@ -46,6 +46,46 @@ export async function GET(
   } catch (err) {
     console.error("[network-media GET]", err)
     return NextResponse.json({ media: [], error: String(err) }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  const { code } = await params
+  const upperCode = code.toUpperCase()
+  const pool = getPool()
+  try {
+    const { searchParams } = req.nextUrl
+    const id = searchParams.get("id")
+    if (!id) return NextResponse.json({ error: "id obrigatório" }, { status: 400 })
+
+    // Só permite excluir mídia que pertence ao próprio dono.
+    const { rows } = await pool.query(
+      `DELETE FROM network_media WHERE id = $1 AND owner_code = $2 RETURNING url`,
+      [id, upperCode]
+    )
+    if (!rows[0]) {
+      return NextResponse.json({ error: "Mídia não encontrada" }, { status: 404 })
+    }
+
+    // Remove também qualquer distribuição já feita dessa mídia pros parceiros.
+    await pool.query(`DELETE FROM network_media_distribution WHERE network_media_id = $1`, [id])
+
+    // Tenta remover o arquivo do R2 também — não bloqueia a resposta se falhar
+    // (preferimos um registro órfão no storage a uma exclusão que trava).
+    try {
+      const key = rows[0].url.split("/dooh-media/")[1] ?? rows[0].url.split(".dev/")[1] ?? rows[0].url.split(".br/")[1]
+      if (key) await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
+    } catch (e) {
+      console.warn("[network-media DELETE] falha ao remover do R2 (ignorado):", e)
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("[network-media DELETE]", err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
 
