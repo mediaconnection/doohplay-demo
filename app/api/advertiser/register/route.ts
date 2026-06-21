@@ -64,6 +64,28 @@ export async function POST(req: NextRequest) {
       [code, name, email ?? null, phone.replace(/\D/g, "")]
     )
 
+    // Detecta possível cadastro duplicado: mesmo telefone já existe como
+    // dono de tela (studio_clients). Não bloqueia o cadastro, só alerta —
+    // já aconteceu de um cliente real usar o portal errado e fazer upload
+    // de todo o conteúdo da própria tela como se fosse anúncio de terceiro.
+    try {
+      const cleanPhone = phone.replace(/\D/g, "")
+      const dupClient = await pool.query(
+        `SELECT code FROM studio_clients WHERE phone = $1 LIMIT 1`,
+        [cleanPhone]
+      )
+      if (dupClient.rows[0]) {
+        await pool.query(
+          `INSERT INTO duplicate_signup_alerts (phone, studio_client_code, advertiser_code)
+           VALUES ($1, $2, $3)`,
+          [cleanPhone, dupClient.rows[0].code, code]
+        )
+        console.warn(`[advertiser/register] Possível cadastro duplicado: telefone ${cleanPhone} já é dono de tela (${dupClient.rows[0].code}), agora também anunciante (${code})`)
+      }
+    } catch (dupErr) {
+      console.error("[advertiser/register] Erro ao checar duplicidade:", dupErr)
+    }
+
     // Envia WhatsApp de boas-vindas
     await sendWhatsApp(phone, name.split(" ")[0], code)
 
