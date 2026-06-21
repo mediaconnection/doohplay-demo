@@ -1238,18 +1238,22 @@ function TabClubeDeTelas({ code }: { code: string }) {
 // ── Mídia do Clube de Telas (upload + lista do que o dono já enviou) ────────
 function NetworkMediaSection({ code }: { code: string }) {
   const [items, setItems] = useState<any[]>([])
+  const [incoming, setIncoming] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = () => {
     setLoading(true)
-    fetch(`/api/client/network-media/${code}`)
-      .then(r => r.json())
-      .then(d => setItems(d.media ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch(`/api/client/network-media/${code}`).then(r => r.json()).catch(() => ({ media: [] })),
+      fetch(`/api/client/network-media-incoming/${code}`).then(r => r.json()).catch(() => ({ media: [] })),
+    ]).then(([sent, recv]) => {
+      setItems(sent.media ?? [])
+      setIncoming(recv.media ?? [])
+    }).finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [code])
@@ -1269,6 +1273,16 @@ function NetworkMediaSection({ code }: { code: string }) {
       setError(err.message ?? "Erro ao enviar mídia")
     }
     setUploading(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir essa mídia? Ela vai parar de aparecer nas telas dos parceiros.")) return
+    setDeletingId(id)
+    try {
+      await fetch(`/api/client/network-media/${code}?id=${id}`, { method: "DELETE" })
+      load()
+    } catch {}
+    setDeletingId(null)
   }
 
   const STATUS_LABEL: Record<string, { label: string; bg: string; color: string }> = {
@@ -1297,7 +1311,7 @@ function NetworkMediaSection({ code }: { code: string }) {
         />
       </div>
       <div style={{ fontSize: 12, color: C.text3, marginBottom: 14 }}>
-        Essa mídia é separada do seu conteúdo pessoal — ela vai pras telas dos seus parceiros aceitos, depois de aprovada pela DOOHPLAY.
+        Essa mídia é separada do seu conteúdo pessoal — ela vai pras telas dos seus parceiros aceitos, depois de aprovada pela DOOHPLAY. Pra trocar uma mídia, exclua a antiga e envie a nova.
       </div>
 
       {error && (
@@ -1313,7 +1327,7 @@ function NetworkMediaSection({ code }: { code: string }) {
           Você ainda não enviou nenhuma mídia pra rede.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
           {items.map((m: any) => {
             const st = STATUS_LABEL[m.status] ?? STATUS_LABEL.pending_review
             return (
@@ -1322,10 +1336,40 @@ function NetworkMediaSection({ code }: { code: string }) {
                   <span style={{ fontSize: 16 }}>{m.type === "video" ? "🎬" : "🖼️"}</span>
                   <span style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{m.name}</span>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 12, background: st.bg, color: st.color }}>{st.label}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 12, background: st.bg, color: st.color }}>{st.label}</span>
+                  <button
+                    onClick={() => handleDelete(m.id)}
+                    disabled={deletingId === m.id}
+                    style={{ fontSize: 11, color: C.red, background: "transparent", border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "4px 10px", cursor: deletingId === m.id ? "not-allowed" : "pointer" }}
+                  >
+                    {deletingId === m.id ? "Excluindo…" : "Excluir"}
+                  </button>
+                </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, marginBottom: 10 }}>Mídia de parceiros tocando na sua tela ({incoming.length})</div>
+      {loading ? null : incoming.length === 0 ? (
+        <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 24, textAlign: "center", color: C.text3, fontSize: 13 }}>
+          Nenhum parceiro com mídia rodando na sua tela ainda.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {incoming.map((m: any) => (
+            <div key={m.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 16 }}>{m.type === "video" ? "🎬" : "🖼️"}</span>
+                <div>
+                  <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{m.name}</div>
+                  <div style={{ fontSize: 11, color: C.text3 }}>de {m.owner_name ?? m.owner_code}</div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
