@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const pool = getPool()
   try {
-    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes] = await Promise.all([
+    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes, alertsRes] = await Promise.all([
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
                sc.phone, sc.address, sc.created_at,
@@ -74,6 +74,18 @@ export async function GET(req: NextRequest) {
         ORDER BY m."createdAt" DESC
         LIMIT 50
       `),
+      pool.query(`
+        SELECT
+          dsa.id::text, dsa.phone, dsa.studio_client_code, dsa.advertiser_code,
+          dsa.detected_at, dsa.resolved,
+          sc.name AS studio_client_name,
+          a.name  AS advertiser_name
+        FROM duplicate_signup_alerts dsa
+        LEFT JOIN studio_clients sc ON sc.code = dsa.studio_client_code
+        LEFT JOIN "Advertiser" a    ON a.code  = dsa.advertiser_code
+        ORDER BY dsa.detected_at DESC
+        LIMIT 50
+      `).catch(() => ({ rows: [] })), // tolera tabela ainda não migrada
     ])
 
     return Response.json({
@@ -84,6 +96,7 @@ export async function GET(req: NextRequest) {
       events:        eventsRes.rows[0],
       blocks:        blocksRes.rows[0],
       medias:        mediasRes.rows,
+      duplicateAlerts: alertsRes.rows,
     })
   } catch (err) {
     console.error("[admin stats]", err)
