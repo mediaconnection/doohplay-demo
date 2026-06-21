@@ -30,8 +30,11 @@ function sessionMiddleware(req: NextRequest) {
     }
   }
 
-  // Protege /anunciante/[code]
-  if (pathname.startsWith("/anunciante/")) {
+  // Protege /anunciante/[code] — mas NÃO /anunciante/novo, que é a página
+  // pública de cadastro (sem sessão ainda, é quem está se cadastrando).
+  // Bug anterior: o matcher tratava "novo" como se fosse um código de
+  // anunciante, nunca batia, e sempre redirecionava pra login.
+  if (pathname.startsWith("/anunciante/") && pathname !== "/anunciante/novo") {
     const routeCode = pathname.split("/")[2]
     if (!session || role !== "advertiser" || code !== routeCode) {
       const url = new URL("/login", req.url)
