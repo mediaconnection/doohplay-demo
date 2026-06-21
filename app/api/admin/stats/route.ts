@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const pool = getPool()
   try {
-    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes, alertsRes] = await Promise.all([
+    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes, alertsRes, networkMediaRes] = await Promise.all([
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
                sc.phone, sc.address, sc.created_at,
@@ -86,6 +86,17 @@ export async function GET(req: NextRequest) {
         ORDER BY dsa.detected_at DESC
         LIMIT 50
       `).catch(() => ({ rows: [] })), // tolera tabela ainda não migrada
+      pool.query(`
+        SELECT nm.id, nm.name, nm.type, nm.url, nm.status, nm.created_at, nm.owner_code,
+               sc.name AS owner_name,
+               (SELECT COUNT(*)::int FROM network_partnerships np
+                WHERE np.status = 'accepted' AND (np.requester_code = nm.owner_code OR np.partner_code = nm.owner_code)
+               ) AS partner_count
+        FROM network_media nm
+        LEFT JOIN studio_clients sc ON sc.code = nm.owner_code
+        ORDER BY nm.created_at DESC
+        LIMIT 50
+      `).catch(() => ({ rows: [] })),
     ])
 
     return Response.json({
@@ -97,6 +108,7 @@ export async function GET(req: NextRequest) {
       blocks:        blocksRes.rows[0],
       medias:        mediasRes.rows,
       duplicateAlerts: alertsRes.rows,
+      networkMedia: networkMediaRes.rows,
     })
   } catch (err) {
     console.error("[admin stats]", err)
