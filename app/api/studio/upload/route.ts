@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
+import { probeMp4 } from "@/lib/mp4-probe"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -133,6 +134,39 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // ── Buffer do arquivo (necessário aqui já pra checar o vídeo antes de subir) ──
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    // ── Valida resolução/bitrate de vídeo ─────────────────────────────────────
+    // Caso real: um cliente enviou um vídeo de 4 segundos em 3840x2160 (4K)
+    // a ~97 Mbps — passava fácil no limite de 100MB de tamanho, mas nenhuma
+    // TV doméstica decodifica isso em tempo real, travando o player.
+    // MAX_VIDEO_DIMENSION e MAX_VIDEO_BITRATE_MBPS dão uma margem generosa
+    // acima do recomendado pra sinalização digital (1080p, ~6-8 Mbps), sem
+    // bloquear vídeos legítimos de boa qualidade.
+    if (category === "video") {
+      const info = probeMp4(buffer)
+      if (info) {
+        const maxDimension = Math.max(info.width, info.height)
+        const avgBitrateMbps = info.durationSec > 0
+          ? (buffer.length * 8) / 1_000_000 / info.durationSec
+          : 0
+        const MAX_VIDEO_DIMENSION    = 1920 // 1080p
+        const MAX_VIDEO_BITRATE_MBPS = 15
+
+        if (maxDimension > MAX_VIDEO_DIMENSION || avgBitrateMbps > MAX_VIDEO_BITRATE_MBPS) {
+          return NextResponse.json({
+            error: `Vídeo em resolução/qualidade alta demais para TVs (${info.width}x${info.height}, ~${avgBitrateMbps.toFixed(0)} Mbps). ` +
+              `Recomprima para 1080p e até 8 Mbps antes de enviar — qualquer editor de vídeo ou conversor online faz isso facilmente.`,
+            video_too_heavy: true,
+            detected: { width: info.width, height: info.height, bitrate_mbps: Math.round(avgBitrateMbps) },
+          }, { status: 400 })
+        }
+      }
+      // Se não conseguimos ler os metadados (formato fora do esperado), deixa
+      // passar — preferimos não bloquear um upload legítimo por engano.
+    }
+
     // ── Valida quantidade TOTAL (imagens + vídeos) baseado no plano ───────────
     const { limit: mediaLimit, plan } = await getMediaLimit(pool, code)
 
@@ -164,7 +198,6 @@ export async function POST(request: NextRequest) {
     // ── Upload para R2 ────────────────────────────────────────────────────────
     const ext      = sizeLimit.ext(file.type)
     const fileName = `studio/${code}/${category}_${Date.now()}.${ext}`
-    const buffer   = Buffer.from(await file.arrayBuffer())
 
     await r2.send(new PutObjectCommand({
       Bucket:      BUCKET,
