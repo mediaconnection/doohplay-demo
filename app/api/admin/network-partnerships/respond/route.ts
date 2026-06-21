@@ -147,6 +147,53 @@ export async function POST(req: NextRequest) {
       [decision, partnershipId]
     );
 
+    // 4. Se aceita: distribui automaticamente a mídia de rede já aprovada de
+    // cada lado pra tela do outro — é o que de fato faz a "troca" funcionar
+    // (antes desta sessão, só o pareamento existia, sem nenhuma mídia
+    // circulando de verdade entre parceiros).
+    if (decision === "accepted") {
+      await pool.query(
+        `
+        INSERT INTO network_media_distribution (network_media_id, displayed_on_code, active, added_at)
+        SELECT nm.id, $2, true, now()
+        FROM network_media nm
+        WHERE nm.owner_code = $1 AND nm.status = 'approved'
+        ON CONFLICT (network_media_id, displayed_on_code) DO UPDATE SET active = true
+        `,
+        [partnership.requester_code, partnership.partner_code]
+      );
+      await pool.query(
+        `
+        INSERT INTO network_media_distribution (network_media_id, displayed_on_code, active, added_at)
+        SELECT nm.id, $2, true, now()
+        FROM network_media nm
+        WHERE nm.owner_code = $1 AND nm.status = 'approved'
+        ON CONFLICT (network_media_id, displayed_on_code) DO UPDATE SET active = true
+        `,
+        [partnership.partner_code, partnership.requester_code]
+      );
+    }
+
+    // 5. Se rejeitada/removida: desativa qualquer distribuição que já existisse
+    // entre os dois (relevante sobretudo se um dia uma parceria aceita puder
+    // ser desfeita — hoje só acontece na primeira resposta, mas não custa
+    // já deixar consistente).
+    if (decision === "rejected") {
+      await pool.query(
+        `
+        UPDATE network_media_distribution nmd
+        SET active = false
+        FROM network_media nm
+        WHERE nmd.network_media_id = nm.id
+          AND (
+            (nm.owner_code = $1 AND nmd.displayed_on_code = $2) OR
+            (nm.owner_code = $2 AND nmd.displayed_on_code = $1)
+          )
+        `,
+        [partnership.requester_code, partnership.partner_code]
+      );
+    }
+
     return NextResponse.json({
       message:
         decision === "accepted"
