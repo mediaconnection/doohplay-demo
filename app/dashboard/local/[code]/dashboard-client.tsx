@@ -458,8 +458,19 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ background: "#0F172A", height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>📺</div><div style={{ fontSize: 12, color: "#64748B", marginTop: 8 }}>Preview indisponível</div></div>
+        <div style={{ background: "#0F172A", height: 200, position: "relative", overflow: "hidden" }}>
+          {client?.code ? (
+            <iframe
+              src={`/player?screen=${client.code}&preview=1`}
+              title="Preview da TV"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", pointerEvents: "none" }}
+              sandbox="allow-scripts allow-same-origin"
+            />
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+              <div style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>📺</div><div style={{ fontSize: 12, color: "#64748B", marginTop: 8 }}>Preview indisponível</div></div>
+            </div>
+          )}
         </div>
         <div style={{ padding: "16px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
