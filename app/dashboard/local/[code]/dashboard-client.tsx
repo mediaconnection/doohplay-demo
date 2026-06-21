@@ -458,7 +458,7 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ background: "#0F172A", height: 200, position: "relative", overflow: "hidden" }}>
+        <div style={{ background: "#0F172A", height: 130, position: "relative", overflow: "hidden" }}>
           {client?.code ? (
             <iframe
               src={`/player?screen=${client.code}&preview=1`}
@@ -904,14 +904,31 @@ function TabPlaylist({ code }: { code: string }) {
   const [saving,   setSaving]   = useState(false)
   const [success,  setSuccess]  = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
     fetch(`/api/client/playlist/${code}`)
       .then(r => r.json())
       .then(d => setItems(d.items ?? []))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [code])
+  }
+
+  useEffect(() => { load() }, [code])
+
+  const handleDeleteItem = async (id: string, name: string) => {
+    if (!confirm(`Excluir "${name}" pra sempre? Essa ação não pode ser desfeita.`)) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/client/media/${id}?code=${code}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+      load()
+    } catch {
+      alert("Erro ao excluir. Tenta de novo.")
+    }
+    setDeletingId(null)
+  }
 
   const move = (idx: number, dir: -1 | 1) => {
     const newItems = [...items]
@@ -1042,6 +1059,13 @@ function TabPlaylist({ code }: { code: string }) {
               </div>
               <button onClick={() => setExpanded(expanded === item.id ? null : item.id)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", color: C.text2, flexShrink: 0 }}>
                 {expanded === item.id ? "▲ Fechar" : "⚙ Programar"}
+              </button>
+              <button
+                onClick={() => handleDeleteItem(item.id, item.name)}
+                disabled={deletingId === item.id}
+                style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: deletingId === item.id ? "not-allowed" : "pointer", color: C.red, flexShrink: 0 }}
+              >
+                {deletingId === item.id ? "Excluindo…" : "🗑 Excluir"}
               </button>
             </div>
             {expanded === item.id && (
