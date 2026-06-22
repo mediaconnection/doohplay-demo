@@ -24,12 +24,15 @@ const brl     = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", 
 const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  pending:  { label: "Pendente",  color: C.warning },
-  active:   { label: "Ativo",     color: C.success },
-  paused:   { label: "Pausado",   color: C.textSub },
-  finished: { label: "Encerrado", color: C.muted   },
-  approved: { label: "Aprovado",  color: C.success },
-  rejected: { label: "Rejeitado", color: C.danger  },
+  pending:         { label: "Pendente",            color: C.warning },
+  pending_payment: { label: "Aguardando pagamento", color: C.warning },
+  active:          { label: "Ativo",                color: C.success },
+  overdue:         { label: "Pagamento atrasado",   color: C.danger  },
+  cancelled:       { label: "Cancelada",             color: C.muted   },
+  paused:          { label: "Pausado",               color: C.textSub },
+  finished:        { label: "Encerrado",             color: C.muted   },
+  approved:        { label: "Aprovado",              color: C.success },
+  rejected:        { label: "Rejeitado",             color: C.danger  },
 };
 
 const inputStyle: React.CSSProperties = {
@@ -71,6 +74,7 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [erro, setErro]         = useState("");
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "", startDate: "", endDate: "", budget: "", screens: [] as string[],
   });
@@ -96,7 +100,7 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
     if (!form.name || !form.startDate || !form.endDate) {
       setErro("Preencha nome e datas da campanha."); return;
     }
-    setLoading(true); setErro("");
+    setLoading(true); setErro(""); setPaymentLink(null);
     try {
       const res = await fetch(`/api/advertiser/${code}/campaigns`, {
         method: "POST",
@@ -107,6 +111,11 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
       if (!res.ok) throw new Error(data.error || "Erro ao criar campanha");
       setShowForm(false);
       setForm({ name: "", startDate: "", endDate: "", budget: "", screens: [] });
+      if (data.payment_link) {
+        setPaymentLink(data.payment_link);
+      } else if (data.payment_error) {
+        setErro(`Campanha criada, mas a cobrança falhou: ${data.payment_error}. Tente novamente.`);
+      }
       onRefresh();
     } catch (err: any) {
       setErro(err.message || "Erro ao criar campanha. Tente novamente.");
@@ -131,6 +140,21 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
           + Nova Campanha
         </button>
       </div>
+
+      {paymentLink && (
+        <div style={{ background: C.warning + "18", border: `1px solid ${C.warning}66`, borderRadius: 12, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>💳 Campanha criada — falta pagar para entrar no ar</div>
+            <div style={{ fontSize: 13, color: C.textSub }}>Sua campanha só aparece nas telas depois que o pagamento for confirmado (PIX ou boleto).</div>
+          </div>
+          <a href={paymentLink} target="_blank" rel="noopener noreferrer" style={{
+            background: C.primary, color: "#fff", textDecoration: "none", borderRadius: 8,
+            padding: "10px 20px", fontSize: 14, fontWeight: 600, whiteSpace: "nowrap",
+          }}>
+            Pagar agora →
+          </a>
+        </div>
+      )}
 
       {showForm && (
         <div style={{ background: C.surface, border: `1px solid ${C.primary}44`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
@@ -219,27 +243,46 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {campaigns.map((c: any) => (
-            <div key={c.id} style={{
-              background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 24px",
-              display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 24,
-            }}>
-              <div>
-                <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{c.name}</div>
-                <div style={{ fontSize: 12, color: C.textSub }}>{fmtDate(c.startDate)} → {fmtDate(c.endDate)}</div>
+            <div key={c.id}>
+              <div style={{
+                background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 24px",
+                display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 24,
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: C.textSub }}>{fmtDate(c.startDate)} → {fmtDate(c.endDate)}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.primary }}>{fmt(c.impressions)}</div>
+                  <div style={{ fontSize: 11, color: C.textSub }}>Impressões</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>{c.screens?.length ?? 0}</div>
+                  <div style={{ fontSize: 11, color: C.textSub }}>Telas</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.success }}>{brl(c.budget)}</div>
+                  <div style={{ fontSize: 11, color: C.textSub }}>Orçamento</div>
+                </div>
+                <Badge status={c.status} />
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: C.primary }}>{fmt(c.impressions)}</div>
-                <div style={{ fontSize: 11, color: C.textSub }}>Impressões</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>{c.screens?.length ?? 0}</div>
-                <div style={{ fontSize: 11, color: C.textSub }}>Telas</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.success }}>{brl(c.budget)}</div>
-                <div style={{ fontSize: 11, color: C.textSub }}>Orçamento</div>
-              </div>
-              <Badge status={c.status} />
+              {(c.status === "pending_payment" || c.status === "overdue") && c.payment?.invoice_url && (
+                <div style={{
+                  background: (c.status === "overdue" ? C.danger : C.warning) + "12",
+                  border: `1px solid ${(c.status === "overdue" ? C.danger : C.warning)}33`,
+                  borderRadius: 8, padding: "10px 16px", marginTop: 6,
+                  display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
+                }}>
+                  <span style={{ fontSize: 13, color: C.textSub }}>
+                    {c.status === "overdue" ? "⚠️ Pagamento em atraso — campanha pausada." : "💳 Aguardando pagamento para entrar no ar."}
+                  </span>
+                  <a href={c.payment.invoice_url} target="_blank" rel="noopener noreferrer" style={{
+                    color: C.primary, fontSize: 13, fontWeight: 600, textDecoration: "none",
+                  }}>
+                    Ver cobrança →
+                  </a>
+                </div>
+              )}
             </div>
           ))}
         </div>
