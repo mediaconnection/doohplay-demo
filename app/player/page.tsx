@@ -181,7 +181,7 @@ export default async function PlayerPage({
       </div>`
     : `<div id="slides">${slidesHtml}</div>`
 
-  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}${bodyContentHtml}`
+  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-area">${bodyContentHtml}</div>`
 
   const mediasJson = JSON.stringify(data.medias)
 
@@ -456,6 +456,24 @@ export default async function PlayerPage({
                     });
 
                   if (fresh.length === 0) return; // evita apagar a tela se a API falhar parcialmente
+
+                  // Tela começou sem nenhuma mídia (mostrando "Aguardando
+                  // conteúdo") e agora chegou a primeira — precisa montar a
+                  // estrutura de slides do zero e começar o ciclo, já que
+                  // isso nunca tinha sido inicializado.
+                  if (medias.length === 0 && fresh.length > 0) {
+                    medias = fresh;
+                    groups = buildGroups(medias);
+                    cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
+                    var contentArea = document.getElementById('content-area');
+                    if (contentArea) {
+                      contentArea.innerHTML = '<div id="slides"></div>';
+                      slotA = null; slotB = null; activeSlot = null;
+                      initSlots();
+                      showSlide(pickNextMedia());
+                    }
+                    return;
+                  }
 
                   if (mediasChanged(medias, fresh)) {
                     medias = fresh;
