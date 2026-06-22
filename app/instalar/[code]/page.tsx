@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
-const APK_URL = "https://pub-0ad4cd3201ce42198c5211fe201ff660.r2.dev/apk/app-release.apk"
+const APK_URL = "https://media.doohplay.com.br/apk/app-release.apk"
 
 async function getClient(code: string) {
   const pool = getPool()
