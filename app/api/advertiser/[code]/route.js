@@ -22,7 +22,19 @@ export async function GET(request, { params }) {
           json_agg(
             json_build_object('id', cs.id, 'city', cs.city, 'screenId', cs."screenId", 'screenName', cs."screenName")
           ) FILTER (WHERE cs.id IS NOT NULL), '[]'
-        ) as screens
+        ) as screens,
+        (
+          SELECT json_build_object(
+            'invoice_url', cp.invoice_url,
+            'status', cp.status,
+            'value', cp.value,
+            'due_date', cp.due_date
+          )
+          FROM campaign_payments cp
+          WHERE cp.campaign_id = c.id
+          ORDER BY cp.created_at DESC
+          LIMIT 1
+        ) as payment
        FROM "Campaign" c
        LEFT JOIN "CampaignScreen" cs ON cs."campaignId" = c.id
        WHERE c."advertiserCode" = $1
