@@ -364,8 +364,26 @@ function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose:
 function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const [showCsv, setShowCsv] = useState(false)
   const [showSub, setShowSub] = useState<any>(null)
+  const [deletingCode, setDeletingCode] = useState<string | null>(null)
   const { clients, subscriptions } = data
   const subMap = Object.fromEntries(subscriptions.map((s: any) => [s.code, s]))
+
+  const handleDelete = async (code: string, name: string) => {
+    const typed = prompt(`Isso exclui "${name}" (${code}) e todos os dados relacionados (mídia, playlist, parcerias) pra sempre. Digite o código "${code}" pra confirmar:`)
+    if (typed !== code) {
+      if (typed !== null) alert("Código não corresponde. Nada foi excluído.")
+      return
+    }
+    setDeletingCode(code)
+    try {
+      const res = await fetch(`/api/admin/clients/${code}`, { method: "DELETE" })
+      if (!res.ok) throw new Error((await res.json()).error ?? "Erro ao excluir")
+      onRefresh()
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message)
+    }
+    setDeletingCode(null)
+  }
 
   return (
     <div>
@@ -417,6 +435,13 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
                   style={{ fontSize: 12, color: PURPLE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + PURPLE + "44", borderRadius: 6 }}>
                   Dashboard
                 </Link>
+                <button
+                  onClick={() => handleDelete(c.code, c.name)}
+                  disabled={deletingCode === c.code}
+                  style={{ fontSize: 12, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "5px 10px", cursor: deletingCode === c.code ? "not-allowed" : "pointer" }}
+                >
+                  {deletingCode === c.code ? "Excluindo…" : "🗑 Excluir"}
+                </button>
               </div>
             </div>
           )
