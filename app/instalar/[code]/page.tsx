@@ -19,6 +19,15 @@ async function getClient(code: string) {
   }
 }
 
+export const metadata = {
+  title: "Instalar DOOHPLAY",
+}
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+}
+
 export default async function InstalarPage({
   params,
 }: {
@@ -32,12 +41,8 @@ export default async function InstalarPage({
   const pageUrl = `https://doohplay.com.br/instalar/${code.toUpperCase()}`
 
   return (
-    <html lang="pt-BR">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Instalar DOOHPLAY — {client.name}</title>
-        <style>{`
+    <>
+      <style>{`
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -50,142 +55,7 @@ export default async function InstalarPage({
             justify-content: center;
             padding: 24px;
           }
-          .card {
-            background: #1E293B;
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 480px;
-            width: 100%;
-            text-align: center;
-            border: 1px solid #334155;
-          }
-          .logo {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 32px;
-          }
-          .logo-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #3B82F6, #6366F1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .logo-text {
-            font-size: 22px;
-            font-weight: 900;
-            color: #F9FAFB;
-            letter-spacing: -0.5px;
-          }
-          .logo-text span { color: #3B82F6; }
-          .client-name {
-            font-size: 14px;
-            color: #64748B;
-            margin-bottom: 8px;
-          }
-          h1 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: #F1F5F9;
-          }
-          .subtitle {
-            font-size: 14px;
-            color: #94A3B8;
-            margin-bottom: 32px;
-            line-height: 1.5;
-          }
-          .code-badge {
-            display: inline-block;
-            background: #0F172A;
-            border: 2px solid #3B82F6;
-            border-radius: 12px;
-            padding: 12px 24px;
-            font-size: 28px;
-            font-weight: 900;
-            color: #3B82F6;
-            letter-spacing: 4px;
-            margin-bottom: 32px;
-          }
-          .steps {
-            text-align: left;
-            margin-bottom: 32px;
-          }
-          .step {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            padding: 14px 0;
-            border-bottom: 1px solid #334155;
-          }
-          .step:last-child { border-bottom: none; }
-          .step-num {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #3B82F6;
-            color: white;
-            font-size: 13px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            margin-top: 1px;
-          }
-          .step-text {
-            font-size: 14px;
-            color: #CBD5E1;
-            line-height: 1.5;
-          }
-          .step-text strong { color: #F1F5F9; }
-          .btn-download {
-            display: block;
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #3B82F6, #6366F1);
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            border-radius: 12px;
-            text-decoration: none;
-            margin-bottom: 16px;
-            transition: opacity 0.2s;
-          }
-          .btn-download:hover { opacity: 0.9; }
-          .qr-section {
-            margin-top: 28px;
-            padding-top: 28px;
-            border-top: 1px solid #334155;
-          }
-          .qr-label {
-            font-size: 12px;
-            color: #64748B;
-            margin-bottom: 14px;
-          }
-          .qr-placeholder {
-            width: 160px;
-            height: 160px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 8px;
-          }
-          .help {
-            margin-top: 24px;
-            font-size: 12px;
-            color: #475569;
-          }
         `}</style>
-      </head>
-      <body>
         <div className="card" style={{ background: "#1E293B", borderRadius: 20, padding: 40, maxWidth: 480, width: "100%", textAlign: "center", border: "1px solid #334155" }}>
 
           {/* Logo */}
@@ -205,7 +75,15 @@ export default async function InstalarPage({
           {/* Cliente */}
           <div style={{ fontSize: 13, color: "#64748B", marginBottom: 4 }}>Instalação para</div>
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#F1F5F9" }}>{client.name}</h1>
-          <div style={{ fontSize: 13, color: "#94A3B8", marginBottom: 28 }}>{client.city}</div>
+          <div style={{ fontSize: 13, color: "#94A3B8", marginBottom: 20 }}>{client.city}</div>
+
+          {/* Aviso de Wi-Fi — antes de tudo */}
+          <div style={{ background: "#0F172A", border: "1px solid #F59E0B66", borderRadius: 12, padding: "14px 16px", marginBottom: 28, textAlign: "left", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📶</span>
+            <div style={{ fontSize: 13, color: "#FCD34D", lineHeight: 1.5 }}>
+              <strong>Antes de tudo:</strong> conecte o Wi-Fi da TV/Fire Stick nas <strong>Configurações do próprio aparelho</strong> (fora desse navegador). Sem isso, o app não vai conseguir baixar nem mostrar conteúdo depois.
+            </div>
+          </div>
 
           {/* Código */}
           <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>Seu código de tela</div>
@@ -216,12 +94,13 @@ export default async function InstalarPage({
           {/* Passos */}
           <div style={{ textAlign: "left", marginBottom: 28 }}>
             {[
-              { n: 1, text: <><strong>Baixe o app</strong> clicando no botão abaixo</> },
-              { n: 2, text: <><strong>Abra o arquivo</strong> baixado na sua TV Android e instale</> },
-              { n: 3, text: <><strong>Digite o código</strong> <span style={{ color: "#3B82F6", fontWeight: 700 }}>{code.toUpperCase()}</span> quando o app pedir</> },
-              { n: 4, text: <><strong>Pronto!</strong> Seu conteúdo vai aparecer automaticamente 🎉</> },
+              { n: 1, text: <><strong>Conecte o Wi-Fi</strong> da TV (nas configurações do aparelho, não aqui)</> },
+              { n: 2, text: <><strong>Baixe o app</strong> clicando no botão abaixo</> },
+              { n: 3, text: <><strong>Abra o arquivo</strong> baixado na sua TV Android e instale</> },
+              { n: 4, text: <><strong>Digite o código</strong> <span style={{ color: "#3B82F6", fontWeight: 700 }}>{code.toUpperCase()}</span> quando o app pedir</> },
+              { n: 5, text: <><strong>Pronto!</strong> Seu conteúdo vai aparecer automaticamente 🎉</> },
             ].map(({ n, text }) => (
-              <div key={n} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 0", borderBottom: n < 4 ? "1px solid #334155" : "none" }}>
+              <div key={n} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 0", borderBottom: n < 5 ? "1px solid #334155" : "none" }}>
                 <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#3B82F6", color: "white", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {n}
                 </div>
@@ -265,7 +144,6 @@ export default async function InstalarPage({
           </div>
 
         </div>
-      </body>
-    </html>
+    </>
   )
 }
