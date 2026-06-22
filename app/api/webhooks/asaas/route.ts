@@ -32,7 +32,38 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { event, payment } = body
 
-    console.log("[webhook/asaas] event:", event, "subscription:", payment?.subscription)
+    console.log("[webhook/asaas] event:", event, "subscription:", payment?.subscription, "externalReference:", payment?.externalReference)
+
+    // ── Pagamento de CAMPANHA de anunciante (cobrança única, sem subscription) ──
+    // externalReference vem como "campaign:<uuid>", setado em createCampaignPayment().
+    const ref: string | undefined = payment?.externalReference
+    if (ref && ref.startsWith("campaign:")) {
+      const campaignId = ref.slice("campaign:".length)
+
+      if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
+        await pool.query(`UPDATE "Campaign" SET status = 'active' WHERE id = $1`, [campaignId])
+        await pool.query(
+          `UPDATE campaign_payments SET status = 'CONFIRMED', paid_at = NOW() WHERE asaas_payment_id = $1`,
+          [payment.id]
+        )
+      } else if (event === "PAYMENT_OVERDUE") {
+        await pool.query(`UPDATE "Campaign" SET status = 'overdue' WHERE id = $1`, [campaignId])
+        await pool.query(
+          `UPDATE campaign_payments SET status = 'OVERDUE' WHERE asaas_payment_id = $1`,
+          [payment.id]
+        )
+      } else if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
+        await pool.query(`UPDATE "Campaign" SET status = 'cancelled' WHERE id = $1`, [campaignId])
+        await pool.query(
+          `UPDATE campaign_payments SET status = 'CANCELLED' WHERE asaas_payment_id = $1`,
+          [payment.id]
+        )
+      } else {
+        console.log("[webhook/asaas] evento de campanha nao tratado:", event)
+      }
+
+      return NextResponse.json({ ok: true, event, campaign_id: campaignId })
+    }
 
     if (!payment?.subscription) {
       return NextResponse.json({ ok: true, skipped: "sem subscription" })
