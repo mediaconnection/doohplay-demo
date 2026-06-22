@@ -184,6 +184,7 @@ export default async function PlayerPage({
   const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-area">${bodyContentHtml}</div>`
 
   const mediasJson = JSON.stringify(data.medias)
+  const buildVersion = process.env.RENDER_GIT_COMMIT || "dev"
 
   return (
     <>
@@ -294,6 +295,7 @@ export default async function PlayerPage({
             var medias   = ${mediasJson};
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
+            var buildVersion = ${JSON.stringify(buildVersion)};
             var timer    = null;
             var progress = document.getElementById('progress-bar');
             var hb       = document.getElementById('heartbeat');
@@ -435,6 +437,21 @@ export default async function PlayerPage({
             // em memória sem interromper a mídia que está passando agora —
             // o próximo preloadNext já vai refletir a playlist nova.
             function pollPlaylist() {
+              // Checa se subiu um deploy novo desde que esta página carregou.
+              // Roda no mesmo ciclo de 2 min do polling de conteúdo — sem
+              // precisar de WebSocket nem nenhuma infraestrutura nova.
+              // Se mudou, recarrega na hora (com cache-buster); se não
+              // mudou, nem toca na tela.
+              fetch('/api/player/version')
+                .then(function(res) { return res.json(); })
+                .then(function(v) {
+                  if (v && v.version && v.version !== buildVersion) {
+                    var base = location.pathname + '?screen=' + encodeURIComponent(code);
+                    location.href = base + '&_r=' + Date.now();
+                  }
+                })
+                .catch(function(){});
+
               fetch('/api/client/playlist/' + encodeURIComponent(code))
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
@@ -622,7 +639,13 @@ export default async function PlayerPage({
             // acúmulo de memória do processo de tempos em tempos — proteção
             // adicional contra o tipo de travamento já visto em hardware
             // mais limitado (Fire Stick / Android TV mais antigas).
-            var RELOAD_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 horas
+            // ── Recarga periódica de segurança ────────────────────────────────
+            // A checagem de versão (dentro de pollPlaylist, a cada 2 min) já
+            // cobre a atualização de código de verdade. Esta aqui é só uma
+            // rede de segurança extra — zera memória do processo e garante
+            // uma recarga mesmo se, por algum motivo, a checagem de versão
+            // falhar silenciosamente por um tempo.
+            var RELOAD_INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
             setTimeout(function() {
               var base = location.pathname + '?screen=' + encodeURIComponent(code);
               location.href = base + '&_r=' + Date.now(); // cache-buster força recarga real
