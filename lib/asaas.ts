@@ -68,6 +68,26 @@ export async function createSubscription(params: {
   })
 }
 
+// Cria cobrança ÚNICA (não recorrente) — usada para campanhas de anúncio
+// de terceiro, que têm início/fim definidos, em vez de assinatura mensal.
+export async function createCampaignPayment(params: {
+  customerId: string
+  value: number
+  campaignId: string
+  description: string
+  dueDate?: string // YYYY-MM-DD
+}) {
+  const due = params.dueDate ?? new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
+  return asaas("/payments", "POST", {
+    customer: params.customerId,
+    billingType: "UNDEFINED", // PIX + Boleto
+    value: params.value,
+    dueDate: due,
+    description: params.description,
+    externalReference: `campaign:${params.campaignId}`,
+  })
+}
+
 // Cancela assinatura
 export async function cancelSubscription(subscriptionId: string) {
   return asaas(`/subscriptions/${subscriptionId}`, "DELETE")
