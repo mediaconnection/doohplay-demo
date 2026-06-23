@@ -374,55 +374,69 @@ export default async function PlayerPage({
             var slotB = null;
             var activeSlot = null; // referência ao slot atualmente visível
 
-            function createMediaElement(m) {
-              var el;
-              if (m.type === 'video') {
-                el = document.createElement('video');
-                el.muted = true;
-                el.playsInline = true;
-                el.preload = 'auto';
-                el.controls = false;
-                // Reforça via atributo HTML (não só propriedade JS) — em
-                // alguns WebViews Android, o navegador só respeita certas
-                // configurações de mídia se já vierem como atributo desde
-                // a criação do elemento, antes do play() ser chamado.
-                el.setAttribute('muted', '');
-                el.setAttribute('playsinline', '');
-                el.setAttribute('webkit-playsinline', '');
-                el.setAttribute('disablePictureInPicture', '');
-                el.setAttribute('controlsList', 'nodownload noplaybackrate nofullscreen');
-              } else {
-                el = document.createElement('img');
-                el.alt = m.name || '';
-              }
-              el.setAttribute('data-id', m.id);
-              el.setAttribute('data-duration', m.duration);
-              return el;
+            // Cada slot mantém UM <video> e UM <img> fixos, criados uma
+            // única vez, escondidos via display:none quando não usados.
+            // Antes, cada troca de mídia criava um <video> NOVO do zero —
+            // e WebViews Android/Chromium mostram um ícone nativo de play
+            // por uma fração de segundo na primeira reprodução de cada
+            // elemento <video> recém-criado, mesmo com autoplay+muted já
+            // configurados. Reaproveitar o mesmo elemento e só trocar o
+            // .src elimina esse "flash", porque o navegador não trata
+            // isso como uma "nova" reprodução de mídia.
+            function createSlot() {
+              var div = document.createElement('div');
+              div.className = 'slide';
+
+              var video = document.createElement('video');
+              video.muted = true;
+              video.playsInline = true;
+              video.preload = 'auto';
+              video.controls = false;
+              video.setAttribute('muted', '');
+              video.setAttribute('playsinline', '');
+              video.setAttribute('webkit-playsinline', '');
+              video.setAttribute('disablePictureInPicture', '');
+              video.setAttribute('controlsList', 'nodownload noplaybackrate nofullscreen');
+              video.style.display = 'none';
+
+              var img = document.createElement('img');
+              img.style.display = 'none';
+
+              div.appendChild(video);
+              div.appendChild(img);
+
+              return { el: div, video: video, img: img };
             }
 
             function releaseSlot(slot) {
               if (!slot) return;
-              var el = slot.querySelector('video, img');
-              if (el && el.tagName === 'VIDEO') {
-                try {
-                  el.pause();
-                  el.removeAttribute('src');
-                  el.load(); // força o decodificador a descartar o buffer
-                } catch (e) {}
-              }
-              slot.innerHTML = '';
-              slot.classList.remove('active');
+              try { slot.video.pause(); } catch (e) {}
+              slot.el.classList.remove('active');
             }
 
             function fillSlot(slot, m) {
-              releaseSlot(slot);
-              var el = createMediaElement(m);
-              if (m.type === 'video') {
-                el.src = m.url;
-              } else {
+              var el = (m.type === 'video') ? slot.video : slot.img;
+              var other = (m.type === 'video') ? slot.img : slot.video;
+
+              other.style.display = 'none';
+              if (other.tagName === 'VIDEO') {
+                try { other.pause(); } catch (e) {}
+              }
+
+              if (el.tagName === 'IMG') {
+                el.alt = m.name || '';
+              }
+              // Só reatribui o src se for realmente diferente — trocar o
+              // src de um <video>/<img> já existente não dispara nenhuma
+              // UI nativa de mídia, ao contrário de criar um elemento novo.
+              if (el.src !== m.url) {
                 el.src = m.url;
               }
-              slot.appendChild(el);
+              el.setAttribute('data-id', m.id);
+              el.setAttribute('data-duration', m.duration);
+              el.style.display = 'block';
+              return el;
+            }
               return el;
             }
 
@@ -430,12 +444,10 @@ export default async function PlayerPage({
               var container = document.getElementById('slides');
               if (!container) return;
               container.innerHTML = '';
-              slotA = document.createElement('div');
-              slotB = document.createElement('div');
-              slotA.className = 'slide';
-              slotB.className = 'slide';
-              container.appendChild(slotA);
-              container.appendChild(slotB);
+              slotA = createSlot();
+              slotB = createSlot();
+              container.appendChild(slotA.el);
+              container.appendChild(slotB.el);
             }
 
             function preloadNext(m) {
@@ -552,8 +564,8 @@ export default async function PlayerPage({
                 // Nas chamadas seguintes, o slot inativo já foi pré-carregado
                 // pela chamada anterior de preloadNext().
                 targetSlot = (activeSlot === slotA) ? slotB : slotA;
-                var loadedEl = targetSlot.querySelector('video, img');
-                if (!loadedEl || loadedEl.getAttribute('data-id') !== m.id) {
+                var loadedEl = (m.type === 'video') ? targetSlot.video : targetSlot.img;
+                if (loadedEl.getAttribute('data-id') !== m.id) {
                   // Pré-carregado não corresponde ao esperado (playlist mudou
                   // no meio do caminho) — refaz o conteúdo deste slot agora.
                   fillSlot(targetSlot, m);
@@ -563,11 +575,11 @@ export default async function PlayerPage({
               }
 
               activeSlot = targetSlot;
-              activeSlot.classList.add('active');
+              activeSlot.el.classList.add('active');
 
               var dur = (Number(m.duration) || 15) * 1000;
               var mediaId = m.id;
-              var el = activeSlot.querySelector('video, img');
+              var el = (m.type === 'video') ? activeSlot.video : activeSlot.img;
 
               // Garante que esta mídia só avança UMA vez, seja por onended,
               // erro de carregamento, falha de autoplay ou pelo timeout de
