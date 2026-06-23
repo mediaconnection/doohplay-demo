@@ -214,6 +214,19 @@ export default async function PlayerPage({
             height: 100%;
             object-fit: cover;
           }
+          /* Elimina o "flash" do ícone nativo de play que alguns WebViews
+             Android/Chromium mostram por uma fração de segundo na primeira
+             reprodução de cada elemento <video> recém-criado, mesmo com
+             autoplay+muted+playsinline já configurados via JS. */
+          video::-webkit-media-controls,
+          video::-webkit-media-controls-start-playback-button,
+          video::-webkit-media-controls-play-button,
+          video::-webkit-media-controls-overlay-play-button {
+            display: none !important;
+            -webkit-appearance: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
           /* Fallback quando não há mídia */
           .default-screen {
             width: 100vw; height: 100vh;
@@ -368,6 +381,16 @@ export default async function PlayerPage({
                 el.muted = true;
                 el.playsInline = true;
                 el.preload = 'auto';
+                el.controls = false;
+                // Reforça via atributo HTML (não só propriedade JS) — em
+                // alguns WebViews Android, o navegador só respeita certas
+                // configurações de mídia se já vierem como atributo desde
+                // a criação do elemento, antes do play() ser chamado.
+                el.setAttribute('muted', '');
+                el.setAttribute('playsinline', '');
+                el.setAttribute('webkit-playsinline', '');
+                el.setAttribute('disablePictureInPicture', '');
+                el.setAttribute('controlsList', 'nodownload noplaybackrate nofullscreen');
               } else {
                 el = document.createElement('img');
                 el.alt = m.name || '';
