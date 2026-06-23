@@ -277,28 +277,39 @@ export default async function PlayerPage({
             opacity: 0;
             z-index: 100;
           }
-          /* QR code fixo no rodapé — captura de leads via Clube de Telas/CRM */
+          /* QR code fixo no rodapé — captura de leads via Clube de Telas/CRM.
+             Só fica visível nos últimos segundos de cada slide (controlado
+             via JS, classe .qr-visible), pra não competir visualmente com
+             o conteúdo o tempo todo. */
           #qr-footer {
             position: fixed;
             bottom: 10px; right: 10px;
             background: rgba(255,255,255,0.95);
             border-radius: 8px;
-            padding: 6px;
+            padding: 5px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             z-index: 90;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity .4s ease, transform .4s ease;
+            pointer-events: none;
+          }
+          #qr-footer.qr-visible {
+            opacity: 1;
+            transform: translateY(0);
           }
           #qr-footer img {
-            width: 56px; height: 56px;
+            width: 36px; height: 36px;
             display: block;
           }
           #qr-footer .qr-label {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             color: #0B1120;
-            line-height: 1.3;
-            max-width: 60px;
+            line-height: 1.25;
+            max-width: 48px;
           }
         `}</style>
       <div id="player" dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
@@ -310,6 +321,8 @@ export default async function PlayerPage({
             var isPreview = ${JSON.stringify(isPreview)};
             var buildVersion = ${JSON.stringify(buildVersion)};
             var timer    = null;
+            var qrTimer  = null;
+            var qrEl     = document.getElementById('qr-footer');
             var progress = document.getElementById('progress-bar');
             var hb       = document.getElementById('heartbeat');
             var POLL_INTERVAL_MS = 2 * 60 * 1000; // verifica mudanças a cada 2 minutos
@@ -616,6 +629,19 @@ export default async function PlayerPage({
               } else {
                 if (el) el.onerror = function() { advanceOnce(); };
                 timer = setTimeout(advanceOnce, dur);
+              }
+
+              // QR "Receba novidades": só aparece nos últimos 5s do slide,
+              // em vez de ficar fixo o tempo todo competindo visualmente
+              // com o conteúdo. Em slides mais curtos que 5s, aparece desde
+              // o início.
+              if (qrTimer) clearTimeout(qrTimer);
+              if (qrEl) {
+                qrEl.classList.remove('qr-visible');
+                var qrShowAt = Math.max(dur - 5000, 0);
+                qrTimer = setTimeout(function() {
+                  if (qrEl) qrEl.classList.add('qr-visible');
+                }, qrShowAt);
               }
 
               // Barra de progresso
