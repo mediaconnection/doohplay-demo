@@ -444,12 +444,16 @@ export default async function PlayerPage({
               // UI nativa de mídia, ao contrário de criar um elemento novo.
               if (el.src !== m.url) {
                 el.src = m.url;
+                if (el.tagName === 'VIDEO') {
+                  // Alguns WebViews Android mais antigos não recarregam o
+                  // recurso de forma confiável só com a troca de .src — força
+                  // explicitamente via load().
+                  try { el.load(); } catch (e) {}
+                }
               }
               el.setAttribute('data-id', m.id);
               el.setAttribute('data-duration', m.duration);
               el.style.display = 'block';
-              return el;
-            }
               return el;
             }
 
