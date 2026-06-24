@@ -405,10 +405,13 @@ export default async function PlayerPage({
               video.playsInline = true;
               video.preload = 'auto';
               video.controls = false;
+              video.disableRemotePlayback = true;
               video.setAttribute('muted', '');
+              video.setAttribute('autoplay', '');
               video.setAttribute('playsinline', '');
               video.setAttribute('webkit-playsinline', '');
               video.setAttribute('disablePictureInPicture', '');
+              video.setAttribute('disableRemotePlayback', '');
               video.setAttribute('controlsList', 'nodownload noplaybackrate nofullscreen');
               video.style.display = 'none';
 
@@ -465,6 +468,20 @@ export default async function PlayerPage({
               slotB = createSlot();
               container.appendChild(slotA.el);
               container.appendChild(slotB.el);
+            }
+
+            // Tentativa de suprimir a UI nativa "Now Playing"/transport
+            // controls que o Android pode exibir para qualquer <video>
+            // tocando, via Media Session API — suspeito adicional para o
+            // flash do ícone de play, independente do navegador/WebView.
+            if ('mediaSession' in navigator) {
+              try {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.playbackState = 'none';
+                ['play','pause','seekbackward','seekforward','previoustrack','nexttrack','stop'].forEach(function(action) {
+                  try { navigator.mediaSession.setActionHandler(action, null); } catch (e) {}
+                });
+              } catch (e) {}
             }
 
             function preloadNext(m) {
