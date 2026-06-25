@@ -16,33 +16,25 @@ function isHttpUrl(value: unknown) {
   return typeof value === "string" && /^https?:\/\//i.test(value)
 }
 
-function isPlayableVideoUrl(value: unknown) {
+function mediaTypeFromUrl(value: unknown) {
   if (!isHttpUrl(value)) return false
 
   const url = String(value).toLowerCase()
-  return (
-    !url.includes("your-project-id") &&
-    (
-      url.includes(".mp4") ||
-      url.includes(".m3u8") ||
-      url.includes("video")
-    ) &&
-    !url.includes(".jpg") &&
-    !url.includes(".jpeg") &&
-    !url.includes(".png") &&
-    !url.includes(".webp") &&
-    !url.includes(".gif")
-  )
+  if (url.includes("your-project-id")) return null
+  if (url.includes(".mp4") || url.includes(".m3u8")) return "video"
+  if (url.includes(".jpg") || url.includes(".jpeg") || url.includes(".png") || url.includes(".webp")) return "image"
+  return null
 }
 
-function normalizeVideoItem(row: any, position: number) {
+function normalizeMediaItem(row: any, position: number) {
   const assetUrl = row.media_file_url ?? row.url ?? row.media_url
   const duration = normalizeDuration(row.media_duration ?? row.duration_seconds ?? row.duration, 15)
+  const mediaType = mediaTypeFromUrl(assetUrl)
 
   return {
-    id: String(row.media_file_id ?? row.id ?? row.campaign_id ?? `video-${position}`),
-    name: row.name ?? row.campaign_name ?? row.file_name ?? "Video",
-    type: "video",
+    id: String(row.media_file_id ?? row.id ?? row.campaign_id ?? `media-${position}`),
+    name: row.name ?? row.campaign_name ?? row.file_name ?? "Midia",
+    type: mediaType,
     url: assetUrl,
     asset_url: assetUrl,
     active: true,
@@ -107,7 +99,7 @@ async function findPlayerOrClient(code: string) {
   return null
 }
 
-async function fetchCampaignVideos(code: string, owner: any) {
+async function fetchCampaignMedia(code: string, owner: any) {
   const rows: any[] = []
 
   const modern = await pool.query(
@@ -169,8 +161,8 @@ async function fetchCampaignVideos(code: string, owner: any) {
 
   const seen = new Set<string>()
   return rows
-    .map((row, index) => normalizeVideoItem(row, index + 1))
-    .filter((item) => item.type === "video" && isPlayableVideoUrl(item.asset_url))
+    .map((row, index) => normalizeMediaItem(row, index + 1))
+    .filter((item) => (item.type === "video" || item.type === "image") && isHttpUrl(item.asset_url))
     .filter((item) => {
       if (seen.has(item.asset_url)) return false
       seen.add(item.asset_url)
@@ -188,7 +180,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const owner = await findPlayerOrClient(code)
-    const playlist = await fetchCampaignVideos(code, owner)
+    const playlist = await fetchCampaignMedia(code, owner)
 
     if (playlist.length === 0) {
       return NextResponse.json(fallbackPlaylist(owner?.name ?? code))
