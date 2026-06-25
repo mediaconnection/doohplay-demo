@@ -36,7 +36,20 @@ export async function getOrCreateAsaasCustomer(params: {
 }) {
   // Tenta buscar pelo email
   const search = await asaas(`/customers?email=${encodeURIComponent(params.email)}&limit=1`)
-  if (search.data?.length > 0) return search.data[0]
+  if (search.data?.length > 0) {
+    const existing = search.data[0]
+    // Sempre reenvia o CPF/CNPJ se tivermos um — idempotente, sem risco de
+    // reenviar o mesmo valor. Não confiamos no campo retornado pela busca
+    // (a Asaas pode omitir/mascarar esse campo na listagem por privacidade,
+    // mesmo que esteja salvo de verdade — então checar "já tem ou não" por
+    // ali não é confiável).
+    if (params.cpfCnpj) {
+      return asaas(`/customers/${existing.id}`, "POST", {
+        cpfCnpj: params.cpfCnpj.replace(/\D/g, ""),
+      })
+    }
+    return existing
+  }
 
   // Cria novo cliente
   return asaas("/customers", "POST", {
@@ -75,6 +88,7 @@ export async function createCampaignPayment(params: {
   value: number
   campaignId: string
   description: string
+  cpfCnpj?: string
   dueDate?: string // YYYY-MM-DD
 }) {
   const due = params.dueDate ?? new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
@@ -85,6 +99,7 @@ export async function createCampaignPayment(params: {
     dueDate: due,
     description: params.description,
     externalReference: `campaign:${params.campaignId}`,
+    cpfCnpj: params.cpfCnpj?.replace(/\D/g, "") || undefined,
   })
 }
 
