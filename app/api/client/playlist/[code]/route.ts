@@ -11,6 +11,25 @@ function isHttpUrl(value: unknown) {
   return typeof value === "string" && /^https?:\/\//i.test(value)
 }
 
+function isPlayableVideoUrl(value: unknown) {
+  if (!isHttpUrl(value)) return false
+
+  const url = String(value).toLowerCase()
+  return (
+    !url.includes("your-project-id") &&
+    (
+      url.includes(".mp4") ||
+      url.includes(".m3u8") ||
+      url.includes("video")
+    ) &&
+    !url.includes(".jpg") &&
+    !url.includes(".jpeg") &&
+    !url.includes(".png") &&
+    !url.includes(".webp") &&
+    !url.includes(".gif")
+  )
+}
+
 function videoItem(row: any, position: number) {
   const assetUrl = row.media_file_url ?? row.url ?? row.media_url
 
@@ -95,7 +114,7 @@ async function fetchVideos(code: string) {
   const seen = new Set<string>()
   return [...modern.rows, ...legacy.rows]
     .map((row, index) => videoItem(row, index + 1))
-    .filter((item) => isHttpUrl(item.asset_url))
+    .filter((item) => isPlayableVideoUrl(item.asset_url))
     .filter((item) => {
       if (seen.has(item.asset_url)) return false
       seen.add(item.asset_url)
