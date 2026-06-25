@@ -1,152 +1,197 @@
+// app/api/client/playlist/[code]/route.ts
+import { NextRequest, NextResponse } from "next/server"
+import { getPool } from "@/lib/db"
+
 export const dynamic = "force-dynamic"
-export const fetchCache = "force-no-store"
-export const revalidate = 0
-
-import { NextResponse } from "next/server"
-import { pool } from "@/lib/db"
-
-const DEMO_VIDEO_URL = "https://doohplay-demo.onrender.com/demo/zimermam-ad.mp4"
-
-function isHttpUrl(value: unknown) {
-  return typeof value === "string" && /^https?:\/\//i.test(value)
-}
-
-function mediaTypeFromUrl(value: unknown) {
-  if (!isHttpUrl(value)) return false
-
-  const url = String(value).toLowerCase()
-  if (url.includes("your-project-id")) return null
-  if (url.includes(".mp4") || url.includes(".m3u8")) return "video"
-  if (url.includes(".jpg") || url.includes(".jpeg") || url.includes(".png") || url.includes(".webp")) return "image"
-  return null
-}
-
-function mediaItem(row: any, position: number) {
-  const assetUrl = row.media_file_url ?? row.url ?? row.media_url
-  const mediaType = mediaTypeFromUrl(assetUrl)
-
-  return {
-    id: String(row.media_file_id ?? row.id ?? row.campaign_id ?? `media-${position}`),
-    name: row.name ?? row.campaign_name ?? "Midia",
-    type: mediaType,
-    url: assetUrl,
-    asset_url: assetUrl,
-    active: true,
-    status: "approved",
-    duration: Number(row.media_duration ?? row.duration_seconds ?? row.duration ?? 15),
-    position,
-    campaign_id: row.campaign_id ?? null,
-    slot_category: row.slot_category ?? "anunciante",
-  }
-}
-
-function fallbackPlaylist(name = "DOOHPLAY") {
-  const item = {
-    id: "demo-zimermam",
-    name: "Demo Barbearia Zimermam",
-    type: "video",
-    url: DEMO_VIDEO_URL,
-    asset_url: DEMO_VIDEO_URL,
-    active: true,
-    status: "approved",
-    duration: 30,
-    position: 1,
-    campaign_id: "demo",
-    slot_category: "anunciante",
-  }
-
-  return { ok: true, name, items: [item], slides: [item], playlist: [item] }
-}
-
-async function fetchVideos(code: string) {
-  const modern = await pool.query(
-    `SELECT
-       c.id AS campaign_id,
-       c.name AS campaign_name,
-       c.duration_seconds,
-       c.media_url,
-       c.media_type,
-       mf.id AS media_file_id,
-       mf.url AS media_file_url,
-       mf.duration_seconds AS media_duration,
-       mf.media_type AS media_file_type
-     FROM campaigns c
-     LEFT JOIN campaign_assets ca ON ca.campaign_id = c.id
-     LEFT JOIN campaign_media cm ON cm.campaign_id = c.id
-     LEFT JOIN media_files mf ON mf.id = ca.media_id OR mf.id = cm.media_id
-     WHERE c.is_active = true
-       AND (c.status IS NULL OR LOWER(c.status) NOT IN ('rejected', 'inactive'))
-       AND (c.start_date IS NULL OR c.start_date <= NOW())
-       AND (c.end_date IS NULL OR c.end_date >= NOW())
-       AND (c.player_code IS NULL OR UPPER(c.player_code) = $1)
-     ORDER BY c.priority DESC NULLS LAST, c.created_at DESC
-     LIMIT 30`,
-    [code]
-  ).catch(() => ({ rows: [] }))
-
-  const legacy = await pool.query(
-    `SELECT
-       m.id::text AS media_file_id,
-       m.url,
-       m.type AS media_file_type,
-       m.name,
-       c.id AS campaign_id,
-       c.name AS campaign_name,
-       15 AS duration_seconds
-     FROM "CampaignMedia" m
-     JOIN "Campaign" c ON c.id = m."campaignId"
-     WHERE m.status = 'approved'
-       AND c.status = 'active'
-       AND c."startDate" <= NOW()
-       AND c."endDate" >= NOW()
-     ORDER BY RANDOM()
-     LIMIT 30`
-  ).catch(() => ({ rows: [] }))
-
-  const seen = new Set<string>()
-  return [...modern.rows, ...legacy.rows]
-    .map((row, index) => mediaItem(row, index + 1))
-    .filter((item) => (item.type === "video" || item.type === "image") && isHttpUrl(item.asset_url))
-    .filter((item) => {
-      if (seen.has(item.asset_url)) return false
-      seen.add(item.asset_url)
-      return true
-    })
-}
 
 export async function GET(
-  _request: Request,
-  context: { params: Promise<{ code: string }> }
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
 ) {
+  const { code } = await params
+  const upperCode = code.toUpperCase()
+  const pool = getPool()
   try {
-    const { code } = await context.params
-    const screenCode = String(code ?? "").trim().toUpperCase()
+    // ── Dono + Anunciante (CampaignMedia, distinguidos por content_source) ──
+    // Mantém o agendamento (playlist_schedule) que o dono configura no dashboard.
+    const ownAndAdsQuery = pool.query(`
+      SELECT
+        cm.id,
+        cm.name,
+        cm.type,
+        cm.url                          AS asset_url,
+        cm.status,
+        CASE WHEN cm.content_source = 'exemplo' THEN 'dono' ELSE cm.content_source END AS slot_category,
+        cm."createdAt"                  AS created_at,
+        COALESCE(ps.position,
+          ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int) AS position,
+        COALESCE(ps.duration, 15)       AS duration,
+        COALESCE(ps.active,   true)     AS active,
+        ps.days_of_week,
+        ps.start_time::text,
+        ps.end_time::text,
+        ps.start_date::text,
+        ps.end_date::text
+      FROM "CampaignMedia" cm
+      JOIN "Campaign" c ON c.id = cm."campaignId"
+      LEFT JOIN playlist_schedule ps
+        ON ps.media_id = cm.id AND ps.client_code = $1
+      WHERE c."advertiserCode" = $1
+      ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
+    `, [upperCode])
 
-    if (!screenCode) {
-      return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
-    }
+    // ── Rede (Clube de Telas) — mídias de parceiros distribuídas para esta tela ──
+    const networkQuery = pool.query(`
+      SELECT
+        nm.id,
+        nm.name,
+        nm.type,
+        nm.url                          AS asset_url,
+        nm.status,
+        'rede'                          AS slot_category,
+        nm.created_at,
+        999                              AS position,
+        15                               AS duration,
+        true                             AS active,
+        NULL::text[]                     AS days_of_week,
+        NULL::text                       AS start_time,
+        NULL::text                       AS end_time,
+        NULL::text                       AS start_date,
+        NULL::text                       AS end_date
+      FROM network_media_distribution nmd
+      JOIN network_media nm ON nm.id = nmd.network_media_id
+      WHERE nmd.displayed_on_code = $1
+        AND nmd.active = true
+        AND nm.status = 'approved'
+    `, [upperCode])
+
+    // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
+    const institutionalQuery = pool.query(`
+      SELECT
+        im.id,
+        im.name,
+        im.type,
+        im.url                          AS asset_url,
+        'approved'                      AS status,
+        'institucional'                 AS slot_category,
+        im.created_at,
+        im.position,
+        im.duration,
+        im.active,
+        NULL::text[]                     AS days_of_week,
+        NULL::text                       AS start_time,
+        NULL::text                       AS end_time,
+        NULL::text                       AS start_date,
+        NULL::text                       AS end_date
+      FROM institutional_media im
+      WHERE im.active = true
+      ORDER BY im.position ASC
+    `)
+
+    // ── Anunciante real — campanhas de terceiros vinculadas explicitamente
+    // a esta tela via CampaignScreen (fluxo de venda real, separado do
+    // upload do próprio dono que usa Campaign "Promoções da Loja").
+    const realAdsQuery = pool.query(`
+      SELECT
+        cm.id,
+        cm.name,
+        cm.type,
+        cm.url                          AS asset_url,
+        cm.status,
+        'anunciante'                     AS slot_category,
+        cm."createdAt"                  AS created_at,
+        999                              AS position,
+        15                               AS duration,
+        true                             AS active,
+        NULL::text[]                     AS days_of_week,
+        NULL::text                       AS start_time,
+        NULL::text                       AS end_time,
+        NULL::text                       AS start_date,
+        NULL::text                       AS end_date
+      FROM "CampaignScreen" cs
+      JOIN "Campaign" c ON c.id = cs."campaignId"
+      JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
+      WHERE cs."screenId" = $1
+        AND c.status = 'active'
+        AND c."startDate" <= NOW()
+        AND c."endDate" >= NOW()
+        AND cm.status != 'rejected'
+    `, [upperCode])
+
+
+
+    const [ownAndAds, network, institutional, realAds] = await Promise.all([
+      ownAndAdsQuery, networkQuery, institutionalQuery, realAdsQuery,
+    ])
+
+    const items = [
+      ...ownAndAds.rows,
+      ...network.rows,
+      ...institutional.rows,
+      ...realAds.rows,
+    ]
 
     const client = await pool.query(
       `SELECT name FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
-      [screenCode]
-    ).catch(() => ({ rows: [] }))
-
-    const items = await fetchVideos(screenCode)
-
-    if (items.length === 0) {
-      return NextResponse.json(fallbackPlaylist(client.rows[0]?.name ?? screenCode))
-    }
+      [upperCode]
+    ).catch(() => ({ rows: [] as any[] }))
 
     return NextResponse.json({
       ok: true,
-      name: client.rows[0]?.name ?? screenCode,
+      name: client.rows[0]?.name ?? upperCode,
       items,
+      // "slides" e "playlist" são aliases do mesmo array — mantidos para
+      // compatibilidade com clientes (player web antigo, app Android nativo)
+      // que possam esperar a lista sob nomes de campo diferentes.
       slides: items,
       playlist: items,
       generated_at: new Date().toISOString(),
     })
-  } catch (error: any) {
-    console.error("[client/playlist]", error)
-    return NextResponse.json(fallbackPlaylist())
+  } catch (err) {
+    console.error("[playlist GET]", err)
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  const { code } = await params
+  const pool = getPool()
+  try {
+    const { items } = await req.json()
+    for (const item of items) {
+      await pool.query(`
+        INSERT INTO playlist_schedule
+          (client_code, media_id, position, duration, active,
+           days_of_week, start_time, end_time, start_date, end_date)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        ON CONFLICT (client_code, media_id) DO UPDATE SET
+          position     = EXCLUDED.position,
+          duration     = EXCLUDED.duration,
+          active       = EXCLUDED.active,
+          days_of_week = EXCLUDED.days_of_week,
+          start_time   = EXCLUDED.start_time,
+          end_time     = EXCLUDED.end_time,
+          start_date   = EXCLUDED.start_date,
+          end_date     = EXCLUDED.end_date
+      `, [
+        code.toUpperCase(),
+        item.id,
+        item.position ?? 0,
+        item.duration ?? 15,
+        item.active   ?? true,
+        item.days_of_week ?? null,
+        item.start_time   ?? null,
+        item.end_time     ?? null,
+        item.start_date   ?? null,
+        item.end_date     ?? null,
+      ])
+    }
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("[playlist PATCH]", err)
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
   }
 }
