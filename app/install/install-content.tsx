@@ -105,6 +105,7 @@ export default function InstallContent() {
   const playerUrl = screenId
     ? `https://doohplay-demo.onrender.com/player?screen=${screenId}`
     : `https://doohplay-demo.onrender.com/player?screen=YOUR_ID`
+  const apkDownloadUrl = "/downloads/doohplay-player-native.apk"
 
   // ── Validation flow ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -387,6 +388,28 @@ export default function InstallContent() {
                 )}
               </button>
             )}
+
+            <a
+              href={apkDownloadUrl}
+              download
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                marginTop: 10,
+                background: C.gray900,
+                color: C.white,
+                borderRadius: 10,
+                padding: "12px",
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+                boxSizing: "border-box",
+              }}
+            >
+              Baixar APK Android nativo
+            </a>
 
             {/* Client name if known */}
             {clientName && (
