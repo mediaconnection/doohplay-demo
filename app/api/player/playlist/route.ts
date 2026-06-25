@@ -16,6 +16,25 @@ function isHttpUrl(value: unknown) {
   return typeof value === "string" && /^https?:\/\//i.test(value)
 }
 
+function isPlayableVideoUrl(value: unknown) {
+  if (!isHttpUrl(value)) return false
+
+  const url = String(value).toLowerCase()
+  return (
+    !url.includes("your-project-id") &&
+    (
+      url.includes(".mp4") ||
+      url.includes(".m3u8") ||
+      url.includes("video")
+    ) &&
+    !url.includes(".jpg") &&
+    !url.includes(".jpeg") &&
+    !url.includes(".png") &&
+    !url.includes(".webp") &&
+    !url.includes(".gif")
+  )
+}
+
 function normalizeVideoItem(row: any, position: number) {
   const assetUrl = row.media_file_url ?? row.url ?? row.media_url
   const duration = normalizeDuration(row.media_duration ?? row.duration_seconds ?? row.duration, 15)
@@ -151,7 +170,7 @@ async function fetchCampaignVideos(code: string, owner: any) {
   const seen = new Set<string>()
   return rows
     .map((row, index) => normalizeVideoItem(row, index + 1))
-    .filter((item) => item.type === "video" && isHttpUrl(item.asset_url))
+    .filter((item) => item.type === "video" && isPlayableVideoUrl(item.asset_url))
     .filter((item) => {
       if (seen.has(item.asset_url)) return false
       seen.add(item.asset_url)
