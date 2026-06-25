@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "budget deve ser maior que zero para gerar cobranca" }, { status: 400 })
   }
   const adv = await pool.query(
-    `SELECT id, name, email, phone FROM "Advertiser" WHERE code = $1 LIMIT 1`,
+    `SELECT id, name, email, phone, "cpfCnpj" FROM "Advertiser" WHERE code = $1 LIMIT 1`,
     [code]
   )
   if (!adv.rows[0]) return Response.json({ error: "Anunciante nao encontrado" }, { status: 404 })
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     for (const sc of realScreens.rows) {
       await pool.query(
         `INSERT INTO "CampaignScreen" ("campaignId", city, "screenId", "screenName") VALUES ($1, $2, $3, $4)`,
-        [campaign.id, sc.city, sc.code, sc.name]
+        [campaign.id, sc.city || "Não informado", sc.code, sc.name]
       )
     }
   }
@@ -62,16 +62,21 @@ export async function POST(req: NextRequest) {
     if (!advertiser.email) {
       throw new Error("Anunciante sem email cadastrado — necessario para gerar cobranca no Asaas")
     }
+    if (!advertiser.cpfCnpj) {
+      throw new Error("Anunciante sem CPF/CNPJ cadastrado — necessario para gerar cobranca no Asaas")
+    }
     const customer = await getOrCreateAsaasCustomer({
       name: advertiser.name,
       email: advertiser.email,
       phone: advertiser.phone || "",
+      cpfCnpj: advertiser.cpfCnpj,
     })
     payment = await createCampaignPayment({
       customerId: customer.id,
       value,
       campaignId: campaign.id,
       description: `DOOHPLAY — Campanha "${name.trim()}" (${code})`,
+      cpfCnpj: advertiser.cpfCnpj,
     })
     await pool.query(
       `INSERT INTO campaign_payments (campaign_id, asaas_payment_id, value, status, due_date, invoice_url)
