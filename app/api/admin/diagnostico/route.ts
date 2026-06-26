@@ -39,9 +39,9 @@ export async function GET(req: NextRequest) {
       result.client = client.rows[0]
 
       const heartbeat = await pool.query(
-        `SELECT id, last_ping, status FROM players WHERE id = $1 LIMIT 1`,
+        `SELECT id, last_ping, is_active FROM players WHERE id = $1 LIMIT 1`,
         [client.rows[0].player_id]
-      ).catch(() => ({ rows: [] }))
+      ).catch((err) => { console.error("[diagnostico] erro heartbeat:", err.message); return { rows: [] } })
       result.heartbeat = heartbeat.rows[0] ?? null
       if (result.heartbeat?.last_ping) {
         const minutesAgo = (Date.now() - new Date(result.heartbeat.last_ping).getTime()) / 60000
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
          JOIN "Campaign" c ON c.id = cm."campaignId"
          WHERE c."advertiserCode" = $1`,
         [code]
-      ).catch(() => ({ rows: [{ count: null }] }))
+      ).catch((err) => { console.error("[diagnostico] erro media_count:", err.message); return { rows: [{ count: null }] } })
       result.media_count = Number(mediaCount.rows[0]?.count ?? null)
     }
 
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       `SELECT id, "advertiserCode", name, status, budget, "startDate", "endDate"
        FROM "Campaign" WHERE id = $1 LIMIT 1`,
       [searchParams.get("code") || ""] // mantém case original para UUID
-    ).catch(() => ({ rows: [] }))
+    ).catch((err) => { console.error("[diagnostico] erro campaignById:", err.message); return { rows: [] } })
     if (campaignById.rows[0]) {
       result.found_as.push("campanha")
       result.campaign = campaignById.rows[0]
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
         `SELECT status, value, paid_at, invoice_url FROM campaign_payments
          WHERE campaign_id::text = $1 ORDER BY created_at DESC LIMIT 1`,
         [campaignById.rows[0].id]
-      ).catch(() => ({ rows: [] }))
+      ).catch((err) => { console.error("[diagnostico] erro payment:", err.message); return { rows: [] } })
       result.payment = payment.rows[0] ?? null
     }
 
