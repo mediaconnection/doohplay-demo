@@ -43,8 +43,22 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { name, email, phone, cnpj, city, segment } = body
 
-    if (!name || !phone) {
-      return Response.json({ error: "Nome e telefone são obrigatórios." }, { status: 400 })
+    // Validação no CADASTRO, não só na hora da cobrança — esses 3 campos
+    // (email, CPF/CNPJ, cidade) são exigidos pelo Asaas pra gerar cobrança
+    // de campanha real (ver app/api/advertiser/[code]/campaigns/route.ts).
+    // Descobrir isso só na cobrança custou bastante tempo de debug numa
+    // sessão anterior — validar aqui evita o mesmo problema de novo.
+    const missing: string[] = []
+    if (!name) missing.push("nome")
+    if (!phone) missing.push("telefone")
+    if (!email) missing.push("email")
+    if (!cnpj) missing.push("CPF/CNPJ")
+    if (!city) missing.push("cidade")
+    if (missing.length > 0) {
+      return Response.json(
+        { error: `Campos obrigatórios faltando: ${missing.join(", ")}.` },
+        { status: 400 }
+      )
     }
 
     // Gera código único
@@ -57,11 +71,12 @@ export async function POST(req: NextRequest) {
       attempts++
     }
 
-    // Cria anunciante
+    // Cria anunciante — agora salvando cpfCnpj/city/segment, que antes
+    // eram coletados no formulário mas nunca chegavam a ser persistidos.
     await pool.query(
-      `INSERT INTO "Advertiser" (id, code, name, email, phone, "createdAt")
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())`,
-      [code, name, email ?? null, phone.replace(/\D/g, "")]
+      `INSERT INTO "Advertiser" (id, code, name, email, phone, "cpfCnpj", city, segment, "createdAt")
+       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [code, name, email, phone.replace(/\D/g, ""), cnpj.replace(/\D/g, ""), city, segment ?? null]
     )
 
     // Detecta possível cadastro duplicado: mesmo telefone já existe como
