@@ -12,11 +12,19 @@ export async function POST(req: NextRequest) {
     const code = body.code ?? body.screen_code
     if (!code) return Response.json({ error: "code obrigatório" }, { status: 400 })
 
-    await pool.query(
+    const result = await pool.query(
       `UPDATE players SET last_ping = NOW()
        WHERE id = (SELECT player_id FROM studio_clients WHERE UPPER(code) = UPPER($1) LIMIT 1)`,
       [code]
     )
+
+    // Antes, isso retornava {ok:true} mesmo se nenhuma linha fosse
+    // atualizada (player_id nulo, ou players sem registro correspondente)
+    // — escondia silenciosamente um cliente sem heartbeat de verdade.
+    if (result.rowCount === 0) {
+      console.warn(`[heartbeat] nenhuma linha atualizada para code=${code} — player_id ausente ou inválido em studio_clients`)
+      return Response.json({ ok: false, warning: "player_id não encontrado ou inválido para este código" }, { status: 200 })
+    }
 
     return Response.json({ ok: true, ts: new Date().toISOString() })
   } catch (err) {
