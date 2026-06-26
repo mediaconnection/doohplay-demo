@@ -361,6 +361,149 @@ function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose:
 }
 
 // ── Tab Clientes ──────────────────────────────────────────────────────────────
+// ── Diagnóstico: busca consolidada por código, sem precisar de SQL manual ──
+function TabDiagnostico() {
+  const [code, setCode] = useState("")
+  const [result, setResult] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const search = async () => {
+    if (!code.trim()) return
+    setLoading(true); setError(""); setResult(null)
+    try {
+      const res = await fetch(`/api/admin/diagnostico?code=${encodeURIComponent(code.trim())}`)
+      const json = await res.json()
+      if (!res.ok) { setError(json.error || "Erro na busca"); return }
+      setResult(json)
+    } catch {
+      setError("Erro de conexão.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const Field = ({ label, value, warn }: { label: string; value: any; warn?: boolean }) => (
+    <div style={{ padding: "10px 14px", background: BG, borderRadius: 8 }}>
+      <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 14, color: warn ? AMBER : TEXT, fontWeight: warn ? 700 : 500 }}>
+        {value === null || value === undefined || value === "" ? "—" : String(value)}
+      </div>
+    </div>
+  )
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>Diagnóstico</div>
+        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+          Busque por código de cliente (ex: BARBE332), código de anunciante (ex: ADV...) ou UUID de campanha — sem precisar de SQL manual no Supabase.
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+        <input
+          value={code}
+          onChange={e => setCode(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && search()}
+          placeholder="Ex: BARBE332"
+          style={{ flex: 1, background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: "10px 14px", color: TEXT, fontSize: 14 }}
+        />
+        <button onClick={search} disabled={loading} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+          {loading ? "Buscando…" : "Buscar"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "12px 16px", color: RED, fontSize: 13, marginBottom: 20 }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {result && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ fontSize: 12, color: TEXT2 }}>
+            Encontrado como: {result.found_as.map((f: string) => <Badge key={f} label={f} color={BLUE} />)}
+          </div>
+
+          {result.client && (
+            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 14 }}>👥 Cliente</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+                <Field label="Código" value={result.client.code} />
+                <Field label="Nome" value={result.client.name} />
+                <Field label="Cidade" value={result.client.city} warn={!result.client.city} />
+                <Field label="Ativo" value={result.client.active ? "Sim" : "Não"} warn={!result.client.active} />
+                <Field label="Mídias cadastradas" value={result.media_count} />
+              </div>
+              {result.heartbeat && (
+                <div style={{ marginTop: 14, padding: "10px 14px", background: result.heartbeat.likely_offline ? AMBER + "18" : GREEN + "18", borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, color: result.heartbeat.likely_offline ? AMBER : GREEN, fontWeight: 600 }}>
+                    {result.heartbeat.likely_offline ? "⚠️ Provavelmente offline" : "✅ Online"}
+                  </div>
+                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 2 }}>
+                    Último heartbeat há {result.heartbeat.minutes_since_last_ping} minuto(s) — {fmt(result.heartbeat.last_ping)}
+                  </div>
+                </div>
+              )}
+              {!result.heartbeat && (
+                <div style={{ marginTop: 14, padding: "10px 14px", background: RED + "18", borderRadius: 8, fontSize: 13, color: RED }}>
+                  ⚠️ Nenhum registro de heartbeat encontrado pra esse player_id.
+                </div>
+              )}
+            </div>
+          )}
+
+          {result.advertiser && (
+            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 14 }}>📢 Anunciante</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+                <Field label="Código" value={result.advertiser.code} />
+                <Field label="Nome" value={result.advertiser.name} />
+                <Field label="Email" value={result.advertiser.email} warn={!result.advertiser.email} />
+                <Field label="CPF/CNPJ" value={result.advertiser.cpfCnpj} warn={!result.advertiser.cpfCnpj} />
+                <Field label="Cidade" value={result.advertiser.city} warn={!result.advertiser.city} />
+              </div>
+              <div style={{ marginTop: 14, padding: "10px 14px", background: result.advertiser_ready_to_bill ? GREEN + "18" : AMBER + "18", borderRadius: 8, fontSize: 13, color: result.advertiser_ready_to_bill ? GREEN : AMBER, fontWeight: 600 }}>
+                {result.advertiser_ready_to_bill ? "✅ Pronto para gerar cobrança" : "⚠️ Falta email ou CPF/CNPJ — cobrança vai falhar"}
+              </div>
+              {result.campaigns?.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 12, color: TEXT2, marginBottom: 8 }}>Campanhas recentes</div>
+                  {result.campaigns.map((c: any) => (
+                    <div key={c.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: BG, borderRadius: 6, marginBottom: 6, fontSize: 13 }}>
+                      <span style={{ color: TEXT }}>{c.name}</span>
+                      <Badge label={c.status} color={c.status === "active" ? GREEN : c.status === "pending_payment" ? AMBER : TEXT2} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {result.campaign && (
+            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 14 }}>📋 Campanha</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+                <Field label="Nome" value={result.campaign.name} />
+                <Field label="Status" value={result.campaign.status} />
+                <Field label="Orçamento" value={brl(result.campaign.budget)} />
+                <Field label="Anunciante" value={result.campaign.advertiserCode} />
+              </div>
+              {result.payment && (
+                <div style={{ marginTop: 14, padding: "10px 14px", background: BG, borderRadius: 8 }}>
+                  <Field label="Pagamento" value={result.payment.status} />
+                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 6 }}>Pago em: {fmt(result.payment.paid_at)}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const [showCsv, setShowCsv] = useState(false)
   const [showSub, setShowSub] = useState<any>(null)
@@ -822,6 +965,7 @@ export default function AdminPage() {
   const pendingNetworkMedia = data.networkMedia?.filter((m: any) => m.status === "pending_review").length ?? 0
 
   const TABS = [
+    { id: "diagnostico", label: "Diagnóstico", icon: "🔍" },
     { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
     { id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length },
     { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
@@ -866,6 +1010,7 @@ export default function AdminPage() {
       </div>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
+        {tab === "diagnostico" && <TabDiagnostico />}
         {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} />}
         {tab === "assinaturas" && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} />}
