@@ -130,24 +130,31 @@ export default function AnuncianteNovo() {
                     <input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Ex: Pizzaria Napoli" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>SEGMENTO</label>
+                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>SEGMENTO *</label>
                     <select value={form.segment} onChange={e => set("segment", e.target.value)} style={{ ...inputStyle, color: form.segment ? TEXT : MUTED }}>
                       <option value="">Selecione o segmento…</option>
                       {SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>CIDADE</label>
+                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>CIDADE *</label>
                     <input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Ex: São Paulo, SP" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>CNPJ (opcional)</label>
+                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>CPF OU CNPJ *</label>
                     <input value={form.cnpj} onChange={e => set("cnpj", e.target.value)} placeholder="00.000.000/0001-00" style={inputStyle} />
+                    <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Necessário para gerar cobrança quando você criar uma campanha.</div>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => { if (!form.name) { setError("Informe o nome da empresa."); return; } setError(""); setStep(2) }}
+                  onClick={() => {
+                    if (!form.name) { setError("Informe o nome da empresa."); return }
+                    if (!form.segment) { setError("Selecione o segmento."); return }
+                    if (!form.city) { setError("Informe a cidade."); return }
+                    if (!form.cnpj) { setError("Informe o CPF ou CNPJ."); return }
+                    setError(""); setStep(2)
+                  }}
                   style={{ width: "100%", background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 24 }}
                 >
                   Continuar →
@@ -169,8 +176,9 @@ export default function AnuncianteNovo() {
                     <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Seu link de acesso será enviado aqui.</div>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>EMAIL (opcional)</label>
+                    <label style={{ display: "block", fontSize: 12, color: TEXT2, marginBottom: 6 }}>EMAIL *</label>
                     <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="contato@empresa.com.br" style={inputStyle} />
+                    <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Necessário para gerar cobrança quando você criar uma campanha.</div>
                   </div>
                 </div>
 
@@ -179,7 +187,11 @@ export default function AnuncianteNovo() {
                     ← Voltar
                   </button>
                   <button
-                    onClick={() => { if (!form.phone) { setError("Informe o WhatsApp."); return; } setError(""); setStep(3) }}
+                    onClick={() => {
+                      if (!form.phone) { setError("Informe o WhatsApp."); return }
+                      if (!form.email) { setError("Informe o email."); return }
+                      setError(""); setStep(3)
+                    }}
                     style={{ flex: 2, background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                   >
                     Continuar →
