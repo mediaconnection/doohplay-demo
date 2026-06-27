@@ -8,6 +8,20 @@ The shared API contract for the web backend, player web, and native Android play
 
 Any contract change must be documented there before code changes. Do not keep separate copies of playlist, heartbeat, or proof-of-play contracts in other project docs; link back to `docs/api-contract.md` instead. This rule exists because the 2026-06-25 Android/web divergence caused wrong categories and cross-client playlist leakage.
 
+## Parallel Production App Front
+
+Warning: this repository contains two separate development fronts that coexist but must not be mixed accidentally.
+
+This document primarily describes the cryptographic proof/audit system: `src/`, Polygon blockchain, Merkle proofs, trust graph, and ad server.
+
+There is a second front under `app/` that is the real production DOOHPLAY product serving a real customer: `BARBE332` / Barbearia Zimermam. That front includes the customer dashboard (`app/dashboard/`), admin panel (`app/admin/`), advertiser portal (`app/anunciante/`), Asaas billing (`lib/asaas.ts`), and player playlist APIs (`app/api/client/playlist/`). It uses direct `pg.Pool` access through `lib/db.ts` / `getPool()`, not Prisma, and has its own continuity script maintained in separate Claude.ai web sessions.
+
+Mandatory rule: if a task asks for changes inside `app/api/`, `app/dashboard/`, `app/admin/`, `app/anunciante/`, `app/player/`, `lib/asaas.ts`, or database tables such as `studio_clients`, `Advertiser`, `Campaign`, `CampaignMedia`, `CampaignScreen`, or `campaign_payments`, stop and ask the user whether this is the correct front before proceeding. Do not assume the task belongs to the proof/blockchain system just because it is in the same repository.
+
+Reason: on 2026-06-25, the Android front edited files in the `app/` production front without coordination, causing a production regression with wrong ad categories and cross-client content leakage for several hours. The same risk exists in the opposite direction: this `src/` proof/audit front can accidentally edit `app/` without realizing it is real production code.
+
+Status of active development in this `src/` proof/blockchain front relative to the `app/` production front is not confirmed by this note. Check with the team before assuming either front is paused.
+
 ## Commands
 
 ```bash
