@@ -349,11 +349,22 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
     : player?.last_ping
       ? (() => { const diff = Math.floor((Date.now() - new Date(player.last_ping).getTime()) / 1000); if (diff < 60) return `${diff}s atrás`; if (diff < 3600) return `${Math.floor(diff/60)}min atrás`; return `${Math.floor(diff/3600)}h atrás` })()
       : "sem dados"
-  const ads = [
-    { name: "Bradesco — Black Friday", cat: "Banco",    views: 1240, value: 180, status: "Ativo"   },
-    { name: "iFood — Cupom 30%",       cat: "Delivery", views: 980,  value: 140, status: "Ativo"   },
-    { name: "Natura — Perfumes",       cat: "Beleza",   views: 650,  value: 90,  status: "Pausado" },
-  ]
+
+  // Anúncios reais — antes era um array mockado (Bradesco/iFood/Natura)
+  // sempre exibido independente de existir anúncio real ou não. Reaproveita
+  // a mesma rota já usada em TabAnuncios (GET /api/client/ads/[code]).
+  const [ads, setAds] = useState<any[]>([])
+  const [loadingAds, setLoadingAds] = useState(true)
+  useEffect(() => {
+    fetch(`/api/client/ads/${client.code}`)
+      .then(r => r.json())
+      .then(d => setAds(d.ads ?? []))
+      .catch(() => setAds([]))
+      .finally(() => setLoadingAds(false))
+  }, [client.code])
+  const activeAds = ads.filter((a: any) => a.status === "Ativo")
+  const currentAd = activeAds[0] ?? null
+  const nextAd = activeAds[1] ?? null
   const futuros = [
     { month: "Jul/26", value: 980,  label: "Receita prevista"  },
     { month: "Ago/26", value: 1120, label: "Estimado pela IA"  },
@@ -380,7 +391,7 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
       <div className="db-kpis" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <KpiCard label="Receita este mês" value={fmtR(revenue)}    sub="+23% vs mai"      icon="💵" color={C.green} />
         <KpiCard label="Saldo a receber"  value={fmtR(revenue)}    sub="em 10/Jul"        icon="📅" color={C.blue}  />
-        <KpiCard label="Campanhas ativas" value="3"                sub="1 pausada"        icon="▶"  color={C.blue}  />
+        <KpiCard label="Campanhas ativas" value={String(activeAds.length)} sub={ads.length > activeAds.length ? `${ads.length - activeAds.length} pausada(s)` : "—"} icon="▶"  color={C.blue}  />
         <KpiCard label="Visualizações"    value={fmt(vizToday)}    sub="+12% esta semana" icon="👁" color={C.blue}  />
         <KpiCard label="Status da TV"     value={online ? "Online" : "Offline"} sub={player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"} icon="📶" color={online ? C.green : C.red} />
       </div>
@@ -393,21 +404,36 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
           </div>
           <div style={{ background: "#0F172A", margin: 16, borderRadius: 10, padding: "28px 16px", textAlign: "center", minHeight: 140, position: "relative" }}>
             <div style={{ position: "absolute", top: 10, left: 14, background: online ? C.green : C.red, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{online ? "● AO VIVO" : "● OFFLINE"}</div>
-            <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>☕ PROMOÇÃO DO DIA</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 4 }}>Café + Pão de Queijo</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.green }}>R$ 9,90</div>
-            <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Bradesco · Válido hoje</div>
-            <div style={{ position: "absolute", bottom: 10, right: 14, fontSize: 10, color: "#475569" }}>00:12 restante</div>
+            {loadingAds ? (
+              <div style={{ fontSize: 12, color: "#94A3B8" }}>Carregando…</div>
+            ) : currentAd ? (
+              <>
+                <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>📢 ANÚNCIO ATIVO</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 4 }}>{currentAd.campaign_name}</div>
+                <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>{currentAd.advertiser_name}</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 30 }}>Nenhum anúncio de terceiro ativo agora</div>
+                <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Sua tela está exibindo conteúdo próprio</div>
+              </>
+            )}
           </div>
         </div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px" }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Em exibição agora</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>Café + Pão de Queijo</div>
-          <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>Bradesco Black Friday · ativo</div>
+          {currentAd ? (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>{currentAd.campaign_name}</div>
+              <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>{currentAd.advertiser_name} · ativo</div>
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>Sem anúncio de terceiro no momento</div>
+          )}
           <div style={{ width: 80, height: 80, background: C.gray100, borderRadius: 8, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>⬛</div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Próximo anúncio</span><span style={{ fontWeight: 500 }}>iFood · 00:43</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Próximo anúncio</span><span style={{ fontWeight: 500 }}>{nextAd ? nextAd.campaign_name : "—"}</span></div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Visualizações hoje</span><span style={{ fontWeight: 600, color: C.text }}>{fmt(vizToday)}</span></div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2 }}><span>Ganho hoje</span><span style={{ fontWeight: 600, color: C.green }}>{fmtR(stats.revenue_today || 42)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2 }}><span>Ganho hoje</span><span style={{ fontWeight: 600, color: C.green }}>{fmtR(stats.revenue_today || 0)}</span></div>
         </div>
       </div>
 
@@ -416,19 +442,24 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Anúncios rodando</div>
           <button onClick={() => onNav("anuncios")} style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer" }}>Ver todos</button>
         </div>
-        {ads.map((ad, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < ads.length - 1 ? `1px solid ${C.border2}` : "none" }}>
-            <div style={{ width: 36, height: 36, background: C.gray100, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginRight: 12, flexShrink: 0 }}>📢</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ad.name}</div>
-              <div style={{ fontSize: 11, color: C.text3 }}>{ad.views.toLocaleString("pt-BR")} views</div>
+        {loadingAds ? (
+          <div style={{ padding: "20px 18px", fontSize: 13, color: C.text3 }}>Carregando…</div>
+        ) : ads.length === 0 ? (
+          <div style={{ padding: "20px 18px", fontSize: 13, color: C.text3 }}>Nenhum anúncio de terceiro cadastrado ainda.</div>
+        ) : (
+          ads.map((ad, i) => (
+            <div key={ad.campaign_id ?? i} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < ads.length - 1 ? `1px solid ${C.border2}` : "none" }}>
+              <div style={{ width: 36, height: 36, background: C.gray100, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginRight: 12, flexShrink: 0 }}>📢</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ad.campaign_name}</div>
+                <div style={{ fontSize: 11, color: C.text3 }}>{ad.advertiser_name} · {Number(ad.views ?? 0).toLocaleString("pt-BR")} views</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: ad.status === "Ativo" ? C.greenLt : C.gray100, color: ad.status === "Ativo" ? C.green : C.text3 }}>{ad.status}</span>
+              </div>
             </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.green }}>R$ {ad.value}</div>
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: ad.status === "Ativo" ? C.greenLt : C.gray100, color: ad.status === "Ativo" ? C.green : C.text3 }}>{ad.status}</span>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px" }}>
