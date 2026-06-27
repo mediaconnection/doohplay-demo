@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## API Contract
+
+The shared API contract for the web backend, player web, and native Android player lives in `docs/api-contract.md`.
+
+Any contract change must be documented there before code changes. Do not keep separate copies of playlist, heartbeat, or proof-of-play contracts in other project docs; link back to `docs/api-contract.md` instead. This rule exists because the 2026-06-25 Android/web divergence caused wrong categories and cross-client playlist leakage.
+
 ## Commands
 
 ```bash
