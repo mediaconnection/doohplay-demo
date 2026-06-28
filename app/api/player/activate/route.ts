@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
   if (!deviceFingerprint) {
     return NextResponse.json({ error: "device_fingerprint obrigatório" }, { status: 400 })
   }
+  if (deviceFingerprint.length < 8 || deviceFingerprint.length > 200) {
+    return NextResponse.json({ error: "device_fingerprint inválido" }, { status: 400 })
+  }
 
   try {
     // Reaproveita registro existente pro mesmo fingerprint, em vez de criar
@@ -50,6 +53,20 @@ export async function POST(req: NextRequest) {
         })
       }
     } else {
+      // Limite defensivo contra spam: se já existem muitos dispositivos
+      // recém-criados aguardando pareamento, algo está gerando volume
+      // anormal (spam ou bug) — bloqueia novas criações até alguém
+      // investigar, sem afetar dispositivos já existentes/pareados.
+      const recentUnpaired = await pool.query(
+        `SELECT COUNT(*) FROM players
+         WHERE (paired = false OR paired IS NULL)
+           AND created_at > NOW() - INTERVAL '1 hour'`
+      )
+      if (Number(recentUnpaired.rows[0]?.count ?? 0) > 50) {
+        console.warn("[player/activate] limite de ativações na última hora excedido")
+        return NextResponse.json({ error: "Limite de ativações atingido, tente novamente mais tarde" }, { status: 429 })
+      }
+
       const created = await pool.query(
         `INSERT INTO players (id, device_fingerprint, device_type, platform, paired, is_active, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, false, true, NOW())
