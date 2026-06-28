@@ -368,6 +368,45 @@ function TabDiagnostico() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // Pareamento de dispositivos novos (aparelho instalado, ainda sem código
+  // de tela vinculado) — substitui SQL manual no fluxo de ativação.
+  const [pending, setPending] = useState<any[]>([])
+  const [loadingPending, setLoadingPending] = useState(true)
+  const [linkCode, setLinkCode] = useState<Record<string, string>>({})
+  const [linking, setLinking] = useState<string | null>(null)
+  const [linkMsg, setLinkMsg] = useState<Record<string, string>>({})
+
+  const loadPending = () => {
+    setLoadingPending(true)
+    fetch("/api/admin/players/link")
+      .then(r => r.json())
+      .then(d => setPending(d.pending ?? []))
+      .catch(() => setPending([]))
+      .finally(() => setLoadingPending(false))
+  }
+  useEffect(() => { loadPending() }, [])
+
+  const linkDevice = async (playerId: string) => {
+    const targetCode = (linkCode[playerId] || "").trim()
+    if (!targetCode) return
+    setLinking(playerId); setLinkMsg(m => ({ ...m, [playerId]: "" }))
+    try {
+      const res = await fetch("/api/admin/players/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_id: playerId, code: targetCode }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setLinkMsg(m => ({ ...m, [playerId]: json.error || "Erro" })); return }
+      setLinkMsg(m => ({ ...m, [playerId]: `✅ Vinculado a ${json.name}` }))
+      setTimeout(loadPending, 1000)
+    } catch {
+      setLinkMsg(m => ({ ...m, [playerId]: "Erro de conexão" }))
+    } finally {
+      setLinking(null)
+    }
+  }
+
   const search = async () => {
     if (!code.trim()) return
     setLoading(true); setError(""); setResult(null)
@@ -395,6 +434,48 @@ function TabDiagnostico() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📲 Dispositivos aguardando pareamento</div>
+        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+          Aparelhos que abriram o app por baixo da primeira vez, sem código configurado. Vincule a um cliente real abaixo.
+        </div>
+      </div>
+
+      {loadingPending ? (
+        <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Carregando…</div>
+      ) : pending.length === 0 ? (
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2, marginBottom: 32 }}>
+          Nenhum dispositivo aguardando pareamento agora.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
+          {pending.map((p: any) => (
+            <div key={p.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{p.device_type ?? "Dispositivo"} · {p.platform ?? "—"}</div>
+                <div style={{ fontSize: 11, color: TEXT2 }}>Ativado em {fmt(p.created_at)}</div>
+              </div>
+              <input
+                placeholder="Código do cliente (ex: BARBE332)"
+                value={linkCode[p.id] || ""}
+                onChange={e => setLinkCode(c => ({ ...c, [p.id]: e.target.value.toUpperCase() }))}
+                style={{ background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "6px 10px", color: TEXT, fontSize: 13, width: 180 }}
+              />
+              <button
+                onClick={() => linkDevice(p.id)}
+                disabled={linking === p.id}
+                style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: linking === p.id ? "not-allowed" : "pointer" }}
+              >
+                {linking === p.id ? "Vinculando…" : "Vincular"}
+              </button>
+              {linkMsg[p.id] && (
+                <span style={{ fontSize: 12, color: linkMsg[p.id].startsWith("✅") ? GREEN : RED }}>{linkMsg[p.id]}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 24, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>Diagnóstico</div>
         <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
           Busque por código de cliente (ex: BARBE332), código de anunciante (ex: ADV...) ou UUID de campanha — sem precisar de SQL manual no Supabase.
