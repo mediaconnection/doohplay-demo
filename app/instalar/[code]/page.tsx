@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
-const APK_URL = "https://media.doohplay.com.br/apk/app-release.apk"
+const APK_URL = "https://doohplay.com.br/downloads/doohplay-player-native.apk"
 
 async function getClient(code: string) {
   const pool = getPool()
@@ -97,7 +97,7 @@ export default async function InstalarPage({
               { n: 1, text: <><strong>Conecte o Wi-Fi</strong> da TV (nas configurações do aparelho, não aqui)</> },
               { n: 2, text: <><strong>Baixe o app</strong> clicando no botão abaixo</> },
               { n: 3, text: <><strong>Abra o arquivo</strong> baixado na sua TV Android e instale</> },
-              { n: 4, text: <><strong>Digite o código</strong> <span style={{ color: "#3B82F6", fontWeight: 700 }}>{code.toUpperCase()}</span> quando o app pedir</> },
+              { n: 4, text: <><strong>Se o app pedir um código</strong>, digite <span style={{ color: "#3B82F6", fontWeight: 700 }}>{code.toUpperCase()}</span>. Se a tela ficar esperando sem pedir nada, chame nosso suporte (WhatsApp abaixo) que finalizamos a configuração remotamente — é rápido.</> },
               { n: 5, text: <><strong>Pronto!</strong> Seu conteúdo vai aparecer automaticamente 🎉</> },
             ].map(({ n, text }) => (
               <div key={n} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 0", borderBottom: n < 5 ? "1px solid #334155" : "none" }}>
