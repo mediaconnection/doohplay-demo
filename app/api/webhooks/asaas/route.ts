@@ -27,6 +27,17 @@ export async function GET() {
 
 // POST — recebe eventos do Asaas
 export async function POST(req: NextRequest) {
+  // Validação de origem: Asaas envia o token configurado no painel
+  // (Configurações > Integrações > Webhooks > Token de autenticação) no
+  // header "asaas-access-token". Sem checar isso, qualquer pessoa que
+  // descubra esta URL + um UUID de campanha poderia fingir um pagamento
+  // confirmado e ativar uma campanha sem pagar nada de verdade.
+  const incomingToken = req.headers.get("asaas-access-token")
+  if (!process.env.ASAAS_WEBHOOK_TOKEN || incomingToken !== process.env.ASAAS_WEBHOOK_TOKEN) {
+    console.warn("[webhook/asaas] token ausente ou inválido — requisição rejeitada")
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+
   const pool = getPool()
   try {
     const body = await req.json()
