@@ -33,16 +33,16 @@ const C = {
 }
 
 const NAV = [
-  { id: "dashboard", label: "Dashboard",    icon: "⊞" },
-  { id: "tv",        label: "Minha TV",     icon: "📺" },
-  { id: "conteudo",  label: "Conteúdo",     icon: "🖼" },
-  { id: "anuncios",  label: "Anúncios",     icon: "📢", badge: 3 },
-  { id: "ganhos",    label: "Ganhos",       icon: "💵" },
-  { id: "relatorios",label: "Relatórios",   icon: "📊" },
-  { id: "playlist",  label: "Playlist",     icon: "▶️" },
-  { id: "clube",     label: "Clube de Telas",icon: "🤝" },
-  { id: "clientes",  label: "Meus Clientes",icon: "👥" },
-  { id: "config",    label: "Configurações",icon: "⚙" },
+  { id: "dashboard", label: "Dashboard",     icon: "⊞",  desc: "Visão geral da sua tela e ganhos" },
+  { id: "tv",        label: "Minha TV",      icon: "📺", desc: "Veja em tempo real o que está passando" },
+  { id: "conteudo",  label: "Conteúdo",      icon: "🖼", desc: "Suas fotos e vídeos — envie aqui" },
+  { id: "anuncios",  label: "Anúncios",      icon: "📢", desc: "Anúncios pagos de outras empresas na sua tela" },
+  { id: "ganhos",    label: "Ganhos",        icon: "💵", desc: "Quanto você já recebeu e vai receber" },
+  { id: "relatorios",label: "Relatórios",    icon: "📊", desc: "Números de exibição e desempenho" },
+  { id: "playlist",  label: "Playlist",      icon: "▶️", desc: "Ordem e duração de cada conteúdo na tela" },
+  { id: "clube",     label: "Clube de Telas",icon: "🤝", desc: "Troque conteúdo com outros estabelecimentos do bairro" },
+  { id: "clientes",  label: "Meus Clientes", icon: "👥", desc: "Quem escaneou seu QR code" },
+  { id: "config",    label: "Configurações", icon: "⚙",  desc: "Dados da sua conta e da tela" },
 ]
 
 function fmt(n: number) {
@@ -1624,10 +1624,12 @@ export default function DashboardClient({ client, player, stats, playlist, payme
             </div>
             <nav style={{ flex: 1, padding: "8px 0", overflowY: "auto" }}>
               {NAV.map(item => (
-                <button key={item.id} onClick={() => onNav(item.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: tab === item.id ? C.blueLt : "none", border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`, color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 14 }}>
+                <button key={item.id} onClick={() => onNav(item.id)} style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 16px", background: tab === item.id ? C.blueLt : "none", border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`, color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 14, textAlign: "left" }}>
                   <span style={{ fontSize: 18 }}>{item.icon}</span>
-                  <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-                  {item.badge && <span style={{ background: C.blue, color: C.white, fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>{item.badge}</span>}
+                  <span style={{ flex: 1 }}>
+                    <div>{item.label}</div>
+                    <div style={{ fontSize: 11, color: C.text3, fontWeight: 400, marginTop: 1 }}>{item.desc}</div>
+                  </span>
                 </button>
               ))}
             </nav>
@@ -1654,10 +1656,9 @@ export default function DashboardClient({ client, player, stats, playlist, payme
         </div>
         <nav style={{ flex: 1, padding: "8px 0" }}>
           {NAV.map(item => (
-            <button key={item.id} onClick={() => setTab(item.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: sideOpen ? "9px 16px" : "9px 0", justifyContent: sideOpen ? "flex-start" : "center", background: tab === item.id ? C.blueLt : "none", border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`, color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 13 }}>
+            <button key={item.id} title={item.desc} onClick={() => setTab(item.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: sideOpen ? "9px 16px" : "9px 0", justifyContent: sideOpen ? "flex-start" : "center", background: tab === item.id ? C.blueLt : "none", border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`, color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 13 }}>
               <span style={{ fontSize: 16 }}>{item.icon}</span>
               {sideOpen && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
-              {sideOpen && item.badge && <span style={{ background: C.blue, color: C.white, fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>{item.badge}</span>}
             </button>
           ))}
         </nav>
@@ -1688,8 +1689,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
 
         <nav className="db-bottom-nav" style={{ display: "none", position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.border}`, zIndex: 100, justifyContent: "space-around", padding: "8px 0 4px" }}>
           {NAV.slice(0, 5).map(item => (
-            <button key={item.id} onClick={() => onNav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: tab === item.id ? C.blue : C.text3, position: "relative" }}>
-              {item.badge && <span style={{ position: "absolute", top: 0, right: 4, background: C.blue, color: C.white, fontSize: 9, fontWeight: 700, padding: "0px 4px", borderRadius: 8 }}>{item.badge}</span>}
+            <button key={item.id} title={item.desc} onClick={() => onNav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: tab === item.id ? C.blue : C.text3, position: "relative" }}>
               <span style={{ fontSize: 20 }}>{item.icon}</span>
               <span style={{ fontSize: 10, fontWeight: tab === item.id ? 600 : 400 }}>{item.label.split(" ")[0]}</span>
             </button>
