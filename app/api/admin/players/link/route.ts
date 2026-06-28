@@ -16,10 +16,13 @@ export async function GET(req: NextRequest) {
 
   const pool = getPool()
   const pending = await pool.query(
-    `SELECT id, device_type, platform, created_at
-     FROM players
-     WHERE paired = false OR paired IS NULL
-     ORDER BY created_at DESC
+    `SELECT p.id, p.device_type, p.platform, p.created_at
+     FROM players p
+     WHERE (p.paired = false OR p.paired IS NULL)
+       AND p.tenant_id IS NULL
+       AND p.id NOT IN (SELECT player_id FROM studio_clients WHERE player_id IS NOT NULL)
+       AND p.device_fingerprint IS NOT NULL
+     ORDER BY p.created_at DESC
      LIMIT 50`
   )
   return NextResponse.json({ pending: pending.rows })
