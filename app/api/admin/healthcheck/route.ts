@@ -5,6 +5,27 @@
 // única forma de notar era rodar curl manualmente. Pensado para ser
 // chamado por um cron externo (Render Cron Job, ou serviço gratuito como
 // cron-job.org) a cada 15-30 minutos.
+
+async function checkWebhookSecurity() {
+  // Confirma que o webhook do Asaas continua exigindo o token de
+  // autenticação — se alguém remover essa validação por engano no futuro
+  // (mesmo padrão do incidente da playlist), isso pega em minutos, não só
+  // quando alguém perguntar "o que mais pode nos prejudicar" de novo.
+  try {
+    const res = await fetch("https://doohplay.com.br/api/webhooks/asaas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "PAYMENT_RECEIVED", payment: { externalReference: "campaign:healthcheck-fake" } }),
+    })
+    if (res.status !== 401) {
+      return { ok: false, issue: `Webhook Asaas aceitou requisição SEM token válido (status ${res.status}, esperado 401) — validação de segurança pode ter sido removida` }
+    }
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, issue: `Não foi possível testar o webhook: ${err.message}` }
+  }
+}
+
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
@@ -77,12 +98,14 @@ export async function GET(req: NextRequest) {
 
   const pool = getPool()
   const results = await Promise.all(REFERENCE_CLIENTS.map(code => checkClient(pool, code)))
-  const allOk = results.every(r => r.ok)
+  const webhookCheck = await checkWebhookSecurity()
+  const allOk = results.every(r => r.ok) && webhookCheck.ok
 
   return NextResponse.json({
     ok: allOk,
     checked_at: new Date().toISOString(),
     results,
+    webhook_security: webhookCheck,
   }, { status: allOk ? 200 : 500 })
   // status 500 quando há problema é deliberado — serviços de cron externos
   // (ex: cron-job.org, UptimeRobot) costumam alertar automaticamente em
