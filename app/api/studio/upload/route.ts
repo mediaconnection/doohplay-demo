@@ -65,12 +65,14 @@ async function getMediaLimit(pool: any, code: string): Promise<{ limit: number; 
 }
 
 // ── Garante que existe Advertiser + Campaign padrão para o cliente ─────────────
-async function ensureCampaign(pool: any, code: string, clientName: string): Promise<string> {
+async function ensureCampaign(pool: any, code: string, clientName: string, clientPhone: string = "", clientEmail: string = ""): Promise<string> {
   await pool.query(
     `INSERT INTO "Advertiser" (id, code, name, email, phone, "createdAt")
-     VALUES (gen_random_uuid()::text, $1, $2, '', '', NOW())
-     ON CONFLICT (code) DO NOTHING`,
-    [code, clientName]
+     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
+     ON CONFLICT (code) DO UPDATE SET
+       phone = COALESCE(NULLIF("Advertiser".phone, ''), EXCLUDED.phone),
+       email = COALESCE(NULLIF("Advertiser".email, ''), EXCLUDED.email)`,
+    [code, clientName, clientEmail, clientPhone]
   )
 
   const { rows } = await pool.query(
@@ -108,13 +110,15 @@ export async function POST(request: NextRequest) {
     // ── Valida cliente ────────────────────────────────────────────────────────
     const pool = getPool()
     const clientRes = await pool.query(
-      `SELECT id, name FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
+      `SELECT id, name, phone, email FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
       [code]
     )
     if (!clientRes.rows[0]) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 })
     }
     const clientName: string = clientRes.rows[0].name
+    const clientPhone: string = clientRes.rows[0].phone || ""
+    const clientEmail: string = clientRes.rows[0].email || ""
 
     // ── Valida tipo ───────────────────────────────────────────────────────────
     const category = getFileCategory(file.type)
@@ -210,7 +214,7 @@ export async function POST(request: NextRequest) {
 
     // ── Salva no banco ────────────────────────────────────────────────────────
     try {
-      const campaignId = await ensureCampaign(pool, code, clientName)
+      const campaignId = await ensureCampaign(pool, code, clientName, clientPhone, clientEmail)
 
       await pool.query(
         `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
