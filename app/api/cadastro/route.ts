@@ -193,6 +193,18 @@ export async function POST(req: NextRequest) {
     // Envia email
     await sendEmail(email, name, code, plan)
 
+    // Gera sugestões de parceria do Clube de Telas automaticamente — antes
+    // disso dependia de alguém lembrar de chamar essa rota manualmente, o
+    // que nunca foi testado de verdade porque só existe 1 cliente real até
+    // agora. "Fire and forget": não bloqueia a resposta do cadastro nem
+    // falha o cadastro se isso der erro (a geocodificação do endereço pode
+    // ainda não ter rodado nesse instante, por exemplo).
+    fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? "https://doohplay.com.br"}/api/admin/network-partnerships/suggest?secret=${process.env.ADMIN_SECRET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_code: code }),
+    }).catch((err) => console.error("[cadastro] falha ao gerar sugestões de parceria (não bloqueante):", err.message))
+
     return NextResponse.json({ ok: true, code })
 
   } catch (err: any) {
