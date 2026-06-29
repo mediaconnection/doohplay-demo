@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     const table = role === "client" ? "studio_clients"
                  : role === "agency"     ? "agencies"
-                 : "advertisers"
+                 : '"Advertiser"'
 
     let userRow: any = null
 
