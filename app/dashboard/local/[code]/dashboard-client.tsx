@@ -646,23 +646,12 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
       .catch(() => setAds([]))
       .finally(() => setLoadingAds(false))
   }, [code])
-  const vals = [420, 520, 580, 640, 720, stats.revenue_month || 847]
-  const maxVal = Math.max(...vals)
-  const months = ["Jan","Fev","Mar","Abr","Mai","Jun"]
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-          <div><div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Receita este mês</div><div style={{ fontSize: 11, color: C.text3 }}>Últimos 6 meses</div></div>
-          <div style={{ textAlign: "right" }}><div style={{ fontSize: 22, fontWeight: 700, color: C.green }}>{fmtR(stats.revenue_month || 847)}</div><div style={{ fontSize: 11, color: C.green }}>+23%</div></div>
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 80 }}>
-          {vals.map((v, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div style={{ width: "100%", background: i === vals.length - 1 ? C.green : C.greenLt, borderRadius: "4px 4px 0 0", height: `${(v / maxVal) * 64}px` }} />
-              <span style={{ fontSize: 9, color: C.text3 }}>{months[i]}</span>
-            </div>
-          ))}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div><div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Receita este mês</div><div style={{ fontSize: 11, color: C.text3 }}>Soma de anúncios pagos confirmados</div></div>
+          <div style={{ textAlign: "right" }}><div style={{ fontSize: 22, fontWeight: 700, color: C.green }}>{fmtR(stats.revenue_month || 0)}</div></div>
         </div>
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
