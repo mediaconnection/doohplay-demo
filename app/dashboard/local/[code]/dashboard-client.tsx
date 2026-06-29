@@ -514,13 +514,20 @@ function TabTV({ client, player, playlist, online, checking }: any) {
         <div style={{ padding: "16px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>TV Entrada Principal</div>
-              <div style={{ fontSize: 12, color: C.text3 }}>{player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "SCR-00847"} · Android TV 11</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{player?.name || "Sua tela"}</div>
+              <div style={{ fontSize: 12, color: C.text3 }}>
+                {player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"}
+                {player?.platform && ` · ${player.platform}`}
+              </div>
             </div>
             <StatusBadge online={online} checking={checking} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-            {[{ label: "Sinal", value: "Excelente", color: C.green }, { label: "Uptime", value: `${(player?.sla_30d ?? 99.8).toFixed(1)}%`, color: C.blue }, { label: "Temp.", value: "42°C", color: C.amber }].map(k => (
+            {[
+              { label: "Dispositivo", value: player?.device_type || "—", color: C.blue },
+              { label: "Plataforma", value: player?.platform || "—", color: C.green },
+              { label: "Uptime 30d", value: player?.sla_30d != null ? `${Number(player.sla_30d).toFixed(1)}%` : "—", color: C.blue },
+            ].map(k => (
               <div key={k.label} style={{ background: C.gray50, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: k.color }}>{k.value}</div>
