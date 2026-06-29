@@ -99,12 +99,16 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
   const durationDays = form.startDate && form.endDate
     ? Math.max(1, Math.round((new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / 86400000) + 1)
     : 0;
+  // Pacotes por duração — desconto padrão do setor por compromisso mais
+  // longo (mesma lógica de qualquer mídia tradicional: quanto mais tempo
+  // contratado, menor o valor por dia).
+  const durationDiscount = durationDays >= 90 ? 0.25 : durationDays >= 30 ? 0.15 : 0;
   const suggestedTotal = durationDays > 0 && form.screens.length > 0
     ? form.screens.reduce((sum, id) => {
         const sc = SCREENS.find(s => s.id === id);
         const mult = Number(sc?.price_multiplier ?? 1);
         return sum + BASE_PRICE_PER_DAY * mult * durationDays;
-      }, 0)
+      }, 0) * (1 - durationDiscount)
     : null;
 
   const toggleScreen = (id: string) =>
@@ -186,7 +190,15 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
               <input type="number" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} placeholder="0,00" style={inputStyle} />
               {suggestedTotal !== null && (
                 <div style={{ fontSize: 11, color: C.textSub, marginTop: 4 }}>
-                  Sugestão de mercado: <strong style={{ color: C.primary }}>R$ {suggestedTotal.toFixed(2)}</strong> para {durationDays} dia{durationDays !== 1 ? "s" : ""} × {form.screens.length} tela{form.screens.length !== 1 ? "s" : ""} — você decide o valor.
+                  Sugestão de mercado: <strong style={{ color: C.primary }}>R$ {suggestedTotal.toFixed(2)}</strong> para {durationDays} dia{durationDays !== 1 ? "s" : ""} × {form.screens.length} tela{form.screens.length !== 1 ? "s" : ""}
+                  {durationDiscount > 0 && <span style={{ color: C.success }}> (desconto de {(durationDiscount * 100).toFixed(0)}% por campanha longa já aplicado)</span>}
+                  {" "}— você decide o valor.
+                  {durationDays > 0 && durationDays < 30 && (
+                    <div style={{ color: C.success, marginTop: 2 }}>💡 Campanhas de 30+ dias ganham 15% de desconto na sugestão.</div>
+                  )}
+                  {durationDays >= 30 && durationDays < 90 && (
+                    <div style={{ color: C.success, marginTop: 2 }}>💡 Campanhas de 90+ dias ganham 25% de desconto na sugestão.</div>
+                  )}
                 </div>
               )}
             </div>
