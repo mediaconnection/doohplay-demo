@@ -79,7 +79,7 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
     name: "", startDate: "", endDate: "", budget: "", screens: [] as string[],
   });
 
-  const [screensList, setScreensList] = useState<{ id: string; city: string; name: string }[]>([]);
+  const [screensList, setScreensList] = useState<{ id: string; city: string; name: string; business_type?: string; screen_size?: string; price_multiplier?: number }[]>([]);
 
   useEffect(() => {
     fetch("/api/advertiser/screens")
@@ -202,7 +202,11 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
                     </div>
                     <div>
                       <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{sc.name}</div>
-                      <div style={{ fontSize: 11, color: C.textSub }}>{sc.city}</div>
+                      <div style={{ fontSize: 11, color: C.textSub }}>
+                        {sc.city}
+                        {sc.business_type && ` · ${sc.business_type}`}
+                        {sc.screen_size && ` · tela ${sc.screen_size}`}
+                      </div>
                     </div>
                   </div>
                 );
