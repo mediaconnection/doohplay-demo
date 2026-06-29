@@ -95,13 +95,11 @@ export default async function DashboardPage({
              THEN true
              ELSE false
            END AS online,
-           COALESCE(
-             (SELECT COUNT(*)::float / 30 * 100
+           (SELECT COUNT(*)::float / 30 * 100
               FROM player_heartbeats ph
               WHERE ph.player_id = p.id
                 AND ph.last_seen_at > NOW() - INTERVAL '30 days'
-                AND ph.status = 'online'),
-             99.8
+                AND ph.status = 'online'
            ) AS sla_30d
          FROM players p
          WHERE p.id = $1::uuid
