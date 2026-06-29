@@ -589,8 +589,30 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
   const [showCsv, setShowCsv] = useState(false)
   const [showSub, setShowSub] = useState<any>(null)
   const [deletingCode, setDeletingCode] = useState<string | null>(null)
+  const [pricingDraft, setPricingDraft] = useState<Record<string, { screen_size: string; price_multiplier: string }>>({})
+  const [savingPricing, setSavingPricing] = useState<string | null>(null)
   const { clients, subscriptions } = data
   const subMap = Object.fromEntries(subscriptions.map((s: any) => [s.code, s]))
+
+  const draftFor = (c: any) => pricingDraft[c.code] ?? { screen_size: c.screen_size ?? "", price_multiplier: c.price_multiplier ?? "1" }
+
+  const savePricing = async (code: string) => {
+    const d = pricingDraft[code]
+    if (!d) return
+    setSavingPricing(code)
+    try {
+      const res = await fetch(`/api/admin/clients/${code}/pricing`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screen_size: d.screen_size || null, price_multiplier: d.price_multiplier || null }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? "Erro ao salvar")
+      onRefresh()
+    } catch (err: any) {
+      alert("Erro ao salvar precificação: " + err.message)
+    }
+    setSavingPricing(null)
+  }
 
   const handleDelete = async (code: string, name: string) => {
     const typed = prompt(`Isso exclui "${name}" (${code}) e todos os dados relacionados (mídia, playlist, parcerias) pra sempre. Digite o código "${code}" pra confirmar:`)
@@ -635,6 +657,33 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
                   <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "1px 7px", borderRadius: 10 }}>{c.code}</span>
                 </div>
                 <div style={{ fontSize: 12, color: TEXT2 }}>{c.business_type} · {c.address ?? "Sem endereço"}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}>
+                  <select
+                    value={draftFor(c).screen_size}
+                    onChange={e => setPricingDraft(p => ({ ...p, [c.code]: { ...draftFor(c), screen_size: e.target.value } }))}
+                    style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "3px 6px", color: TEXT }}
+                  >
+                    <option value="">Tamanho da tela…</option>
+                    <option value="pequena">Pequena</option>
+                    <option value="media">Média</option>
+                    <option value="grande">Grande</option>
+                  </select>
+                  <input
+                    type="number" step="0.1" min="0.1" max="10"
+                    value={draftFor(c).price_multiplier}
+                    onChange={e => setPricingDraft(p => ({ ...p, [c.code]: { ...draftFor(c), price_multiplier: e.target.value } }))}
+                    placeholder="1.0"
+                    style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "3px 6px", color: TEXT, width: 60 }}
+                  />
+                  <span style={{ fontSize: 10, color: TEXT2 }}>× multiplicador</span>
+                  <button
+                    onClick={() => savePricing(c.code)}
+                    disabled={savingPricing === c.code}
+                    style={{ fontSize: 10, background: BLUE + "18", border: "1px solid " + BLUE + "44", color: BLUE, borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontWeight: 600 }}
+                  >
+                    {savingPricing === c.code ? "Salvando…" : "Salvar"}
+                  </button>
+                </div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Player</div>
