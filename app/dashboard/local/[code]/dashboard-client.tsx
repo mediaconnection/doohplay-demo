@@ -696,39 +696,22 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
 }
 
 function TabGanhos({ stats, payments, code }: any) {
-  const days = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
-  const dayVals = [42, 38, 55, 61, 85, 72, 48]
-  const maxDay = Math.max(...dayVals)
-  const history = payments.length > 0 ? payments : [
-    { id: "1", paid_at: "2026-05-10", value: 720, status: "paid" },
-    { id: "2", paid_at: "2026-04-10", value: 680, status: "paid" },
-    { id: "3", paid_at: "2026-03-10", value: 590, status: "paid" },
-    { id: "4", paid_at: "2026-02-10", value: 640, status: "paid" },
-  ]
+  const history = payments ?? []
   return (
     <div>
       <div className="db-kpis" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Este mês"        value={fmtR(stats.revenue_month || 847)} sub="+23% vs mai"     icon="💵" color={C.green} />
-        <KpiCard label="Média mensal"    value="R$ 662,50"                        sub="últimos 4 meses" icon="📈" color={C.blue}  />
-        <KpiCard label="Total acumulado" value="R$ 4.250,00"                      sub="desde o início"  icon="🏆" color={C.blue}  />
-      </div>
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Ganhos por dia</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
-          {dayVals.map((v, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div style={{ width: "100%", background: C.green, borderRadius: "4px 4px 0 0", height: `${(v / maxDay) * 80}px` }} />
-              <span style={{ fontSize: 9, color: C.text3 }}>{days[i]}</span>
-            </div>
-          ))}
-        </div>
+        <KpiCard label="Este mês" value={fmtR(stats.revenue_month || 0)} sub="Receita confirmada" icon="💵" color={C.green} />
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Histórico de pagamentos</div>
           <button style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer" }}>↓ Exportar</button>
         </div>
-        {history.map((p: any, i: number) => (
+        {history.length === 0 ? (
+          <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Nenhum pagamento confirmado ainda.
+          </div>
+        ) : history.map((p: any, i: number) => (
           <div key={p.id} style={{ padding: "14px 18px", borderBottom: i < history.length - 1 ? `1px solid ${C.border2}` : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 32, height: 32, background: C.greenLt, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -751,30 +734,22 @@ function TabGanhos({ stats, payments, code }: any) {
 }
 
 function TabRelatorios({ stats, payments, code }: any) {
+  const recentPayments = (payments ?? []).slice(0, 3)
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ background: "#0F172A", height: 140, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.white }}>Café + Pão de Queijo</div>
-            <div style={{ fontSize: 18, color: C.green }}>R$ 9,90</div>
-            <div style={{ fontSize: 11, color: "#64748B" }}>Bradesco · Válido hoje</div>
-          </div>
-        </div>
         <div style={{ padding: "16px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-            <div><div style={{ fontSize: 14, fontWeight: 600 }}>Receita este mês</div><div style={{ fontSize: 11, color: C.text3 }}>Últimos 6 meses</div></div>
-            <div style={{ textAlign: "right" }}><div style={{ fontSize: 20, fontWeight: 700, color: C.green }}>{fmtR(stats.revenue_month || 847)}</div><div style={{ fontSize: 11, color: C.green }}>+23%</div></div>
+            <div><div style={{ fontSize: 14, fontWeight: 600 }}>Receita este mês</div><div style={{ fontSize: 11, color: C.text3 }}>Soma de anúncios pagos confirmados</div></div>
+            <div style={{ textAlign: "right" }}><div style={{ fontSize: 20, fontWeight: 700, color: C.green }}>{fmtR(stats.revenue_month || 0)}</div></div>
           </div>
           <div style={{ marginBottom: 16 }}>
-            {[
-              { label: "10 Jun", value: "R$ 420,00", status: "Processado", color: C.green, bg: C.greenLt },
-              { label: "10 Jul", value: "R$ 847,00", status: "Agendado",   color: C.blue,  bg: C.blueLt  },
-              { label: "10 Ago", value: "R$ —",       status: "Pendente",   color: C.text3, bg: C.gray100 },
-            ].map((p, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div><div style={{ fontSize: 11, color: C.text3 }}>{p.label}</div><div style={{ fontSize: 13, fontWeight: 600 }}>{p.value}</div></div>
-                <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: p.bg, color: p.color }}>{p.status}</span>
+            {recentPayments.length === 0 ? (
+              <div style={{ fontSize: 12, color: C.text3, textAlign: "center", padding: "12px 0" }}>Nenhum pagamento registrado ainda.</div>
+            ) : recentPayments.map((p: any, i: number) => (
+              <div key={p.id ?? i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div><div style={{ fontSize: 11, color: C.text3 }}>{fmtDate(p.paid_at || p.created_at, true)}</div><div style={{ fontSize: 13, fontWeight: 600 }}>{fmtR(p.value || 0)}</div></div>
+                <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: p.status === "paid" ? C.greenLt : C.gray100, color: p.status === "paid" ? C.green : C.text3 }}>{p.status === "paid" ? "Processado" : p.status ?? "Pendente"}</span>
               </div>
             ))}
           </div>
