@@ -10,7 +10,7 @@ export async function GET() {
   const pool = getPool()
   try {
     const { rows } = await pool.query(`
-      SELECT code AS id, name, city, business_type, screen_size, price_multiplier
+      SELECT code AS id, name, city, business_type, screen_size, price_multiplier, screen_orientation
       FROM studio_clients
       WHERE active = true
       ORDER BY city ASC NULLS LAST, name ASC
