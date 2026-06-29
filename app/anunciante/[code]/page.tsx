@@ -90,6 +90,23 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
 
   const SCREENS = screensList;
 
+  // Preço sugerido, baseado em benchmark de mercado (DOOH varejo de bairro
+  // no Brasil) — R$10/dia como ancoragem pra tela "média" (multiplicador
+  // 1.0), ajustado pelo multiplicador de tamanho de cada tela. É só
+  // REFERÊNCIA — o anunciante continua definindo o orçamento livremente,
+  // sem piso obrigatório ainda (decisão consciente, ver roadmap).
+  const BASE_PRICE_PER_DAY = 10;
+  const durationDays = form.startDate && form.endDate
+    ? Math.max(1, Math.round((new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / 86400000) + 1)
+    : 0;
+  const suggestedTotal = durationDays > 0 && form.screens.length > 0
+    ? form.screens.reduce((sum, id) => {
+        const sc = SCREENS.find(s => s.id === id);
+        const mult = Number(sc?.price_multiplier ?? 1);
+        return sum + BASE_PRICE_PER_DAY * mult * durationDays;
+      }, 0)
+    : null;
+
   const toggleScreen = (id: string) =>
     setForm(f => ({
       ...f,
@@ -167,6 +184,11 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
             <div>
               <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>ORÇAMENTO (R$)</label>
               <input type="number" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} placeholder="0,00" style={inputStyle} />
+              {suggestedTotal !== null && (
+                <div style={{ fontSize: 11, color: C.textSub, marginTop: 4 }}>
+                  Sugestão de mercado: <strong style={{ color: C.primary }}>R$ {suggestedTotal.toFixed(2)}</strong> para {durationDays} dia{durationDays !== 1 ? "s" : ""} × {form.screens.length} tela{form.screens.length !== 1 ? "s" : ""} — você decide o valor.
+                </div>
+              )}
             </div>
             <div>
               <label style={{ display: "block", fontSize: 12, color: C.textSub, marginBottom: 6 }}>DATA DE INÍCIO *</label>
@@ -206,6 +228,9 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
                         {sc.city}
                         {sc.business_type && ` · ${sc.business_type}`}
                         {sc.screen_size && ` · tela ${sc.screen_size}`}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.primary, marginTop: 2 }}>
+                        Sugestão: R$ {(BASE_PRICE_PER_DAY * Number(sc.price_multiplier ?? 1)).toFixed(2)}/dia
                       </div>
                     </div>
                   </div>
