@@ -79,7 +79,7 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
     name: "", startDate: "", endDate: "", budget: "", screens: [] as string[],
   });
 
-  const [screensList, setScreensList] = useState<{ id: string; city: string; name: string; business_type?: string; screen_size?: string; price_multiplier?: number }[]>([]);
+  const [screensList, setScreensList] = useState<{ id: string; city: string; name: string; business_type?: string; screen_size?: string; price_multiplier?: number; screen_orientation?: string }[]>([]);
 
   useEffect(() => {
     fetch("/api/advertiser/screens")
@@ -240,6 +240,7 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
                         {sc.city}
                         {sc.business_type && ` · ${sc.business_type}`}
                         {sc.screen_size && ` · tela ${sc.screen_size}`}
+                        {sc.screen_orientation && ` · ${sc.screen_orientation === "portrait" ? "📱 vertical" : "🖥️ horizontal"}`}
                       </div>
                       <div style={{ fontSize: 11, color: C.primary, marginTop: 2 }}>
                         Sugestão: R$ {(BASE_PRICE_PER_DAY * Number(sc.price_multiplier ?? 1)).toFixed(2)}/dia
