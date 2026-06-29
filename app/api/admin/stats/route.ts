@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
                sc.phone, sc.address, sc.created_at,
+               sc.screen_size, sc.price_multiplier,
                p.id::text AS player_id, p.last_ping,
                CASE
                  WHEN p.last_ping > NOW() - INTERVAL '5 minutes' THEN 'online'
