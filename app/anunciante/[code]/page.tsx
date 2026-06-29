@@ -426,7 +426,7 @@ function TabMidia({ code, medias, campaigns, onRefresh }: { code: string; medias
 }
 
 // ─── Relatórios ──────────────────────────────────────────────────────────────
-function TabRelatorios({ campaigns }: { campaigns: any[] }) {
+function TabRelatorios({ campaigns, code }: { campaigns: any[]; code: string }) {
   const [selected, setSelected] = useState(campaigns[0]?.id ?? "");
   const campaign = campaigns.find(c => c.id === selected);
 
@@ -435,15 +435,19 @@ function TabRelatorios({ campaigns }: { campaigns: any[] }) {
   const activeCampaigns  = campaigns.filter(c => c.status === "active").length;
   const cpm = totalImpressions > 0 ? (totalBudget / totalImpressions) * 1000 : 0;
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return {
-      label: d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-      value: Math.floor(Math.random() * 2000 + 500),
-    };
-  });
-  const maxVal = Math.max(...days.map(d => d.value));
+  // Exibições reais por dia — antes era Math.random(), mudando a cada
+  // reload da página e mostrando dado completamente fictício pra quem
+  // está pagando pela campanha.
+  const [days, setDays] = useState<{ label: string; value: number }[]>([]);
+  const [loadingDays, setLoadingDays] = useState(true);
+  useEffect(() => {
+    fetch(`/api/advertiser/${code}/daily-stats`)
+      .then(r => r.json())
+      .then(d => setDays(d.days ?? []))
+      .catch(() => setDays([]))
+      .finally(() => setLoadingDays(false));
+  }, [code]);
+  const maxVal = Math.max(1, ...days.map(d => d.value));
 
   return (
     <div>
@@ -461,15 +465,21 @@ function TabRelatorios({ campaigns }: { campaigns: any[] }) {
 
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 20 }}>Exibições por dia (últimos 7 dias)</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 160 }}>
-          {days.map((d, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <div style={{ fontSize: 11, color: C.textSub }}>{fmt(d.value)}</div>
-              <div style={{ width: "100%", borderRadius: "4px 4px 0 0", height: `${(d.value / maxVal) * 120}px`, background: `linear-gradient(180deg, ${C.primary}, ${C.primaryDim})` }} />
-              <div style={{ fontSize: 11, color: C.textSub }}>{d.label}</div>
-            </div>
-          ))}
-        </div>
+        {loadingDays ? (
+          <div style={{ textAlign: "center", color: C.textSub, fontSize: 13, padding: "20px 0" }}>Carregando…</div>
+        ) : days.every(d => d.value === 0) ? (
+          <div style={{ textAlign: "center", color: C.textSub, fontSize: 13, padding: "20px 0" }}>Nenhuma exibição registrada nos últimos 7 dias.</div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 160 }}>
+            {days.map((d, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <div style={{ fontSize: 11, color: C.textSub }}>{fmt(d.value)}</div>
+                <div style={{ width: "100%", borderRadius: "4px 4px 0 0", height: `${(d.value / maxVal) * 120}px`, background: `linear-gradient(180deg, ${C.primary}, ${C.primaryDim})` }} />
+                <div style={{ fontSize: 11, color: C.textSub }}>{d.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {campaigns.length > 0 && (
@@ -614,7 +624,7 @@ function PortalAnuncianteInner({ code }: { code: string }) {
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
         {tab === "campanhas"  && <TabCampanhas  code={code} campaigns={data?.campaigns ?? []} onRefresh={load} />}
         {tab === "midia"      && <TabMidia      code={code} medias={data?.medias ?? []} campaigns={data?.campaigns ?? []} onRefresh={load} />}
-        {tab === "relatorios" && <TabRelatorios campaigns={data?.campaigns ?? []} />}
+        {tab === "relatorios" && <TabRelatorios campaigns={data?.campaigns ?? []} code={code} />}
       </div>
     </div>
   );
