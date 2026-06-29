@@ -26,8 +26,25 @@ export async function POST(req: NextRequest) {
   if (!files.length) return Response.json({ error: "Nenhum arquivo" }, { status: 400 })
   const camp = await pool.query(`SELECT id FROM "Campaign" WHERE id = $1 AND "advertiserCode" = $2 LIMIT 1`, [campaignId, code])
   if (!camp.rows[0]) return Response.json({ error: "Campanha nao encontrada" }, { status: 404 })
+
+  // Orientação das telas selecionadas nesta campanha, pra avisar o
+  // anunciante se o vídeo enviado não combina com a maioria das telas
+  // (ex: vídeo vertical pra campanha majoritariamente em telas horizontais).
+  const screensRes = await pool.query(
+    `SELECT sc.screen_orientation
+     FROM "CampaignScreen" cs
+     JOIN studio_clients sc ON sc.code = cs."screenId"
+     WHERE cs."campaignId" = $1`,
+    [campaignId]
+  ).catch(() => ({ rows: [] }))
+  const orientations = screensRes.rows.map((r: any) => r.screen_orientation === "portrait" ? "portrait" : "landscape")
+  const landscapeCount = orientations.filter((o: string) => o === "landscape").length
+  const portraitCount = orientations.length - landscapeCount
+  const dominantOrientation = portraitCount > landscapeCount ? "portrait" : "landscape"
+
   const uploaded = []
   const rejected: { name: string; reason: string }[] = []
+  const warnings: { name: string; message: string }[] = []
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     const isVideo = file.type.startsWith("video/")
@@ -56,6 +73,18 @@ export async function POST(req: NextRequest) {
           })
           continue
         }
+        // Checagem de orientação — não bloqueia o upload, só avisa. Um
+        // vídeo horizontal preenche mal uma tela vertical (e vice-versa),
+        // mas isso é decisão do anunciante, não motivo pra rejeitar.
+        if (orientations.length > 0) {
+          const mediaOrientation = info.width >= info.height ? "landscape" : "portrait"
+          if (mediaOrientation !== dominantOrientation) {
+            warnings.push({
+              name: file.name,
+              message: `Este vídeo é ${mediaOrientation === "portrait" ? "vertical" : "horizontal"}, mas a maioria das telas selecionadas é ${dominantOrientation === "portrait" ? "vertical" : "horizontal"} — pode aparecer cortado ou com faixas pretas.`,
+            })
+          }
+        }
       }
     }
 
@@ -67,5 +96,5 @@ export async function POST(req: NextRequest) {
     const ins = await pool.query(`INSERT INTO "CampaignMedia" ("campaignId", name, type, url, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`, [campaignId, file.name, fileType, url])
     uploaded.push(ins.rows[0])
   }
-  return Response.json({ ok: true, uploaded, rejected }, { status: 201 })
+  return Response.json({ ok: true, uploaded, rejected, warnings }, { status: 201 })
 }
