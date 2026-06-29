@@ -389,8 +389,7 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
       </div>
 
       <div className="db-kpis" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Receita este mês" value={fmtR(revenue)}    sub="+23% vs mai"      icon="💵" color={C.green} />
-        <KpiCard label="Saldo a receber"  value={fmtR(revenue)}    sub="em 10/Jul"        icon="📅" color={C.blue}  />
+        <KpiCard label="Receita este mês" value={fmtR(revenue)}    sub="Confirmado"       icon="💵" color={C.green} />
         <KpiCard label="Campanhas ativas" value={String(activeAds.length)} sub={ads.length > activeAds.length ? `${ads.length - activeAds.length} pausada(s)` : "—"} icon="▶"  color={C.blue}  />
         <KpiCard label="Visualizações"    value={fmt(vizToday)}    sub="+12% esta semana" icon="👁" color={C.blue}  />
         <KpiCard label="Status da TV"     value={online ? "Online" : "Offline"} sub={player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"} icon="📶" color={online ? C.green : C.red} />
