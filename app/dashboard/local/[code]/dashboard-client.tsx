@@ -618,6 +618,11 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
   const [toast, setToast] = useState("")
   const [screens, setScreens] = useState<any[]>([])
   const [savingMedia, setSavingMedia] = useState<string | null>(null)
+  const [localPlaylist, setLocalPlaylist] = useState<PlaylistItem[]>(playlist as PlaylistItem[])
+
+  useEffect(() => {
+    setLocalPlaylist(playlist as PlaylistItem[])
+  }, [playlist])
 
   useEffect(() => {
     fetch(`/api/client/screens/${client.code}`)
@@ -630,17 +635,26 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
   const assignScreen = async (mediaId: string, screenId: string | null) => {
     setSavingMedia(mediaId)
     try {
-      await fetch(`/api/client/media/${mediaId}/screen`, {
+      const res = await fetch(`/api/client/media/${mediaId}/screen`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_code: client.code, screen_id: screenId }),
       })
-      onRefresh?.()
-    } catch {}
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Erro ao alterar tela da mídia")
+      setLocalPlaylist(items => items.map(item => (
+        item.id === mediaId ? { ...item, screen_id: screenId } as PlaylistItem : item
+      )))
+      setToast("✓ Tela da mídia atualizada")
+      setTimeout(() => setToast(""), 2500)
+    } catch (err: any) {
+      setToast("⚠️ " + (err.message || "Erro ao alterar tela da mídia"))
+      setTimeout(() => setToast(""), 4000)
+    }
     setSavingMedia(null)
   }
 
-  const realItems = (playlist as PlaylistItem[]).filter(i => i.type === "content" || i.type === "image" || i.type === "video")
+  const realItems = localPlaylist.filter(i => i.type === "content" || i.type === "image" || i.type === "video")
   const nameFor = (item: PlaylistItem, idx: number) => (item as any).name || `Conteúdo ${idx + 1}`
 
   const handleDelete = async () => {
