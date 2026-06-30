@@ -663,7 +663,7 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
     if (!d) return
     setSavingPricing(code)
     try {
-      const res = await fetch(`/api/admin/clients/${code}/pricing`, {
+      const res = await fetch(`/api/clients/${code}/pricing`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ screen_size: d.screen_size || null, price_multiplier: d.price_multiplier || null }),
