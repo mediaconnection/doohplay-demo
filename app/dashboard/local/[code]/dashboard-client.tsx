@@ -478,6 +478,16 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
 }
 
 function TabTV({ client, player, playlist, online, checking }: any) {
+  // Telas físicas reais do cliente — a maioria tem só 1, então essa seção só
+  // aparece visualmente quando há 2+ telas, pra não poluir o caso comum.
+  const [screens, setScreens] = useState<any[]>([]);
+  useEffect(() => {
+    fetch(`/api/client/screens/${client.code}`)
+      .then(r => r.json())
+      .then(d => setScreens(d.screens ?? []))
+      .catch(() => setScreens([]));
+  }, [client.code]);
+
   const items = playlist.length > 0 ? playlist : [
     { id: "1", type: "ad",      duration: 15, position: 1, asset_url: null },
     { id: "2", type: "content", duration: 30, position: 2, asset_url: null },
@@ -488,6 +498,23 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   const isPortrait = client?.screen_orientation === "portrait"
   return (
     <div>
+      {screens.length > 1 && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}` }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Minhas Telas ({screens.length})</div>
+            <div style={{ fontSize: 11, color: C.text3 }}>Todas exibem a mesma playlist — exibições contabilizadas separadamente por tela</div>
+          </div>
+          {screens.map((s: any) => (
+            <div key={s.player_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${C.border2}` }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.label || s.device_type}</div>
+                <div style={{ fontSize: 11, color: C.text3 }}>{s.device_type} · {s.platform}</div>
+              </div>
+              <StatusBadge online={s.online} />
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ background: "#0F172A", display: "flex", justifyContent: "center", padding: isPortrait ? "16px 0" : 0 }}>
           <div style={{
