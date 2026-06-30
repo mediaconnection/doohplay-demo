@@ -21,9 +21,23 @@ export async function GET(
          CASE
            WHEN p.last_ping > NOW() - INTERVAL '3 minutes' THEN true
            ELSE false
-         END AS online
+         END AS online,
+         -- Selo "Tela Verificada" (30/06/2026): presença em pelo menos 90%
+         -- dos últimos 30 dias, E pelo menos 14 dias de histórico real
+         -- acumulado — evita "verificar" prematuramente um aparelho de 2
+         -- dias que por acaso ficou online o tempo todo.
+         COALESCE(up.days_present, 0) AS uptime_days_present,
+         COALESCE(up.days_total, 0)   AS uptime_days_tracked,
+         (COALESCE(up.days_total, 0) >= 14 AND COALESCE(up.days_present, 0)::float / NULLIF(up.days_total, 0) >= 0.9) AS verified
        FROM client_screens cs
        JOIN players p ON p.id = cs.player_id
+       LEFT JOIN LATERAL (
+         SELECT
+           COUNT(*) AS days_present,
+           (CURRENT_DATE - MIN(day) + 1) AS days_total
+         FROM player_uptime_daily
+         WHERE player_id = p.id AND day > CURRENT_DATE - INTERVAL '30 days'
+       ) up ON true
        WHERE cs.client_code = $1
        ORDER BY cs.created_at ASC`,
       [code.toUpperCase()]
