@@ -34,3 +34,31 @@ export async function GET(
     return NextResponse.json({ screens: [], error: String(err) }, { status: 500 })
   }
 }
+
+// Alterna same_content (true = mesma playlist de todas; false = conteúdo
+// próprio, exige atribuir mídia manualmente) e/ou edita o label de exibição.
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  const { code } = await params
+  const pool = getPool()
+  try {
+    const { screen_id, same_content, label } = await req.json()
+    if (!screen_id) return NextResponse.json({ error: "screen_id obrigatório" }, { status: 400 })
+
+    const { rows } = await pool.query(
+      `UPDATE client_screens
+       SET same_content = COALESCE($1, same_content),
+           label = COALESCE($2, label)
+       WHERE id = $3 AND client_code = $4
+       RETURNING id, label, same_content`,
+      [same_content ?? null, label ?? null, screen_id, code.toUpperCase()]
+    )
+    if (!rows[0]) return NextResponse.json({ error: "Tela não encontrada" }, { status: 404 })
+    return NextResponse.json({ ok: true, ...rows[0] })
+  } catch (err) {
+    console.error("[client/screens PATCH]", err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
