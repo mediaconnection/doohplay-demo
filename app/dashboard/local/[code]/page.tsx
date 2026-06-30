@@ -45,6 +45,7 @@ export type PlaylistItem = {
   position: number
   asset_url: string | null
   name?: string
+  screen_id?: string | null
 }
 
 export type Payment = {
@@ -145,20 +146,26 @@ export default async function DashboardPage({
   }
 
   // 4. Playlist — lê de CampaignMedia (onde o upload realmente salva)
+  // e inclui playlist_schedule.screen_id para preservar a atribuição por tela
+  // física no dashboard local.
   let playlist: PlaylistItem[] = []
   try {
     const plRes = await pool.query(
       `SELECT
          cm.id::text,
          cm.type,
-         15                AS duration,
-         ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int AS position,
+         COALESCE(ps.duration, 15) AS duration,
+         COALESCE(ps.position,
+           ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int) AS position,
          cm.url            AS asset_url,
-         cm.name
+         cm.name,
+         ps.screen_id::text AS screen_id
        FROM "CampaignMedia" cm
        JOIN "Campaign" c ON c.id = cm."campaignId"
+       LEFT JOIN playlist_schedule ps
+         ON ps.media_id = cm.id AND ps.client_code = UPPER($1)
        WHERE c."advertiserCode" = $1
-       ORDER BY cm."createdAt" ASC
+       ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
        LIMIT 20`,
       [code]
     )
