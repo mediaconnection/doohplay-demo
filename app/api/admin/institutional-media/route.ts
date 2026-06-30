@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const pool = getPool()
     const res = await pool.query(
       `INSERT INTO institutional_media (id, name, type, url, duration, position, active, created_at)
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, NOW())
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW())
        RETURNING id`,
       [name, isVideo ? "video" : "image", url, duration, position]
     )
