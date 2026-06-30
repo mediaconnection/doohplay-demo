@@ -530,8 +530,20 @@ function TabTV({ client, player, playlist, online, checking }: any) {
           {screens.map((s: any) => (
             <div key={s.player_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${C.border2}`, gap: 10, flexWrap: "wrap" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.label || s.device_type}</div>
-                <div style={{ fontSize: 11, color: C.text3 }}>{s.device_type} · {s.platform}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "flex", alignItems: "center", gap: 5 }}>
+                  {s.label || s.device_type}
+                  {s.verified && (
+                    <span title="Tela com histórico real de uptime comprovado nos últimos 30 dias" style={{ fontSize: 10, fontWeight: 700, color: C.green, background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 20, padding: "1px 7px" }}>
+                      ✓ Verificada
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: C.text3 }}>
+                  {s.device_type} · {s.platform}
+                  {!s.verified && s.uptime_days_tracked > 0 && (
+                    <> · {s.uptime_days_tracked < 14 ? `coletando histórico (${s.uptime_days_tracked}/14 dias)` : `${s.uptime_days_present}/${s.uptime_days_tracked} dias online`}</>
+                  )}
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button
