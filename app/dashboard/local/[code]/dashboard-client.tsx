@@ -200,8 +200,12 @@ function PlaylistThumb({ item, name }: { item: PlaylistItem; name: string }) {
 }
 
 function ModalPromocao({ code, onClose }: { code: string; onClose: () => void }) {
-  const MAX_SIZE_MB = 50
-  const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
+  // Limites espelhando exatamente SIZE_LIMITS em app/api/studio/upload/route.ts
+  // — antes essa tela mostrava "Máx. 50MB" pros dois tipos, mas o backend
+  // sempre aceitou até 10MB pra imagem e 100MB pra vídeo. A mensagem errada
+  // rejeitava no front arquivos que o backend teria aceitado.
+  const MAX_SIZE_MB_IMAGE = 10
+  const MAX_SIZE_MB_VIDEO = 100
   const [nome, setNome]       = useState("")
   const [duracao, setDuracao] = useState("15")
   const [file, setFile]       = useState<File | null>(null)
@@ -218,8 +222,11 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
 
   const handleFile = (f: File) => {
     setError("")
-    if (f.size > MAX_SIZE_BYTES) {
-      setError(`Esse arquivo tem ${fmtSize(f.size)}, e o limite é ${MAX_SIZE_MB}MB. Escolha um arquivo menor ou comprima o vídeo antes de enviar.`)
+    const isVideo = f.type.startsWith("video")
+    const maxMB = isVideo ? MAX_SIZE_MB_VIDEO : MAX_SIZE_MB_IMAGE
+    const maxBytes = maxMB * 1024 * 1024
+    if (f.size > maxBytes) {
+      setError(`Esse arquivo tem ${fmtSize(f.size)}, e o limite pra ${isVideo ? "vídeo" : "imagem"} é ${maxMB}MB. Escolha um arquivo menor ou comprima antes de enviar.`)
       setFile(null)
       setPreview(null)
       return
@@ -245,7 +252,8 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
       if (!res.ok) {
         let msg = "Erro ao enviar. Tente novamente."
         if (res.status === 413) {
-          msg = `Arquivo muito grande para o servidor (limite de ${MAX_SIZE_MB}MB). Tente um arquivo menor.`
+          const maxMB = file?.type.startsWith("video") ? MAX_SIZE_MB_VIDEO : MAX_SIZE_MB_IMAGE
+          msg = `Arquivo muito grande para o servidor (limite de ${maxMB}MB). Tente um arquivo menor.`
         } else {
           try {
             const data = await res.json()
@@ -300,7 +308,7 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
                   {preview ? (
                     file?.type.startsWith("video") ? <video src={preview} style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6 }} controls /> : <img src={preview} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6, objectFit: "cover" }} />
                   ) : (
-                    <><div style={{ fontSize: 28, marginBottom: 8 }}>📁</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>Clique ou arraste o arquivo</div><div style={{ fontSize: 11, color: C.text3 }}>Imagem (JPG, PNG) ou Vídeo (MP4) · Máx. 50MB</div></>
+                    <><div style={{ fontSize: 28, marginBottom: 8 }}>📁</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>Clique ou arraste o arquivo</div><div style={{ fontSize: 11, color: C.text3 }}>Imagem (JPG, PNG, máx. {MAX_SIZE_MB_IMAGE}MB) ou Vídeo (MP4, máx. {MAX_SIZE_MB_VIDEO}MB)</div></>
                   )}
                   <input ref={inputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
                 </div>
