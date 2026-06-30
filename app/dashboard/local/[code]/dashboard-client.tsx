@@ -481,12 +481,27 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   // Telas físicas reais do cliente — a maioria tem só 1, então essa seção só
   // aparece visualmente quando há 2+ telas, pra não poluir o caso comum.
   const [screens, setScreens] = useState<any[]>([]);
-  useEffect(() => {
+  const [savingScreen, setSavingScreen] = useState<string | null>(null);
+  const loadScreens = () => {
     fetch(`/api/client/screens/${client.code}`)
       .then(r => r.json())
       .then(d => setScreens(d.screens ?? []))
       .catch(() => setScreens([]));
-  }, [client.code]);
+  };
+  useEffect(() => { loadScreens() }, [client.code]);
+
+  const toggleSameContent = async (screenId: string, current: boolean) => {
+    setSavingScreen(screenId)
+    try {
+      await fetch(`/api/client/screens/${client.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screen_id: screenId, same_content: !current }),
+      })
+      loadScreens()
+    } catch {}
+    setSavingScreen(null)
+  }
 
   const items = playlist.length > 0 ? playlist : [
     { id: "1", type: "ad",      duration: 15, position: 1, asset_url: null },
@@ -502,17 +517,31 @@ function TabTV({ client, player, playlist, online, checking }: any) {
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
           <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}` }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Minhas Telas ({screens.length})</div>
-            <div style={{ fontSize: 11, color: C.text3 }}>Todas exibem a mesma playlist — exibições contabilizadas separadamente por tela</div>
+            <div style={{ fontSize: 11, color: C.text3 }}>Escolha se cada tela repete o mesmo conteúdo ou tem playlist própria</div>
           </div>
           {screens.map((s: any) => (
-            <div key={s.player_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${C.border2}` }}>
+            <div key={s.player_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${C.border2}`, gap: 10, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.label || s.device_type}</div>
                 <div style={{ fontSize: 11, color: C.text3 }}>{s.device_type} · {s.platform}</div>
               </div>
-              <StatusBadge online={s.online} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={() => toggleSameContent(s.id, s.same_content)}
+                  disabled={savingScreen === s.id}
+                  style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 20, cursor: savingScreen === s.id ? "not-allowed" : "pointer", border: `1px solid ${s.same_content ? C.border : C.blue}`, background: s.same_content ? C.gray50 : C.blueLt, color: s.same_content ? C.text2 : C.blue }}
+                >
+                  {savingScreen === s.id ? "Salvando…" : s.same_content ? "Mesma playlist" : "Conteúdo próprio"}
+                </button>
+                <StatusBadge online={s.online} />
+              </div>
             </div>
           ))}
+          {screens.some((s: any) => !s.same_content) && (
+            <div style={{ padding: "10px 18px", fontSize: 11, color: C.text3, background: C.gray50 }}>
+              💡 Telas com "Conteúdo próprio" não mostram nada até você atribuir mídias a elas na aba Conteúdo.
+            </div>
+          )}
         </div>
       )}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
@@ -587,6 +616,29 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState("")
+  const [screens, setScreens] = useState<any[]>([])
+  const [savingMedia, setSavingMedia] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/client/screens/${client.code}`)
+      .then(r => r.json())
+      .then(d => setScreens(d.screens ?? []))
+      .catch(() => setScreens([]))
+  }, [client.code])
+  const hasCustomScreens = screens.length > 1 && screens.some((s: any) => !s.same_content)
+
+  const assignScreen = async (mediaId: string, screenId: string | null) => {
+    setSavingMedia(mediaId)
+    try {
+      await fetch(`/api/client/media/${mediaId}/screen`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_code: client.code, screen_id: screenId }),
+      })
+      onRefresh?.()
+    } catch {}
+    setSavingMedia(null)
+  }
 
   const realItems = (playlist as PlaylistItem[]).filter(i => i.type === "content" || i.type === "image" || i.type === "video")
   const nameFor = (item: PlaylistItem, idx: number) => (item as any).name || `Conteúdo ${idx + 1}`
@@ -653,6 +705,21 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
                 </div>
                 <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: C.greenLt, color: C.green, flexShrink: 0 }}>Ativo</span>
               </div>
+              {hasCustomScreens && (
+                <div style={{ padding: "0 14px 12px" }}>
+                  <select
+                    value={(item as any).screen_id ?? ""}
+                    onChange={e => assignScreen(item.id, e.target.value || null)}
+                    disabled={savingMedia === item.id}
+                    style={{ width: "100%", fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", color: C.text2, background: C.gray50 }}
+                  >
+                    <option value="">Todas as telas</option>
+                    {screens.map((s: any) => (
+                      <option key={s.id} value={s.id}>{s.label || s.device_type}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )
         }) : (
