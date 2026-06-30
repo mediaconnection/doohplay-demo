@@ -1074,6 +1074,152 @@ function TabExemplos() {
   )
 }
 
+// ── Conteúdo Institucional (DOOHPLAY) — exibido em TODAS as telas da rede ──
+function TabInstitucional() {
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [name, setName] = useState("")
+  const [duration, setDuration] = useState("15")
+  const [position, setPosition] = useState("0")
+  const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState("")
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    fetch("/api/admin/institutional-media")
+      .then(r => r.json())
+      .then(d => setItems(d.items ?? []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const upload = async () => {
+    if (!file) { setError("Escolha um arquivo"); return }
+    if (!name.trim()) { setError("Dê um nome pra essa peça"); return }
+    setError(""); setUploading(true)
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      form.append("name", name)
+      form.append("duration", duration)
+      form.append("position", position)
+      const res = await fetch("/api/admin/institutional-media", { method: "POST", body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao enviar")
+      setName(""); setFile(null)
+      load()
+    } catch (err: any) {
+      setError(err.message || "Erro ao enviar")
+    }
+    setUploading(false)
+  }
+
+  const toggleActive = async (id: string, current: boolean) => {
+    setTogglingId(id)
+    try {
+      await fetch(`/api/admin/institutional-media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !current }),
+      })
+      load()
+    } catch {}
+    setTogglingId(null)
+  }
+
+  const remove = async (id: string, itemName: string) => {
+    if (!confirm(`Remover "${itemName}" definitivamente? Para de aparecer em TODAS as telas da rede.`)) return
+    setDeletingId(id)
+    try {
+      await fetch(`/api/admin/institutional-media/${id}`, { method: "DELETE" })
+      load()
+    } catch {}
+    setDeletingId(null)
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>🏢 Conteúdo Institucional</div>
+        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+          O que o DOOHPLAY mostra nas telas — entra automaticamente na rotação de TODOS os clientes (≈10% do tempo no sorteio ponderado). Use com moderação.
+        </div>
+      </div>
+
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, marginBottom: 28 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Adicionar nova peça institucional</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Duração</label>
+            <select value={duration} onChange={e => setDuration(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+              {[10, 15, 20, 30].map(d => <option key={d} value={d}>{d}s</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Posição (ordem)</label>
+            <input type="number" value={position} onChange={e => setPosition(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Boas-vindas DOOHPLAY" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: TEXT2 }} />
+        </div>
+        {error && <div style={{ fontSize: 12, color: RED, marginBottom: 10 }}>⚠️ {error}</div>}
+        <button onClick={upload} disabled={uploading} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer" }}>
+          {uploading ? "Enviando…" : "Adicionar à rotação institucional"}
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ fontSize: 13, color: TEXT2 }}>Carregando…</div>
+      ) : items.length === 0 ? (
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2 }}>
+          Nenhuma peça institucional cadastrada ainda — o slot de 10% fica vazio até você adicionar a primeira.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+          {items.map((it: any) => (
+            <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden", opacity: it.active ? 1 : 0.5 }}>
+              <div style={{ height: 90, background: BG }}>
+                {it.type === "video"
+                  ? <video src={it.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
+                  : <img src={it.url} alt={it.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+              </div>
+              <div style={{ padding: "8px 10px" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
+                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6 }}>pos. {it.position} · {it.duration}s</div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    onClick={() => toggleActive(it.id, it.active)}
+                    disabled={togglingId === it.id}
+                    style={{ flex: 1, fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + BORDER, background: it.active ? RED + "10" : GREEN + "10", color: it.active ? RED : GREEN, cursor: togglingId === it.id ? "not-allowed" : "pointer" }}
+                  >
+                    {togglingId === it.id ? "…" : it.active ? "Desativar" : "Reativar"}
+                  </button>
+                  <button
+                    onClick={() => remove(it.id, it.name)}
+                    disabled={deletingId === it.id}
+                    style={{ fontSize: 10, padding: "4px 8px", borderRadius: 5, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, cursor: deletingId === it.id ? "not-allowed" : "pointer" }}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TabRede({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const [loading, setLoading] = useState<string | null>(null)
   const items = data.networkMedia ?? []
@@ -1294,6 +1440,7 @@ export default function AdminPage() {
     { id: "midias",      label: "Mídias",      icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
     { id: "rede",        label: "Rede",        icon: "🤝", count: pendingNetworkMedia, alert: pendingNetworkMedia > 0 },
     { id: "exemplos",    label: "Exemplos",    icon: "📚" },
+    { id: "institucional", label: "Institucional", icon: "🏢" },
     { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
@@ -1340,6 +1487,7 @@ export default function AdminPage() {
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
         {tab === "rede"        && <TabRede        data={data} onRefresh={load} />}
         {tab === "exemplos"    && <TabExemplos />}
+        {tab === "institucional" && <TabInstitucional />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
