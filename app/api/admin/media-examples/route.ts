@@ -4,6 +4,7 @@
 // request. Protegida por ADMIN_SECRET (igual a /api/admin/r2-cleanup).
 import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
 
 export const dynamic     = "force-dynamic"
@@ -21,14 +22,15 @@ const r2 = new S3Client({
 const BUCKET     = "dooh-media"
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
-function checkAuth(req: NextRequest) {
+async function checkAuth(req: NextRequest) {
+  const session = await getServerSession()
   const secret = req.nextUrl.searchParams.get("secret")
-  return secret && secret === process.env.ADMIN_SECRET
+  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
 }
 
 // GET — lista todos os exemplos cadastrados (qualquer nicho, inclusive inativos)
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   const { rows } = await pool.query(
     `SELECT id, niche, name, type, url, duration, active, created_at
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
 
 // POST multipart/form-data — campos: file, niche, name, duration (opcional)
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   try {
     const form = await req.formData()
