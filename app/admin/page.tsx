@@ -407,6 +407,32 @@ function TabDiagnostico() {
     }
   }
 
+  // Visão consolidada de todas as telas físicas de todos os clientes —
+  // útil principalmente quando há mais de 1 cliente com múltiplas telas.
+  const [allScreens, setAllScreens] = useState<any[]>([])
+  const [loadingScreens, setLoadingScreens] = useState(true)
+  const [removingScreen, setRemovingScreen] = useState<string | null>(null)
+
+  const loadScreens = () => {
+    setLoadingScreens(true)
+    fetch("/api/admin/screens")
+      .then(r => r.json())
+      .then(d => setAllScreens(d.screens ?? []))
+      .catch(() => setAllScreens([]))
+      .finally(() => setLoadingScreens(false))
+  }
+  useEffect(() => { loadScreens() }, [])
+
+  const removeScreen = async (screenId: string, label: string) => {
+    if (!confirm(`Desvincular "${label}" do cliente? O aparelho não é apagado, só deixa de ser uma tela ativa — pode ser pareado de novo depois.`)) return
+    setRemovingScreen(screenId)
+    try {
+      await fetch(`/api/admin/screens/${screenId}`, { method: "DELETE" })
+      loadScreens()
+    } catch {}
+    setRemovingScreen(null)
+  }
+
   const search = async () => {
     if (!code.trim()) return
     setLoading(true); setError(""); setResult(null)
@@ -470,6 +496,42 @@ function TabDiagnostico() {
               {linkMsg[p.id] && (
                 <span style={{ fontSize: 12, color: linkMsg[p.id].startsWith("✅") ? GREEN : RED }}>{linkMsg[p.id]}</span>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 24, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📺 Todas as Telas ({allScreens.length})</div>
+        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+          Telas físicas pareadas em todos os clientes — renomeie ou desvincule sem precisar de SQL manual.
+        </div>
+      </div>
+
+      {loadingScreens ? (
+        <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Carregando…</div>
+      ) : allScreens.length === 0 ? (
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2, marginBottom: 32 }}>
+          Nenhuma tela pareada ainda.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>
+          {allScreens.map((s: any) => (
+            <div key={s.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 220px" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{s.label || s.device_type} <span style={{ fontWeight: 400, color: TEXT2 }}>· {s.client_name} ({s.client_code})</span></div>
+                <div style={{ fontSize: 11, color: TEXT2 }}>{s.device_type} · {s.platform} · {s.same_content ? "Mesma playlist" : "Conteúdo próprio"}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: s.online ? GREEN + "18" : RED + "18", color: s.online ? GREEN : RED }}>
+                {s.online ? "Online" : "Offline"}
+              </span>
+              <button
+                onClick={() => removeScreen(s.id, s.label || s.device_type)}
+                disabled={removingScreen === s.id}
+                style={{ fontSize: 11, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "5px 10px", cursor: removingScreen === s.id ? "not-allowed" : "pointer" }}
+              >
+                {removingScreen === s.id ? "Removendo…" : "Desvincular"}
+              </button>
             </div>
           ))}
         </div>
