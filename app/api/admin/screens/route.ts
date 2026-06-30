@@ -22,10 +22,16 @@ export async function GET(req: NextRequest) {
         cs.id, cs.client_code, sc.name AS client_name,
         cs.label, cs.same_content, cs.group_id,
         p.id AS player_id, p.device_type, p.platform, p.last_ping,
-        CASE WHEN p.last_ping > NOW() - INTERVAL '3 minutes' THEN true ELSE false END AS online
+        CASE WHEN p.last_ping > NOW() - INTERVAL '3 minutes' THEN true ELSE false END AS online,
+        (COALESCE(up.days_total, 0) >= 14 AND COALESCE(up.days_present, 0)::float / NULLIF(up.days_total, 0) >= 0.9) AS verified
       FROM client_screens cs
       JOIN studio_clients sc ON sc.code = cs.client_code
       JOIN players p ON p.id = cs.player_id
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS days_present, (CURRENT_DATE - MIN(day) + 1) AS days_total
+        FROM player_uptime_daily
+        WHERE player_id = p.id AND day > CURRENT_DATE - INTERVAL '30 days'
+      ) up ON true
       ORDER BY sc.name ASC, cs.created_at ASC
     `)
     return NextResponse.json({ screens: rows })
