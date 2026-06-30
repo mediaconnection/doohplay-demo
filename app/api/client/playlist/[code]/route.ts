@@ -10,8 +10,27 @@ export async function GET(
 ) {
   const { code } = await params
   const upperCode = code.toUpperCase()
+  const playerId = req.nextUrl.searchParams.get("player_id")
   const pool = getPool()
   try {
+    // Conteúdo diferente por tela física (V1, 30/06/2026) — retrocompatível:
+    // sem player_id na query, ou tela com same_content=true (padrão), tudo
+    // funciona exatamente como antes. Só quando o dono explicitamente marca
+    // uma tela como same_content=false é que a playlist passa a filtrar só
+    // mídia atribuída àquela tela (playlist_schedule.screen_id).
+    let screenId: string | null = null
+    let sameContent = true
+    if (playerId) {
+      const screenRes = await pool.query(
+        `SELECT id, same_content FROM client_screens WHERE player_id = $1 LIMIT 1`,
+        [playerId]
+      )
+      if (screenRes.rows[0]) {
+        screenId = screenRes.rows[0].id
+        sameContent = screenRes.rows[0].same_content
+      }
+    }
+
     // ── Dono + Anunciante (CampaignMedia, distinguidos por content_source) ──
     // Mantém o agendamento (playlist_schedule) que o dono configura no dashboard.
     const ownAndAdsQuery = pool.query(`
@@ -31,14 +50,16 @@ export async function GET(
         ps.start_time::text,
         ps.end_time::text,
         ps.start_date::text,
-        ps.end_date::text
+        ps.end_date::text,
+        ps.screen_id
       FROM "CampaignMedia" cm
       JOIN "Campaign" c ON c.id = cm."campaignId"
       LEFT JOIN playlist_schedule ps
         ON ps.media_id = cm.id AND ps.client_code = $1
       WHERE c."advertiserCode" = $1
+        AND ($2::boolean OR ps.screen_id = $3::uuid)
       ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
-    `, [upperCode])
+    `, [upperCode, sameContent, screenId])
 
     // ── Rede (Clube de Telas) — mídias de parceiros distribuídas para esta tela ──
     const networkQuery = pool.query(`
