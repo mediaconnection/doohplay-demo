@@ -25,10 +25,11 @@ export async function POST(req: NextRequest) {
     }
 
     const result = playerId
-      ? await pool.query(`UPDATE players SET last_ping = NOW() WHERE id = $1`, [playerId])
+      ? await pool.query(`UPDATE players SET last_ping = NOW() WHERE id = $1 RETURNING id`, [playerId])
       : await pool.query(
           `UPDATE players SET last_ping = NOW()
-           WHERE id = (SELECT player_id FROM studio_clients WHERE UPPER(code) = UPPER($1) LIMIT 1)`,
+           WHERE id = (SELECT player_id FROM studio_clients WHERE UPPER(code) = UPPER($1) LIMIT 1)
+           RETURNING id`,
           [code]
         )
 
@@ -38,6 +39,26 @@ export async function POST(req: NextRequest) {
     if (result.rowCount === 0) {
       console.warn(`[heartbeat] nenhuma linha atualizada para code=${code} player_id=${playerId} — identificador ausente ou inválido`)
       return Response.json({ ok: false, warning: "player não encontrado para este identificador" }, { status: 200 })
+    }
+
+    // Histórico de uptime diário (30/06/2026) — base pro selo "Tela
+    // Verificada". Tabela própria e isolada (player_uptime_daily), não usa
+    // player_heartbeats (compartilhada com a frente de prova/blockchain).
+    // Falha aqui nunca derruba o heartbeat principal (só loga, não lança).
+    const resolvedPlayerId = result.rows[0]?.id
+    if (resolvedPlayerId) {
+      try {
+        await pool.query(
+          `INSERT INTO player_uptime_daily (player_id, day, first_seen_at, last_seen_at, ping_count)
+           VALUES ($1, CURRENT_DATE, NOW(), NOW(), 1)
+           ON CONFLICT (player_id, day) DO UPDATE SET
+             last_seen_at = NOW(),
+             ping_count = player_uptime_daily.ping_count + 1`,
+          [resolvedPlayerId]
+        )
+      } catch (err: any) {
+        console.error("[heartbeat] falha ao registrar uptime diário (não bloqueante):", err.message)
+      }
     }
 
     return Response.json({ ok: true, ts: new Date().toISOString() })
