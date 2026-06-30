@@ -10,20 +10,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     // ✅ aceita tanto "code" (APK) quanto "screen_code" (player web)
     const code = body.code ?? body.screen_code
-    if (!code) return Response.json({ error: "code obrigatório" }, { status: 400 })
+    // ✅ player_id explícito (novo, 30/06/2026) — resolve o bug de
+    // identidade com múltiplos aparelhos no mesmo código: antes, o
+    // UPDATE sempre ia pro player_id fixo em studio_clients, então com
+    // 2+ telas pareadas no mesmo cliente só a última pareada ficava
+    // "online" — as outras pareciam offline mesmo enviando heartbeat
+    // real. Quando o app manda seu próprio player_id (sabido desde a
+    // ativação), atualizamos ele diretamente, sem depender do lookup
+    // por código. Mantemos o fallback por code pra apps antigos.
+    const playerId = body.player_id
 
-    const result = await pool.query(
-      `UPDATE players SET last_ping = NOW()
-       WHERE id = (SELECT player_id FROM studio_clients WHERE UPPER(code) = UPPER($1) LIMIT 1)`,
-      [code]
-    )
+    if (!code && !playerId) {
+      return Response.json({ error: "code ou player_id obrigatório" }, { status: 400 })
+    }
+
+    const result = playerId
+      ? await pool.query(`UPDATE players SET last_ping = NOW() WHERE id = $1`, [playerId])
+      : await pool.query(
+          `UPDATE players SET last_ping = NOW()
+           WHERE id = (SELECT player_id FROM studio_clients WHERE UPPER(code) = UPPER($1) LIMIT 1)`,
+          [code]
+        )
 
     // Antes, isso retornava {ok:true} mesmo se nenhuma linha fosse
     // atualizada (player_id nulo, ou players sem registro correspondente)
     // — escondia silenciosamente um cliente sem heartbeat de verdade.
     if (result.rowCount === 0) {
-      console.warn(`[heartbeat] nenhuma linha atualizada para code=${code} — player_id ausente ou inválido em studio_clients`)
-      return Response.json({ ok: false, warning: "player_id não encontrado ou inválido para este código" }, { status: 200 })
+      console.warn(`[heartbeat] nenhuma linha atualizada para code=${code} player_id=${playerId} — identificador ausente ou inválido`)
+      return Response.json({ ok: false, warning: "player não encontrado para este identificador" }, { status: 200 })
     }
 
     return Response.json({ ok: true, ts: new Date().toISOString() })
