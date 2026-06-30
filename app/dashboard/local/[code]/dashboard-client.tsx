@@ -640,6 +640,42 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
   }, [client.code])
   const hasCustomScreens = screens.length > 1 && screens.some((s: any) => !s.same_content)
 
+  // Galeria de Exemplos — biblioteca de mídia pronta por segmento, pro
+  // cliente que não sabe criar conteúdo próprio ter algo profissional no
+  // ar rapidamente (existia o backend pronto, nunca tinha UI consumindo).
+  const [examples, setExamples] = useState<any[]>([])
+  const [loadingExamples, setLoadingExamples] = useState(true)
+  const [activatingExample, setActivatingExample] = useState<string | null>(null)
+  const slugNiche = (client.business_type || "generico").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-")
+
+  useEffect(() => {
+    fetch(`/api/media-examples?niche=${encodeURIComponent(slugNiche)}`)
+      .then(r => r.json())
+      .then(d => setExamples(d.examples ?? []))
+      .catch(() => setExamples([]))
+      .finally(() => setLoadingExamples(false))
+  }, [slugNiche])
+
+  const activateExample = async (exampleId: string) => {
+    setActivatingExample(exampleId)
+    try {
+      const res = await fetch(`/api/client/media-examples/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: client.code, exampleIds: [exampleId] }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Erro ao ativar exemplo")
+      setToast("✓ Adicionado à sua tela!")
+      setTimeout(() => setToast(""), 2500)
+      onRefresh?.()
+    } catch (err: any) {
+      setToast("⚠️ " + (err.message || "Erro ao ativar exemplo"))
+      setTimeout(() => setToast(""), 4000)
+    }
+    setActivatingExample(null)
+  }
+
   const assignScreen = async (mediaId: string, screenId: string | null) => {
     setSavingMedia(mediaId)
     try {
@@ -703,6 +739,39 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
         <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Enviar mídia</button>
       </div>
+
+      {!loadingExamples && examples.length > 0 && (
+        <div style={{ background: realItems.length === 0 ? C.blueLt : C.white, border: `1px solid ${realItems.length === 0 ? C.blueBd : C.border}`, borderRadius: 12, padding: "16px", marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>📚 Galeria de Exemplos</div>
+          <div style={{ fontSize: 12, color: C.text3, marginBottom: 12 }}>
+            {realItems.length === 0
+              ? "Ainda não tem nada na sua tela? Use um destes modelos prontos pra começar agora mesmo — depois é só trocar pelo seu conteúdo quando quiser."
+              : "Modelos prontos pro seu segmento, prontos pra usar direto na sua tela."}
+          </div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+            {examples.map((ex: any) => (
+              <div key={ex.id} style={{ flexShrink: 0, width: 140, background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ height: 80, background: C.gray100 }}>
+                  {ex.type === "video"
+                    ? <video src={ex.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
+                    : <img src={ex.url} alt={ex.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                </div>
+                <div style={{ padding: "8px 10px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                  <button
+                    onClick={() => activateExample(ex.id)}
+                    disabled={activatingExample === ex.id}
+                    style={{ width: "100%", fontSize: 11, fontWeight: 600, padding: "5px", borderRadius: 6, border: "none", background: C.blue, color: C.white, cursor: activatingExample === ex.id ? "not-allowed" : "pointer" }}
+                  >
+                    {activatingExample === ex.id ? "Adicionando…" : "Usar este"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="db-content-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16, marginBottom: 16 }}>
         {realItems.length > 0 ? realItems.map((item, i) => {
           const name = nameFor(item, i)
