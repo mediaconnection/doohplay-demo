@@ -192,13 +192,15 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
 
     // Garante que o Chrome está instalado — no Render o cache não persiste
     // entre deploys, então verificamos se o binário existe antes de usar.
-    const { executablePath, install } = await import("puppeteer")
-    const chromePath = (() => { try { return executablePath() } catch { return null } })()
+    // install() não é export nomeado no Puppeteer v24, usando CLI como fallback.
+    const { executablePath } = await import("puppeteer")
     const fs = await import("fs")
+    const { execSync } = await import("child_process")
+    const chromePath = (() => { try { return executablePath() } catch { return null } })()
     if (!chromePath || !fs.existsSync(chromePath)) {
       console.log("[generate-creative] Chrome não encontrado, instalando…")
-      await install()
-      console.log("[generate-creative] Chrome instalado em:", executablePath())
+      execSync("node node_modules/puppeteer/lib/cjs/puppeteer/node/install.js", { stdio: "inherit", cwd: process.cwd() })
+      console.log("[generate-creative] Chrome instalado")
     }
 
     const browser = await puppeteer.launch({ args: ["--no-sandbox", "--disable-setuid-sandbox"] })
