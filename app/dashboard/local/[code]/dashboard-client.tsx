@@ -199,13 +199,18 @@ function PlaylistThumb({ item, name }: { item: PlaylistItem; name: string }) {
   return <div style={{ height: 140, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 40 }}>{isVideo ? "🎬" : "🖼"}</span></div>
 }
 
-function ModalPromocao({ code, onClose }: { code: string; onClose: () => void }) {
+function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: () => void; onRefresh?: () => void }) {
   // Limites espelhando exatamente SIZE_LIMITS em app/api/studio/upload/route.ts
-  // — antes essa tela mostrava "Máx. 50MB" pros dois tipos, mas o backend
-  // sempre aceitou até 10MB pra imagem e 100MB pra vídeo. A mensagem errada
-  // rejeitava no front arquivos que o backend teria aceitado.
   const MAX_SIZE_MB_IMAGE = 10
   const MAX_SIZE_MB_VIDEO = 100
+  const [mode, setMode]       = useState<"upload" | "ia">("upload")
+  // ── Modo IA ──
+  const [product, setProduct] = useState("")
+  const [price, setPrice]     = useState("")
+  const [detail, setDetail]   = useState("")
+  const [generating, setGenerating] = useState(false)
+  const [generated, setGenerated]   = useState<{ title: string; subtitle: string; cta: string; url: string } | null>(null)
+  // ── Modo upload ──
   const [nome, setNome]       = useState("")
   const [duracao, setDuracao] = useState("15")
   const [file, setFile]       = useState<File | null>(null)
@@ -214,6 +219,23 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
   const [success, setSuccess] = useState(false)
   const [error, setError]     = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleGenerate = async () => {
+    if (!product.trim()) { setError("Informe o produto ou serviço"); return }
+    setGenerating(true); setError("")
+    try {
+      const res = await fetch("/api/client/generate-creative", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, product, price, detail }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao gerar criativo")
+      setGenerated({ ...data.copy, url: data.url })
+      onRefresh?.()
+    } catch (err: any) { setError(err.message || "Erro ao gerar criativo") }
+    setGenerating(false)
+  }
 
   const fmtSize = (bytes: number) => {
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
@@ -276,50 +298,102 @@ function ModalPromocao({ code, onClose }: { code: string; onClose: () => void })
         <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Enviar conteúdo para sua tela</div>
-            <div style={{ fontSize: 12, color: C.text3 }}>Será revisado pela equipe antes de ir ao ar</div>
+            <div style={{ fontSize: 12, color: C.text3 }}>Envie um arquivo ou gere um criativo com IA</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.text3, lineHeight: 1 }}>×</button>
         </div>
+
+        {/* Seletor de modo */}
+        <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, padding: "0 24px" }}>
+          {([{ id: "ia", label: "✨ Gerar com IA" }, { id: "upload", label: "📁 Enviar arquivo" }] as const).map(m => (
+            <button key={m.id} onClick={() => { setMode(m.id); setError("") }} style={{ padding: "12px 20px", fontSize: 13, fontWeight: mode === m.id ? 700 : 400, color: mode === m.id ? C.blue : C.text2, background: "none", border: "none", borderBottom: `2px solid ${mode === m.id ? C.blue : "transparent"}`, cursor: "pointer", marginBottom: -1 }}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+
         <div style={{ padding: "20px 24px" }}>
-          {success ? (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>Enviado com sucesso!</div>
-              <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>Sua promoção está em análise. Em breve você receberá uma confirmação pelo WhatsApp.</div>
-              <button onClick={onClose} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
-            </div>
+          {mode === "ia" ? (
+            generated ? (
+              <div style={{ textAlign: "center", padding: "12px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>Criativo gerado com sucesso!</div>
+                <div style={{ background: C.gray50, borderRadius: 10, padding: 14, marginBottom: 16, textAlign: "left" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{generated.title}</div>
+                  <div style={{ fontSize: 12, color: C.text2 }}>{generated.subtitle}</div>
+                  <div style={{ fontSize: 11, color: C.blue, marginTop: 4 }}>CTA: {generated.cta}</div>
+                </div>
+                <img src={generated.url} alt="criativo gerado" style={{ width: "100%", borderRadius: 8, marginBottom: 16 }} />
+                <div style={{ fontSize: 12, color: C.text3, marginBottom: 16 }}>Adicionado à sua playlist — em análise antes de ir ao ar.</div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setGenerated(null)} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, color: C.text2, cursor: "pointer" }}>Gerar outro</button>
+                  <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>O que você quer divulgar? *</label>
+                  <input value={product} onChange={e => setProduct(e.target.value)} placeholder="Ex: Corte + Barba, Combo do Dia, Promoção de Aniversário…" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
+                </div>
+                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Preço (opcional)</label>
+                    <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Ex: R$ 45" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Detalhe (opcional)</label>
+                    <input value={detail} onChange={e => setDetail(e.target.value)} placeholder="Ex: Válido essa semana" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
+                  </div>
+                </div>
+                {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
+                <button onClick={handleGenerate} disabled={generating} style={{ width: "100%", padding: "13px", borderRadius: 8, border: "none", background: generating ? C.gray300 : C.blue, color: C.white, fontSize: 14, fontWeight: 700, cursor: generating ? "not-allowed" : "pointer" }}>
+                  {generating ? "Gerando criativo com IA… (pode levar até 30s)" : "✨ Gerar criativo agora"}
+                </button>
+                <div style={{ fontSize: 11, color: C.text3, marginTop: 10, textAlign: "center" }}>A IA cria o texto e o layout. A peça ainda passa pela revisão da equipe antes de ir ao ar.</div>
+              </>
+            )
           ) : (
-            <>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Nome da promoção *</label>
-                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Combo do Dia…" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
+            success ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>Enviado com sucesso!</div>
+                <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>Sua promoção está em análise. Em breve você receberá uma confirmação pelo WhatsApp.</div>
+                <button onClick={onClose} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Duração em tela</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["10", "15", "20", "30"].map(s => (
-                    <button key={s} onClick={() => setDuracao(s)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", background: duracao === s ? C.blue : C.gray50, color: duracao === s ? C.white : C.text2, border: `1px solid ${duracao === s ? C.blue : C.border}` }}>{s}s</button>
-                  ))}
+            ) : (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Nome da promoção *</label>
+                  <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Combo do Dia…" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
                 </div>
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Arquivo *</label>
-                <div onDrop={handleDrop} onDragOver={e => e.preventDefault()} onClick={() => inputRef.current?.click()} style={{ border: `2px dashed ${file ? C.green : C.border}`, borderRadius: 10, padding: "20px", textAlign: "center", cursor: "pointer", background: file ? C.greenLt : C.gray50 }}>
-                  {preview ? (
-                    file?.type.startsWith("video") ? <video src={preview} style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6 }} controls /> : <img src={preview} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6, objectFit: "cover" }} />
-                  ) : (
-                    <><div style={{ fontSize: 28, marginBottom: 8 }}>📁</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>Clique ou arraste o arquivo</div><div style={{ fontSize: 11, color: C.text3 }}>Imagem (JPG, PNG, máx. {MAX_SIZE_MB_IMAGE}MB) ou Vídeo (MP4, máx. {MAX_SIZE_MB_VIDEO}MB)</div></>
-                  )}
-                  <input ref={inputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Duração em tela</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["10", "15", "20", "30"].map(s => (
+                      <button key={s} onClick={() => setDuracao(s)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", background: duracao === s ? C.blue : C.gray50, color: duracao === s ? C.white : C.text2, border: `1px solid ${duracao === s ? C.blue : C.border}` }}>{s}s</button>
+                    ))}
+                  </div>
                 </div>
-                {file && <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name} ({fmtSize(file.size)})</div>}
-              </div>
-              {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>Cancelar</button>
-                <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "11px", borderRadius: 8, border: "none", background: loading ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>{loading ? "Enviando…" : "Enviar para aprovação →"}</button>
-              </div>
-            </>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Arquivo *</label>
+                  <div onDrop={handleDrop} onDragOver={e => e.preventDefault()} onClick={() => inputRef.current?.click()} style={{ border: `2px dashed ${file ? C.green : C.border}`, borderRadius: 10, padding: "20px", textAlign: "center", cursor: "pointer", background: file ? C.greenLt : C.gray50 }}>
+                    {preview ? (
+                      file?.type.startsWith("video") ? <video src={preview} style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6 }} controls /> : <img src={preview} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 6, objectFit: "cover" }} />
+                    ) : (
+                      <><div style={{ fontSize: 28, marginBottom: 8 }}>📁</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>Clique ou arraste o arquivo</div><div style={{ fontSize: 11, color: C.text3 }}>Imagem (JPG, PNG, máx. {MAX_SIZE_MB_IMAGE}MB) ou Vídeo (MP4, máx. {MAX_SIZE_MB_VIDEO}MB)</div></>
+                    )}
+                    <input ref={inputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                  </div>
+                  {file && <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name} ({fmtSize(file.size)})</div>}
+                </div>
+                {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>Cancelar</button>
+                  <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "11px", borderRadius: 8, border: "none", background: loading ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>{loading ? "Enviando…" : "Enviar para aprovação →"}</button>
+                </div>
+              </>
+            )
           )}
         </div>
       </div>
@@ -1775,7 +1849,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
         }
       `}</style>
 
-      {showModal && <ModalPromocao code={client.code} onClose={() => setShowModal(false)} />}
+      {showModal && <ModalPromocao code={client.code} onClose={() => setShowModal(false)} onRefresh={onRefresh} />}
 
       {drawerOpen && (
         <div onClick={() => setDrawerOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200 }}>
