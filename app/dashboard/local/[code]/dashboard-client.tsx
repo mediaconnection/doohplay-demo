@@ -220,15 +220,19 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
   const [error, setError]     = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const [photo, setPhoto] = useState<File | null>(null)
+
   const handleGenerate = async () => {
     if (!product.trim()) { setError("Informe o produto ou serviço"); return }
     setGenerating(true); setError("")
     try {
-      const res = await fetch("/api/client/generate-creative", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, product, price, detail }),
-      })
+      const form = new FormData()
+      form.append("code", code)
+      form.append("product", product)
+      form.append("price", price)
+      form.append("detail", detail)
+      if (photo) form.append("photo", photo)
+      const res = await fetch("/api/client/generate-creative", { method: "POST", body: form })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao gerar criativo")
       setGenerated({ ...data.copy, url: data.url })
@@ -347,6 +351,20 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
                   </div>
                 </div>
                 {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Foto do produto/espaço (opcional)</label>
+                  <div onClick={() => document.getElementById("photo-input-ia")?.click()} style={{ border: `2px dashed ${photo ? C.green : C.border}`, borderRadius: 10, padding: "14px", textAlign: "center", cursor: "pointer", background: photo ? C.greenLt : C.gray50 }}>
+                    {photo ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                        <img src={URL.createObjectURL(photo)} alt="preview" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6 }} />
+                        <span style={{ fontSize: 12, color: C.green, fontWeight: 600 }}>✓ {photo.name}</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: C.text3 }}>📷 Clique pra adicionar uma foto — ela entra no layout do criativo</div>
+                    )}
+                  </div>
+                  <input id="photo-input-ia" type="file" accept="image/*" style={{ display: "none" }} onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
+                </div>
                 <button onClick={handleGenerate} disabled={generating} style={{ width: "100%", padding: "13px", borderRadius: 8, border: "none", background: generating ? C.gray300 : C.blue, color: C.white, fontSize: 14, fontWeight: 700, cursor: generating ? "not-allowed" : "pointer" }}>
                   {generating ? "Gerando criativo com IA… (pode levar até 30s)" : "✨ Gerar criativo agora"}
                 </button>
