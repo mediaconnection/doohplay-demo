@@ -129,20 +129,29 @@ export default async function DashboardPage({
       }
     } catch {}
 
-    // Revenue via subscriptions
+    // Revenue real de anúncios de terceiros — soma de pagamentos confirmados
+    // no mês corrente via proof_of_play + campanhas pagas. Enquanto não há
+    // anunciantes reais, retorna 0 corretamente (antes buscava o valor da
+    // assinatura, que induzia o cliente a erro).
     try {
       const revRes = await pool.query(
-        `SELECT value::float AS revenue_month
-         FROM client_subscriptions
-         WHERE code = $1 AND status = 'ACTIVE'
-         LIMIT 1`,
+        `SELECT COALESCE(SUM(cp.amount), 0)::float AS revenue_month
+         FROM campaign_payments cp
+         JOIN "Campaign" c ON c.id = cp.campaign_id
+         WHERE c."advertiserCode" = $1
+           AND cp.status = 'confirmed'
+           AND cp.paid_at >= date_trunc('month', NOW())`,
         [code]
       )
       if (revRes.rows[0]) {
         stats.revenue_month = revRes.rows[0].revenue_month ?? 0
         stats.revenue_today = Math.round((stats.revenue_month / 30) * 100) / 100
       }
-    } catch {}
+    } catch {
+      // tabela campaign_payments pode não existir ainda — mantém zero
+      stats.revenue_month = 0
+      stats.revenue_today = 0
+    }
   }
 
   // 4. Playlist — lê de CampaignMedia (onde o upload realmente salva)
