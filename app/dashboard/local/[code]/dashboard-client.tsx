@@ -582,10 +582,16 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   // aparece visualmente quando há 2+ telas, pra não poluir o caso comum.
   const [screens, setScreens] = useState<any[]>([]);
   const [savingScreen, setSavingScreen] = useState<string | null>(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const loadScreens = () => {
     fetch(`/api/client/screens/${client.code}`)
       .then(r => r.json())
-      .then(d => setScreens(d.screens ?? []))
+      .then(d => {
+        setScreens(d.screens ?? [])
+        if (!selectedPlayerId && d.screens?.length > 0) {
+          setSelectedPlayerId(d.screens[0].player_id)
+        }
+      })
       .catch(() => setScreens([]));
   };
   useEffect(() => { loadScreens() }, [client.code]);
@@ -657,6 +663,26 @@ function TabTV({ client, player, playlist, online, checking }: any) {
         </div>
       )}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+        {screens.length > 1 && (
+          <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: C.text2, fontWeight: 600 }}>Visualizando:</span>
+            {screens.map((s: any) => (
+              <button
+                key={s.player_id}
+                onClick={() => setSelectedPlayerId(s.player_id)}
+                style={{
+                  fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 20, cursor: "pointer",
+                  background: selectedPlayerId === s.player_id ? C.blue : C.gray50,
+                  color: selectedPlayerId === s.player_id ? C.white : C.text2,
+                  border: `1px solid ${selectedPlayerId === s.player_id ? C.blue : C.border}`,
+                }}
+              >
+                {s.label || s.device_type}
+                <span style={{ marginLeft: 5, width: 6, height: 6, borderRadius: "50%", background: s.online ? C.green : C.red, display: "inline-block", verticalAlign: "middle" }} />
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ background: "#0F172A", display: "flex", justifyContent: "center", padding: isPortrait ? "16px 0" : 0 }}>
           <div style={{
             position: "relative", overflow: "hidden",
@@ -666,7 +692,8 @@ function TabTV({ client, player, playlist, online, checking }: any) {
           }}>
             {client?.code ? (
               <iframe
-                src={`/player?screen=${client.code}&preview=1`}
+                key={selectedPlayerId || client.code}
+                src={`/player?screen=${client.code}&preview=1${selectedPlayerId ? `&player_id=${selectedPlayerId}` : ""}`}
                 title="Preview da TV"
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", pointerEvents: "none" }}
                 sandbox="allow-scripts allow-same-origin"
