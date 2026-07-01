@@ -1156,13 +1156,16 @@ function TabInstitucional() {
           <div>
             <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Duração</label>
             <select value={duration} onChange={e => setDuration(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
-              {[10, 15, 20, 30].map(d => <option key={d} value={d}>{d}s</option>)}
+              {[10, 15, 20, 30, 60, 90, 120, 180].map(d => <option key={d} value={d}>{d < 60 ? `${d}s` : `${d / 60}min`}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Posição (ordem)</label>
             <input type="number" value={position} onChange={e => setPosition(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
           </div>
+        </div>
+        <div style={{ fontSize: 11, color: TEXT2, marginTop: -6, marginBottom: 12 }}>
+          Vídeos institucionais de até 3min são permitidos (exceção à regra geral de duração — este conteúdo ocupa só ≈10% do sorteio ponderado, então o impacto em inventário é menor).
         </div>
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
