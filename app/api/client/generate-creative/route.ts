@@ -208,10 +208,10 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
     const url = `${PUBLIC_URL}/${key}`
 
     // Insere como CampaignMedia normal — mesmo fluxo de qualquer mídia do dono
+    // Busca a campanha ativa do cliente — usa advertiserCode (campo real do schema,
+    // confirmado na rota de playlist). Não precisa de JOIN com Advertiser.
     const campaignRes = await pool.query(
-      `SELECT c.id FROM "Campaign" c
-       JOIN "Advertiser" a ON a.id = c."advertiserId"
-       WHERE a.code = $1 AND c.status = 'active' LIMIT 1`,
+      `SELECT id FROM "Campaign" WHERE "advertiserCode" = $1 AND status = 'active' LIMIT 1`,
       [code.toUpperCase()]
     )
     if (!campaignRes.rows[0]) {
