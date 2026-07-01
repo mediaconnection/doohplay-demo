@@ -970,31 +970,73 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
 function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
   const [ads, setAds] = useState<any[]>([])
   const [loadingAds, setLoadingAds] = useState(true)
+  const [account, setAccount] = useState<any>(null)
+  const [payouts, setPayouts] = useState<any[]>([])
+  const [pendingTotal, setPendingTotal] = useState(0)
+  const [paidTotal, setPaidTotal] = useState(0)
+  const [showBankForm, setShowBankForm] = useState(false)
+  const [savingBank, setSavingBank] = useState(false)
+  const [bankForm, setBankForm] = useState({ pix_key_type: "pix_key_type", pix_key: "", bank_name: "", account_name: "" })
+  const [bankMsg, setBankMsg] = useState("")
 
   useEffect(() => {
     fetch(`/api/client/ads/${code}`)
-      .then(r => r.json())
-      .then(d => setAds(d.ads ?? []))
-      .catch(() => setAds([]))
+      .then(r => r.json()).then(d => setAds(d.ads ?? [])).catch(() => setAds([]))
       .finally(() => setLoadingAds(false))
+    fetch(`/api/client/bank-account?code=${code}`)
+      .then(r => r.json()).then(d => { if (d.account) setAccount(d.account) }).catch(() => {})
+    fetch(`/api/client/payouts?code=${code}`)
+      .then(r => r.json()).then(d => { setPayouts(d.payouts ?? []); setPendingTotal(d.pending ?? 0); setPaidTotal(d.paid ?? 0) }).catch(() => {})
   }, [code])
+
+  const saveBank = async () => {
+    if (!bankForm.pix_key || !bankForm.account_name || bankForm.pix_key_type === "pix_key_type") {
+      setBankMsg("Preencha todos os campos obrigatórios."); return
+    }
+    setSavingBank(true); setBankMsg("")
+    try {
+      const res = await fetch("/api/client/bank-account", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, ...bankForm }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setAccount(data.account); setShowBankForm(false)
+      setBankMsg("✓ Dados salvos com sucesso!")
+    } catch (e: any) { setBankMsg("⚠️ " + e.message) }
+    setSavingBank(false)
+  }
+
+  const statusLabel: Record<string, string> = { pending: "Pendente", processing: "Processando", paid: "Pago", failed: "Falhou" }
+  const statusColor: Record<string, string> = { pending: C.text2, processing: C.blue, paid: C.green, failed: C.red }
+
   return (
     <div>
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div><div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Receita este mês</div><div style={{ fontSize: 11, color: C.text3 }}>Anúncios pagos por terceiros confirmados</div></div>
-          <div style={{ textAlign: "right" }}><div style={{ fontSize: 22, fontWeight: 700, color: C.green }}>{fmtR(stats.revenue_month || 0)}</div></div>
+      {/* KPI: receita de anúncios do mês */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Receita de anúncios este mês</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.green }}>{fmtR(stats.revenue_month || 0)}</div>
+          <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>Anúncios pagos por terceiros</div>
+        </div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Seu repasse (40%)</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: pendingTotal > 0 ? C.blue : C.text2 }}>{fmtR(pendingTotal + paidTotal)}</div>
+          <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>{fmtR(pendingTotal)} pendente · {fmtR(paidTotal)} pago</div>
         </div>
       </div>
+
+      {/* Anúncios de terceiros rodando */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}` }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Anúncios de terceiros na sua tela</div>
+          <div style={{ fontSize: 11, color: C.text3 }}>Você recebe 40% de cada campanha exibida</div>
         </div>
         {loadingAds ? (
           <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>Carregando…</div>
         ) : ads.length === 0 ? (
           <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>
-            Nenhum anunciante rodando na sua tela ainda. Fale com a DOOHPLAY pra começar a receber anúncios pagos.
+            Nenhum anunciante rodando ainda. A DOOHPLAY está prospectando anunciantes pra sua região.
           </div>
         ) : ads.map((ad, i) => (
           <div key={ad.campaign_id ?? i} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < ads.length - 1 ? `1px solid ${C.border2}` : "none" }}>
@@ -1003,12 +1045,93 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
               <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ad.advertiser_name ?? ad.campaign_name}</div>
               <div style={{ fontSize: 11, color: C.text3 }}>{ad.campaign_name} · {Number(ad.views ?? 0).toLocaleString("pt-BR")} exibições</div>
             </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: ad.status === "Ativo" ? C.greenLt : C.gray100, color: ad.status === "Ativo" ? C.green : C.text3 }}>{ad.status}</span>
-            </div>
+            <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: ad.status === "Ativo" ? C.greenLt : C.gray100, color: ad.status === "Ativo" ? C.green : C.text3 }}>{ad.status}</span>
           </div>
         ))}
       </div>
+
+      {/* Dados bancários / Pix */}
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Dados para recebimento</div>
+            <div style={{ fontSize: 11, color: C.text3 }}>Chave Pix pra onde enviamos seu repasse</div>
+          </div>
+          <button onClick={() => { setShowBankForm(!showBankForm); if (account) setBankForm({ pix_key_type: account.pix_key_type, pix_key: account.pix_key, bank_name: account.bank_name || "", account_name: account.account_name }) }} style={{ fontSize: 12, color: C.blue, background: "none", border: `1px solid ${C.blue}`, borderRadius: 6, padding: "5px 12px", cursor: "pointer" }}>
+            {account ? "Editar" : "+ Cadastrar"}
+          </button>
+        </div>
+        {account && !showBankForm ? (
+          <div style={{ padding: "14px 18px" }}>
+            <div style={{ fontSize: 13, color: C.text }}>{account.account_name}</div>
+            <div style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>{account.pix_key_type.toUpperCase()} · {account.pix_key}</div>
+            {account.bank_name && <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>{account.bank_name}</div>}
+          </div>
+        ) : !showBankForm ? (
+          <div style={{ padding: "16px 18px", textAlign: "center", fontSize: 13, color: C.text3 }}>
+            Cadastre sua chave Pix pra começar a receber seus repasses automaticamente.
+          </div>
+        ) : null}
+        {showBankForm && (
+          <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.text2, display: "block", marginBottom: 4 }}>Tipo de chave Pix *</label>
+              <select value={bankForm.pix_key_type} onChange={e => setBankForm(f => ({ ...f, pix_key_type: e.target.value }))} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 13, color: C.text }}>
+                <option value="pix_key_type">Selecione…</option>
+                <option value="cpf">CPF</option>
+                <option value="cnpj">CNPJ</option>
+                <option value="email">E-mail</option>
+                <option value="telefone">Telefone</option>
+                <option value="aleatoria">Chave aleatória</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.text2, display: "block", marginBottom: 4 }}>Chave Pix *</label>
+              <input value={bankForm.pix_key} onChange={e => setBankForm(f => ({ ...f, pix_key: e.target.value }))} placeholder="Digite sua chave Pix" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 13, color: C.text }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.text2, display: "block", marginBottom: 4 }}>Nome do titular *</label>
+              <input value={bankForm.account_name} onChange={e => setBankForm(f => ({ ...f, account_name: e.target.value }))} placeholder="Nome completo ou razão social" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 13, color: C.text }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.text2, display: "block", marginBottom: 4 }}>Banco (opcional)</label>
+              <input value={bankForm.bank_name} onChange={e => setBankForm(f => ({ ...f, bank_name: e.target.value }))} placeholder="Ex: Nubank, Itaú, Bradesco…" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 13, color: C.text }} />
+            </div>
+            {bankMsg && <div style={{ fontSize: 12, color: bankMsg.startsWith("✓") ? C.green : C.red }}>{bankMsg}</div>}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowBankForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, color: C.text2, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={saveBank} disabled={savingBank} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: savingBank ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: savingBank ? "not-allowed" : "pointer" }}>{savingBank ? "Salvando…" : "Salvar dados"}</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Extrato de repasses */}
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}` }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Histórico de repasses</div>
+          <div style={{ fontSize: 11, color: C.text3 }}>40% de cada campanha exibida na sua tela</div>
+        </div>
+        {payouts.length === 0 ? (
+          <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Nenhum repasse ainda — aparecerá aqui quando o primeiro anunciante confirmar pagamento.
+          </div>
+        ) : payouts.map((p: any, i: number) => (
+          <div key={p.id} style={{ padding: "12px 18px", borderBottom: i < payouts.length - 1 ? `1px solid ${C.border2}` : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{fmtR(p.net_amount)}</div>
+              <div style={{ fontSize: 11, color: C.text3 }}>
+                {new Date(p.reference_month).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                {" · "}40% de {fmtR(p.gross_amount)}
+              </div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 10, background: statusColor[p.status] + "18", color: statusColor[p.status] }}>
+              {statusLabel[p.status] ?? p.status}
+            </span>
+          </div>
+        ))}
+      </div>
+
       <div style={{ background: C.blueLt, border: `1px solid ${C.blueBd}`, borderRadius: 12, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.blue }}>Adicione uma promoção da sua loja</div>
