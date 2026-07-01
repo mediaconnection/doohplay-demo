@@ -190,6 +190,17 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
     const w = orientation === "portrait" ? 1080 : 1920
     const h = orientation === "portrait" ? 1920 : 1080
 
+    // Garante que o Chrome está instalado antes de usar — necessário no
+    // Render porque o cache de /opt/render/.cache/puppeteer não persiste
+    // entre deploys. A instalação é rápida (~5s) quando já está em cache,
+    // e completa (~60s) só na primeira chamada após cada deploy.
+    const { executablePath, install } = await import("puppeteer")
+    try {
+      executablePath()
+    } catch {
+      await install()
+    }
+
     const browser = await puppeteer.launch({ args: ["--no-sandbox", "--disable-setuid-sandbox"] })
     const page    = await browser.newPage()
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 })
