@@ -238,8 +238,8 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
 
     const mediaRes = await pool.query(
       `INSERT INTO "CampaignMedia"
-         (id, "campaignId", name, type, url, status, content_source, "createdAt", "updatedAt")
-       VALUES (gen_random_uuid(), $1, $2, 'image', $3, 'pending', 'dono', NOW(), NOW())
+         (id, "campaignId", name, type, url, status, "createdAt")
+       VALUES (gen_random_uuid()::text, $1, $2, 'image', $3, 'pending', NOW())
        RETURNING id`,
       [campaignId, `${copy.title} (gerado por IA)`, url]
     )
