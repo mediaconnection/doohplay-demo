@@ -34,13 +34,17 @@ export async function GET(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   const { rows } = await pool.query(
-    `SELECT id, name, type, url, duration, position, active, created_at
+    `SELECT id, name, type, url, duration, position, active, created_at,
+            start_date, end_date, start_time, end_time, days_of_week
      FROM institutional_media ORDER BY position ASC, created_at DESC`
   )
   return NextResponse.json({ count: rows.length, items: rows })
 }
 
 // POST multipart/form-data — campos: file, name, duration, position (opcionais)
+// start_date/end_date são OBRIGATÓRIOS (agendamento forçado desde 01/07/2026).
+// days_of_week (CSV: "mon,tue,wed") e start_time/end_time (HH:MM) são opcionais
+// — vazio/ausente = sem restrição (todos os dias / dia inteiro).
 export async function POST(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
@@ -50,8 +54,20 @@ export async function POST(req: NextRequest) {
     const name = String(form.get("name") || "Institucional DOOHPLAY")
     const duration = Number(form.get("duration") || 15)
     const position = Number(form.get("position") || 0)
+    const startDate = String(form.get("start_date") || "")
+    const endDate = String(form.get("end_date") || "")
+    const startTime = String(form.get("start_time") || "") || null
+    const endTime = String(form.get("end_time") || "") || null
+    const daysOfWeekRaw = String(form.get("days_of_week") || "")
+    const daysOfWeek = daysOfWeekRaw ? daysOfWeekRaw.split(",").filter(Boolean) : null
 
     if (!file) return NextResponse.json({ error: "campo 'file' obrigatório" }, { status: 400 })
+    if (!startDate || !endDate) {
+      return NextResponse.json({ error: "data de início e fim são obrigatórias" }, { status: 400 })
+    }
+    if (startDate > endDate) {
+      return NextResponse.json({ error: "data de início não pode ser depois da data de fim" }, { status: 400 })
+    }
 
     const isVideo = file.type.startsWith("video/")
     const isImage = file.type.startsWith("image/")
@@ -74,10 +90,13 @@ export async function POST(req: NextRequest) {
 
     const pool = getPool()
     const res = await pool.query(
-      `INSERT INTO institutional_media (id, name, type, url, duration, position, active, created_at)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW())
+      `INSERT INTO institutional_media
+         (id, name, type, url, duration, position, active, created_at,
+          start_date, end_date, start_time, end_time, days_of_week)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10)
        RETURNING id`,
-      [name, isVideo ? "video" : "image", url, duration, position]
+      [name, isVideo ? "video" : "image", url, duration, position,
+       startDate, endDate, startTime, endTime, daysOfWeek]
     )
 
     return NextResponse.json({ ok: true, id: res.rows[0].id, url })

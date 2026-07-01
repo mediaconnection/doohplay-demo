@@ -1076,6 +1076,10 @@ function TabExemplos() {
 
 // ── Conteúdo Institucional (DOOHPLAY) — exibido em TODAS as telas da rede ──
 function TabInstitucional() {
+  const DAYS = [
+    { code: "mon", label: "Seg" }, { code: "tue", label: "Ter" }, { code: "wed", label: "Qua" },
+    { code: "thu", label: "Qui" }, { code: "fri", label: "Sex" }, { code: "sat", label: "Sáb" }, { code: "sun", label: "Dom" },
+  ]
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -1083,6 +1087,11 @@ function TabInstitucional() {
   const [duration, setDuration] = useState("15")
   const [position, setPosition] = useState("0")
   const [file, setFile] = useState<File | null>(null)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [startTime, setStartTime] = useState("")
+  const [endTime, setEndTime] = useState("")
+  const [daysOfWeek, setDaysOfWeek] = useState<string[]>(DAYS.map(d => d.code)) // padrão: todos os dias
   const [error, setError] = useState("")
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -1097,9 +1106,16 @@ function TabInstitucional() {
   }
   useEffect(() => { load() }, [])
 
+  const toggleDay = (code: string) => {
+    setDaysOfWeek(prev => prev.includes(code) ? prev.filter(d => d !== code) : [...prev, code])
+  }
+
   const upload = async () => {
     if (!file) { setError("Escolha um arquivo"); return }
     if (!name.trim()) { setError("Dê um nome pra essa peça"); return }
+    if (!startDate || !endDate) { setError("Data de início e fim são obrigatórias"); return }
+    if (startDate > endDate) { setError("Data de início não pode ser depois da data de fim"); return }
+    if (daysOfWeek.length === 0) { setError("Selecione pelo menos um dia da semana"); return }
     setError(""); setUploading(true)
     try {
       const form = new FormData()
@@ -1107,10 +1123,16 @@ function TabInstitucional() {
       form.append("name", name)
       form.append("duration", duration)
       form.append("position", position)
+      form.append("start_date", startDate)
+      form.append("end_date", endDate)
+      if (startTime) form.append("start_time", startTime)
+      if (endTime) form.append("end_time", endTime)
+      if (daysOfWeek.length < 7) form.append("days_of_week", daysOfWeek.join(","))
       const res = await fetch("/api/admin/institutional-media", { method: "POST", body: form })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar")
-      setName(""); setFile(null)
+      setName(""); setFile(null); setStartDate(""); setEndDate(""); setStartTime(""); setEndTime("")
+      setDaysOfWeek(DAYS.map(d => d.code))
       load()
     } catch (err: any) {
       setError(err.message || "Erro ao enviar")
@@ -1141,6 +1163,21 @@ function TabInstitucional() {
     setDeletingId(null)
   }
 
+  const scheduleSummary = (it: any) => {
+    const parts: string[] = []
+    if (it.start_date && it.end_date) {
+      const fmt = (d: string) => d.split("-").reverse().join("/")
+      parts.push(`${fmt(it.start_date)}–${fmt(it.end_date)}`)
+    }
+    if (it.days_of_week && it.days_of_week.length > 0 && it.days_of_week.length < 7) {
+      parts.push(DAYS.filter(d => it.days_of_week.includes(d.code)).map(d => d.label).join(","))
+    }
+    if (it.start_time && it.end_time) {
+      parts.push(`${it.start_time.slice(0,5)}-${it.end_time.slice(0,5)}`)
+    }
+    return parts.join(" · ") || "Sempre ativo"
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -1166,6 +1203,42 @@ function TabInstitucional() {
         </div>
         <div style={{ fontSize: 11, color: TEXT2, marginTop: -6, marginBottom: 12 }}>
           Vídeos institucionais de até 3min são permitidos (exceção à regra geral de duração — este conteúdo ocupa só ≈10% do sorteio ponderado, então o impacto em inventário é menor).
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Data de início *</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Data de fim *</label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Dias da semana</label>
+          <div style={{ display: "flex", gap: 4 }}>
+            {DAYS.map(d => (
+              <button key={d.code} type="button" onClick={() => toggleDay(d.code)} style={{
+                flex: 1, fontSize: 11, fontWeight: 600, padding: "6px 0", borderRadius: 5,
+                border: "1px solid " + (daysOfWeek.includes(d.code) ? BLUE : BORDER),
+                background: daysOfWeek.includes(d.code) ? BLUE : BG,
+                color: daysOfWeek.includes(d.code) ? "#fff" : TEXT2, cursor: "pointer",
+              }}>{d.label}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Horário início (opcional)</label>
+            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Horário fim (opcional)</label>
+            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: TEXT2, marginTop: -6, marginBottom: 12 }}>
+          Deixe horário em branco pra exibir o dia inteiro. Datas são obrigatórias — a peça só entra na rotação dentro da janela configurada.
         </div>
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
@@ -1197,7 +1270,8 @@ function TabInstitucional() {
               </div>
               <div style={{ padding: "8px 10px" }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
-                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6 }}>pos. {it.position} · {it.duration}s</div>
+                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s</div>
+                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📅 {scheduleSummary(it)}</div>
                 <div style={{ display: "flex", gap: 4 }}>
                   <button
                     onClick={() => toggleActive(it.id, it.active)}

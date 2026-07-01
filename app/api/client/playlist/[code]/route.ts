@@ -87,6 +87,10 @@ export async function GET(
     `, [upperCode])
 
     // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
+    // Filtro de agendamento (data + horário + dia da semana) aplicado aqui,
+    // no SQL, e não no player — é o único ponto que TODOS os players (web,
+    // Android nativo, Fire Stick) atravessam antes de exibir. Horário
+    // comparado em America/Sao_Paulo, já que o Postgres roda em UTC.
     const institutionalQuery = pool.query(`
       SELECT
         im.id,
@@ -99,13 +103,25 @@ export async function GET(
         im.position,
         im.duration,
         im.active,
-        NULL::text[]                     AS days_of_week,
-        NULL::text                       AS start_time,
-        NULL::text                       AS end_time,
-        NULL::text                       AS start_date,
-        NULL::text                       AS end_date
+        im.days_of_week,
+        im.start_time::text,
+        im.end_time::text,
+        im.start_date::text,
+        im.end_date::text
       FROM institutional_media im
       WHERE im.active = true
+        AND im.start_date <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+        AND im.end_date   >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+        AND (
+          im.start_time IS NULL OR im.end_time IS NULL
+          OR (NOW() AT TIME ZONE 'America/Sao_Paulo')::time BETWEEN im.start_time AND im.end_time
+        )
+        AND (
+          im.days_of_week IS NULL OR array_length(im.days_of_week, 1) IS NULL
+          OR (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
+               EXTRACT(DOW FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::int + 1
+             ] = ANY(im.days_of_week)
+        )
       ORDER BY im.position ASC
     `)
 

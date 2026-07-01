@@ -19,10 +19,31 @@ export async function PATCH(
   const { id } = await params
   const pool = getPool()
   try {
-    const { active } = await req.json()
+    const body = await req.json()
+
+    // Toggle simples de ativo/inativo (uso existente, sem tocar no agendamento)
+    if (Object.keys(body).length === 1 && "active" in body) {
+      const { rows } = await pool.query(
+        `UPDATE institutional_media SET active = $1 WHERE id = $2 RETURNING id, active`,
+        [!!body.active, id]
+      )
+      if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
+      return NextResponse.json({ ok: true, ...rows[0] })
+    }
+
+    // Edição completa, incluindo agendamento — start_date/end_date continuam obrigatórios
+    const { active, start_date, end_date, start_time, end_time, days_of_week } = body
+    if (!start_date || !end_date) {
+      return NextResponse.json({ error: "data de início e fim são obrigatórias" }, { status: 400 })
+    }
     const { rows } = await pool.query(
-      `UPDATE institutional_media SET active = $1 WHERE id = $2 RETURNING id, active`,
-      [!!active, id]
+      `UPDATE institutional_media
+       SET active = $1, start_date = $2, end_date = $3,
+           start_time = $4, end_time = $5, days_of_week = $6
+       WHERE id = $7
+       RETURNING id, active, start_date, end_date, start_time, end_time, days_of_week`,
+      [active ?? true, start_date, end_date, start_time || null, end_time || null,
+       days_of_week && days_of_week.length ? days_of_week : null, id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
     return NextResponse.json({ ok: true, ...rows[0] })
