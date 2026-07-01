@@ -662,7 +662,7 @@ function TabTV({ client, player, playlist, online, checking }: any) {
             position: "relative", overflow: "hidden",
             width: isPortrait ? 180 : "100%",
             aspectRatio: isPortrait ? "9 / 16" : "16 / 9",
-            maxHeight: isPortrait ? 320 : 200,
+            maxHeight: isPortrait ? 600 : 480,
           }}>
             {client?.code ? (
               <iframe
