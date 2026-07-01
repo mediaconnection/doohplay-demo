@@ -33,8 +33,9 @@ function buildHtml(params: {
   accentColor: string
   businessName: string
   orientation: "landscape" | "portrait"
+  photoUrl?: string
 }) {
-  const { title, subtitle, price, cta, primaryColor, accentColor, businessName, orientation } = params
+  const { title, subtitle, price, cta, primaryColor, accentColor, businessName, orientation, photoUrl } = params
   const w = orientation === "portrait" ? 1080 : 1920
   const h = orientation === "portrait" ? 1920 : 1080
   const titleSize  = orientation === "portrait" ? "72px" : "96px"
@@ -42,6 +43,59 @@ function buildHtml(params: {
   const priceSize  = orientation === "portrait" ? "100px" : "130px"
   const ctaSize    = orientation === "portrait" ? "46px" : "58px"
   const nameSize   = orientation === "portrait" ? "36px" : "44px"
+
+  // Com foto: layout dividido (foto ocupa metade, texto na outra metade)
+  // Sem foto: layout centralizado com gradiente de cor
+  const hasPhoto = !!photoUrl
+
+  if (hasPhoto) {
+    const isPortrait = orientation === "portrait"
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: ${w}px; height: ${h}px; overflow: hidden;
+    font-family: 'Arial Black', 'Arial Bold', sans-serif;
+    display: flex; flex-direction: ${isPortrait ? "column" : "row"};
+  }
+  .photo {
+    ${isPortrait ? `width: 100%; height: 55%;` : `width: 52%; height: 100%;`}
+    background-image: url("${photoUrl}");
+    background-size: cover; background-position: center;
+    position: relative;
+  }
+  .photo::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(${isPortrait ? "to bottom" : "to right"}, transparent 60%, ${primaryColor}ee);
+  }
+  .text-panel {
+    ${isPortrait ? `width: 100%; height: 45%;` : `width: 48%; height: 100%;`}
+    background: linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%);
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 48px; text-align: center; gap: 24px;
+  }
+  .business { font-size: ${nameSize}; color: rgba(255,255,255,0.7); letter-spacing: 3px; text-transform: uppercase; font-weight: 400; }
+  .title { font-size: ${titleSize}; color: #fff; font-weight: 900; line-height: 1.1; }
+  .subtitle { font-size: ${subSize}; color: rgba(255,255,255,0.85); font-weight: 400; line-height: 1.3; }
+  .price { font-size: ${priceSize}; color: #fff; font-weight: 900; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 12px 40px; }
+  .cta { font-size: ${ctaSize}; color: ${primaryColor}; font-weight: 900; background: #fff; border-radius: 100px; padding: 18px 48px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div class="photo"></div>
+  <div class="text-panel">
+    <div class="business">${businessName}</div>
+    <div class="title">${title}</div>
+    <div class="subtitle">${subtitle}</div>
+    ${price ? `<div class="price">${price}</div>` : ""}
+    <div class="cta">${cta}</div>
+  </div>
+</body>
+</html>`
+  }
 
   return `<!DOCTYPE html>
 <html>
@@ -114,14 +168,41 @@ const SEGMENT_COLORS: Record<string, { primary: string; accent: string }> = {
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
-    const {
-      code,
-      product,    // ex: "Corte + Barba"
-      price,      // ex: "R$ 45"
-      detail,     // ex: "Válido essa semana"
-      duration = 15,
-      orientation = "landscape",
-    } = await req.json()
+    // Aceita tanto JSON (sem foto) quanto multipart/form-data (com foto)
+    let code: string, product: string, price: string, detail: string
+    let duration = 15, orientation = "landscape"
+    let photoUrl: string | undefined
+
+    const ct = req.headers.get("content-type") || ""
+    if (ct.includes("multipart/form-data")) {
+      const form = await req.formData()
+      code        = String(form.get("code") || "")
+      product     = String(form.get("product") || "")
+      price       = String(form.get("price") || "")
+      detail      = String(form.get("detail") || "")
+      duration    = Number(form.get("duration") || 15)
+      orientation = String(form.get("orientation") || "landscape")
+
+      // Upload da foto pro R2, pra Puppeteer poder carregar via URL pública
+      const photoFile = form.get("photo") as File | null
+      if (photoFile && photoFile.size > 0) {
+        const photoBuffer = Buffer.from(await photoFile.arrayBuffer())
+        const ext = photoFile.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg"
+        const photoKey = `studio/${code.toUpperCase()}/creative_photo_${Date.now()}.${ext}`
+        await r2.send(new PutObjectCommand({
+          Bucket: BUCKET, Key: photoKey, Body: photoBuffer, ContentType: photoFile.type,
+        }))
+        photoUrl = `${PUBLIC_URL}/${photoKey}`
+      }
+    } else {
+      const body = await req.json()
+      code        = body.code || ""
+      product     = body.product || ""
+      price       = body.price || ""
+      detail      = body.detail || ""
+      duration    = body.duration ?? 15
+      orientation = body.orientation ?? "landscape"
+    }
 
     if (!code || !product) {
       return NextResponse.json({ error: "code e product são obrigatórios" }, { status: 400 })
@@ -185,6 +266,7 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
       accentColor:  colors.accent,
       businessName: businessName.toUpperCase(),
       orientation:  orientation === "portrait" ? "portrait" : "landscape",
+      photoUrl,
     })
 
     const w = orientation === "portrait" ? 1080 : 1920
