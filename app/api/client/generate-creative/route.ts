@@ -190,15 +190,15 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
     const w = orientation === "portrait" ? 1080 : 1920
     const h = orientation === "portrait" ? 1920 : 1080
 
-    // Garante que o Chrome está instalado antes de usar — necessário no
-    // Render porque o cache de /opt/render/.cache/puppeteer não persiste
-    // entre deploys. A instalação é rápida (~5s) quando já está em cache,
-    // e completa (~60s) só na primeira chamada após cada deploy.
+    // Garante que o Chrome está instalado — no Render o cache não persiste
+    // entre deploys, então verificamos se o binário existe antes de usar.
     const { executablePath, install } = await import("puppeteer")
-    try {
-      executablePath()
-    } catch {
+    const chromePath = (() => { try { return executablePath() } catch { return null } })()
+    const fs = await import("fs")
+    if (!chromePath || !fs.existsSync(chromePath)) {
+      console.log("[generate-creative] Chrome não encontrado, instalando…")
       await install()
+      console.log("[generate-creative] Chrome instalado em:", executablePath())
     }
 
     const browser = await puppeteer.launch({ args: ["--no-sandbox", "--disable-setuid-sandbox"] })
