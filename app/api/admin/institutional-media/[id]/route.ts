@@ -3,8 +3,53 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
 import { removeInstitutionalFromUnified } from "@/lib/unifiedSync"
+import { probeMp4 } from "@/lib/mp4-probe"
 
 export const dynamic = "force-dynamic"
+
+const MAX_VIDEO_DIMENSION    = 1920 // 1080p
+const MAX_VIDEO_BITRATE_MBPS = 15
+
+// Reativar um vídeo já existente (toggle ou edição) não passa pelo upload,
+// então não passava pela checagem de resolução/bitrate — foi assim que o
+// vídeo "Visagismo com Ale Zimermam" (4K, ~96MB/3min) voltou a circular em
+// 02/07/2026 depois de já ter travado o T600 uma vez. Busca o arquivo do R2
+// pela URL já salva e roda a mesma checagem antes de permitir active=true.
+async function rejectIfVideoTooHeavy(id: string): Promise<NextResponse | null> {
+  const pool = getPool()
+  const { rows } = await pool.query(
+    `SELECT type, url FROM institutional_media WHERE id = $1 LIMIT 1`,
+    [id]
+  )
+  const row = rows[0]
+  if (!row || row.type !== "video") return null
+
+  try {
+    const res = await fetch(row.url)
+    if (!res.ok) return null // não conseguiu buscar — não bloqueia por engano
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const info = probeMp4(buffer)
+    if (!info) return null
+
+    const maxDimension = Math.max(info.width, info.height)
+    const avgBitrateMbps = info.durationSec > 0
+      ? (buffer.length * 8) / 1_000_000 / info.durationSec
+      : 0
+
+    if (maxDimension > MAX_VIDEO_DIMENSION || avgBitrateMbps > MAX_VIDEO_BITRATE_MBPS) {
+      return NextResponse.json({
+        error: `Este vídeo está fora do padrão pra TVs (${info.width}x${info.height}, ~${avgBitrateMbps.toFixed(0)} Mbps) ` +
+          `e não pode ser reativado sem recomprimir primeiro. Máximo: 1080p, 8 Mbps. Já causou travamento em 02/07/2026.`,
+        video_too_heavy: true,
+        detected: { width: info.width, height: info.height, bitrate_mbps: Math.round(avgBitrateMbps) },
+      }, { status: 400 })
+    }
+    return null
+  } catch (err) {
+    console.error("[institutional-media PATCH] falha ao validar vídeo existente:", err)
+    return null // erro na checagem não deve travar a operação
+  }
+}
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
@@ -24,6 +69,11 @@ export async function PATCH(
 
     // Toggle simples de ativo/inativo (uso existente, sem tocar no agendamento)
     if (Object.keys(body).length === 1 && "active" in body) {
+      if (body.active) {
+        const rejection = await rejectIfVideoTooHeavy(id)
+        if (rejection) return rejection
+      }
+
       const { rows } = await pool.query(
         `UPDATE institutional_media SET active = $1 WHERE id = $2 RETURNING id, active`,
         [!!body.active, id]
@@ -44,6 +94,10 @@ export async function PATCH(
     const { active, start_date, end_date, start_time, end_time, days_of_week } = body
     if (!start_date || !end_date) {
       return NextResponse.json({ error: "data de início e fim são obrigatórias" }, { status: 400 })
+    }
+    if (active) {
+      const rejection = await rejectIfVideoTooHeavy(id)
+      if (rejection) return rejection
     }
     const { rows } = await pool.query(
       `UPDATE institutional_media
