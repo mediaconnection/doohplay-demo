@@ -1166,7 +1166,7 @@ function TabInstitucional() {
   const scheduleSummary = (it: any) => {
     const parts: string[] = []
     if (it.start_date && it.end_date) {
-      const fmt = (d: string) => d.split("-").reverse().join("/")
+      const fmt = (d: string) => d.slice(0, 10).split("-").reverse().join("/")
       parts.push(`${fmt(it.start_date)}–${fmt(it.end_date)}`)
     }
     if (it.days_of_week && it.days_of_week.length > 0 && it.days_of_week.length < 7) {
