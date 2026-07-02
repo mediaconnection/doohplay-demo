@@ -31,37 +31,56 @@ export async function GET(
       }
     }
 
-    // ── Dono + Anunciante (CampaignMedia, distinguidos por content_source) ──
-    // Mantém o agendamento (playlist_schedule) que o dono configura no dashboard.
-    const ownAndAdsQuery = pool.query(`
+    // ── Dono + Institucional — lidos da fundação unificada (Fase 1, 02/07/2026) ──
+    // Substitui as antigas sub-queries separadas (CampaignMedia+playlist_schedule
+    // e institutional_media). Migração validada com paridade 100% via
+    // /api/admin/verify-migration/[code] antes deste corte (13=13, BARBE332).
+    // Escrita já sincronizada (lib/unifiedSync.ts) em todas as rotas de upload
+    // antes deste corte — testado com dado real (02/07/2026).
+    // Reversão: git revert deste commit — tabelas antigas continuam intactas.
+    const unifiedQuery = pool.query(`
       SELECT
-        cm.id,
-        cm.name,
-        cm.type,
-        cm.url                          AS asset_url,
-        cm.status,
-        CASE WHEN cm.content_source = 'exemplo' THEN 'dono' ELSE cm.content_source END AS slot_category,
-        cm."createdAt"                  AS created_at,
-        COALESCE(ps.position,
-          ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int) AS position,
-        COALESCE(ps.duration, 15)       AS duration,
-        COALESCE(ps.active,   true)     AS active,
-        ps.days_of_week,
-        ps.start_time::text,
-        ps.end_time::text,
-        ps.start_date::text,
-        ps.end_date::text,
-        ps.screen_id
-      FROM "CampaignMedia" cm
-      JOIN "Campaign" c ON c.id = cm."campaignId"
-      LEFT JOIN playlist_schedule ps
-        ON ps.media_id = cm.id AND ps.client_code = $1
-      WHERE c."advertiserCode" = $1
-        AND ($2::boolean OR ps.screen_id = $3::uuid)
-      ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
+        ca.source_id                    AS id,
+        ca.name,
+        ca.type,
+        ca.url                          AS asset_url,
+        ca.status,
+        cv.owner_type                   AS slot_category,
+        ca.created_at,
+        p.position,
+        ca.duration_seconds             AS duration,
+        p.active,
+        p.days_of_week,
+        p.start_time::text,
+        p.end_time::text,
+        p.start_date::text,
+        p.end_date::text,
+        p.screen_id
+      FROM placements_v2 p
+      JOIN creative_assets_v2 ca ON ca.id = p.creative_asset_id
+      JOIN campaigns_v2 cv ON cv.id = ca.campaign_id
+      WHERE
+        (
+          cv.owner_type = 'dono' AND cv.owner_code = $1
+          AND ($2::boolean OR p.screen_id = $3::uuid OR p.screen_id IS NULL)
+        )
+        OR (
+          cv.owner_type = 'institucional'
+          AND p.active = true
+          AND p.start_date <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+          AND p.end_date   >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+          AND (p.start_time IS NULL OR p.end_time IS NULL
+               OR (NOW() AT TIME ZONE 'America/Sao_Paulo')::time BETWEEN p.start_time AND p.end_time)
+          AND (p.days_of_week IS NULL OR array_length(p.days_of_week, 1) IS NULL
+               OR (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
+                    EXTRACT(DOW FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::int + 1
+                  ] = ANY(p.days_of_week))
+        )
+      ORDER BY p.position ASC, ca.created_at ASC
     `, [upperCode, sameContent, screenId])
 
-    // ── Rede (Clube de Telas) — mídias de parceiros distribuídas para esta tela ──
+    // ── Rede (Clube de Telas) — ainda não migrada pra fundação nova (0 registros
+    // em produção hoje, fora do escopo da Fase 1) ──
     const networkQuery = pool.query(`
       SELECT
         nm.id,
@@ -86,48 +105,8 @@ export async function GET(
         AND nm.status = 'approved'
     `, [upperCode])
 
-    // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
-    // Filtro de agendamento (data + horário + dia da semana) aplicado aqui,
-    // no SQL, e não no player — é o único ponto que TODOS os players (web,
-    // Android nativo, Fire Stick) atravessam antes de exibir. Horário
-    // comparado em America/Sao_Paulo, já que o Postgres roda em UTC.
-    const institutionalQuery = pool.query(`
-      SELECT
-        im.id,
-        im.name,
-        im.type,
-        im.url                          AS asset_url,
-        'approved'                      AS status,
-        'institucional'                 AS slot_category,
-        im.created_at,
-        im.position,
-        im.duration,
-        im.active,
-        im.days_of_week,
-        im.start_time::text,
-        im.end_time::text,
-        im.start_date::text,
-        im.end_date::text
-      FROM institutional_media im
-      WHERE im.active = true
-        AND im.start_date <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-        AND im.end_date   >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-        AND (
-          im.start_time IS NULL OR im.end_time IS NULL
-          OR (NOW() AT TIME ZONE 'America/Sao_Paulo')::time BETWEEN im.start_time AND im.end_time
-        )
-        AND (
-          im.days_of_week IS NULL OR array_length(im.days_of_week, 1) IS NULL
-          OR (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
-               EXTRACT(DOW FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::int + 1
-             ] = ANY(im.days_of_week)
-        )
-      ORDER BY im.position ASC
-    `)
-
-    // ── Anunciante real — campanhas de terceiros vinculadas explicitamente
-    // a esta tela via CampaignScreen (fluxo de venda real, separado do
-    // upload do próprio dono que usa Campaign "Promoções da Loja").
+    // ── Anunciante real (CampaignScreen) — ainda não migrada pra fundação nova
+    // (0 registros em produção hoje, fora do escopo da Fase 1) ──
     const realAdsQuery = pool.query(`
       SELECT
         cm.id,
@@ -157,14 +136,13 @@ export async function GET(
 
 
 
-    const [ownAndAds, network, institutional, realAds] = await Promise.all([
-      ownAndAdsQuery, networkQuery, institutionalQuery, realAdsQuery,
+    const [unified, network, realAds] = await Promise.all([
+      unifiedQuery, networkQuery, realAdsQuery,
     ])
 
     const items = [
-      ...ownAndAds.rows,
+      ...unified.rows,
       ...network.rows,
-      ...institutional.rows,
       ...realAds.rows,
     ]
 
