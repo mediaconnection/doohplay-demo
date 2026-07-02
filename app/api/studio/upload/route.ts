@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { probeMp4 } from "@/lib/mp4-probe"
+import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -216,11 +217,24 @@ export async function POST(request: NextRequest) {
     try {
       const campaignId = await ensureCampaign(pool, code, clientName, clientPhone, clientEmail)
 
-      await pool.query(
+      const inserted = await pool.query(
         `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
-         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending', NOW())`,
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending', NOW())
+         RETURNING id`,
         [campaignId, name, category, publicUrl]
       )
+
+      // Sincroniza com a fundação unificada (Fase 1) — best-effort, não bloqueia o upload
+      await syncDonoMediaToUnified(pool, {
+        campaignId,
+        ownerCode: code,
+        mediaId: inserted.rows[0].id,
+        name,
+        url: publicUrl,
+        type: category,
+        status: "pending",
+        durationSeconds: duration,
+      })
     } catch (dbErr) {
       console.error("[upload] db error:", dbErr)
     }

@@ -225,6 +225,24 @@ export async function PATCH(
         item.start_date   ?? null,
         item.end_date     ?? null,
       ])
+
+      // Sincroniza agendamento com a fundação unificada (Fase 1) — best-effort.
+      // Só atualiza placements_v2 (posição/ativo/agendamento); não mexe em
+      // nome/url/tipo (creative_assets_v2), que são gerenciados no upload.
+      // Nota: duration aqui é um override específico do client_code, não
+      // sincronizado pra creative_assets_v2.duration_seconds — limitação
+      // conhecida, sem impacto prático hoje (BARBE332 não usa esse override).
+      pool.query(`
+        UPDATE placements_v2
+        SET position = $1, active = $2, days_of_week = $3,
+            start_time = $4, end_time = $5, start_date = $6, end_date = $7
+        WHERE source_table = 'playlist_schedule' AND source_id = $8
+      `, [
+        item.position ?? 0, item.active ?? true, item.days_of_week ?? null,
+        item.start_time ?? null, item.end_time ?? null,
+        item.start_date ?? null, item.end_date ?? null,
+        `${code.toUpperCase()}:${item.id}`,
+      ]).catch((e: any) => console.error("[unifiedSync] playlist PATCH sync failed:", e))
     }
     return NextResponse.json({ ok: true })
   } catch (err) {

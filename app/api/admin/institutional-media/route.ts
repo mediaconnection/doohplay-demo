@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
+import { syncInstitutionalToUnified } from "@/lib/unifiedSync"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -98,6 +99,18 @@ export async function POST(req: NextRequest) {
       [name, isVideo ? "video" : "image", url, duration, position,
        startDate, endDate, startTime, endTime, daysOfWeek]
     )
+
+    // Sincroniza com a fundação unificada (Fase 1) — best-effort
+    await syncInstitutionalToUnified(pool, {
+      mediaId: res.rows[0].id,
+      name,
+      url,
+      type: isVideo ? "video" : "image",
+      durationSeconds: duration,
+      position,
+      active: true,
+      startDate, endDate, startTime, endTime, daysOfWeek,
+    })
 
     return NextResponse.json({ ok: true, id: res.rows[0].id, url })
   } catch (err: any) {
