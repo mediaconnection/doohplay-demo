@@ -8,6 +8,7 @@
 // preenchimento até o cliente subir o próprio.
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
 
 export const dynamic = "force-dynamic"
 
@@ -79,6 +80,18 @@ export async function POST(req: NextRequest) {
         [campaignId, ex.name, ex.type, ex.url]
       )
       inserted.push(res.rows[0].id)
+
+      // Sincroniza com a fundação unificada (Fase 1) — best-effort
+      await syncDonoMediaToUnified(pool, {
+        campaignId,
+        ownerCode: code,
+        mediaId: res.rows[0].id,
+        name: ex.name,
+        url: ex.url,
+        type: ex.type,
+        status: "approved",
+        durationSeconds: ex.duration ?? 15,
+      })
     }
 
     return NextResponse.json({ ok: true, activated: inserted.length, ids: inserted })

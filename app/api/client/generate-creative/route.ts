@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import puppeteer from "puppeteer"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
+import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -334,6 +335,18 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
        ON CONFLICT (client_code, media_id) DO NOTHING`,
       [code.toUpperCase(), mediaId, duration]
     )
+
+    // Sincroniza com a fundação unificada (Fase 1) — best-effort
+    await syncDonoMediaToUnified(pool, {
+      campaignId,
+      ownerCode: code.toUpperCase(),
+      mediaId,
+      name: `${copy.title} (gerado por IA)`,
+      url,
+      type: "image",
+      status: "pending",
+      durationSeconds: duration,
+    })
 
     return NextResponse.json({
       ok: true,

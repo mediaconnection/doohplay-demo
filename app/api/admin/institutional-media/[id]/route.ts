@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
+import { removeInstitutionalFromUnified } from "@/lib/unifiedSync"
 
 export const dynamic = "force-dynamic"
 
@@ -28,6 +29,14 @@ export async function PATCH(
         [!!body.active, id]
       )
       if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
+
+      // Sincroniza com a fundação unificada (Fase 1) — best-effort
+      pool.query(
+        `UPDATE placements_v2 SET active = $1
+         WHERE source_table = 'institutional_media' AND source_id = $2`,
+        [!!body.active, id]
+      ).catch((e: any) => console.error("[unifiedSync] toggle active failed:", e))
+
       return NextResponse.json({ ok: true, ...rows[0] })
     }
 
@@ -46,6 +55,17 @@ export async function PATCH(
        days_of_week && days_of_week.length ? days_of_week : null, id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
+
+    // Sincroniza com a fundação unificada (Fase 1) — best-effort
+    pool.query(
+      `UPDATE placements_v2
+       SET active = $1, start_date = $2, end_date = $3,
+           start_time = $4, end_time = $5, days_of_week = $6
+       WHERE source_table = 'institutional_media' AND source_id = $7`,
+      [active ?? true, start_date, end_date, start_time || null, end_time || null,
+       days_of_week && days_of_week.length ? days_of_week : null, id]
+    ).catch((e: any) => console.error("[unifiedSync] edit schedule failed:", e))
+
     return NextResponse.json({ ok: true, ...rows[0] })
   } catch (err: any) {
     console.error("[admin/institutional-media/[id] PATCH]", err)
@@ -66,6 +86,10 @@ export async function DELETE(
       [id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
+
+    // Sincroniza com a fundação unificada (Fase 1) — best-effort
+    await removeInstitutionalFromUnified(pool, id)
+
     return NextResponse.json({ ok: true })
   } catch (err: any) {
     console.error("[admin/institutional-media/[id] DELETE]", err)
