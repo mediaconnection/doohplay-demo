@@ -70,8 +70,11 @@ CREATE TABLE IF NOT EXISTS placements_v2 (
   active              BOOLEAN NOT NULL DEFAULT TRUE,
   source_table        TEXT,
   source_id           TEXT,
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CHECK (screen_id IS NOT NULL OR segment_id IS NOT NULL OR client_code IS NOT NULL)
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  -- Nota: sem CHECK exigindo screen_id/segment_id/client_code. Um placement
+  -- com os 3 nulos é válido e significa "global" — todas as telas, mesmo
+  -- comportamento que o Institucional sempre teve. Tentativa anterior de
+  -- forçar um alvo obrigatório quebrou a migração do Institucional (01/07/2026).
 );
 CREATE INDEX IF NOT EXISTS idx_placements_v2_creative ON placements_v2 (creative_asset_id);
 CREATE INDEX IF NOT EXISTS idx_placements_v2_screen   ON placements_v2 (screen_id);
