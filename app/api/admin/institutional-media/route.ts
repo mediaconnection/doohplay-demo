@@ -8,6 +8,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
 import { syncInstitutionalToUnified } from "@/lib/unifiedSync"
+import { probeMp4 } from "@/lib/mp4-probe"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -77,6 +78,35 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
+
+    // ── Valida resolução/bitrate de vídeo (mesma checagem de studio/upload) ──
+    // Ainda mais crítico aqui: institucional aparece em TODAS as telas da
+    // rede, então um vídeo pesado trava todo mundo de uma vez, não só um
+    // cliente. Foi exatamente isso que aconteceu em 02/07/2026 — vídeo de
+    // 3min/~96MB travou o decodificador do T600 (BARBE332) até reiniciar.
+    if (isVideo) {
+      const info = probeMp4(buffer)
+      if (info) {
+        const maxDimension = Math.max(info.width, info.height)
+        const avgBitrateMbps = info.durationSec > 0
+          ? (buffer.length * 8) / 1_000_000 / info.durationSec
+          : 0
+        const MAX_VIDEO_DIMENSION    = 1920 // 1080p
+        const MAX_VIDEO_BITRATE_MBPS = 15
+
+        if (maxDimension > MAX_VIDEO_DIMENSION || avgBitrateMbps > MAX_VIDEO_BITRATE_MBPS) {
+          return NextResponse.json({
+            error: `Vídeo em resolução/qualidade alta demais para TVs (${info.width}x${info.height}, ~${avgBitrateMbps.toFixed(0)} Mbps). ` +
+              `Recomprima para 1080p e até 8 Mbps antes de enviar — qualquer editor de vídeo ou conversor online faz isso facilmente.`,
+            video_too_heavy: true,
+            detected: { width: info.width, height: info.height, bitrate_mbps: Math.round(avgBitrateMbps) },
+          }, { status: 400 })
+        }
+      }
+      // Se não conseguimos ler os metadados, deixa passar — preferimos não
+      // bloquear um upload legítimo por engano (mesmo critério do studio/upload).
+    }
+
     const ext = isVideo ? "mp4" : (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg")
     const key = `institucional/${Date.now()}.${ext}`
 
