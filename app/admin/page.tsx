@@ -1074,6 +1074,140 @@ function TabExemplos() {
   )
 }
 
+// ── Templates de tela (Fase 3b) — widgets de clima/bolsa/notícias ──
+function TabTemplates({ data }: { data: any }) {
+  const { clients } = data
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [clientCode, setClientCode] = useState("")
+  const [templateKey, setTemplateKey] = useState("fullscreen")
+  const [locationName, setLocationName] = useState("São Paulo, SP")
+  const [locationLat, setLocationLat] = useState("-23.5505")
+  const [locationLon, setLocationLon] = useState("-46.6333")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  const load = () => {
+    setLoading(true)
+    fetch("/api/admin/screen-templates")
+      .then(r => r.json())
+      .then(d => setItems(d.items ?? []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const save = async () => {
+    if (!clientCode) { setError("Escolha um cliente"); return }
+    setError(""); setSaving(true)
+    try {
+      const res = await fetch("/api/admin/screen-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_code: clientCode,
+          template_key: templateKey,
+          location_name: locationName,
+          location_lat: Number(locationLat),
+          location_lon: Number(locationLon),
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao salvar")
+      load()
+    } catch (err: any) {
+      setError(err.message || "Erro ao salvar")
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>🖼️ Templates de Tela</div>
+      </div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+        Escolha entre tela cheia normal ou o template "magazine", que mostra clima, bolsa (B3) e notícias
+        numa faixa lateral fixa, ao lado do conteúdo normal.
+      </div>
+
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, marginBottom: 16, color: TEXT }}>Configurar cliente</div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Cliente</label>
+          <select value={clientCode} onChange={e => setClientCode(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <option value="">Selecione...</option>
+            {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Template</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => setTemplateKey("fullscreen")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (templateKey === "fullscreen" ? BLUE : BORDER),
+              background: templateKey === "fullscreen" ? BLUE : BG,
+              color: templateKey === "fullscreen" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>🖥️ Tela cheia (padrão)</button>
+            <button type="button" onClick={() => setTemplateKey("magazine")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (templateKey === "magazine" ? BLUE : BORDER),
+              background: templateKey === "magazine" ? BLUE : BG,
+              color: templateKey === "magazine" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>🖼️ Magazine (clima+bolsa+notícias)</button>
+          </div>
+        </div>
+
+        {templateKey === "magazine" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Localização (nome)</label>
+              <input value={locationName} onChange={e => setLocationName(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Latitude</label>
+              <input value={locationLat} onChange={e => setLocationLat(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Longitude</label>
+              <input value={locationLon} onChange={e => setLocationLon(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            </div>
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+          Bolsa: mostra sempre PETR4, VALE3, MGLU3 e ITUB4 (as únicas ações liberadas sem custo). Notícias: G1 geral.
+        </div>
+
+        {error && <div style={{ color: RED, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
+        <button onClick={save} disabled={saving} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+          {saving ? "Salvando..." : "Salvar configuração"}
+        </button>
+      </div>
+
+      <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Clientes configurados</div>
+      {loading ? <div style={{ color: TEXT2, fontSize: 13 }}>Carregando...</div> : items.length === 0 ? (
+        <div style={{ color: TEXT2, fontSize: 13 }}>Nenhum cliente com template customizado ainda — todos estão em "Tela cheia" (padrão).</div>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {items.map((it: any) => (
+            <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontWeight: 600, color: TEXT }}>{it.client_code}</span>
+                <span style={{ fontSize: 12, color: TEXT2, marginLeft: 10 }}>
+                  {it.template_key === "magazine" ? `🖼️ Magazine · ${it.location_name}` : "🖥️ Tela cheia"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 // ── Conteúdo Institucional (DOOHPLAY) — exibido em TODAS as telas da rede ──
 function TabInstitucional() {
   const DAYS = [
@@ -1543,6 +1677,7 @@ export default function AdminPage() {
     { id: "rede",        label: "Rede",        icon: "🤝", count: pendingNetworkMedia, alert: pendingNetworkMedia > 0 },
     { id: "exemplos",    label: "Exemplos",    icon: "📚" },
     { id: "institucional", label: "Institucional", icon: "🏢" },
+    { id: "templates",   label: "Templates",   icon: "🖼️" },
     { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
@@ -1590,6 +1725,7 @@ export default function AdminPage() {
         {tab === "rede"        && <TabRede        data={data} onRefresh={load} />}
         {tab === "exemplos"    && <TabExemplos />}
         {tab === "institucional" && <TabInstitucional />}
+        {tab === "templates"    && <TabTemplates data={data} />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
