@@ -122,15 +122,82 @@ async function getPlayerData(code: string) {
       displayFormat: "fullscreen" as DisplayFormat,
     }))
 
+    // ── Template (Fase 3b) — configuração de widgets por cliente/tela ──
+    // Por enquanto resolvido a nível de cliente (screen_id NULL). Diferenciar
+    // por tela física específica depende de o player identificar qual tela
+    // está carregando a página (V96 vs T600 hoje carregam a mesma URL
+    // /player?screen=CODE) — fica registrado como limitação conhecida.
+    const templateRes = await pool.query<{
+      template_key: string; location_lat: number; location_lon: number;
+      location_name: string; stock_tickers: string[]; news_country: string;
+    }>(`
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country
+      FROM screen_templates
+      WHERE client_code = $1 AND active = true
+      ORDER BY screen_id NULLS LAST
+      LIMIT 1
+    `, [upperCode])
+    const template = templateRes.rows[0] || null
+
+    let widgets: { weather: any; stocks: any; news: any } | null = null
+    if (template?.template_key === "magazine") {
+      const lat = template.location_lat ?? -23.5505
+      const lon = template.location_lon ?? -46.6333
+      const locationName = template.location_name || "São Paulo"
+      const tickers = (template.stock_tickers?.length ? template.stock_tickers : ["PETR4", "VALE3", "MGLU3", "ITUB4"])
+        .filter((t: string) => ["PETR4", "VALE3", "MGLU3", "ITUB4"].includes(t))
+
+      const WMO: Record<number, { label: string; emoji: string }> = {
+        0: { label: "Céu limpo", emoji: "☀️" }, 1: { label: "Principalmente limpo", emoji: "🌤️" },
+        2: { label: "Parcialmente nublado", emoji: "⛅" }, 3: { label: "Nublado", emoji: "☁️" },
+        45: { label: "Neblina", emoji: "🌫️" }, 51: { label: "Garoa leve", emoji: "🌦️" },
+        61: { label: "Chuva leve", emoji: "🌧️" }, 63: { label: "Chuva moderada", emoji: "🌧️" },
+        80: { label: "Pancadas leves", emoji: "🌦️" }, 95: { label: "Tempestade", emoji: "⛈️" },
+      }
+
+      const [weatherRes, stocksRes, newsRes] = await Promise.allSettled([
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
+        fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } }),
+        fetch(`https://g1.globo.com/rss/g1/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
+      ])
+
+      let weather = null, stocks: any[] = [], news: any[] = []
+      if (weatherRes.status === "fulfilled" && weatherRes.value.ok) {
+        const w = await weatherRes.value.json()
+        const code = w.current?.weather_code ?? 0
+        weather = { temperature: Math.round(w.current?.temperature_2m ?? 0), ...(WMO[code] ?? { label: "—", emoji: "🌡️" }), location: locationName }
+      }
+      if (stocksRes.status === "fulfilled" && stocksRes.value.ok) {
+        const s = await stocksRes.value.json()
+        stocks = (s.results || []).map((r: any) => ({
+          symbol: r.symbol, price: r.regularMarketPrice, changePercent: r.regularMarketChangePercent,
+        }))
+      }
+      if (newsRes.status === "fulfilled" && newsRes.value.ok) {
+        const xml = await newsRes.value.text()
+        const itemRegex = /<item>([\s\S]*?)<\/item>/g
+        let m
+        while ((m = itemRegex.exec(xml)) !== null && news.length < 4) {
+          const item = m[1]
+          const rawTitle = item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]>/)?.[1] || item.match(/<title>(.*?)<\/title>/)?.[1] || ""
+          const title = rawTitle.replace(/<[^>]*>/g, "").trim()
+          if (title) news.push({ title })
+        }
+      }
+      widgets = { weather, stocks, news }
+    }
+
     return {
       name: rows[0]?.name ?? "DOOHPLAY",
       business_type: rows[0]?.business_type ?? "",
       primary_color: rows[0]?.primary_color ?? "#3B82F6",
       medias: [...ownAndAds, ...network, ...institutional, ...realAds],
+      template: template?.template_key || "fullscreen",
+      widgets,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[] }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", widgets: null as any }
   }
 }
 
@@ -188,7 +255,30 @@ export default async function PlayerPage({
       </div>`
     : `<div id="slides">${slidesHtml}</div>`
 
-  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone"></div>`
+  const widgetsPanelHtml = data.template === "magazine" && data.widgets
+    ? `<div id="widgets-panel">
+        ${data.widgets.weather ? `<div class="widget-card widget-weather">
+          <div class="w-emoji">${data.widgets.weather.emoji}</div>
+          <div class="w-temp">${data.widgets.weather.temperature}°C</div>
+          <div class="w-label">${escapeHtml(data.widgets.weather.label)}</div>
+          <div class="w-location">${escapeHtml(data.widgets.weather.location)}</div>
+        </div>` : ""}
+        ${data.widgets.stocks?.length ? `<div class="widget-card widget-stocks">
+          <div class="w-title">📈 Bolsa</div>
+          ${data.widgets.stocks.map((s: any) => `<div class="w-stock-row">
+            <span class="w-stock-symbol">${escapeHtml(s.symbol)}</span>
+            <span class="w-stock-price">R$ ${Number(s.price ?? 0).toFixed(2)}</span>
+            <span class="w-stock-change ${(s.changePercent ?? 0) >= 0 ? "up" : "down"}">${(s.changePercent ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(s.changePercent ?? 0).toFixed(1)}%</span>
+          </div>`).join("")}
+        </div>` : ""}
+        ${data.widgets.news?.length ? `<div class="widget-card widget-news">
+          <div class="w-title">📰 Notícias</div>
+          ${data.widgets.news.map((n: any) => `<div class="w-news-item">${escapeHtml(n.title)}</div>`).join("")}
+        </div>` : ""}
+      </div>`
+    : ""
+
+  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone">${widgetsPanelHtml}</div>`
 
   const mediasJson = JSON.stringify(data.medias)
   const buildVersion = process.env.RENDER_GIT_COMMIT || "dev"
@@ -241,6 +331,35 @@ export default async function PlayerPage({
             object-fit: cover;
             display: none;
           }
+          /* ── Painel de widgets (Fase 3b: template magazine) ── */
+          #widgets-panel {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            padding: 24px 20px;
+            gap: 18px;
+            font-family: system-ui, sans-serif;
+            color: white;
+            overflow: hidden;
+          }
+          .widget-card {
+            background: rgba(255,255,255,.06);
+            border-radius: 12px;
+            padding: 18px;
+          }
+          .widget-weather { text-align: center; }
+          .widget-weather .w-emoji { font-size: 48px; }
+          .widget-weather .w-temp { font-size: 40px; font-weight: 700; margin-top: 4px; }
+          .widget-weather .w-label { font-size: 13px; opacity: .7; margin-top: 2px; }
+          .widget-weather .w-location { font-size: 11px; opacity: .4; margin-top: 8px; letter-spacing: .1em; text-transform: uppercase; }
+          .w-title { font-size: 13px; font-weight: 600; opacity: .6; margin-bottom: 12px; }
+          .w-stock-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,.06); }
+          .w-stock-row:last-child { border-bottom: none; }
+          .w-stock-symbol { font-weight: 700; }
+          .w-stock-change { font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 6px; }
+          .w-stock-change.up { background: rgba(16,185,129,.15); color: #10B981; }
+          .w-stock-change.down { background: rgba(239,68,68,.15); color: #EF4444; }
+          .w-news-item { font-size: 13px; line-height: 1.4; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+          .w-news-item:last-child { border-bottom: none; }
           .slide {
             position: absolute;
             inset: 0;
@@ -352,13 +471,14 @@ export default async function PlayerPage({
             max-width: 48px;
           }
         `}</style>
-      <div id="player" dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
+      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var medias   = ${mediasJson};
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
+            var isMagazine = ${JSON.stringify(data.template === "magazine")};
             var buildVersion = ${JSON.stringify(buildVersion)};
             var timer    = null;
             var qrTimer  = null;
@@ -458,6 +578,12 @@ export default async function PlayerPage({
             }
 
             function showLateralSlide() {
+              // Modo magazine: a zona lateral já tem o painel de widgets
+              // renderizado pelo servidor — não deixa a rotação de anúncios
+              // (shrink_lateral) sobrescrever nem remover a classe que
+              // mantém o painel visível.
+              if (isMagazine) return;
+
               if (lateralTimer) { clearTimeout(lateralTimer); lateralTimer = null; }
               if (!lateralMedias.length) {
                 if (playerEl) playerEl.classList.remove('has-lateral');

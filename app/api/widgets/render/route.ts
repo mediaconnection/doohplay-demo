@@ -124,6 +124,44 @@ ${items.map(i => `<div class="item"><div class="title">${i.title}</div>${i.descr
 </body></html>`
     }
 
+    // ── STOCKS ──
+    else if (type === "stocks") {
+      const FREE_TICKERS = ["PETR4", "VALE3", "MGLU3", "ITUB4"]
+      const requested = url ? url.split(",").map(t => t.trim().toUpperCase()).filter(t => FREE_TICKERS.includes(t)) : []
+      const tickers = requested.length > 0 ? requested : FREE_TICKERS
+
+      const sRes = await fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } })
+      const sData = await sRes.json()
+      const items = (sData.results || []).map((r: any) => ({
+        symbol: r.symbol,
+        price: r.regularMarketPrice,
+        changePercent: r.regularMarketChangePercent,
+      }))
+
+      html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:100vw;height:100vh;background:#0a0a0a;font-family:system-ui,sans-serif;color:white;overflow:hidden;padding:48px;display:flex;flex-direction:column;justify-content:center}
+.header{display:flex;align-items:center;gap:16px;margin-bottom:40px}
+.badge{background:#059669;color:white;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.label{font-size:13px;opacity:.4;letter-spacing:.15em;text-transform:uppercase}
+.row{display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.row:last-child{border-bottom:none}
+.symbol{font-size:28px;font-weight:700}
+.price{font-size:28px;font-weight:600}
+.change{font-size:18px;font-weight:600;padding:4px 12px;border-radius:8px;margin-left:12px}
+.up{background:rgba(16,185,129,.15);color:#10B981}
+.down{background:rgba(239,68,68,.15);color:#EF4444}
+.brand{position:absolute;top:24px;right:48px;font-size:11px;opacity:.2;letter-spacing:.2em}
+</style></head>
+<body>
+<div class="header"><span class="badge">B3</span><span class="label">Bolsa de valores</span></div>
+${items.map((i: any) => `<div class="row"><span class="symbol">${i.symbol}</span><span><span class="price">R$ ${Number(i.price ?? 0).toFixed(2)}</span><span class="change ${(i.changePercent ?? 0) >= 0 ? "up" : "down"}">${(i.changePercent ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(i.changePercent ?? 0).toFixed(2)}%</span></span></div>`).join("")}
+<div class="brand">DOOHPLAY</div>
+</body></html>`
+    }
+
     // ── SOCIAL ──
     else if (type === "social") {
       html = `<!DOCTYPE html>
