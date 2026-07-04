@@ -128,7 +128,8 @@ async function getPlayerData(code: string) {
       primary_color: rows[0]?.primary_color ?? "#3B82F6",
       medias: [...ownAndAds, ...network, ...institutional, ...realAds],
     }
-  } catch {
+  } catch (err) {
+    console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
     return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[] }
   }
 }
