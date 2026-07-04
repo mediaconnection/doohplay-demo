@@ -1092,6 +1092,7 @@ function TabInstitucional() {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>(DAYS.map(d => d.code)) // padrão: todos os dias
+  const [displayFormat, setDisplayFormat] = useState("fullscreen")
   const [error, setError] = useState("")
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -1128,11 +1129,12 @@ function TabInstitucional() {
       if (startTime) form.append("start_time", startTime)
       if (endTime) form.append("end_time", endTime)
       if (daysOfWeek.length < 7) form.append("days_of_week", daysOfWeek.join(","))
+      form.append("display_format", displayFormat)
       const res = await fetch("/api/admin/institutional-media", { method: "POST", body: form })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar")
       setName(""); setFile(null); setStartDate(""); setEndDate(""); setStartTime(""); setEndTime("")
-      setDaysOfWeek(DAYS.map(d => d.code))
+      setDaysOfWeek(DAYS.map(d => d.code)); setDisplayFormat("fullscreen")
       load()
     } catch (err: any) {
       setError(err.message || "Erro ao enviar")
@@ -1241,6 +1243,26 @@ function TabInstitucional() {
           Deixe horário em branco pra exibir o dia inteiro. Datas são obrigatórias — a peça só entra na rotação dentro da janela configurada.
         </div>
         <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Formato de exibição</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => setDisplayFormat("fullscreen")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (displayFormat === "fullscreen" ? BLUE : BORDER),
+              background: displayFormat === "fullscreen" ? BLUE : BG,
+              color: displayFormat === "fullscreen" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>🖥️ Tela cheia</button>
+            <button type="button" onClick={() => setDisplayFormat("shrink_lateral")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (displayFormat === "shrink_lateral" ? BLUE : BORDER),
+              background: displayFormat === "shrink_lateral" ? BLUE : BG,
+              color: displayFormat === "shrink_lateral" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>↔️ Encolhe lateral</button>
+          </div>
+          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            "Encolhe lateral": a tela principal encolhe e essa peça aparece do lado, sem cobrir o conteúdo em exibição.
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Boas-vindas DOOHPLAY" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
         </div>
@@ -1272,6 +1294,9 @@ function TabInstitucional() {
                 <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
                 <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s</div>
                 <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📅 {scheduleSummary(it)}</div>
+                {it.display_format === "shrink_lateral" && (
+                  <div style={{ fontSize: 10, color: BLUE, marginBottom: 6, fontWeight: 600 }}>↔️ Encolhe lateral</div>
+                )}
                 <div style={{ display: "flex", gap: 4 }}>
                   <button
                     onClick={() => toggleActive(it.id, it.active)}
