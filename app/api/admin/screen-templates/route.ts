@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
-function checkAuth(req: NextRequest) {
+async function checkAuth(req: NextRequest) {
+  const session = await getServerSession()
   const secret = req.nextUrl.searchParams.get("secret")
-  return secret && secret === process.env.ADMIN_SECRET
+  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
 }
 
 // GET — lista todos os templates configurados
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   const { rows } = await pool.query(
     `SELECT id, client_code, screen_id, template_key, location_lat, location_lon,
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
 // POST — cria/atualiza o template de um cliente (screen_id sempre NULL por
 // enquanto — configuração por tela específica é uma extensão futura)
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   try {
     const body = await req.json()
     const clientCode = String(body.client_code || "").toUpperCase()
