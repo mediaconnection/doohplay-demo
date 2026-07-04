@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   const { rows } = await pool.query(
-    `SELECT id, name, type, url, duration, position, active, created_at,
+    `SELECT id, name, type, url, duration, position, active, created_at, display_format,
             start_date, end_date, start_time, end_time, days_of_week
      FROM institutional_media ORDER BY position ASC, created_at DESC`
   )
@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     const endTime = String(form.get("end_time") || "") || null
     const daysOfWeekRaw = String(form.get("days_of_week") || "")
     const daysOfWeek = daysOfWeekRaw ? daysOfWeekRaw.split(",").filter(Boolean) : null
+    const displayFormatRaw = String(form.get("display_format") || "fullscreen")
+    const displayFormat = displayFormatRaw === "shrink_lateral" ? "shrink_lateral" : "fullscreen"
 
     if (!file) return NextResponse.json({ error: "campo 'file' obrigatório" }, { status: 400 })
     if (!startDate || !endDate) {
@@ -123,17 +125,18 @@ export async function POST(req: NextRequest) {
     const res = await pool.query(
       `INSERT INTO institutional_media
          (id, name, type, url, duration, position, active, created_at,
-          start_date, end_date, start_time, end_time, days_of_week)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10)
+          start_date, end_date, start_time, end_time, days_of_week, display_format)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10, $11)
        RETURNING id`,
       [name, isVideo ? "video" : "image", url, duration, position,
-       startDate, endDate, startTime, endTime, daysOfWeek]
+       startDate, endDate, startTime, endTime, daysOfWeek, displayFormat]
     )
 
     // Sincroniza com a fundação unificada (Fase 1) — best-effort
     await syncInstitutionalToUnified(pool, {
       mediaId: res.rows[0].id,
       name,
+      displayFormat,
       url,
       type: isVideo ? "video" : "image",
       durationSeconds: duration,

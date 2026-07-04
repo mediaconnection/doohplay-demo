@@ -91,10 +91,11 @@ export async function PATCH(
     }
 
     // Edição completa, incluindo agendamento — start_date/end_date continuam obrigatórios
-    const { active, start_date, end_date, start_time, end_time, days_of_week } = body
+    const { active, start_date, end_date, start_time, end_time, days_of_week, display_format } = body
     if (!start_date || !end_date) {
       return NextResponse.json({ error: "data de início e fim são obrigatórias" }, { status: 400 })
     }
+    const displayFormat = display_format === "shrink_lateral" ? "shrink_lateral" : "fullscreen"
     if (active) {
       const rejection = await rejectIfVideoTooHeavy(id)
       if (rejection) return rejection
@@ -102,15 +103,17 @@ export async function PATCH(
     const { rows } = await pool.query(
       `UPDATE institutional_media
        SET active = $1, start_date = $2, end_date = $3,
-           start_time = $4, end_time = $5, days_of_week = $6
-       WHERE id = $7
-       RETURNING id, active, start_date, end_date, start_time, end_time, days_of_week`,
+           start_time = $4, end_time = $5, days_of_week = $6, display_format = $7
+       WHERE id = $8
+       RETURNING id, active, start_date, end_date, start_time, end_time, days_of_week, display_format`,
       [active ?? true, start_date, end_date, start_time || null, end_time || null,
-       days_of_week && days_of_week.length ? days_of_week : null, id]
+       days_of_week && days_of_week.length ? days_of_week : null, displayFormat, id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
 
-    // Sincroniza com a fundação unificada (Fase 1) — best-effort
+    // Sincroniza com a fundação unificada (Fase 1) — best-effort.
+    // display_format vive em creative_assets_v2 (não em placements_v2), então
+    // precisa de um UPDATE separado, unindo pelo mesmo source_id.
     pool.query(
       `UPDATE placements_v2
        SET active = $1, start_date = $2, end_date = $3,
@@ -119,6 +122,12 @@ export async function PATCH(
       [active ?? true, start_date, end_date, start_time || null, end_time || null,
        days_of_week && days_of_week.length ? days_of_week : null, id]
     ).catch((e: any) => console.error("[unifiedSync] edit schedule failed:", e))
+
+    pool.query(
+      `UPDATE creative_assets_v2 SET display_format = $1
+       WHERE source_table = 'institutional_media' AND source_id = $2`,
+      [displayFormat, id]
+    ).catch((e: any) => console.error("[unifiedSync] edit display_format failed:", e))
 
     return NextResponse.json({ ok: true, ...rows[0] })
   } catch (err: any) {

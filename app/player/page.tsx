@@ -19,6 +19,7 @@ interface PlayerMediaRow {
 }
 
 type SlotCategory = "dono" | "anunciante" | "rede" | "institucional";
+type DisplayFormat = "fullscreen" | "shrink_lateral";
 
 interface PlayerMedia {
   id: string;
@@ -27,6 +28,7 @@ interface PlayerMedia {
   url: string;
   duration: number;
   category: SlotCategory;
+  displayFormat: DisplayFormat;
 }
 
 async function getPlayerData(code: string) {
@@ -67,8 +69,8 @@ async function getPlayerData(code: string) {
     `, [upperCode])
 
     // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
-    const institutionalQuery = pool.query<{ id: string; name: string; type: string; url: string; duration: number }>(`
-      SELECT id, name, type, url, duration
+    const institutionalQuery = pool.query<{ id: string; name: string; type: string; url: string; duration: number; display_format: string }>(`
+      SELECT id, name, type, url, duration, display_format
       FROM institutional_media
       WHERE active = true
       ORDER BY position ASC
@@ -101,19 +103,23 @@ async function getPlayerData(code: string) {
         url: r.media_url,
         duration: Number(r.duration) || 15,
         category: (r.slot_category as SlotCategory) || "dono",
+        displayFormat: "fullscreen" as DisplayFormat,
       }))
 
     const network: PlayerMedia[] = networkRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url, duration: 15, category: "rede" as SlotCategory,
+      displayFormat: "fullscreen" as DisplayFormat,
     }))
 
-    const institutional: PlayerMedia[] = institutionalRes.rows.map((r: { id: string; name: string; type: string; url: string; duration: number }) => ({
+    const institutional: PlayerMedia[] = institutionalRes.rows.map((r: { id: string; name: string; type: string; url: string; duration: number; display_format: string }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url,
       duration: Number(r.duration) || 15, category: "institucional" as SlotCategory,
+      displayFormat: (r.display_format === "shrink_lateral" ? "shrink_lateral" : "fullscreen") as DisplayFormat,
     }))
 
     const realAds: PlayerMedia[] = realAdsRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url, duration: 15, category: "anunciante" as SlotCategory,
+      displayFormat: "fullscreen" as DisplayFormat,
     }))
 
     return {
@@ -181,7 +187,7 @@ export default async function PlayerPage({
       </div>`
     : `<div id="slides">${slidesHtml}</div>`
 
-  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-area">${bodyContentHtml}</div>`
+  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone"></div>`
 
   const mediasJson = JSON.stringify(data.medias)
   const buildVersion = process.env.RENDER_GIT_COMMIT || "dev"
@@ -200,6 +206,39 @@ export default async function PlayerPage({
             width: 100vw; height: 100vh;
             position: relative;
             background: #0F172A;
+            display: flex;
+            flex-direction: row;
+          }
+          /* ── Compositor de zonas (Fase 3) ──────────────────────────────
+             #main-zone é o conteúdo de sempre (fullscreen), agora dentro de
+             um container flex em vez de ocupar o #player inteiro. Quando
+             existe conteúdo "encolhe lateral" ativo, #player ganha a classe
+             .has-lateral, que reduz #main-zone e abre #lateral-zone do lado.
+             Sem nenhum item shrink_lateral, o comportamento é IDÊNTICO ao
+             fullscreen de sempre — largura de #lateral-zone fica em 0. */
+          #main-zone {
+            position: relative;
+            flex: 1 1 auto;
+            height: 100%;
+            min-width: 0;
+            transition: flex-basis .5s ease;
+          }
+          #lateral-zone {
+            position: relative;
+            width: 0;
+            height: 100%;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #000;
+            transition: width .5s ease;
+          }
+          #player.has-lateral #lateral-zone {
+            width: 26vw;
+          }
+          #lateral-zone video, #lateral-zone img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: none;
           }
           .slide {
             position: absolute;
@@ -337,6 +376,23 @@ export default async function PlayerPage({
             var cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
             var upcoming = null; // próxima mídia já sorteada e pré-carregada
 
+            // ── Compositor de zonas (Fase 3) ───────────────────────────────
+            // mainMedias: tudo que é fullscreen (comportamento de sempre).
+            // lateralMedias: itens marcados "encolhe lateral" — tocam numa
+            // zona separada, à parte do ciclo principal, sem competir pelos
+            // pesos de categoria (ficam sempre visíveis girando entre si
+            // enquanto existir pelo menos um).
+            var mainMedias = [];
+            var lateralMedias = [];
+            function splitByFormat(list) {
+              var main = [], lateral = [];
+              for (var i = 0; i < list.length; i++) {
+                if (list[i].displayFormat === 'shrink_lateral') lateral.push(list[i]);
+                else main.push(list[i]);
+              }
+              return { main: main, lateral: lateral };
+            }
+
             function buildGroups(list) {
               var g = { dono: [], anunciante: [], rede: [], institucional: [] };
               for (var i = 0; i < list.length; i++) {
@@ -372,7 +428,65 @@ export default async function PlayerPage({
               return list[idx];
             }
 
-            groups = buildGroups(medias);
+            var split = splitByFormat(medias);
+            mainMedias = split.main;
+            lateralMedias = split.lateral;
+            groups = buildGroups(mainMedias);
+
+            // ── Zona lateral — slot único, ciclo próprio e independente ────
+            var playerEl = document.getElementById('player');
+            var lateralZoneEl = document.getElementById('lateral-zone');
+            var lateralVideoEl = null;
+            var lateralImgEl = null;
+            var lateralTimer = null;
+            var lateralIdx = 0;
+
+            function initLateralZone() {
+              if (!lateralZoneEl) return;
+              lateralZoneEl.innerHTML = '';
+              lateralVideoEl = document.createElement('video');
+              lateralVideoEl.muted = true;
+              lateralVideoEl.playsInline = true;
+              lateralVideoEl.setAttribute('muted', '');
+              lateralVideoEl.setAttribute('playsinline', '');
+              lateralVideoEl.setAttribute('webkit-playsinline', '');
+              lateralVideoEl.disableRemotePlayback = true;
+              lateralImgEl = document.createElement('img');
+              lateralZoneEl.appendChild(lateralVideoEl);
+              lateralZoneEl.appendChild(lateralImgEl);
+            }
+
+            function showLateralSlide() {
+              if (lateralTimer) { clearTimeout(lateralTimer); lateralTimer = null; }
+              if (!lateralMedias.length) {
+                if (playerEl) playerEl.classList.remove('has-lateral');
+                return;
+              }
+              if (playerEl) playerEl.classList.add('has-lateral');
+              if (!lateralVideoEl) initLateralZone();
+
+              var m = lateralMedias[lateralIdx % lateralMedias.length];
+              lateralIdx++;
+
+              var el = (m.type === 'video') ? lateralVideoEl : lateralImgEl;
+              var other = (m.type === 'video') ? lateralImgEl : lateralVideoEl;
+              other.style.display = 'none';
+              if (other.tagName === 'VIDEO') { try { other.pause(); } catch (e) {} }
+
+              if (el.tagName === 'IMG') el.alt = m.name || '';
+              if (el.src !== m.url) el.src = m.url;
+              el.style.display = 'block';
+
+              var dur = (Number(m.duration) || 15) * 1000;
+              if (el.tagName === 'VIDEO') {
+                el.currentTime = 0;
+                el.onerror = function() {};
+                var p = el.play();
+                if (p && typeof p.catch === 'function') p.catch(function() {});
+              }
+
+              lateralTimer = setTimeout(showLateralSlide, dur);
+            }
 
             // ── Arquitetura de renderização sob demanda ──────────────────────
             // Em vez de criar um elemento <img>/<video> para CADA mídia da
@@ -532,6 +646,7 @@ export default async function PlayerPage({
                         url: item.asset_url,
                         duration: Number(item.duration) || 15,
                         category: item.slot_category || 'dono',
+                        displayFormat: item.display_format === 'shrink_lateral' ? 'shrink_lateral' : 'fullscreen',
                       };
                     });
 
@@ -543,7 +658,10 @@ export default async function PlayerPage({
                   // isso nunca tinha sido inicializado.
                   if (medias.length === 0 && fresh.length > 0) {
                     medias = fresh;
-                    groups = buildGroups(medias);
+                    var splitFirst = splitByFormat(medias);
+                    mainMedias = splitFirst.main;
+                    lateralMedias = splitFirst.lateral;
+                    groups = buildGroups(mainMedias);
                     cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
                     var contentArea = document.getElementById('content-area');
                     if (contentArea) {
@@ -552,15 +670,22 @@ export default async function PlayerPage({
                       initSlots();
                       showSlide(pickNextMedia());
                     }
+                    showLateralSlide();
                     return;
                   }
 
                   if (mediasChanged(medias, fresh)) {
                     medias = fresh;
-                    groups = buildGroups(medias);
+                    var splitNew = splitByFormat(medias);
+                    mainMedias = splitNew.main;
+                    lateralMedias = splitNew.lateral;
+                    groups = buildGroups(mainMedias);
                     cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
                     // não força troca imediata — deixa o ciclo atual terminar
-                    // normalmente; o próximo pickNextMedia já usa os grupos novos
+                    // normalmente; o próximo pickNextMedia já usa os grupos novos.
+                    // A zona lateral também não é interrompida — o timer em
+                    // curso vai ler lateralMedias atualizado na próxima virada.
+                    if (!lateralTimer) showLateralSlide();
                   }
                 })
                 .catch(function() {
@@ -570,7 +695,7 @@ export default async function PlayerPage({
             }
 
             // Sem mídia — apenas heartbeat
-            if (!medias.length) {
+            if (!mainMedias.length && !lateralMedias.length) {
               sendHeartbeat();
               setInterval(sendHeartbeat, 30000);
               setInterval(pollPlaylist, POLL_INTERVAL_MS);
@@ -578,6 +703,7 @@ export default async function PlayerPage({
             }
 
             initSlots();
+            showLateralSlide();
 
             function showSlide(m) {
               if (!m) return;

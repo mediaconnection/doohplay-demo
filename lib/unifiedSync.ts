@@ -95,6 +95,7 @@ export async function syncInstitutionalToUnified(pool: Pool, params: {
   startTime?: string | null
   endTime?: string | null
   daysOfWeek?: string[] | null
+  displayFormat?: string
 }) {
   try {
     const campaignRes = await pool.query(
@@ -109,12 +110,13 @@ export async function syncInstitutionalToUnified(pool: Pool, params: {
     const assetRes = await pool.query(
       `INSERT INTO creative_assets_v2
          (campaign_id, name, url, type, display_format, duration_seconds, status, source_table, source_id)
-       VALUES ($1,$2,$3,$4,'fullscreen',$5,'approved','institutional_media',$6)
+       VALUES ($1,$2,$3,$4,$5,$6,'approved','institutional_media',$7)
        ON CONFLICT (source_table, source_id) DO UPDATE SET
          name = EXCLUDED.name, url = EXCLUDED.url, type = EXCLUDED.type,
-         duration_seconds = EXCLUDED.duration_seconds
+         display_format = EXCLUDED.display_format, duration_seconds = EXCLUDED.duration_seconds
        RETURNING id`,
-      [campaignV2Id, params.name, params.url, params.type, params.durationSeconds ?? 15, params.mediaId]
+      [campaignV2Id, params.name, params.url, params.type, params.displayFormat || "fullscreen",
+       params.durationSeconds ?? 15, params.mediaId]
     )
     const assetId = assetRes.rows[0].id
 
