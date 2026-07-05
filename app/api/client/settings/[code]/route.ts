@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const { rows } = await pool.query(
       `SELECT name, business_type, address, city, phone, email,
-              cpf_cnpj, notif_whatsapp, notif_email, screen_orientation
+              cpf_cnpj, notif_whatsapp, notif_email, screen_orientation, primary_color
        FROM studio_clients WHERE code = $1 LIMIT 1`,
       [code]
     )
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
     const {
       name, business_type, address, city, phone, email,
-      cpf_cnpj, notif_whatsapp, notif_email, screen_orientation,
+      cpf_cnpj, notif_whatsapp, notif_email, screen_orientation, primary_color,
     } = body
 
     // Validações básicas
@@ -51,8 +51,9 @@ export async function PATCH(req: NextRequest) {
          cpf_cnpj           = $7,
          notif_whatsapp     = $8,
          notif_email        = $9,
-         screen_orientation = $10
-       WHERE code = $11`,
+         screen_orientation = $10,
+         primary_color      = $11
+       WHERE code = $12`,
       [
         name.trim(),
         business_type?.trim() || null,
@@ -64,6 +65,7 @@ export async function PATCH(req: NextRequest) {
         notif_whatsapp ?? true,
         notif_email    ?? false,
         screen_orientation === "portrait" ? "portrait" : "landscape",
+        /^#[0-9A-Fa-f]{6}$/.test(primary_color || "") ? primary_color : "#3B82F6",
         code,
       ]
     )

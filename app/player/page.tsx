@@ -129,9 +129,9 @@ async function getPlayerData(code: string) {
     // /player?screen=CODE) — fica registrado como limitação conhecida.
     const templateRes = await pool.query<{
       template_key: string; location_lat: number; location_lon: number;
-      location_name: string; stock_tickers: string[]; news_country: string;
+      location_name: string; stock_tickers: string[]; news_country: string; brand_color: string;
     }>(`
-      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, brand_color
       FROM screen_templates
       WHERE client_code = $1 AND active = true
       ORDER BY screen_id NULLS LAST
@@ -288,7 +288,8 @@ export default async function PlayerPage({
   function renderWidgetHtml(contentType: string): string {
     if (contentType === "clock") {
       return `<div class="dw dw-clock">
-        <div class="dw-accent dw-accent-clock"></div>
+        <div class="dw-accent"></div>
+        <div class="dw-clock-ring"></div>
         <div class="dw-clock-time" data-live-clock-time>--:--</div>
         <div class="dw-clock-date" data-live-clock-date>—</div>
       </div>`
@@ -296,7 +297,7 @@ export default async function PlayerPage({
     if (contentType === "weather" && data.widgets?.weather) {
       const w = data.widgets.weather
       return `<div class="dw dw-weather">
-        <div class="dw-accent dw-accent-weather"></div>
+        <div class="dw-accent"></div>
         <div class="dw-weather-icon">${weatherIconSvg(w.code ?? 0)}</div>
         <div class="dw-weather-temp">${w.temperature}<span>°C</span></div>
         <div class="dw-weather-label">${escapeHtml(w.label)}</div>
@@ -305,7 +306,7 @@ export default async function PlayerPage({
     }
     if (contentType === "stocks" && data.widgets?.stocks?.length) {
       return `<div class="dw dw-stocks">
-        <div class="dw-accent dw-accent-stocks"></div>
+        <div class="dw-accent"></div>
         <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>BOLSA · B3</div>
         <div class="dw-stocks-list">
           ${data.widgets.stocks.map((s: any) => `<div class="dw-stock-row">
@@ -318,7 +319,7 @@ export default async function PlayerPage({
     }
     if (contentType === "news" && data.widgets?.news?.length) {
       return `<div class="dw dw-news">
-        <div class="dw-accent dw-accent-news"></div>
+        <div class="dw-accent"></div>
         <div class="dw-header"><span class="dw-live-dot dw-live-dot-news"></span>NOTÍCIAS · G1</div>
         <div class="dw-news-list">
           ${data.widgets.news.map((n: any) => `<div class="dw-news-item"><span class="dw-news-bar"></span><span>${escapeHtml(n.title)}</span></div>`).join("")}
@@ -382,6 +383,26 @@ export default async function PlayerPage({
             overflow: hidden;
             font-family: 'Inter', system-ui, sans-serif;
           }
+          /* Fonte auto-hospedada (Fase 5) — arquivo servido do próprio
+             domínio, sem depender de Google Fonts em runtime. TVs com
+             internet instável não podem travar esperando uma fonte externa. */
+          @font-face {
+            font-family: 'Space Grotesk';
+            src: url('/fonts/space-grotesk-latin-400-normal.woff2') format('woff2');
+            font-weight: 400; font-style: normal; font-display: swap;
+          }
+          @font-face {
+            font-family: 'Space Grotesk';
+            src: url('/fonts/space-grotesk-latin-600-normal.woff2') format('woff2');
+            font-weight: 600; font-style: normal; font-display: swap;
+          }
+          @font-face {
+            font-family: 'Space Grotesk';
+            src: url('/fonts/space-grotesk-latin-700-normal.woff2') format('woff2');
+            font-weight: 700; font-style: normal; font-display: swap;
+          }
+          .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
+
           #player {
             width: 100vw; height: 100vh;
             position: relative;
@@ -403,6 +424,17 @@ export default async function PlayerPage({
             min-width: 0;
             transition: flex-basis .5s ease;
           }
+          /* Cantos tipo viewfinder — só aparecem quando há painel lateral,
+             reforçando a sensação de "transmissão ao vivo" ao lado dos dados */
+          #main-zone::before, #main-zone::after {
+            content: ''; position: absolute; width: 28px; height: 28px;
+            border-color: var(--accent-1, #00D9FF); opacity: 0; z-index: 5;
+            transition: opacity .6s ease, border-color 1.4s ease; pointer-events: none;
+          }
+          #main-zone::before { top: 20px; left: 20px; border-top: 2px solid; border-left: 2px solid; }
+          #main-zone::after  { top: 20px; right: 20px; border-top: 2px solid; border-right: 2px solid; }
+          #player.has-lateral #main-zone::before,
+          #player.has-lateral #main-zone::after { opacity: .8; }
           #lateral-zone {
             position: relative;
             width: 0;
@@ -424,118 +456,131 @@ export default async function PlayerPage({
           #widgets-panel {
             width: 100%; height: 100%;
             display: flex; flex-direction: column;
-            padding: 2.2vh 1.4vw;
-            gap: 1.6vh;
+            padding: 1vh 0.8vw;
+            gap: 1vh;
             overflow: hidden;
           }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
-          #zones-root { background: #0B1220; }
-          .zone { background: #0B1220; }
+          #zones-root { background: #05070D; }
+          .zone { background: #05070D; padding: 0.5vh 0.5vw; }
+          .zone-media { width: 100%; height: 100%; }
           .zone-media video, .zone-media img {
             width: 100%; height: 100%; object-fit: cover; display: none;
           }
 
-          /* ── Sistema de widgets "painel de transmissão" (Fase 4b) ──────────
-             Números em fonte monoespaçada tabular (não "pulam" ao trocar o
-             dígito), ícones SVG próprios, barra de destaque tipo chyron. */
+          /* ── Sistema de widgets "Aurora" (Fase 5) ──────────────────────────
+             Substitui o chyron de cor fixa por tipo (Fase 4b) por um único
+             gradiente dinâmico, controlado pelo motor de cor (marca do
+             cliente + cor extraída do conteúdo em exibição). Números em
+             fonte monoespaçada tabular, ícones SVG próprios. */
           .dw {
             position: relative;
             width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center;
-            padding: 2vh 1.2vw;
-            font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
-            color: #F8FAFC;
-            background: linear-gradient(160deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
+            padding: 1.8vh 1.1vw;
+            border-radius: 14px;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            color: #F5F7FA;
+            background: linear-gradient(155deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,.07);
             overflow: hidden;
           }
           .dw-accent {
             position: absolute; top: 0; left: 0; right: 0; height: 3px;
-          }
-          .dw-accent-clock   { background: #3B82F6; box-shadow: 0 0 12px 1px rgba(59,130,246,.7); }
-          .dw-accent-weather { background: #F5A623; box-shadow: 0 0 12px 1px rgba(245,166,35,.7); }
-          .dw-accent-stocks  { background: #10B981; box-shadow: 0 0 12px 1px rgba(16,185,129,.7); }
-          .dw-accent-news    { background: #F43F5E; box-shadow: 0 0 12px 1px rgba(244,63,94,.7); }
-
-          .dw-mono {
-            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-            font-variant-numeric: tabular-nums;
+            background: linear-gradient(90deg, var(--accent-1, #00D9FF), var(--accent-2, #7B61FF));
+            box-shadow: 0 0 16px 1px rgba(var(--bg-tint, 0,217,255), .6);
+            transition: background 1.4s ease, box-shadow 1.4s ease;
           }
 
           .dw-header {
             display: flex; align-items: center; gap: 8px;
-            font-size: 1.5vh; font-weight: 700; letter-spacing: .12em;
-            opacity: .55; margin-bottom: 1.4vh; text-transform: uppercase;
+            font-size: 1.4vh; font-weight: 700; letter-spacing: .12em;
+            opacity: .5; margin-bottom: 1.2vh; text-transform: uppercase;
           }
           .dw-live-dot {
-            width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
             animation: dw-pulse 2s ease-in-out infinite;
           }
-          .dw-live-dot-stocks { background: #10B981; }
-          .dw-live-dot-news { background: #F43F5E; }
+          .dw-live-dot-stocks { background: #34D399; }
+          .dw-live-dot-news { background: #FB7185; }
           @keyframes dw-pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: .35; transform: scale(.75); }
+            50% { opacity: .3; transform: scale(.7); }
           }
 
-          /* Relógio */
+          /* Relógio — elemento hero, com anel de brilho que "respira" */
           .dw-clock { align-items: center; text-align: center; }
+          .dw-clock-ring {
+            position: absolute; width: 160%; height: 160%; border-radius: 50%;
+            background: radial-gradient(circle, rgba(var(--bg-tint, 0,217,255),.20), transparent 70%);
+            animation: dw-breathe 6s ease-in-out infinite;
+            transition: background 1.4s ease;
+          }
+          @keyframes dw-breathe { 0%,100% { opacity:.5; transform: scale(1);} 50% { opacity:.9; transform: scale(1.05);} }
           .dw-clock-time {
-            font-size: 9vh; font-weight: 600; line-height: 1;
-            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            position: relative;
+            font-family: 'Space Grotesk', ui-monospace, monospace;
             font-variant-numeric: tabular-nums;
-            letter-spacing: .01em;
+            font-size: 8vh; font-weight: 700; line-height: 1; letter-spacing: -.01em;
           }
           .dw-clock-date {
-            font-size: 1.7vh; opacity: .55; margin-top: 1vh;
-            letter-spacing: .04em;
+            position: relative;
+            font-size: 1.6vh; opacity: .55; margin-top: 1vh; letter-spacing: .06em; text-transform: uppercase;
           }
 
-          /* Clima */
+          /* Clima — ícone mantém dourado (associação intuitiva sol=quente) */
           .dw-weather { align-items: center; text-align: center; }
-          .dw-weather-icon { width: 9vh; height: 9vh; color: #F5A623; }
+          .dw-weather-icon { width: 8vh; height: 8vh; color: #FFB454; }
           .dw-weather-icon svg { width: 100%; height: 100%; }
           .dw-weather-temp {
-            font-size: 7vh; font-weight: 700; line-height: 1; margin-top: .6vh;
-            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-family: 'Space Grotesk', ui-monospace, monospace;
             font-variant-numeric: tabular-nums;
+            font-size: 6.2vh; font-weight: 700; line-height: 1; margin-top: .5vh;
           }
           .dw-weather-temp span { font-size: .5em; opacity: .6; font-weight: 500; }
-          .dw-weather-label { font-size: 1.9vh; opacity: .75; margin-top: .6vh; }
+          .dw-weather-label { font-size: 1.8vh; opacity: .75; margin-top: .5vh; }
           .dw-weather-location {
-            font-size: 1.3vh; opacity: .4; margin-top: 1.2vh;
+            font-size: 1.2vh; opacity: .4; margin-top: 1vh;
             letter-spacing: .12em; text-transform: uppercase;
           }
 
-          /* Bolsa */
+          /* Bolsa — verde/rosa semânticos (alta/baixa), não seguem o tema dinâmico */
           .dw-stocks-list { display: flex; flex-direction: column; }
           .dw-stock-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 1.1vh 0; font-size: 1.9vh;
-            border-bottom: 1px solid rgba(255,255,255,.07);
+            padding: 1vh 0; font-size: 1.8vh;
+            border-bottom: 1px solid rgba(255,255,255,.06);
           }
           .dw-stock-row:last-child { border-bottom: none; }
           .dw-stock-symbol { font-weight: 700; letter-spacing: .02em; }
           .dw-stock-price {
-            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-family: 'Space Grotesk', ui-monospace, monospace;
             font-variant-numeric: tabular-nums;
           }
           .dw-stock-change {
-            font-size: 1.5vh; font-weight: 700; padding: 3px 8px; border-radius: 6px;
-            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-family: 'Space Grotesk', ui-monospace, monospace;
             font-variant-numeric: tabular-nums;
+            font-size: 1.4vh; font-weight: 700; padding: 3px 8px; border-radius: 6px;
           }
-          .dw-stock-change.up   { background: rgba(16,185,129,.15); color: #10B981; }
-          .dw-stock-change.down { background: rgba(244,63,94,.15); color: #F43F5E; }
+          .dw-stock-change.up   { background: rgba(52,211,153,.15); color: #34D399; }
+          .dw-stock-change.down { background: rgba(251,113,133,.15); color: #FB7185; }
 
           /* Notícias */
           .dw-news-list { display: flex; flex-direction: column; overflow: hidden; }
           .dw-news-item {
             display: flex; align-items: flex-start; gap: 10px;
-            font-size: 1.9vh; line-height: 1.4;
-            padding: 1.3vh 0; border-bottom: 1px solid rgba(255,255,255,.07);
+            font-size: 1.8vh; line-height: 1.4;
+            padding: 1.2vh 0; border-bottom: 1px solid rgba(255,255,255,.06);
           }
           .dw-news-item:last-child { border-bottom: none; }
+          .dw-news-bar {
+            width: 3px; flex-shrink: 0; align-self: stretch;
+            background: linear-gradient(180deg, var(--accent-1, #00D9FF), var(--accent-2, #7B61FF));
+            border-radius: 2px; margin-top: 2px;
+            transition: background 1.4s ease;
+          }
           .dw-news-bar {
             width: 3px; flex-shrink: 0; align-self: stretch;
             background: #F43F5E; border-radius: 2px; margin-top: 2px;
@@ -553,6 +598,10 @@ export default async function PlayerPage({
             height: 100%;
             object-fit: cover;
           }
+          /* Ken Burns sutil só em imagens — dá sensação de vida mesmo em
+             conteúdo estático. Vídeos já têm movimento próprio, não precisam. */
+          @keyframes dw-kenburns { from { transform: scale(1); } to { transform: scale(1.06); } }
+          .slide.active img { animation: dw-kenburns 18s ease-in-out infinite alternate; }
           /* Elimina o "flash" do ícone nativo de play que alguns WebViews
              Android/Chromium mostram por uma fração de segundo na primeira
              reprodução de cada elemento <video> recém-criado, mesmo com
@@ -660,6 +709,81 @@ export default async function PlayerPage({
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
             var isGenericLayout = ${JSON.stringify(!!data.layoutZones)};
+            var brandColorHex = ${JSON.stringify(data.primary_color || "#3B82F6")};
+
+            // ── Motor de cor "Aurora" (Fase 5) ──────────────────────────────
+            // A cor da marca (cadastrada pelo cliente) é a base. Sempre que o
+            // conteúdo principal troca de slide, extraímos a cor dominante
+            // do frame via canvas e misturamos com a marca — o tema nunca
+            // fica 100% preso a um nem 100% preso ao outro. Se a extração
+            // falhar (ex: CORS do bucket não configurado), cai de volta pra
+            // usar só a cor da marca, sem quebrar nada.
+            function hexToHsl(hex) {
+              var r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+              var max = Math.max(r,g,b), min = Math.min(r,g,b);
+              var h, s, l = (max+min)/2;
+              if (max === min) { h = s = 0; }
+              else {
+                var d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+                else if (max === g) h = (b - r) / d + 2;
+                else h = (r - g) / d + 4;
+                h *= 60;
+              }
+              return { h: h, s: s*100, l: l*100 };
+            }
+            function hslToHex(h, s, l) {
+              s /= 100; l /= 100;
+              function k(n) { return (n + h/30) % 12; }
+              var a = s * Math.min(l, 1-l);
+              function f(n) { return l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1))); }
+              function toHex(x) { var v = Math.round(255*x).toString(16); return v.length === 1 ? '0'+v : v; }
+              return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+            }
+            function hexToRgbTuple(hex) {
+              return parseInt(hex.slice(1,3),16) + ',' + parseInt(hex.slice(3,5),16) + ',' + parseInt(hex.slice(5,7),16);
+            }
+            function blendHue(h1, h2, weight) {
+              var diff = ((h2 - h1 + 540) % 360) - 180;
+              return (h1 + diff * weight + 360) % 360;
+            }
+
+            var brandHsl = hexToHsl(brandColorHex);
+            var brandHue = brandHsl.h, brandSat = Math.max(brandHsl.s, 55), brandLight = 58;
+            var lastContentHue = null;
+
+            function extractDominantHue(mediaEl) {
+              try {
+                var canvas = document.createElement('canvas');
+                canvas.width = 24; canvas.height = 24;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(mediaEl, 0, 0, 24, 24);
+                var data = ctx.getImageData(0, 0, 24, 24).data;
+                var r = 0, g = 0, b = 0, n = 0;
+                for (var i = 0; i < data.length; i += 4) { r += data[i]; g += data[i+1]; b += data[i+2]; n++; }
+                r /= n; g /= n; b /= n;
+                var hex = '#' + Math.round(r).toString(16).padStart(2,'0') + Math.round(g).toString(16).padStart(2,'0') + Math.round(b).toString(16).padStart(2,'0');
+                return hexToHsl(hex).h;
+              } catch (e) {
+                // CORS do bucket provavelmente não configurado — cai pra cor da marca, sem travar nada
+                return null;
+              }
+            }
+
+            function applyColorTheme(contentHue) {
+              var CONTENT_WEIGHT = 0.55;
+              var finalHue = (contentHue === null || contentHue === undefined)
+                ? brandHue
+                : blendHue(brandHue, contentHue, CONTENT_WEIGHT);
+              var accent1 = hslToHex(finalHue, brandSat, brandLight);
+              var accent2 = hslToHex((finalHue + 35) % 360, brandSat, brandLight);
+              var root = document.documentElement.style;
+              root.setProperty('--accent-1', accent1);
+              root.setProperty('--accent-2', accent2);
+              root.setProperty('--bg-tint', hexToRgbTuple(accent1));
+            }
+            applyColorTheme(null); // aplica a cor da marca já de cara, antes de qualquer extração
 
             // ── Relógio ao vivo (Fase 4b) ──────────────────────────────────
             // Roda independente do modo (magazine ou zonas genéricas) — só
@@ -1124,6 +1248,27 @@ export default async function PlayerPage({
               var dur = (Number(m.duration) || 15) * 1000;
               var mediaId = m.id;
               var el = (m.type === 'video') ? activeSlot.video : activeSlot.img;
+
+              // Motor de cor (Fase 5): extrai a cor dominante deste slide
+              // assim que o frame estiver pronto, e mistura com a cor da
+              // marca. Se falhar (CORS), applyColorTheme(null) já foi
+              // chamado no início e o tema da marca continua valendo.
+              if (m.type === 'video') {
+                el.addEventListener('loadeddata', function onLoadedData() {
+                  lastContentHue = extractDominantHue(el);
+                  applyColorTheme(lastContentHue);
+                }, { once: true });
+              } else if (el) {
+                if (el.complete) {
+                  lastContentHue = extractDominantHue(el);
+                  applyColorTheme(lastContentHue);
+                } else {
+                  el.addEventListener('load', function onLoad() {
+                    lastContentHue = extractDominantHue(el);
+                    applyColorTheme(lastContentHue);
+                  }, { once: true });
+                }
+              }
 
               // Garante que esta mídia só avança UMA vez, seja por onended,
               // erro de carregamento, falha de autoplay ou pelo timeout de

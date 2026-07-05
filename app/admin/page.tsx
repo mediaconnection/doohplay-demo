@@ -1283,6 +1283,39 @@ function TabTemplates({ data }: { data: any }) {
   const [locationLon, setLocationLon] = useState("-46.6333")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [clientSettings, setClientSettings] = useState<any>(null)
+  const [brandColor, setBrandColor] = useState("#3B82F6")
+  const [savingBrand, setSavingBrand] = useState(false)
+  const [brandMsg, setBrandMsg] = useState("")
+
+  useEffect(() => {
+    if (!clientCode) { setClientSettings(null); return }
+    fetch(`/api/client/settings/${clientCode}`)
+      .then(r => r.json())
+      .then(d => {
+        setClientSettings(d)
+        setBrandColor(d.primary_color || "#3B82F6")
+      })
+      .catch(() => setClientSettings(null))
+  }, [clientCode])
+
+  const saveBrandColor = async () => {
+    if (!clientCode || !clientSettings) return
+    setSavingBrand(true); setBrandMsg("")
+    try {
+      const res = await fetch(`/api/client/settings/${clientCode}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...clientSettings, primary_color: brandColor }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao salvar")
+      setBrandMsg("✅ Cor da marca salva!")
+    } catch (err: any) {
+      setBrandMsg("⚠️ " + (err.message || "Erro ao salvar"))
+    }
+    setSavingBrand(false)
+  }
 
   const load = () => {
     setLoading(true)
@@ -1338,6 +1371,22 @@ function TabTemplates({ data }: { data: any }) {
             {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
           </select>
         </div>
+
+        {clientCode && clientSettings && (
+          <div style={{ marginBottom: 20, padding: 14, background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 8 }}>
+              🎨 Cor da marca — o sistema deriva toda a paleta de destaque da tela a partir dela
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} style={{ width: 44, height: 34, borderRadius: 6, border: "1px solid " + BORDER, background: "transparent", cursor: "pointer" }} />
+              <span style={{ fontSize: 12, color: TEXT2, fontFamily: "monospace" }}>{brandColor.toUpperCase()}</span>
+              <button onClick={saveBrandColor} disabled={savingBrand} style={{ marginLeft: "auto", background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: savingBrand ? 0.6 : 1 }}>
+                {savingBrand ? "Salvando..." : "Salvar cor"}
+              </button>
+            </div>
+            {brandMsg && <div style={{ fontSize: 11, marginTop: 8 }}>{brandMsg}</div>}
+          </div>
+        )}
 
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Template</label>
