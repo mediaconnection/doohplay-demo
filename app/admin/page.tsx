@@ -1074,6 +1074,202 @@ function TabExemplos() {
   )
 }
 
+// ── Editor visual de layout (Fase 4) — arrastar, redimensionar, remover
+// blocos e escolher o conteúdo de cada um. Usado dentro de TabTemplates.
+const LAYOUT_CONTENT_TYPES = [
+  { value: "main_rotation", label: "Principal (dono+anunciante+rede+institucional)" },
+  { value: "ad_only", label: "Só anúncio" },
+  { value: "weather", label: "Clima" },
+  { value: "stocks", label: "Bolsa" },
+  { value: "news", label: "Notícias" },
+]
+const ZONE_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#EF4444"]
+
+function LayoutEditor({ clientCode }: { clientCode: string }) {
+  const [presets, setPresets] = useState<any[]>([])
+  const [zones, setZones] = useState<any[]>([])
+  const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal")
+  const [selectedZone, setSelectedZone] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState("")
+  const dragState = useRef<{ mode: "move" | "resize"; zoneId: string; startX: number; startY: number; orig: any } | null>(null)
+
+  const canvasW = orientation === "horizontal" ? 560 : 220
+  const canvasH = orientation === "horizontal" ? 315 : 391
+
+  useEffect(() => {
+    if (!clientCode) return
+    setLoading(true)
+    fetch(`/api/admin/layout-templates?client_code=${encodeURIComponent(clientCode)}`)
+      .then(r => r.json())
+      .then(d => {
+        setPresets(d.presets ?? [])
+        if (d.current) {
+          setZones(d.current.zones)
+          setOrientation(d.current.orientation)
+        } else {
+          setZones([{ id: "z1", x: 0, y: 0, w: 100, h: 100, content_type: "main_rotation" }])
+        }
+      })
+      .catch(() => setPresets([]))
+      .finally(() => setLoading(false))
+  }, [clientCode])
+
+  const applyPreset = (preset: any) => {
+    setZones(preset.zones.map((z: any) => ({ ...z })))
+    setOrientation(preset.orientation)
+    setSelectedZone(null)
+  }
+
+  const onMouseMove = (e: MouseEvent) => {
+    const ds = dragState.current
+    if (!ds) return
+    const dxPct = ((e.clientX - ds.startX) / canvasW) * 100
+    const dyPct = ((e.clientY - ds.startY) / canvasH) * 100
+    setZones(prev => prev.map(z => {
+      if (z.id !== ds.zoneId) return z
+      if (ds.mode === "move") {
+        const x = Math.max(0, Math.min(100 - ds.orig.w, ds.orig.x + dxPct))
+        const y = Math.max(0, Math.min(100 - ds.orig.h, ds.orig.y + dyPct))
+        return { ...z, x: Math.round(x), y: Math.round(y) }
+      }
+      const w = Math.max(8, Math.min(100 - ds.orig.x, ds.orig.w + dxPct))
+      const h = Math.max(8, Math.min(100 - ds.orig.y, ds.orig.h + dyPct))
+      return { ...z, w: Math.round(w), h: Math.round(h) }
+    }))
+  }
+
+  const onMouseUp = () => {
+    dragState.current = null
+    window.removeEventListener("mousemove", onMouseMove)
+    window.removeEventListener("mouseup", onMouseUp)
+  }
+
+  const onZoneMouseDown = (e: React.MouseEvent, zoneId: string, mode: "move" | "resize") => {
+    e.stopPropagation()
+    e.preventDefault()
+    const zone = zones.find(z => z.id === zoneId)
+    if (!zone) return
+    setSelectedZone(zoneId)
+    dragState.current = { mode, zoneId, startX: e.clientX, startY: e.clientY, orig: { ...zone } }
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+  }
+
+  const addZone = () => {
+    const id = "z" + Date.now().toString(36)
+    setZones(prev => [...prev, { id, x: 10, y: 10, w: 30, h: 30, content_type: "main_rotation" }])
+  }
+
+  const removeZone = (zoneId: string) => {
+    setZones(prev => prev.filter(z => z.id !== zoneId))
+    if (selectedZone === zoneId) setSelectedZone(null)
+  }
+
+  const updateZoneType = (zoneId: string, contentType: string) => {
+    setZones(prev => prev.map(z => z.id === zoneId ? { ...z, content_type: contentType } : z))
+  }
+
+  const save = async () => {
+    if (zones.length === 0) { setMessage("⚠️ Adicione pelo menos um bloco"); return }
+    setSaving(true); setMessage("")
+    try {
+      const res = await fetch("/api/admin/layout-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_code: clientCode, name: "Layout personalizado", orientation, zones }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao salvar")
+      setMessage("✅ Layout salvo!")
+    } catch (err: any) {
+      setMessage("⚠️ " + (err.message || "Erro ao salvar"))
+    }
+    setSaving(false)
+  }
+
+  if (loading) return <div style={{ color: TEXT2, fontSize: 13 }}>Carregando editor...</div>
+
+  return (
+    <div style={{ marginTop: 20, borderTop: "1px solid " + BORDER, paddingTop: 20 }}>
+      <div style={{ fontWeight: 600, marginBottom: 4, color: TEXT }}>🎨 Editor de layout personalizado</div>
+      <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+        Clica num modelo pronto pra começar, depois arrasta pra mover e puxa o cantinho pra redimensionar. Clica num bloco pra trocar o conteúdo ou remover.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {presets.map((p: any) => (
+          <button key={p.id} onClick={() => applyPreset(p)} style={{
+            fontSize: 11, padding: "6px 10px", borderRadius: 6, border: "1px solid " + BORDER,
+            background: BG, color: TEXT2, cursor: "pointer",
+          }}>{p.orientation === "vertical" ? "📱" : "🖥️"} {p.name}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div>
+          <div style={{
+            width: canvasW, height: canvasH, position: "relative",
+            background: "#0F172A", border: "1px solid " + BORDER, borderRadius: 8,
+            overflow: "hidden", userSelect: "none",
+          }} onMouseDown={() => setSelectedZone(null)}>
+            {zones.map((z, i) => (
+              <div key={z.id}
+                onMouseDown={(e) => onZoneMouseDown(e, z.id, "move")}
+                style={{
+                  position: "absolute",
+                  left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%`,
+                  background: ZONE_COLORS[i % ZONE_COLORS.length] + (selectedZone === z.id ? "55" : "33"),
+                  border: "2px solid " + ZONE_COLORS[i % ZONE_COLORS.length] + (selectedZone === z.id ? "" : "88"),
+                  cursor: "move", display: "flex", alignItems: "center", justifyContent: "center",
+                  boxSizing: "border-box",
+                }}>
+                <span style={{ fontSize: 10, color: "#fff", fontWeight: 600, textAlign: "center", padding: 2 }}>
+                  {LAYOUT_CONTENT_TYPES.find(c => c.value === z.content_type)?.label.split(" ")[0] ?? z.content_type}
+                </span>
+                <div
+                  onMouseDown={(e) => onZoneMouseDown(e, z.id, "resize")}
+                  style={{
+                    position: "absolute", right: 0, bottom: 0, width: 14, height: 14,
+                    background: ZONE_COLORS[i % ZONE_COLORS.length], cursor: "nwse-resize",
+                    borderTopLeftRadius: 4,
+                  }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button onClick={addZone} style={{ fontSize: 12, padding: "8px 14px", borderRadius: 6, border: "1px solid " + BORDER, background: BG, color: TEXT2, cursor: "pointer" }}>+ Adicionar bloco</button>
+            <button onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")} style={{ fontSize: 12, padding: "8px 14px", borderRadius: 6, border: "1px solid " + BORDER, background: BG, color: TEXT2, cursor: "pointer" }}>
+              {orientation === "horizontal" ? "🖥️ Horizontal" : "📱 Vertical"} (trocar)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 220 }}>
+          {zones.map((z, i) => (
+            <div key={z.id} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: 8, marginBottom: 6,
+              background: selectedZone === z.id ? BORDER : "transparent", borderRadius: 6,
+            }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: ZONE_COLORS[i % ZONE_COLORS.length], flexShrink: 0 }} />
+              <select value={z.content_type} onChange={e => updateZoneType(z.id, e.target.value)} style={{ flex: 1, fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "5px 6px", color: TEXT }}>
+                {LAYOUT_CONTENT_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+              <button onClick={() => removeZone(z.id)} style={{ fontSize: 12, color: RED, background: "transparent", border: "none", cursor: "pointer" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {message && <div style={{ fontSize: 12, marginTop: 12 }}>{message}</div>}
+      <button onClick={save} disabled={saving} style={{ marginTop: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+        {saving ? "Salvando..." : "Salvar layout personalizado"}
+      </button>
+    </div>
+  )
+}
+
 // ── Templates de tela (Fase 3b) — widgets de clima/bolsa/notícias ──
 function TabTemplates({ data }: { data: any }) {
   const { clients } = data
@@ -1157,8 +1353,16 @@ function TabTemplates({ data }: { data: any }) {
               background: templateKey === "magazine" ? BLUE : BG,
               color: templateKey === "magazine" ? "#fff" : TEXT2, cursor: "pointer",
             }}>🖼️ Magazine (clima+bolsa+notícias)</button>
+            <button type="button" onClick={() => setTemplateKey("custom")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (templateKey === "custom" ? BLUE : BORDER),
+              background: templateKey === "custom" ? BLUE : BG,
+              color: templateKey === "custom" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>🎨 Layout personalizado</button>
           </div>
         </div>
+
+        {templateKey === "custom" && clientCode && <LayoutEditor clientCode={clientCode} />}
 
         {templateKey === "magazine" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -1176,14 +1380,18 @@ function TabTemplates({ data }: { data: any }) {
             </div>
           </div>
         )}
-        <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
-          Bolsa: mostra sempre PETR4, VALE3, MGLU3 e ITUB4 (as únicas ações liberadas sem custo). Notícias: G1 geral.
-        </div>
+        {templateKey !== "custom" && (
+          <>
+            <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+              Bolsa: mostra sempre PETR4, VALE3, MGLU3 e ITUB4 (as únicas ações liberadas sem custo). Notícias: G1 geral.
+            </div>
 
-        {error && <div style={{ color: RED, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
-        <button onClick={save} disabled={saving} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
-          {saving ? "Salvando..." : "Salvar configuração"}
-        </button>
+            {error && <div style={{ color: RED, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
+            <button onClick={save} disabled={saving} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Salvando..." : "Salvar configuração"}
+            </button>
+          </>
+        )}
       </div>
 
       <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Clientes configurados</div>
