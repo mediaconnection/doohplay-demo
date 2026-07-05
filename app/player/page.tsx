@@ -129,9 +129,9 @@ async function getPlayerData(code: string) {
     // /player?screen=CODE) — fica registrado como limitação conhecida.
     const templateRes = await pool.query<{
       template_key: string; location_lat: number; location_lon: number;
-      location_name: string; stock_tickers: string[]; news_country: string; brand_color: string;
+      location_name: string; stock_tickers: string[]; news_country: string;
     }>(`
-      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, brand_color
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country
       FROM screen_templates
       WHERE client_code = $1 AND active = true
       ORDER BY screen_id NULLS LAST
