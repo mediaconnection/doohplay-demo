@@ -462,12 +462,33 @@ export default async function PlayerPage({
           }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
-          #zones-root { background: #05070D; }
-          .zone { background: #05070D; padding: 0.5vh 0.5vw; }
-          .zone-media { width: 100%; height: 100%; }
+          #zones-root { background: #05070D; padding: 0.8vh 0.6vw; box-sizing: border-box; }
+          .zone {
+            background: #05070D;
+            margin: 0.5vh 0.4vw;
+            border-radius: 16px;
+            overflow: hidden;
+            box-sizing: border-box;
+          }
+          .zone-media { width: 100%; height: 100%; position: relative; }
           .zone-media video, .zone-media img {
             width: 100%; height: 100%; object-fit: cover; display: none;
           }
+          /* Ken Burns sutil só em imagens — mesmo tratamento do caminho antigo */
+          .zone-media img { animation: dw-kenburns 18s ease-in-out infinite alternate; }
+          /* Cantos tipo viewfinder na zona principal, reforça "ao vivo"
+             já que aqui sempre tem pelo menos um bloco de dado ao lado */
+          .zone[data-content-type="main_rotation"] {
+            position: relative;
+          }
+          .zone[data-content-type="main_rotation"]::before,
+          .zone[data-content-type="main_rotation"]::after {
+            content: ''; position: absolute; width: 22px; height: 22px;
+            border-color: var(--accent-1, #00D9FF); opacity: .8; z-index: 5;
+            transition: border-color 1.4s ease; pointer-events: none;
+          }
+          .zone[data-content-type="main_rotation"]::before { top: 14px; left: 14px; border-top: 2px solid; border-left: 2px solid; }
+          .zone[data-content-type="main_rotation"]::after  { top: 14px; right: 14px; border-top: 2px solid; border-right: 2px solid; }
 
           /* ── Sistema de widgets "Aurora" (Fase 5) ──────────────────────────
              Substitui o chyron de cor fixa por tipo (Fase 4b) por um único
