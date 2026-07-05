@@ -139,12 +139,11 @@ async function getPlayerData(code: string) {
     `, [upperCode])
     const template = templateRes.rows[0] || null
 
-    let widgets: { weather: any; stocks: any; news: any } | null = null
-    if (template?.template_key === "magazine") {
-      const lat = template.location_lat ?? -23.5505
-      const lon = template.location_lon ?? -46.6333
-      const locationName = template.location_name || "São Paulo"
-      const tickers = (template.stock_tickers?.length ? template.stock_tickers : ["PETR4", "VALE3", "MGLU3", "ITUB4"])
+    async function fetchWidgetsData(tpl: typeof template) {
+      const lat = tpl?.location_lat ?? -23.5505
+      const lon = tpl?.location_lon ?? -46.6333
+      const locationName = tpl?.location_name || "São Paulo"
+      const tickers = (tpl?.stock_tickers?.length ? tpl.stock_tickers : ["PETR4", "VALE3", "MGLU3", "ITUB4"])
         .filter((t: string) => ["PETR4", "VALE3", "MGLU3", "ITUB4"].includes(t))
 
       const WMO: Record<number, { label: string; emoji: string }> = {
@@ -184,7 +183,34 @@ async function getPlayerData(code: string) {
           if (title) news.push({ title })
         }
       }
-      widgets = { weather, stocks, news }
+      return { weather, stocks, news }
+    }
+
+    let widgets: { weather: any; stocks: any; news: any } | null = null
+    if (template?.template_key === "magazine") {
+      widgets = await fetchWidgetsData(template)
+    }
+
+    // ── Layout genérico (Fase 4) — N zonas editáveis, sobrepõe o template_key
+    // antigo quando configurado. Compatibilidade: se nenhum layout_template_id
+    // estiver definido, o comportamento antigo (fullscreen/magazine) continua
+    // exatamente como está — nada muda pra quem não configurar isso.
+    let layoutZones: Array<{ id: string; x: number; y: number; w: number; h: number; content_type: string }> | null = null
+    const layoutRes = await pool.query<{ zones: any }>(`
+      SELECT lt.zones
+      FROM screen_templates st
+      JOIN layout_templates lt ON lt.id = st.layout_template_id
+      WHERE st.client_code = $1 AND st.active = true
+      ORDER BY st.screen_id NULLS LAST
+      LIMIT 1
+    `, [upperCode])
+    if (layoutRes.rows[0]) {
+      layoutZones = layoutRes.rows[0].zones
+      // Widgets de dado (clima/bolsa/notícias) usados por qualquer zona desse
+      // tipo reaproveitam a mesma config de localização/tickers do template
+      if (layoutZones?.some(z => ["weather", "stocks", "news"].includes(z.content_type)) && !widgets) {
+        widgets = await fetchWidgetsData(template)
+      }
     }
 
     return {
@@ -194,10 +220,11 @@ async function getPlayerData(code: string) {
       medias: [...ownAndAds, ...network, ...institutional, ...realAds],
       template: template?.template_key || "fullscreen",
       widgets,
+      layoutZones,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", widgets: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", widgets: null as any, layoutZones: null as any }
   }
 }
 
@@ -278,7 +305,51 @@ export default async function PlayerPage({
       </div>`
     : ""
 
-  const playerInnerHtml = `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone">${widgetsPanelHtml}</div>`
+  // ── Layout genérico de N zonas (Fase 4) ─────────────────────────────────
+  // Só entra em ação quando um layout_template está configurado pra esse
+  // cliente. Sem isso, o player continua 100% no caminho antigo (fullscreen
+  // ou magazine) — zero mudança de comportamento pra quem não configurou.
+  function renderWidgetZoneHtml(contentType: string) {
+    if (contentType === "weather" && data.widgets?.weather) {
+      const w = data.widgets.weather
+      return `<div class="zwidget zwidget-weather">
+        <div class="zw-emoji">${w.emoji}</div>
+        <div class="zw-temp">${w.temperature}°C</div>
+        <div class="zw-label">${escapeHtml(w.label)}</div>
+        <div class="zw-location">${escapeHtml(w.location)}</div>
+      </div>`
+    }
+    if (contentType === "stocks" && data.widgets?.stocks?.length) {
+      return `<div class="zwidget zwidget-stocks">
+        <div class="zw-title">📈 Bolsa</div>
+        ${data.widgets.stocks.map((s: any) => `<div class="zw-stock-row">
+          <span class="zw-stock-symbol">${escapeHtml(s.symbol)}</span>
+          <span class="zw-stock-price">R$ ${Number(s.price ?? 0).toFixed(2)}</span>
+          <span class="zw-stock-change ${(s.changePercent ?? 0) >= 0 ? "up" : "down"}">${(s.changePercent ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(s.changePercent ?? 0).toFixed(1)}%</span>
+        </div>`).join("")}
+      </div>`
+    }
+    if (contentType === "news" && data.widgets?.news?.length) {
+      return `<div class="zwidget zwidget-news">
+        <div class="zw-title">📰 Notícias</div>
+        ${data.widgets.news.map((n: any) => `<div class="zw-news-item">${escapeHtml(n.title)}</div>`).join("")}
+      </div>`
+    }
+    return `<div class="zone-media"></div>` // main_rotation / ad_only — preenchido via JS
+  }
+
+  const zonesHtml = data.layoutZones
+    ? data.layoutZones.map((z: { id: string; x: number; y: number; w: number; h: number; content_type: string }) => {
+        const inner = ["weather", "stocks", "news"].includes(z.content_type)
+          ? renderWidgetZoneHtml(z.content_type)
+          : `<div class="zone-media"></div>`
+        return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;overflow:hidden;">${inner}</div>`
+      }).join("")
+    : ""
+
+  const playerInnerHtml = data.layoutZones
+    ? `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="zones-root" style="position:relative;width:100%;height:100%;">${zonesHtml}</div>`
+    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone">${widgetsPanelHtml}</div>`
 
   const mediasJson = JSON.stringify(data.medias)
   const buildVersion = process.env.RENDER_GIT_COMMIT || "dev"
@@ -360,6 +431,32 @@ export default async function PlayerPage({
           .w-stock-change.down { background: rgba(239,68,68,.15); color: #EF4444; }
           .w-news-item { font-size: 13px; line-height: 1.4; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
           .w-news-item:last-child { border-bottom: none; }
+
+          /* ── Layout genérico de N zonas (Fase 4) ── */
+          #zones-root { background: #0F172A; }
+          .zone { background: #0F172A; }
+          .zone-media video, .zone-media img {
+            width: 100%; height: 100%; object-fit: cover; display: none;
+          }
+          .zwidget {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 16px; gap: 8px;
+            font-family: system-ui, sans-serif; color: white;
+            background: rgba(255,255,255,.04);
+          }
+          .zwidget-weather { text-align: center; align-items: center; }
+          .zwidget-weather .zw-emoji { font-size: 15vh; line-height: 1; }
+          .zwidget-weather .zw-temp { font-size: 8vh; font-weight: 700; }
+          .zwidget-weather .zw-label { font-size: 2.2vh; opacity: .7; }
+          .zwidget-weather .zw-location { font-size: 1.6vh; opacity: .4; letter-spacing: .1em; text-transform: uppercase; }
+          .zw-title { font-size: 2vh; font-weight: 600; opacity: .6; margin-bottom: 6px; }
+          .zw-stock-row { display: flex; justify-content: space-between; align-items: center; padding: 1vh 0; font-size: 2vh; border-bottom: 1px solid rgba(255,255,255,.06); }
+          .zw-stock-symbol { font-weight: 700; }
+          .zw-stock-change { font-size: 1.6vh; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+          .zw-stock-change.up { background: rgba(16,185,129,.15); color: #10B981; }
+          .zw-stock-change.down { background: rgba(239,68,68,.15); color: #EF4444; }
+          .zw-news-item { font-size: 2vh; line-height: 1.4; padding: 1.2vh 0; border-bottom: 1px solid rgba(255,255,255,.06); }
           .slide {
             position: absolute;
             inset: 0;
@@ -479,6 +576,7 @@ export default async function PlayerPage({
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
+            var isGenericLayout = ${JSON.stringify(!!data.layoutZones)};
             var buildVersion = ${JSON.stringify(buildVersion)};
             var timer    = null;
             var qrTimer  = null;
@@ -582,7 +680,7 @@ export default async function PlayerPage({
               // renderizado pelo servidor — não deixa a rotação de anúncios
               // (shrink_lateral) sobrescrever nem remover a classe que
               // mantém o painel visível.
-              if (isMagazine) return;
+              if (isMagazine || isGenericLayout) return;
 
               if (lateralTimer) { clearTimeout(lateralTimer); lateralTimer = null; }
               if (!lateralMedias.length) {
@@ -829,8 +927,75 @@ export default async function PlayerPage({
               return;
             }
 
-            initSlots();
-            showLateralSlide();
+            // ── Layout genérico de N zonas (Fase 4) ───────────────────────────
+            // Cada zona roda sua própria rotação, independente das outras.
+            // Zonas 'main_rotation' reaproveitam o mesmo sorteio ponderado por
+            // categoria (groups/pickNextMedia) que o modo fullscreen usa.
+            // Zonas 'ad_only' giram só entre os itens "encolhe lateral"
+            // (lateralMedias) em sequência simples. Zonas de widget (clima/
+            // bolsa/notícias) já vêm prontas do servidor, sem rotação.
+            function initGenericZones() {
+              var zoneEls = document.querySelectorAll('#zones-root .zone');
+              for (var i = 0; i < zoneEls.length; i++) {
+                (function(zoneEl) {
+                  var contentType = zoneEl.getAttribute('data-content-type');
+                  if (contentType !== 'main_rotation' && contentType !== 'ad_only') return;
+
+                  var mediaHost = zoneEl.querySelector('.zone-media');
+                  if (!mediaHost) return;
+
+                  var videoEl = document.createElement('video');
+                  videoEl.muted = true; videoEl.playsInline = true; videoEl.autoplay = true;
+                  videoEl.setAttribute('muted', ''); videoEl.setAttribute('playsinline', '');
+                  var imgEl = document.createElement('img');
+                  mediaHost.appendChild(videoEl);
+                  mediaHost.appendChild(imgEl);
+
+                  var adIdx = 0;
+                  function getNext() {
+                    if (contentType === 'main_rotation') return pickNextMedia();
+                    if (!lateralMedias.length) return null;
+                    var m = lateralMedias[adIdx % lateralMedias.length];
+                    adIdx++;
+                    return m;
+                  }
+
+                  var zoneTimer = null;
+                  function showNext() {
+                    if (zoneTimer) { clearTimeout(zoneTimer); zoneTimer = null; }
+                    var m = getNext();
+                    if (!m) { zoneTimer = setTimeout(showNext, 5000); return; }
+
+                    var el = (m.type === 'video') ? videoEl : imgEl;
+                    var other = (m.type === 'video') ? imgEl : videoEl;
+                    other.style.display = 'none';
+                    if (other.tagName === 'VIDEO') { try { other.pause(); } catch (e) {} }
+
+                    if (el.tagName === 'IMG') el.alt = m.name || '';
+                    if (el.src !== m.url) el.src = m.url;
+                    el.style.display = 'block';
+
+                    var dur = (Number(m.duration) || 15) * 1000;
+                    if (el.tagName === 'VIDEO') {
+                      el.currentTime = 0;
+                      el.onerror = function() {};
+                      var p = el.play();
+                      if (p && typeof p.catch === 'function') p.catch(function() {});
+                    }
+                    zoneTimer = setTimeout(showNext, dur);
+                  }
+
+                  showNext();
+                })(zoneEls[i]);
+              }
+            }
+
+            if (isGenericLayout) {
+              initGenericZones();
+            } else {
+              initSlots();
+              showLateralSlide();
+            }
 
             function showSlide(m) {
               if (!m) return;
@@ -981,7 +1146,7 @@ export default async function PlayerPage({
             }, RELOAD_INTERVAL_MS);
 
             // Inicia
-            showSlide(pickNextMedia());
+            if (!isGenericLayout) showSlide(pickNextMedia());
             setInterval(sendHeartbeat, 30000);
             setInterval(pollPlaylist, POLL_INTERVAL_MS);
           })();
