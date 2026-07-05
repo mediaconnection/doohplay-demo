@@ -1079,6 +1079,7 @@ function TabExemplos() {
 const LAYOUT_CONTENT_TYPES = [
   { value: "main_rotation", label: "Principal (dono+anunciante+rede+institucional)" },
   { value: "ad_only", label: "Só anúncio" },
+  { value: "clock", label: "Relógio" },
   { value: "weather", label: "Clima" },
   { value: "stocks", label: "Bolsa" },
   { value: "news", label: "Notícias" },

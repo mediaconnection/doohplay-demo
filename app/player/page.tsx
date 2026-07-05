@@ -164,7 +164,7 @@ async function getPlayerData(code: string) {
       if (weatherRes.status === "fulfilled" && weatherRes.value.ok) {
         const w = await weatherRes.value.json()
         const code = w.current?.weather_code ?? 0
-        weather = { temperature: Math.round(w.current?.temperature_2m ?? 0), ...(WMO[code] ?? { label: "—", emoji: "🌡️" }), location: locationName }
+        weather = { temperature: Math.round(w.current?.temperature_2m ?? 0), code, ...(WMO[code] ?? { label: "—", emoji: "🌡️" }), location: locationName }
       }
       if (stocksRes.status === "fulfilled" && stocksRes.value.ok) {
         const s = await stocksRes.value.json()
@@ -267,6 +267,67 @@ export default async function PlayerPage({
     ? `<div id="qr-footer"><img src="/api/qrcode/${escapeHtml(code)}" alt="QR code" /><span class="qr-label">Receba novidades</span></div>`
     : ""
 
+  // ── Widgets de dado (Fase 4b — redesign) ────────────────────────────────
+  // Design "painel de transmissão": números em fonte monoespaçada tabular
+  // (relógio, temperatura, cotação) pra não "pular" quando o dígito muda,
+  // ícones SVG próprios (emoji renderiza mal e inconsistente em TV Android),
+  // e uma barra de destaque fina em cada card, como um chyron de telejornal.
+  // Um único gerador, usado tanto no template "magazine" quanto nas zonas
+  // genéricas — antes existiam duas versões quase idênticas.
+  function weatherIconSvg(code: number) {
+    const strokeProps = `fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`
+    if (code === 0 || code === 1) return `<svg viewBox="0 0 48 48" ${strokeProps}><circle cx="24" cy="24" r="9"/><path d="M24 3v6M24 39v6M3 24h6M39 24h6M9.5 9.5l4.2 4.2M34.3 34.3l4.2 4.2M9.5 38.5l4.2-4.2M34.3 13.7l4.2-4.2"/></svg>`
+    if (code === 2) return `<svg viewBox="0 0 48 48" ${strokeProps}><circle cx="18" cy="18" r="7"/><path d="M18 4v4M32 18h4M27.5 7.5l-2.8 2.8M8.5 27.5l2.8-2.8"/><path d="M14 33a7 7 0 0 1 1-13.9A9 9 0 0 1 32 24.5a6 6 0 0 1-1 12.4H14z"/></svg>`
+    if (code === 3) return `<svg viewBox="0 0 48 48" ${strokeProps}><path d="M13 34a8 8 0 0 1 1-16 10 10 0 0 1 19.5 3A7 7 0 0 1 33 34H13z"/></svg>`
+    if (code === 45) return `<svg viewBox="0 0 48 48" ${strokeProps}><path d="M8 18h24M8 24h32M8 30h24M14 36h20"/></svg>`
+    if ([51, 61, 63, 80].includes(code)) return `<svg viewBox="0 0 48 48" ${strokeProps}><path d="M12 26a8 8 0 0 1 1-16 10 10 0 0 1 19.5 3A7 7 0 0 1 32 26H12z"/><path d="M16 32v4M24 32v6M32 32v4"/></svg>`
+    if (code === 95) return `<svg viewBox="0 0 48 48" ${strokeProps}><path d="M12 22a8 8 0 0 1 1-16 10 10 0 0 1 19.5 3A7 7 0 0 1 32 22H12z"/><path d="M25 26l-6 10h6l-4 8 10-12h-6z" fill="currentColor" stroke="none"/></svg>`
+    return `<svg viewBox="0 0 48 48" ${strokeProps}><circle cx="24" cy="24" r="9"/></svg>`
+  }
+
+  function renderWidgetHtml(contentType: string): string {
+    if (contentType === "clock") {
+      return `<div class="dw dw-clock">
+        <div class="dw-accent dw-accent-clock"></div>
+        <div class="dw-clock-time" data-live-clock-time>--:--</div>
+        <div class="dw-clock-date" data-live-clock-date>—</div>
+      </div>`
+    }
+    if (contentType === "weather" && data.widgets?.weather) {
+      const w = data.widgets.weather
+      return `<div class="dw dw-weather">
+        <div class="dw-accent dw-accent-weather"></div>
+        <div class="dw-weather-icon">${weatherIconSvg(w.code ?? 0)}</div>
+        <div class="dw-weather-temp">${w.temperature}<span>°C</span></div>
+        <div class="dw-weather-label">${escapeHtml(w.label)}</div>
+        <div class="dw-weather-location">${escapeHtml(w.location)}</div>
+      </div>`
+    }
+    if (contentType === "stocks" && data.widgets?.stocks?.length) {
+      return `<div class="dw dw-stocks">
+        <div class="dw-accent dw-accent-stocks"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>BOLSA · B3</div>
+        <div class="dw-stocks-list">
+          ${data.widgets.stocks.map((s: any) => `<div class="dw-stock-row">
+            <span class="dw-stock-symbol">${escapeHtml(s.symbol)}</span>
+            <span class="dw-stock-price">R$ ${Number(s.price ?? 0).toFixed(2)}</span>
+            <span class="dw-stock-change ${(s.changePercent ?? 0) >= 0 ? "up" : "down"}">${(s.changePercent ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(s.changePercent ?? 0).toFixed(1)}%</span>
+          </div>`).join("")}
+        </div>
+      </div>`
+    }
+    if (contentType === "news" && data.widgets?.news?.length) {
+      return `<div class="dw dw-news">
+        <div class="dw-accent dw-accent-news"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-news"></span>NOTÍCIAS · G1</div>
+        <div class="dw-news-list">
+          ${data.widgets.news.map((n: any) => `<div class="dw-news-item"><span class="dw-news-bar"></span><span>${escapeHtml(n.title)}</span></div>`).join("")}
+        </div>
+      </div>`
+    }
+    return ""
+  }
+
   const bodyContentHtml = data.medias.length === 0
     ? `<div class="default-screen">
         <div class="logo-icon">
@@ -284,24 +345,10 @@ export default async function PlayerPage({
 
   const widgetsPanelHtml = data.template === "magazine" && data.widgets
     ? `<div id="widgets-panel">
-        ${data.widgets.weather ? `<div class="widget-card widget-weather">
-          <div class="w-emoji">${data.widgets.weather.emoji}</div>
-          <div class="w-temp">${data.widgets.weather.temperature}°C</div>
-          <div class="w-label">${escapeHtml(data.widgets.weather.label)}</div>
-          <div class="w-location">${escapeHtml(data.widgets.weather.location)}</div>
-        </div>` : ""}
-        ${data.widgets.stocks?.length ? `<div class="widget-card widget-stocks">
-          <div class="w-title">📈 Bolsa</div>
-          ${data.widgets.stocks.map((s: any) => `<div class="w-stock-row">
-            <span class="w-stock-symbol">${escapeHtml(s.symbol)}</span>
-            <span class="w-stock-price">R$ ${Number(s.price ?? 0).toFixed(2)}</span>
-            <span class="w-stock-change ${(s.changePercent ?? 0) >= 0 ? "up" : "down"}">${(s.changePercent ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(s.changePercent ?? 0).toFixed(1)}%</span>
-          </div>`).join("")}
-        </div>` : ""}
-        ${data.widgets.news?.length ? `<div class="widget-card widget-news">
-          <div class="w-title">📰 Notícias</div>
-          ${data.widgets.news.map((n: any) => `<div class="w-news-item">${escapeHtml(n.title)}</div>`).join("")}
-        </div>` : ""}
+        ${renderWidgetHtml("clock")}
+        ${renderWidgetHtml("weather")}
+        ${renderWidgetHtml("stocks")}
+        ${renderWidgetHtml("news")}
       </div>`
     : ""
 
@@ -309,39 +356,10 @@ export default async function PlayerPage({
   // Só entra em ação quando um layout_template está configurado pra esse
   // cliente. Sem isso, o player continua 100% no caminho antigo (fullscreen
   // ou magazine) — zero mudança de comportamento pra quem não configurou.
-  function renderWidgetZoneHtml(contentType: string) {
-    if (contentType === "weather" && data.widgets?.weather) {
-      const w = data.widgets.weather
-      return `<div class="zwidget zwidget-weather">
-        <div class="zw-emoji">${w.emoji}</div>
-        <div class="zw-temp">${w.temperature}°C</div>
-        <div class="zw-label">${escapeHtml(w.label)}</div>
-        <div class="zw-location">${escapeHtml(w.location)}</div>
-      </div>`
-    }
-    if (contentType === "stocks" && data.widgets?.stocks?.length) {
-      return `<div class="zwidget zwidget-stocks">
-        <div class="zw-title">📈 Bolsa</div>
-        ${data.widgets.stocks.map((s: any) => `<div class="zw-stock-row">
-          <span class="zw-stock-symbol">${escapeHtml(s.symbol)}</span>
-          <span class="zw-stock-price">R$ ${Number(s.price ?? 0).toFixed(2)}</span>
-          <span class="zw-stock-change ${(s.changePercent ?? 0) >= 0 ? "up" : "down"}">${(s.changePercent ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(s.changePercent ?? 0).toFixed(1)}%</span>
-        </div>`).join("")}
-      </div>`
-    }
-    if (contentType === "news" && data.widgets?.news?.length) {
-      return `<div class="zwidget zwidget-news">
-        <div class="zw-title">📰 Notícias</div>
-        ${data.widgets.news.map((n: any) => `<div class="zw-news-item">${escapeHtml(n.title)}</div>`).join("")}
-      </div>`
-    }
-    return `<div class="zone-media"></div>` // main_rotation / ad_only — preenchido via JS
-  }
-
   const zonesHtml = data.layoutZones
     ? data.layoutZones.map((z: { id: string; x: number; y: number; w: number; h: number; content_type: string }) => {
-        const inner = ["weather", "stocks", "news"].includes(z.content_type)
-          ? renderWidgetZoneHtml(z.content_type)
+        const inner = ["weather", "stocks", "news", "clock"].includes(z.content_type)
+          ? (renderWidgetHtml(z.content_type) || `<div class="zone-media"></div>`)
           : `<div class="zone-media"></div>`
         return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;overflow:hidden;">${inner}</div>`
       }).join("")
@@ -406,57 +424,122 @@ export default async function PlayerPage({
           #widgets-panel {
             width: 100%; height: 100%;
             display: flex; flex-direction: column;
-            padding: 24px 20px;
-            gap: 18px;
-            font-family: system-ui, sans-serif;
-            color: white;
+            padding: 2.2vh 1.4vw;
+            gap: 1.6vh;
             overflow: hidden;
           }
-          .widget-card {
-            background: rgba(255,255,255,.06);
-            border-radius: 12px;
-            padding: 18px;
-          }
-          .widget-weather { text-align: center; }
-          .widget-weather .w-emoji { font-size: 48px; }
-          .widget-weather .w-temp { font-size: 40px; font-weight: 700; margin-top: 4px; }
-          .widget-weather .w-label { font-size: 13px; opacity: .7; margin-top: 2px; }
-          .widget-weather .w-location { font-size: 11px; opacity: .4; margin-top: 8px; letter-spacing: .1em; text-transform: uppercase; }
-          .w-title { font-size: 13px; font-weight: 600; opacity: .6; margin-bottom: 12px; }
-          .w-stock-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,.06); }
-          .w-stock-row:last-child { border-bottom: none; }
-          .w-stock-symbol { font-weight: 700; }
-          .w-stock-change { font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 6px; }
-          .w-stock-change.up { background: rgba(16,185,129,.15); color: #10B981; }
-          .w-stock-change.down { background: rgba(239,68,68,.15); color: #EF4444; }
-          .w-news-item { font-size: 13px; line-height: 1.4; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
-          .w-news-item:last-child { border-bottom: none; }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
-          #zones-root { background: #0F172A; }
-          .zone { background: #0F172A; }
+          #zones-root { background: #0B1220; }
+          .zone { background: #0B1220; }
           .zone-media video, .zone-media img {
             width: 100%; height: 100%; object-fit: cover; display: none;
           }
-          .zwidget {
+
+          /* ── Sistema de widgets "painel de transmissão" (Fase 4b) ──────────
+             Números em fonte monoespaçada tabular (não "pulam" ao trocar o
+             dígito), ícones SVG próprios, barra de destaque tipo chyron. */
+          .dw {
+            position: relative;
             width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center;
-            padding: 16px; gap: 8px;
-            font-family: system-ui, sans-serif; color: white;
-            background: rgba(255,255,255,.04);
+            padding: 2vh 1.2vw;
+            font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+            color: #F8FAFC;
+            background: linear-gradient(160deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
+            overflow: hidden;
           }
-          .zwidget-weather { text-align: center; align-items: center; }
-          .zwidget-weather .zw-emoji { font-size: 15vh; line-height: 1; }
-          .zwidget-weather .zw-temp { font-size: 8vh; font-weight: 700; }
-          .zwidget-weather .zw-label { font-size: 2.2vh; opacity: .7; }
-          .zwidget-weather .zw-location { font-size: 1.6vh; opacity: .4; letter-spacing: .1em; text-transform: uppercase; }
-          .zw-title { font-size: 2vh; font-weight: 600; opacity: .6; margin-bottom: 6px; }
-          .zw-stock-row { display: flex; justify-content: space-between; align-items: center; padding: 1vh 0; font-size: 2vh; border-bottom: 1px solid rgba(255,255,255,.06); }
-          .zw-stock-symbol { font-weight: 700; }
-          .zw-stock-change { font-size: 1.6vh; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
-          .zw-stock-change.up { background: rgba(16,185,129,.15); color: #10B981; }
-          .zw-stock-change.down { background: rgba(239,68,68,.15); color: #EF4444; }
-          .zw-news-item { font-size: 2vh; line-height: 1.4; padding: 1.2vh 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+          .dw-accent {
+            position: absolute; top: 0; left: 0; right: 0; height: 3px;
+          }
+          .dw-accent-clock   { background: #3B82F6; box-shadow: 0 0 12px 1px rgba(59,130,246,.7); }
+          .dw-accent-weather { background: #F5A623; box-shadow: 0 0 12px 1px rgba(245,166,35,.7); }
+          .dw-accent-stocks  { background: #10B981; box-shadow: 0 0 12px 1px rgba(16,185,129,.7); }
+          .dw-accent-news    { background: #F43F5E; box-shadow: 0 0 12px 1px rgba(244,63,94,.7); }
+
+          .dw-mono {
+            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+          }
+
+          .dw-header {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 1.5vh; font-weight: 700; letter-spacing: .12em;
+            opacity: .55; margin-bottom: 1.4vh; text-transform: uppercase;
+          }
+          .dw-live-dot {
+            width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+            animation: dw-pulse 2s ease-in-out infinite;
+          }
+          .dw-live-dot-stocks { background: #10B981; }
+          .dw-live-dot-news { background: #F43F5E; }
+          @keyframes dw-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .35; transform: scale(.75); }
+          }
+
+          /* Relógio */
+          .dw-clock { align-items: center; text-align: center; }
+          .dw-clock-time {
+            font-size: 9vh; font-weight: 600; line-height: 1;
+            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: .01em;
+          }
+          .dw-clock-date {
+            font-size: 1.7vh; opacity: .55; margin-top: 1vh;
+            letter-spacing: .04em;
+          }
+
+          /* Clima */
+          .dw-weather { align-items: center; text-align: center; }
+          .dw-weather-icon { width: 9vh; height: 9vh; color: #F5A623; }
+          .dw-weather-icon svg { width: 100%; height: 100%; }
+          .dw-weather-temp {
+            font-size: 7vh; font-weight: 700; line-height: 1; margin-top: .6vh;
+            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+          }
+          .dw-weather-temp span { font-size: .5em; opacity: .6; font-weight: 500; }
+          .dw-weather-label { font-size: 1.9vh; opacity: .75; margin-top: .6vh; }
+          .dw-weather-location {
+            font-size: 1.3vh; opacity: .4; margin-top: 1.2vh;
+            letter-spacing: .12em; text-transform: uppercase;
+          }
+
+          /* Bolsa */
+          .dw-stocks-list { display: flex; flex-direction: column; }
+          .dw-stock-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.1vh 0; font-size: 1.9vh;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+          }
+          .dw-stock-row:last-child { border-bottom: none; }
+          .dw-stock-symbol { font-weight: 700; letter-spacing: .02em; }
+          .dw-stock-price {
+            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+          }
+          .dw-stock-change {
+            font-size: 1.5vh; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+          }
+          .dw-stock-change.up   { background: rgba(16,185,129,.15); color: #10B981; }
+          .dw-stock-change.down { background: rgba(244,63,94,.15); color: #F43F5E; }
+
+          /* Notícias */
+          .dw-news-list { display: flex; flex-direction: column; overflow: hidden; }
+          .dw-news-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            font-size: 1.9vh; line-height: 1.4;
+            padding: 1.3vh 0; border-bottom: 1px solid rgba(255,255,255,.07);
+          }
+          .dw-news-item:last-child { border-bottom: none; }
+          .dw-news-bar {
+            width: 3px; flex-shrink: 0; align-self: stretch;
+            background: #F43F5E; border-radius: 2px; margin-top: 2px;
+          }
           .slide {
             position: absolute;
             inset: 0;
@@ -577,6 +660,21 @@ export default async function PlayerPage({
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
             var isGenericLayout = ${JSON.stringify(!!data.layoutZones)};
+
+            // ── Relógio ao vivo (Fase 4b) ──────────────────────────────────
+            // Roda independente do modo (magazine ou zonas genéricas) — só
+            // atualiza os elementos que existirem na página, se existirem.
+            function updateLiveClock() {
+              var now = new Date();
+              var timeStr = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+              var dateStr = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: 'long' });
+              var timeEls = document.querySelectorAll('[data-live-clock-time]');
+              var dateEls = document.querySelectorAll('[data-live-clock-date]');
+              for (var i = 0; i < timeEls.length; i++) timeEls[i].textContent = timeStr;
+              for (var j = 0; j < dateEls.length; j++) dateEls[j].textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+            }
+            updateLiveClock();
+            setInterval(updateLiveClock, 1000);
             var buildVersion = ${JSON.stringify(buildVersion)};
             var timer    = null;
             var qrTimer  = null;
