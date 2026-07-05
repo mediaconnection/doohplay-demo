@@ -464,7 +464,7 @@ export default async function PlayerPage({
           }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
-          #zones-root { background: #05070D; }
+          #zones-root { background: #1E293B; }
           .zone { background: transparent; }
           .zone-card {
             position: absolute;
