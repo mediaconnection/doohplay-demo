@@ -362,7 +362,9 @@ export default async function PlayerPage({
         const inner = ["weather", "stocks", "news", "clock"].includes(z.content_type)
           ? (renderWidgetHtml(z.content_type) || `<div class="zone-media"></div>`)
           : `<div class="zone-media"></div>`
-        return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;overflow:hidden;">${inner}</div>`
+        return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;">
+          <div class="zone-card">${inner}</div>
+        </div>`
       }).join("")
     : ""
 
@@ -462,10 +464,12 @@ export default async function PlayerPage({
           }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
-          #zones-root { background: #05070D; padding: 0.8vh 0.6vw; box-sizing: border-box; }
-          .zone {
+          #zones-root { background: #05070D; }
+          .zone { background: transparent; }
+          .zone-card {
+            position: absolute;
+            inset: 6px;
             background: #05070D;
-            margin: 0.5vh 0.4vw;
             border-radius: 16px;
             overflow: hidden;
             box-sizing: border-box;
@@ -478,17 +482,17 @@ export default async function PlayerPage({
           .zone-media img { animation: dw-kenburns 18s ease-in-out infinite alternate; }
           /* Cantos tipo viewfinder na zona principal, reforça "ao vivo"
              já que aqui sempre tem pelo menos um bloco de dado ao lado */
-          .zone[data-content-type="main_rotation"] {
-            position: relative;
+          .zone[data-content-type="main_rotation"] .zone-card {
+            position: absolute;
           }
-          .zone[data-content-type="main_rotation"]::before,
-          .zone[data-content-type="main_rotation"]::after {
+          .zone[data-content-type="main_rotation"] .zone-card::before,
+          .zone[data-content-type="main_rotation"] .zone-card::after {
             content: ''; position: absolute; width: 22px; height: 22px;
             border-color: var(--accent-1, #00D9FF); opacity: .8; z-index: 5;
             transition: border-color 1.4s ease; pointer-events: none;
           }
-          .zone[data-content-type="main_rotation"]::before { top: 14px; left: 14px; border-top: 2px solid; border-left: 2px solid; }
-          .zone[data-content-type="main_rotation"]::after  { top: 14px; right: 14px; border-top: 2px solid; border-right: 2px solid; }
+          .zone[data-content-type="main_rotation"] .zone-card::before { top: 14px; left: 14px; border-top: 2px solid; border-left: 2px solid; }
+          .zone[data-content-type="main_rotation"] .zone-card::after  { top: 14px; right: 14px; border-top: 2px solid; border-right: 2px solid; }
 
           /* ── Sistema de widgets "Aurora" (Fase 5) ──────────────────────────
              Substitui o chyron de cor fixa por tipo (Fase 4b) por um único
