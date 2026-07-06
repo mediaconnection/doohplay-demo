@@ -1271,6 +1271,216 @@ function LayoutEditor({ clientCode }: { clientCode: string }) {
   )
 }
 
+// ── Gestão de frota em escala (Fase 6) — visão de rede inteira, tags,
+// grupos administrativos e ação em massa (aplicar layout a um grupo) ──
+function TabFrota() {
+  const [screens, setScreens] = useState<any[]>([])
+  const [groups, setGroups] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [newGroupName, setNewGroupName] = useState("")
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [presets, setPresets] = useState<any[]>([])
+  const [chosenLayoutId, setChosenLayoutId] = useState("")
+  const [message, setMessage] = useState("")
+  const [tagDraft, setTagDraft] = useState<Record<string, string>>({})
+
+  const load = () => {
+    setLoading(true)
+    Promise.all([
+      fetch("/api/admin/fleet").then(r => r.json()),
+      fetch("/api/admin/layout-templates").then(r => r.json()),
+    ]).then(([fleet, layouts]) => {
+      setScreens(fleet.screens ?? [])
+      setGroups(fleet.groups ?? [])
+      setPresets(layouts.presets ?? [])
+    }).catch(() => { setScreens([]); setGroups([]) })
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const createGroup = async () => {
+    if (!newGroupName.trim()) return
+    await fetch("/api/admin/fleet", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newGroupName.trim() }),
+    })
+    setNewGroupName("")
+    load()
+  }
+
+  const addSelectedToGroup = async (groupId: string) => {
+    if (selected.size === 0) return
+    await fetch("/api/admin/fleet/members", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group_id: groupId, screen_ids: Array.from(selected) }),
+    })
+    setSelected(new Set())
+    load()
+  }
+
+  const removeFromGroup = async (groupId: string, screenId: string) => {
+    await fetch(`/api/admin/fleet/members?group_id=${groupId}&screen_id=${screenId}`, { method: "DELETE" })
+    load()
+  }
+
+  const deleteGroup = async (groupId: string) => {
+    if (!confirm("Remover esse grupo? As telas continuam existindo, só o agrupamento some.")) return
+    await fetch(`/api/admin/fleet?group_id=${groupId}`, { method: "DELETE" })
+    if (activeGroupId === groupId) setActiveGroupId(null)
+    load()
+  }
+
+  const applyBulkLayout = async (groupId: string) => {
+    if (!chosenLayoutId) { setMessage("⚠️ Escolha um layout primeiro"); return }
+    setMessage("Aplicando...")
+    try {
+      const res = await fetch("/api/admin/fleet/bulk-layout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group_id: groupId, layout_template_id: chosenLayoutId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao aplicar")
+      setMessage(`✅ Layout aplicado a ${d.applied} tela(s)`)
+    } catch (err: any) {
+      setMessage("⚠️ " + (err.message || "Erro ao aplicar"))
+    }
+  }
+
+  const saveTags = async (screenId: string) => {
+    const raw = tagDraft[screenId] ?? ""
+    const tags = raw.split(",").map(t => t.trim()).filter(Boolean)
+    await fetch("/api/admin/fleet/tags", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ screen_id: screenId, tags }),
+    })
+    load()
+  }
+
+  const onlineCount = screens.filter(s => s.online).length
+
+  if (loading) return <div style={{ color: TEXT2, fontSize: 13 }}>Carregando frota...</div>
+
+  const activeGroup = groups.find((g: any) => g.id === activeGroupId)
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🖥️ Gestão de Frota</div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+        Visão de todas as telas da rede, de todos os clientes juntos — {onlineCount} de {screens.length} online agora.
+        Agrupe telas (mesmo de clientes diferentes) pra aplicar layout em massa.
+      </div>
+
+      <div style={{ display: "flex", gap: 20 }}>
+        {/* Lista de telas */}
+        <div style={{ flex: 2 }}>
+          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden" }}>
+            {screens.map((s: any) => (
+              <div key={s.id} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                borderBottom: "1px solid " + BORDER,
+              }}>
+                <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.online ? "#10B981" : "#EF4444", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{s.client_name} <span style={{ color: TEXT2, fontWeight: 400 }}>· {s.label}</span></div>
+                  <div style={{ fontSize: 11, color: TEXT2 }}>
+                    {s.online ? "Online agora" : s.last_ping ? `Offline · visto por último ${new Date(s.last_ping).toLocaleString("pt-BR")}` : "Nunca conectou"}
+                  </div>
+                </div>
+                <input
+                  placeholder="tags separadas por vírgula"
+                  defaultValue={(s.tags || []).join(", ")}
+                  onChange={e => setTagDraft(prev => ({ ...prev, [s.id]: e.target.value }))}
+                  onBlur={() => saveTags(s.id)}
+                  style={{ width: 180, fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "5px 8px", color: TEXT }}
+                />
+              </div>
+            ))}
+            {screens.length === 0 && <div style={{ padding: 20, color: TEXT2, fontSize: 13 }}>Nenhuma tela cadastrada ainda.</div>}
+          </div>
+        </div>
+
+        {/* Grupos */}
+        <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 16 }}>
+            <div style={{ fontWeight: 600, color: TEXT, marginBottom: 10 }}>Grupos</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Nome do grupo novo"
+                style={{ flex: 1, fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "6px 8px", color: TEXT }} />
+              <button onClick={createGroup} style={{ fontSize: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 5, padding: "6px 10px", cursor: "pointer" }}>+ Criar</button>
+            </div>
+
+            {groups.map((g: any) => (
+              <div key={g.id} style={{ marginBottom: 10, padding: 10, background: BG, borderRadius: 8, border: "1px solid " + (activeGroupId === g.id ? BLUE : BORDER), cursor: "pointer" }}
+                onClick={() => setActiveGroupId(g.id === activeGroupId ? null : g.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{g.name}</span>
+                  <span style={{ fontSize: 11, color: TEXT2 }}>{g.screen_ids?.length ?? 0} tela(s)</span>
+                </div>
+              </div>
+            ))}
+            {groups.length === 0 && <div style={{ fontSize: 12, color: TEXT2 }}>Nenhum grupo ainda. Selecione telas na lista e crie um grupo.</div>}
+
+            {selected.size > 0 && groups.length > 0 && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 6 }}>{selected.size} tela(s) selecionada(s) — adicionar a:</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {groups.map((g: any) => (
+                    <button key={g.id} onClick={() => addSelectedToGroup(g.id)} style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "4px 8px", color: TEXT2, cursor: "pointer" }}>
+                      {g.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {activeGroup && (
+            <div style={{ marginTop: 14, background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontWeight: 600, color: TEXT }}>{activeGroup.name}</div>
+                <button onClick={() => deleteGroup(activeGroup.id)} style={{ fontSize: 11, color: RED, background: "transparent", border: "none", cursor: "pointer" }}>Remover grupo</button>
+              </div>
+
+              {(activeGroup.screen_ids || []).map((sid: string) => {
+                const s = screens.find((sc: any) => sc.id === sid)
+                if (!s) return null
+                return (
+                  <div key={sid} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
+                    <span style={{ color: TEXT2 }}>{s.client_name} · {s.label}</span>
+                    <button onClick={() => removeFromGroup(activeGroup.id, sid)} style={{ color: RED, background: "transparent", border: "none", cursor: "pointer", fontSize: 11 }}>✕</button>
+                  </div>
+                )
+              })}
+
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
+                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 6 }}>Aplicar layout a todo o grupo:</div>
+                <select value={chosenLayoutId} onChange={e => setChosenLayoutId(e.target.value)} style={{ width: "100%", fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "6px 8px", color: TEXT, marginBottom: 8 }}>
+                  <option value="">Escolha um layout...</option>
+                  {presets.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button onClick={() => applyBulkLayout(activeGroup.id)} style={{ width: "100%", fontSize: 12, fontWeight: 600, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "8px 0", cursor: "pointer" }}>
+                  Aplicar a {activeGroup.screen_ids?.length ?? 0} tela(s)
+                </button>
+                {message && <div style={{ fontSize: 11, marginTop: 8, color: TEXT2 }}>{message}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Templates de tela (Fase 3b) — widgets de clima/bolsa/notícias ──
 function TabTemplates({ data }: { data: any }) {
   const { clients } = data
@@ -1936,6 +2146,7 @@ export default function AdminPage() {
     { id: "exemplos",    label: "Exemplos",    icon: "📚" },
     { id: "institucional", label: "Institucional", icon: "🏢" },
     { id: "templates",   label: "Templates",   icon: "🖼️" },
+    { id: "frota",       label: "Frota",       icon: "🖥️" },
     { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
@@ -1984,6 +2195,7 @@ export default function AdminPage() {
         {tab === "exemplos"    && <TabExemplos />}
         {tab === "institucional" && <TabInstitucional />}
         {tab === "templates"    && <TabTemplates data={data} />}
+        {tab === "frota"        && <TabFrota />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
