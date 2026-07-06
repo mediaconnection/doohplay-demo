@@ -1083,6 +1083,7 @@ const LAYOUT_CONTENT_TYPES = [
   { value: "weather", label: "Clima" },
   { value: "stocks", label: "Bolsa" },
   { value: "news", label: "Notícias" },
+  { value: "poll", label: "Enquete" },
 ]
 const ZONE_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#EF4444"]
 
@@ -1270,6 +1271,161 @@ function LayoutEditor({ clientCode }: { clientCode: string }) {
     </div>
   )
 }
+
+// ── Enquetes (Fase 7) — interatividade básica via QR code ──
+function TabEnquetes({ data }: { data: any }) {
+  const { clients } = data
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [clientCode, setClientCode] = useState("")
+  const [question, setQuestion] = useState("")
+  const [options, setOptions] = useState(["", ""])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [results, setResults] = useState<Record<string, any>>({})
+
+  const load = () => {
+    setLoading(true)
+    fetch("/api/admin/polls")
+      .then(r => r.json())
+      .then(d => setItems(d.items ?? []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const loadResult = async (id: string) => {
+    const r = await fetch(`/api/polls/${id}`).then(r => r.json())
+    setResults(prev => ({ ...prev, [id]: r }))
+  }
+
+  const updateOption = (i: number, value: string) => {
+    setOptions(prev => prev.map((o, idx) => idx === i ? value : o))
+  }
+  const addOption = () => { if (options.length < 4) setOptions(prev => [...prev, ""]) }
+  const removeOption = (i: number) => { if (options.length > 2) setOptions(prev => prev.filter((_, idx) => idx !== i)) }
+
+  const create = async () => {
+    const clean = options.map(o => o.trim()).filter(Boolean)
+    if (!clientCode) { setError("Escolha um cliente"); return }
+    if (!question.trim()) { setError("Escreva a pergunta"); return }
+    if (clean.length < 2) { setError("Precisa de pelo menos 2 opções"); return }
+    setSaving(true); setError("")
+    try {
+      const res = await fetch("/api/admin/polls", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_code: clientCode, question: question.trim(), options: clean }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao criar")
+      setQuestion(""); setOptions(["", ""])
+      load()
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar")
+    }
+    setSaving(false)
+  }
+
+  const toggleActive = async (id: string, active: boolean) => {
+    await fetch(`/api/admin/polls?id=${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: !active }),
+    })
+    load()
+  }
+
+  const remove = async (id: string) => {
+    if (!confirm("Remover essa enquete e todos os votos?")) return
+    await fetch(`/api/admin/polls?id=${id}`, { method: "DELETE" })
+    load()
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🗳️ Enquetes</div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+        Interatividade básica — as telas são só de exibição, então quem vê escaneia o QR e vota pelo celular.
+        Resultado aparece ao vivo na tela (atualiza a cada 15s).
+      </div>
+
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, marginBottom: 14, color: TEXT }}>Nova enquete</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Cliente</label>
+          <select value={clientCode} onChange={e => setClientCode(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <option value="">Selecione...</option>
+            {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Pergunta</label>
+          <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ex: Qual corte você mais gosta?" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Opções (2 a 4)</label>
+          {options.map((opt, i) => (
+            <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+              <input value={opt} onChange={e => updateOption(i, e.target.value)} placeholder={`Opção ${i + 1}`} style={{ flex: 1, background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "7px 9px", color: TEXT, fontSize: 13 }} />
+              {options.length > 2 && <button onClick={() => removeOption(i)} style={{ color: RED, background: "transparent", border: "none", cursor: "pointer", fontSize: 13 }}>✕</button>}
+            </div>
+          ))}
+          {options.length < 4 && <button onClick={addOption} style={{ fontSize: 12, background: "transparent", border: "1px dashed " + BORDER, borderRadius: 6, padding: "6px 12px", color: TEXT2, cursor: "pointer" }}>+ Adicionar opção</button>}
+        </div>
+        {error && <div style={{ color: RED, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
+        <button onClick={create} disabled={saving} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+          {saving ? "Criando..." : "Criar enquete"}
+        </button>
+      </div>
+
+      <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Enquetes cadastradas</div>
+      {loading ? <div style={{ color: TEXT2, fontSize: 13 }}>Carregando...</div> : items.length === 0 ? (
+        <div style={{ color: TEXT2, fontSize: 13 }}>Nenhuma enquete ainda.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {items.map((it: any) => {
+            const r = results[it.id]
+            return (
+              <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: TEXT, fontSize: 13 }}>{it.client_code} — {it.question}</div>
+                    <div style={{ fontSize: 11, color: TEXT2, marginTop: 2 }}>{it.options.join(" · ")}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                    <button onClick={() => loadResult(it.id)} style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "4px 8px", color: TEXT2, cursor: "pointer" }}>Ver resultado</button>
+                    <button onClick={() => toggleActive(it.id, it.active)} style={{ fontSize: 11, background: it.active ? "#10B98122" : BG, border: "1px solid " + (it.active ? "#10B981" : BORDER), borderRadius: 5, padding: "4px 8px", color: it.active ? "#10B981" : TEXT2, cursor: "pointer" }}>
+                      {it.active ? "Ativa" : "Inativa"}
+                    </button>
+                    <button onClick={() => remove(it.id)} style={{ color: RED, background: "transparent", border: "none", cursor: "pointer", fontSize: 13 }}>✕</button>
+                  </div>
+                </div>
+                {r && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + BORDER }}>
+                    {r.options.map((opt: string, i: number) => {
+                      const pct = r.total > 0 ? Math.round((r.counts[i] / r.total) * 100) : 0
+                      return (
+                        <div key={i} style={{ marginBottom: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: TEXT2, marginBottom: 2 }}>
+                            <span>{opt}</span><span>{pct}% ({r.counts[i]})</span>
+                          </div>
+                          <div style={{ height: 5, background: BG, borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: pct + "%", background: BLUE, borderRadius: 3 }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div style={{ fontSize: 10, color: TEXT2, marginTop: 4 }}>{r.total} voto(s) no total</div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 // ── Gestão de frota em escala (Fase 6) — visão de rede inteira, tags,
 // grupos administrativos e ação em massa (aplicar layout a um grupo) ──
@@ -2147,6 +2303,7 @@ export default function AdminPage() {
     { id: "institucional", label: "Institucional", icon: "🏢" },
     { id: "templates",   label: "Templates",   icon: "🖼️" },
     { id: "frota",       label: "Frota",       icon: "🖥️" },
+    { id: "enquetes",    label: "Enquetes",    icon: "🗳️" },
     { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
   ]
@@ -2196,6 +2353,7 @@ export default function AdminPage() {
         {tab === "institucional" && <TabInstitucional />}
         {tab === "templates"    && <TabTemplates data={data} />}
         {tab === "frota"        && <TabFrota />}
+        {tab === "enquetes"     && <TabEnquetes data={data} />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
       </div>
