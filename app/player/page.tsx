@@ -473,6 +473,7 @@ export default async function PlayerPage({
             border-radius: 16px;
             overflow: hidden;
             box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,.10);
           }
           .zone-media { width: 100%; height: 100%; position: relative; }
           .zone-media video, .zone-media img {
