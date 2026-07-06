@@ -165,8 +165,8 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
       {paymentLink && (
         <div style={{ background: C.warning + "18", border: `1px solid ${C.warning}66`, borderRadius: 12, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>💳 Campanha criada — falta pagar para entrar no ar</div>
-            <div style={{ fontSize: 13, color: C.textSub }}>Sua campanha só aparece nas telas depois que o pagamento for confirmado (PIX ou boleto).</div>
+            <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>⚡ Campanha criada — pague com Pix e entre no ar em minutos</div>
+            <div style={{ fontSize: 13, color: C.textSub }}>Assim que o Pix cair, sua campanha aparece nas telas automaticamente — sem esperar aprovação manual. (Boleto também disponível, mas leva até 2 dias úteis para compensar.)</div>
           </div>
           <a href={paymentLink} target="_blank" rel="noopener noreferrer" style={{
             background: C.primary, color: "#fff", textDecoration: "none", borderRadius: 8,
@@ -316,7 +316,7 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
                   display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
                 }}>
                   <span style={{ fontSize: 13, color: C.textSub }}>
-                    {c.status === "overdue" ? "⚠️ Pagamento em atraso — campanha pausada." : "💳 Aguardando pagamento para entrar no ar."}
+                    {c.status === "overdue" ? "⚠️ Pagamento em atraso — campanha pausada." : "⚡ Pague com Pix e entre no ar em minutos."}
                   </span>
                   <a href={c.payment.invoice_url} target="_blank" rel="noopener noreferrer" style={{
                     color: C.primary, fontSize: 13, fontWeight: 600, textDecoration: "none",
