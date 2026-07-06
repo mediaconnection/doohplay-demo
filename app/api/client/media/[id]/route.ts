@@ -1,8 +1,19 @@
 // app/api/client/media/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3"
 
 export const dynamic = "force-dynamic"
+
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+const BUCKET = "dooh-media"
 
 export async function DELETE(
   req: NextRequest,
@@ -19,8 +30,9 @@ export async function DELETE(
     }
 
     // Confirma que a mídia pertence a uma campanha do cliente (segurança)
+    // e já traz a URL — precisa dela pra apagar o arquivo real do R2.
     const { rows: check } = await pool.query(`
-      SELECT cm.id FROM "CampaignMedia" cm
+      SELECT cm.id, cm.url FROM "CampaignMedia" cm
       JOIN "Campaign" c ON c.id = cm."campaignId"
       WHERE cm.id = $1 AND c."advertiserCode" = $2
     `, [id, code.toUpperCase()])
@@ -32,8 +44,22 @@ export async function DELETE(
     // Remove agendamento de playlist (se existir)
     await pool.query(`DELETE FROM playlist_schedule WHERE media_id = $1 AND client_code = $2`, [id, code.toUpperCase()])
 
-    // Remove a mídia
+    // Remove a mídia do banco
     await pool.query(`DELETE FROM "CampaignMedia" WHERE id = $1`, [id])
+
+    // Remove o arquivo real do R2 — antes só apagava do banco, deixando um
+    // arquivo órfão que continuava contando pro limite de mídia do plano
+    // (que é checado direto no bucket). Best-effort: se o R2 falhar, o
+    // registro já foi removido do banco de qualquer forma; loga e segue.
+    try {
+      const url: string = check[0].url
+      const key = url.split(`${BUCKET}/`).pop() || url.split("/r2.dev/").pop()
+      if (key) {
+        await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
+      }
+    } catch (r2Err) {
+      console.error("[media DELETE] falha ao remover do R2 (registro já removido do banco):", r2Err)
+    }
 
     return NextResponse.json({ ok: true })
 

@@ -4,8 +4,19 @@ import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
 import { removeInstitutionalFromUnified } from "@/lib/unifiedSync"
 import { probeMp4 } from "@/lib/mp4-probe"
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3"
 
 export const dynamic = "force-dynamic"
+
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+const BUCKET = "dooh-media"
 
 const MAX_VIDEO_DIMENSION    = 1920 // 1080p
 const MAX_VIDEO_BITRATE_MBPS = 15
@@ -145,13 +156,25 @@ export async function DELETE(
   const pool = getPool()
   try {
     const { rows } = await pool.query(
-      `DELETE FROM institutional_media WHERE id = $1 RETURNING id`,
+      `DELETE FROM institutional_media WHERE id = $1 RETURNING id, url`,
       [id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
 
     // Sincroniza com a fundação unificada (Fase 1) — best-effort
     await removeInstitutionalFromUnified(pool, id)
+
+    // Remove o arquivo real do R2 — mesma correção aplicada em
+    // client/media/[id] (Fase 8): sem isso, o arquivo ficava órfão pra sempre.
+    try {
+      const url: string = rows[0].url
+      const key = url.split("/institucional/").pop()
+      if (key) {
+        await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: `institucional/${key}` }))
+      }
+    } catch (r2Err) {
+      console.error("[admin/institutional-media/[id] DELETE] falha ao remover do R2:", r2Err)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
