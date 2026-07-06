@@ -468,11 +468,12 @@ export default async function PlayerPage({
           .zone { background: transparent; }
           .zone-card {
             position: absolute;
-            inset: 6px;
+            inset: 10px;
             background: #05070D;
             border-radius: 16px;
             overflow: hidden;
             box-sizing: border-box;
+            border: 4px solid #FF00FF;
           }
           .zone-media { width: 100%; height: 100%; position: relative; }
           .zone-media video, .zone-media img {
@@ -605,10 +606,6 @@ export default async function PlayerPage({
             background: linear-gradient(180deg, var(--accent-1, #00D9FF), var(--accent-2, #7B61FF));
             border-radius: 2px; margin-top: 2px;
             transition: background 1.4s ease;
-          }
-          .dw-news-bar {
-            width: 3px; flex-shrink: 0; align-self: stretch;
-            background: #F43F5E; border-radius: 2px; margin-top: 2px;
           }
           .slide {
             position: absolute;

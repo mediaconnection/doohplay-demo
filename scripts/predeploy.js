@@ -21,3 +21,20 @@ try {
 } catch(e) {
   console.warn('[startup] copy skipped:', e.message)
 }
+
+// 3. Copiar public/ e .next/static/ para o standalone — o modo "standalone"
+// do Next.js NÃO inclui isso automaticamente. Sem esse passo, qualquer
+// asset em public/ (fontes, ícones, etc.) dá 404 em produção mesmo
+// existindo no repo. Idempotente — seguro rodar toda vez.
+try {
+  execSync('cp -r public .next/standalone/public', { stdio: 'inherit' })
+  console.log('[startup] public/ copied to standalone')
+} catch(e) {
+  console.warn('[startup] public copy skipped:', e.message)
+}
+try {
+  execSync('mkdir -p .next/standalone/.next/static && cp -r .next/static/* .next/standalone/.next/static/', { stdio: 'inherit' })
+  console.log('[startup] .next/static copied to standalone')
+} catch(e) {
+  console.warn('[startup] static copy skipped:', e.message)
+}
