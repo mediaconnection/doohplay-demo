@@ -1046,6 +1046,7 @@ export default async function PlayerPage({
 
               var m = lateralMedias[lateralIdx % lateralMedias.length];
               lateralIdx++;
+              logPlay(m);
 
               var el = (m.type === 'video') ? lateralVideoEl : lateralImgEl;
               var other = (m.type === 'video') ? lateralImgEl : lateralVideoEl;
@@ -1319,6 +1320,7 @@ export default async function PlayerPage({
                     if (zoneTimer) { clearTimeout(zoneTimer); zoneTimer = null; }
                     var m = getNext();
                     if (!m) { zoneTimer = setTimeout(showNext, 5000); return; }
+                    logPlay(m);
 
                     var el = (m.type === 'video') ? videoEl : imgEl;
                     var other = (m.type === 'video') ? imgEl : videoEl;
@@ -1353,6 +1355,7 @@ export default async function PlayerPage({
 
             function showSlide(m) {
               if (!m) return;
+              logPlay(m);
 
               var targetSlot;
 
@@ -1498,6 +1501,27 @@ export default async function PlayerPage({
                   hb.style.opacity = '1';
                   setTimeout(function() { hb.style.opacity = '0'; }, 500);
                 }
+              }).catch(function(){});
+            }
+
+            // ── Proof-of-play real (Fase 8) ─────────────────────────────────
+            // Registra CADA exibição de verdade — nunca em preview do
+            // dashboard (isPreview), pra não poluir o relatório real com
+            // visualização interna. Fire-and-forget: nunca trava o player
+            // se a rota falhar.
+            function logPlay(m) {
+              if (isPreview || !m) return;
+              fetch('/api/player/play-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  client_code: code,
+                  media_id: m.id,
+                  media_name: m.name,
+                  media_type: m.type,
+                  slot_category: m.category || null,
+                  duration_seconds: Number(m.duration) || null,
+                })
               }).catch(function(){});
             }
 
