@@ -58,15 +58,42 @@ export async function GET() {
           entity_type: event.entity_type
         })
 
+        // Contagem REAL de eventos da campanha (antes era Math.random() —
+        // violava o princípio "nunca dado simulado em produção" bem no meio
+        // do sistema que deveria ser a prova de verdade).
+        let totalEvents = 0
+        if (event.campaign_id) {
+          const countRes = await pool.query(
+            `SELECT COUNT(*)::int AS total FROM event_chain WHERE campaign_id = $1`,
+            [event.campaign_id]
+          )
+          totalEvents = countRes.rows[0]?.total ?? 0
+        }
+
+        // Nome REAL da campanha via join — antes era hardcoded "Advertiser"/
+        // template string, não refletia dado nenhum de verdade.
+        let campaignName = event.campaign_id ? `Campaign ${event.campaign_id}` : "N/A"
+        if (event.campaign_id) {
+          const campaignRes = await pool.query(
+            `SELECT name FROM campaigns WHERE id = $1 LIMIT 1`,
+            [event.campaign_id]
+          )
+          if (campaignRes.rows[0]?.name) campaignName = campaignRes.rows[0].name
+        }
+
         results.push({
           proof: {
             ...proof,
             meta: {
               ...proof.meta,
-              campaign_name: `Campaign ${event.campaign_id ?? "N/A"}`,
-              advertiser_name: "Advertiser",
+              campaign_name: campaignName,
+              // advertiser_name removido — esse schema (tabela "campaigns")
+              // não guarda nome de anunciante; mostrar um valor real
+              // exigiria juntar com o sistema de Campaign/CampaignMedia
+              // (mundo diferente, ver nota na Fase 1 do roteiro mestre).
+              // Melhor omitir do que fingir com string fixa.
               updated_at: event.created_at,
-              total_events: Math.floor(Math.random() * 20000) // pode substituir depois
+              total_events: totalEvents
             }
           }
         })
