@@ -191,6 +191,34 @@ async function getPlayerData(code: string) {
       widgets = await fetchWidgetsData(template)
     }
 
+    // ── Enquete ativa (Fase 7) — interatividade via QR code ──────────────
+    // Roda pra qualquer cliente com uma enquete ativa, independente de
+    // template_key/layout. Resultado inicial vem no SSR; o player atualiza
+    // sozinho a cada ~15s via JS (mais rápido que o resto, pra parecer
+    // "ao vivo" de verdade enquanto as pessoas votam pelo celular).
+    let poll: { id: string; question: string; options: string[]; counts: number[]; total: number } | null = null
+    const pollRes = await pool.query<{ id: string; question: string; options: string[] }>(`
+      SELECT id, question, options FROM polls
+      WHERE client_code = $1 AND active = true
+      ORDER BY created_at DESC LIMIT 1
+    `, [upperCode])
+    if (pollRes.rows[0]) {
+      const votesRes = await pool.query<{ option_index: number; count: string }>(`
+        SELECT option_index, COUNT(*)::int AS count FROM poll_votes WHERE poll_id = $1 GROUP BY option_index
+      `, [pollRes.rows[0].id])
+      const counts = pollRes.rows[0].options.map((_: string, i: number) => {
+        const row = votesRes.rows.find((v: { option_index: number; count: string }) => v.option_index === i)
+        return row ? Number(row.count) : 0
+      })
+      poll = {
+        id: pollRes.rows[0].id,
+        question: pollRes.rows[0].question,
+        options: pollRes.rows[0].options,
+        counts,
+        total: counts.reduce((a: number, b: number) => a + b, 0),
+      }
+    }
+
     // ── Layout genérico (Fase 4) — N zonas editáveis, sobrepõe o template_key
     // antigo quando configurado. Compatibilidade: se nenhum layout_template_id
     // estiver definido, o comportamento antigo (fullscreen/magazine) continua
@@ -221,10 +249,11 @@ async function getPlayerData(code: string) {
       template: template?.template_key || "fullscreen",
       widgets,
       layoutZones,
+      poll,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", widgets: null as any, layoutZones: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", widgets: null as any, layoutZones: null as any, poll: null as any }
   }
 }
 
@@ -317,6 +346,36 @@ export default async function PlayerPage({
         </div>
       </div>`
     }
+    if (contentType === "poll" && data.poll) {
+      const p = data.poll
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://doohplay.com.br"
+      const voteUrl = `${baseUrl}/enquete/${p.id}`
+      const qrSrc = `/api/qrcode/url?u=${encodeURIComponent(voteUrl)}`
+      return `<div class="dw dw-poll" data-poll-id="${escapeHtml(p.id)}">
+        <div class="dw-accent"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-poll"></span>ENQUETE · AO VIVO</div>
+        <div class="dw-poll-body">
+          <div class="dw-poll-main">
+            <div class="dw-poll-question">${escapeHtml(p.question)}</div>
+            <div class="dw-poll-bars" data-poll-bars>
+              ${p.options.map((opt: string, i: number) => {
+                const count = p.counts[i] ?? 0
+                const pct = p.total > 0 ? Math.round((count / p.total) * 100) : 0
+                return `<div class="dw-poll-row">
+                  <div class="dw-poll-row-label"><span>${escapeHtml(opt)}</span><span class="dw-poll-pct" data-poll-pct="${i}">${pct}%</span></div>
+                  <div class="dw-poll-track"><div class="dw-poll-fill" data-poll-fill="${i}" style="width:${pct}%"></div></div>
+                </div>`
+              }).join("")}
+            </div>
+            <div class="dw-poll-total" data-poll-total>${p.total} voto${p.total === 1 ? "" : "s"}</div>
+          </div>
+          <div class="dw-poll-qr">
+            <img src="${qrSrc}" alt="QR code da enquete" />
+            <div class="dw-poll-qr-label">Aponte a câmera<br/>e vote</div>
+          </div>
+        </div>
+      </div>`
+    }
     if (contentType === "news" && data.widgets?.news?.length) {
       return `<div class="dw dw-news">
         <div class="dw-accent"></div>
@@ -359,7 +418,7 @@ export default async function PlayerPage({
   // ou magazine) — zero mudança de comportamento pra quem não configurou.
   const zonesHtml = data.layoutZones
     ? data.layoutZones.map((z: { id: string; x: number; y: number; w: number; h: number; content_type: string }) => {
-        const inner = ["weather", "stocks", "news", "clock"].includes(z.content_type)
+        const inner = ["weather", "stocks", "news", "clock", "poll"].includes(z.content_type)
           ? (renderWidgetHtml(z.content_type) || `<div class="zone-media"></div>`)
           : `<div class="zone-media"></div>`
         return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;">
@@ -601,6 +660,28 @@ export default async function PlayerPage({
             padding: 1.2vh 0; border-bottom: 1px solid rgba(255,255,255,.06);
           }
           .dw-news-item:last-child { border-bottom: none; }
+
+          /* Enquete (Fase 7) */
+          .dw-live-dot-poll { background: #00D9FF; }
+          .dw-poll-body { display: flex; gap: 2vh; flex: 1; align-items: center; min-height: 0; }
+          .dw-poll-main { flex: 1; min-width: 0; }
+          .dw-poll-question { font-size: 2.1vh; font-weight: 700; line-height: 1.35; margin-bottom: 1.6vh; }
+          .dw-poll-bars { display: flex; flex-direction: column; gap: 1vh; }
+          .dw-poll-row-label { display: flex; justify-content: space-between; font-size: 1.5vh; margin-bottom: 4px; }
+          .dw-poll-pct {
+            font-family: 'Space Grotesk', ui-monospace, monospace;
+            font-variant-numeric: tabular-nums; font-weight: 700;
+          }
+          .dw-poll-track { height: 8px; background: rgba(255,255,255,.08); border-radius: 4px; overflow: hidden; }
+          .dw-poll-fill {
+            height: 100%; border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent-1, #00D9FF), var(--accent-2, #7B61FF));
+            transition: width .6s ease, background 1.4s ease;
+          }
+          .dw-poll-total { font-size: 1.3vh; opacity: .45; margin-top: 1.4vh; }
+          .dw-poll-qr { flex-shrink: 0; text-align: center; }
+          .dw-poll-qr img { width: 9vh; height: 9vh; border-radius: 8px; background: #fff; padding: 4px; }
+          .dw-poll-qr-label { font-size: 1.1vh; opacity: .55; margin-top: 6px; line-height: 1.3; }
           .dw-news-bar {
             width: 3px; flex-shrink: 0; align-self: stretch;
             background: linear-gradient(180deg, var(--accent-1, #00D9FF), var(--accent-2, #7B61FF));
@@ -821,6 +902,35 @@ export default async function PlayerPage({
             }
             updateLiveClock();
             setInterval(updateLiveClock, 1000);
+
+            // ── Enquete ao vivo (Fase 7) — atualiza a cada 15s, bem mais
+            // rápido que o resto, pra sentir o resultado mudando enquanto
+            // as pessoas votam pelo celular. Só roda se o widget existir
+            // na página (não gasta requisição à toa se não tiver enquete).
+            function updatePollResults() {
+              var pollEl = document.querySelector('[data-poll-id]');
+              if (!pollEl) return;
+              var pollId = pollEl.getAttribute('data-poll-id');
+              fetch('/api/polls/' + pollId)
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                  if (!d || !d.active) return;
+                  var total = d.total || 0;
+                  for (var i = 0; i < (d.counts || []).length; i++) {
+                    var pct = total > 0 ? Math.round((d.counts[i] / total) * 100) : 0;
+                    var fillEl = document.querySelector('[data-poll-fill="' + i + '"]');
+                    var pctEl = document.querySelector('[data-poll-pct="' + i + '"]');
+                    if (fillEl) fillEl.style.width = pct + '%';
+                    if (pctEl) pctEl.textContent = pct + '%';
+                  }
+                  var totalEl = document.querySelector('[data-poll-total]');
+                  if (totalEl) totalEl.textContent = total + (total === 1 ? ' voto' : ' votos');
+                })
+                .catch(function() {});
+            }
+            updatePollResults();
+            setInterval(updatePollResults, 15000);
+
             var buildVersion = ${JSON.stringify(buildVersion)};
             var timer    = null;
             var qrTimer  = null;
