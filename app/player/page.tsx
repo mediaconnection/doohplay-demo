@@ -468,12 +468,11 @@ export default async function PlayerPage({
           .zone { background: transparent; }
           .zone-card {
             position: absolute;
-            inset: 10px;
+            inset: 8px;
             background: #05070D;
             border-radius: 16px;
             overflow: hidden;
             box-sizing: border-box;
-            border: 4px solid #FF00FF;
           }
           .zone-media { width: 100%; height: 100%; position: relative; }
           .zone-media video, .zone-media img {
