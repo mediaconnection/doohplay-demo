@@ -173,30 +173,33 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Valida quantidade TOTAL (imagens + vídeos) baseado no plano ───────────
+    // Antes contava direto no bucket R2 (ListObjectsV2) — se um arquivo fosse
+    // excluído só do banco (como acontecia até a correção da rota DELETE) ou
+    // vice-versa, a contagem ficava errada. Banco agora é a fonte única de
+    // verdade; R2 é só onde o arquivo físico mora.
     const { limit: mediaLimit, plan } = await getMediaLimit(pool, code)
 
     if (mediaLimit !== -1) {
       try {
-        const list = await r2.send(new ListObjectsV2Command({
-          Bucket: BUCKET,
-          Prefix: `studio/${code}/`,
-        }))
-        const existingTotal = (list.Contents || []).filter(obj => {
-          const key = obj.Key?.toLowerCase() || ""
-          return /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i.test(key)
-        })
-        if (existingTotal.length >= mediaLimit) {
+        const countRes = await pool.query(`
+          SELECT COUNT(*)::int AS total FROM "CampaignMedia" cm
+          JOIN "Campaign" c ON c.id = cm."campaignId"
+          WHERE c."advertiserCode" = $1 AND cm.type IN ('image', 'video')
+        `, [code])
+        const existingTotal = countRes.rows[0].total
+
+        if (existingTotal >= mediaLimit) {
           const planLabel = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "atual"
           return NextResponse.json({
             error: `Limite de ${mediaLimit} mídias do plano ${planLabel} atingido.`,
             limit_reached: true,
             current_plan: plan,
-            current_count: existingTotal.length,
+            current_count: existingTotal,
             max_count: mediaLimit,
           }, { status: 400 })
         }
-      } catch (listErr) {
-        console.warn("[upload] Não foi possível verificar quantidade:", listErr)
+      } catch (countErr) {
+        console.warn("[upload] Não foi possível verificar quantidade:", countErr)
       }
     }
 
@@ -266,21 +269,31 @@ export async function GET(request: NextRequest) {
     const pool = getPool()
     const { limit: mediaLimit, plan } = await getMediaLimit(pool, code)
 
+    // Contagem vem do banco (fonte de verdade) — R2 é usado só pra montar a
+    // lista de arquivos com tamanho (dado que não é guardado no banco hoje).
+    const countRes = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE cm.type = 'image')::int AS images,
+        COUNT(*) FILTER (WHERE cm.type = 'video')::int AS videos
+      FROM "CampaignMedia" cm
+      JOIN "Campaign" c ON c.id = cm."campaignId"
+      WHERE c."advertiserCode" = $1
+    `, [code])
+    const images = countRes.rows[0].images
+    const videos = countRes.rows[0].videos
+    const total  = images + videos
+
     const list = await r2.send(new ListObjectsV2Command({
       Bucket: BUCKET,
       Prefix: `studio/${code}/`,
     }))
-
-    const files  = list.Contents || []
-    const images = files.filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.Key || ""))
-    const videos = files.filter(f => /\.(mp4|webm|mov)$/i.test(f.Key || ""))
-    const total  = images.length + videos.length
+    const files = list.Contents || []
 
     return NextResponse.json({
       plan,
       total: { count: total, max: mediaLimit === -1 ? null : mediaLimit, unlimited: mediaLimit === -1 },
-      images: { count: images.length },
-      videos: { count: videos.length },
+      images: { count: images },
+      videos: { count: videos },
       files:  files.map(f => ({
         name: f.Key?.split("/").pop(),
         size: f.Size,
