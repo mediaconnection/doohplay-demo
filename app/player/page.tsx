@@ -1278,14 +1278,29 @@ export default async function PlayerPage({
               return el;
             }
 
+            function isYouTubeIdChar(ch) {
+              var code = ch.charCodeAt(0);
+              return (code >= 48 && code <= 57)  // 0-9
+                  || (code >= 65 && code <= 90)   // A-Z
+                  || (code >= 97 && code <= 122)  // a-z
+                  || ch === '_' || ch === '-';
+            }
+
             function extractYouTubeId(url) {
               if (!url) return null;
-              var patterns = [
-                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/,
-              ];
-              for (var i = 0; i < patterns.length; i++) {
-                var match = url.match(patterns[i]);
-                if (match) return match[1];
+              var markers = ['watch?v=', 'youtu.be/', '/embed/', '/shorts/'];
+              for (var i = 0; i < markers.length; i++) {
+                var idx = url.indexOf(markers[i]);
+                if (idx === -1) continue;
+                var rest = url.slice(idx + markers[i].length);
+                var id = '';
+                for (var c = 0; c < rest.length; c++) {
+                  var ch = rest.charAt(c);
+                  if (!isYouTubeIdChar(ch)) break;
+                  id += ch;
+                  if (id.length === 11) break;
+                }
+                if (id.length === 11) return id;
               }
               return null;
             }
