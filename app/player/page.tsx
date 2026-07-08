@@ -29,6 +29,8 @@ interface PlayerMedia {
   duration: number;
   category: SlotCategory;
   displayFormat: DisplayFormat;
+  layoutZones?: any[] | null;   // preenchido quando type === 'layout'
+  sequenceGroup?: string | null; // itens institucionais do mesmo grupo tocam em bloco
 }
 
 async function getPlayerData(code: string) {
@@ -69,11 +71,16 @@ async function getPlayerData(code: string) {
     `, [upperCode])
 
     // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
-    const institutionalQuery = pool.query<{ id: string; name: string; type: string; url: string; duration: number; display_format: string }>(`
-      SELECT id, name, type, url, duration, display_format
-      FROM institutional_media
-      WHERE active = true
-      ORDER BY position ASC
+    const institutionalQuery = pool.query<{
+      id: string; name: string; type: string; url: string; duration: number; display_format: string;
+      layout_template_id: string | null; sequence_group: string | null; layout_zones: any;
+    }>(`
+      SELECT im.id, im.name, im.type, im.url, im.duration, im.display_format,
+             im.layout_template_id, im.sequence_group, lt.zones AS layout_zones
+      FROM institutional_media im
+      LEFT JOIN layout_templates lt ON lt.id = im.layout_template_id
+      WHERE im.active = true
+      ORDER BY im.position ASC
     `)
 
     // ── Anunciante real — campanha de terceiro vinculada a esta tela ──
@@ -111,10 +118,15 @@ async function getPlayerData(code: string) {
       displayFormat: "fullscreen" as DisplayFormat,
     }))
 
-    const institutional: PlayerMedia[] = institutionalRes.rows.map((r: { id: string; name: string; type: string; url: string; duration: number; display_format: string }) => ({
+    const institutional: PlayerMedia[] = institutionalRes.rows.map((r: {
+      id: string; name: string; type: string; url: string; duration: number; display_format: string;
+      layout_template_id: string | null; sequence_group: string | null; layout_zones: any;
+    }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url,
       duration: Number(r.duration) || 15, category: "institucional" as SlotCategory,
       displayFormat: (r.display_format === "shrink_lateral" ? "shrink_lateral" : "fullscreen") as DisplayFormat,
+      layoutZones: r.layout_zones ?? null,
+      sequenceGroup: r.sequence_group ?? null,
     }))
 
     const realAds: PlayerMedia[] = realAdsRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
@@ -413,25 +425,40 @@ export default async function PlayerPage({
     : ""
 
   // ── Layout genérico de N zonas (Fase 4) ─────────────────────────────────
+  // Extraído em função reutilizável (Fase 9) — o mesmo gerador agora serve
+  // tanto pro layout fixo de página quanto pra um "slide-layout" dentro da
+  // playlist normal (item de tipo 'layout' misturado com os outros).
+  function renderZonesHtml(zones: Array<{ id: string; x: number; y: number; w: number; h: number; content_type: string }>): string {
+    return zones.map((z) => {
+      const inner = ["weather", "stocks", "news", "clock", "poll"].includes(z.content_type)
+        ? (renderWidgetHtml(z.content_type) || `<div class="zone-media"></div>`)
+        : `<div class="zone-media"></div>`
+      return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;">
+        <div class="zone-card">${inner}</div>
+      </div>`
+    }).join("")
+  }
+
   // Só entra em ação quando um layout_template está configurado pra esse
   // cliente. Sem isso, o player continua 100% no caminho antigo (fullscreen
   // ou magazine) — zero mudança de comportamento pra quem não configurou.
-  const zonesHtml = data.layoutZones
-    ? data.layoutZones.map((z: { id: string; x: number; y: number; w: number; h: number; content_type: string }) => {
-        const inner = ["weather", "stocks", "news", "clock", "poll"].includes(z.content_type)
-          ? (renderWidgetHtml(z.content_type) || `<div class="zone-media"></div>`)
-          : `<div class="zone-media"></div>`
-        return `<div class="zone" data-zone-id="${escapeHtml(z.id)}" data-content-type="${escapeHtml(z.content_type)}" style="position:absolute;left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%;">
-          <div class="zone-card">${inner}</div>
-        </div>`
-      }).join("")
-    : ""
+  const zonesHtml = data.layoutZones ? renderZonesHtml(data.layoutZones) : ""
 
   const playerInnerHtml = data.layoutZones
     ? `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="zones-root" style="position:relative;width:100%;height:100%;">${zonesHtml}</div>`
     : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone">${widgetsPanelHtml}</div>`
 
-  const mediasJson = JSON.stringify(data.medias)
+  // Slides do tipo 'layout' (Fase 9) — a composição de N-zonas é
+  // pré-renderizada aqui no servidor (reaproveitando renderZonesHtml, o
+  // mesmo gerador do layout de página inteira), pra o JS do cliente só
+  // precisar injetar o HTML pronto quando a vez desse slide chegar na
+  // rotação normal, sem duplicar a lógica de zona no navegador.
+  const mediasWithLayoutHtml = data.medias.map((m: any) =>
+    m.type === "layout" && m.layoutZones
+      ? { ...m, layoutHtml: renderZonesHtml(m.layoutZones) }
+      : m
+  )
+  const mediasJson = JSON.stringify(mediasWithLayoutHtml)
   const buildVersion = process.env.RENDER_GIT_COMMIT || "dev"
 
   return (
@@ -948,6 +975,8 @@ export default async function PlayerPage({
             var groups  = {};  // { dono: [...], anunciante: [...], rede: [...], institucional: [...] }
             var cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
             var upcoming = null; // próxima mídia já sorteada e pré-carregada
+            var sequenceQueue = []; // Fase 9 — resto de uma sequência (canal
+                                     // DOOHPLAY) em andamento, tocando em bloco
 
             // ── Compositor de zonas (Fase 3) ───────────────────────────────
             // mainMedias: tudo que é fullscreen (comportamento de sempre).
@@ -977,6 +1006,12 @@ export default async function PlayerPage({
             }
 
             function pickNextMedia() {
+              // Fase 9 — se uma sequência (canal DOOHPLAY) está em andamento,
+              // continua ela antes de sortear de novo por peso de categoria.
+              if (sequenceQueue.length > 0) {
+                return sequenceQueue.shift();
+              }
+
               var available = [];
               var totalWeight = 0;
               for (var cat in CATEGORY_WEIGHTS) {
@@ -998,7 +1033,24 @@ export default async function PlayerPage({
               var list = groups[chosen];
               var idx = cursors[chosen] % list.length;
               cursors[chosen] = idx + 1;
-              return list[idx];
+              var picked = list[idx];
+
+              // Se o item sorteado faz parte de uma sequência, enfileira o
+              // resto do grupo (na ordem em que aparece na lista) pra tocar
+              // em bloco, um atrás do outro — sensação de "bloco de
+              // programação da emissora" em vez de peça solta aleatória.
+              if (picked && picked.sequenceGroup) {
+                var groupItems = list.filter(function(x) { return x.sequenceGroup === picked.sequenceGroup; });
+                if (groupItems.length > 1) {
+                  var pickedPos = -1;
+                  for (var k = 0; k < groupItems.length; k++) {
+                    if (groupItems[k].id === picked.id) { pickedPos = k; break; }
+                  }
+                  sequenceQueue = groupItems.slice(pickedPos + 1);
+                }
+              }
+
+              return picked;
             }
 
             var split = splitByFormat(medias);
@@ -1112,10 +1164,16 @@ export default async function PlayerPage({
               var img = document.createElement('img');
               img.style.display = 'none';
 
+              // Slide-layout (N-zonas) e YouTube (Fase 9) usam esse terceiro
+              // elemento em vez de video/img — HTML arbitrário injetado.
+              var custom = document.createElement('div');
+              custom.style.cssText = 'width:100%;height:100%;display:none;position:relative;';
+
               div.appendChild(video);
               div.appendChild(img);
+              div.appendChild(custom);
 
-              return { el: div, video: video, img: img };
+              return { el: div, video: video, img: img, custom: custom, customZoneTimers: [] };
             }
 
             function releaseSlot(slot) {
@@ -1124,7 +1182,64 @@ export default async function PlayerPage({
               slot.el.classList.remove('active');
             }
 
+            function getSlotElement(slot, m) {
+              if (m.type === 'layout' || m.type === 'youtube') return slot.custom;
+              return (m.type === 'video') ? slot.video : slot.img;
+            }
+
+            function clearCustomZoneTimers(slot) {
+              (slot.customZoneTimers || []).forEach(function(t) { clearTimeout(t); clearInterval(t); });
+              slot.customZoneTimers = [];
+            }
+
             function fillSlot(slot, m) {
+              // Slide-layout (N-zonas) ou YouTube (Fase 9) — usa o elemento
+              // "custom", não video/img.
+              if (m.type === 'layout' || m.type === 'youtube') {
+                slot.video.style.display = 'none';
+                slot.img.style.display = 'none';
+                try { slot.video.pause(); } catch (e) {}
+                clearCustomZoneTimers(slot);
+
+                if (m.type === 'youtube') {
+                  var videoId = extractYouTubeId(m.url);
+                  slot.custom.innerHTML = videoId
+                    ? '<iframe style="width:100%;height:100%;border:0;" src="https://www.youtube.com/embed/' + videoId +
+                      '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>'
+                    : '';
+                } else {
+                  slot.custom.innerHTML = m.layoutHtml || '';
+                  // Zonas de conteúdo (main_rotation/ad_only) dentro de um
+                  // slide-layout mostram UM item só, fixo, pela duração
+                  // inteira do slide — sem rotação própria lá dentro (evita
+                  // temporizador aninhado; o slide já tem seu próprio tempo).
+                  var zoneEls = slot.custom.querySelectorAll('.zone[data-content-type="main_rotation"], .zone[data-content-type="ad_only"]');
+                  for (var zi = 0; zi < zoneEls.length; zi++) {
+                    (function(zoneEl) {
+                      var contentType = zoneEl.getAttribute('data-content-type');
+                      var mediaHost = zoneEl.querySelector('.zone-media');
+                      if (!mediaHost) return;
+                      var inner = (contentType === 'main_rotation') ? pickNextMedia() : (lateralMedias[0] || null);
+                      if (!inner) return;
+                      var tag = inner.type === 'video' ? 'video' : 'img';
+                      var innerEl = document.createElement(tag);
+                      innerEl.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                      if (tag === 'video') { innerEl.muted = true; innerEl.autoplay = true; innerEl.playsInline = true; innerEl.loop = true; }
+                      innerEl.src = inner.url;
+                      mediaHost.appendChild(innerEl);
+                    })(zoneEls[zi]);
+                  }
+                }
+                slot.custom.style.display = 'block';
+                slot.custom.setAttribute('data-id', m.id);
+                slot.custom.setAttribute('data-duration', m.duration);
+                return slot.custom;
+              }
+
+              slot.custom.style.display = 'none';
+              slot.custom.innerHTML = '';
+              clearCustomZoneTimers(slot);
+
               var el = (m.type === 'video') ? slot.video : slot.img;
               var other = (m.type === 'video') ? slot.img : slot.video;
 
@@ -1146,6 +1261,18 @@ export default async function PlayerPage({
               el.setAttribute('data-duration', m.duration);
               el.style.display = 'block';
               return el;
+            }
+
+            function extractYouTubeId(url) {
+              if (!url) return null;
+              var patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/,
+              ];
+              for (var i = 0; i < patterns.length; i++) {
+                var match = url.match(patterns[i]);
+                if (match) return match[1];
+              }
+              return null;
             }
 
             function initSlots() {
@@ -1367,7 +1494,7 @@ export default async function PlayerPage({
                 // Nas chamadas seguintes, o slot inativo já foi pré-carregado
                 // pela chamada anterior de preloadNext().
                 targetSlot = (activeSlot === slotA) ? slotB : slotA;
-                var loadedEl = (m.type === 'video') ? targetSlot.video : targetSlot.img;
+                var loadedEl = getSlotElement(targetSlot, m);
                 if (loadedEl.getAttribute('data-id') !== m.id) {
                   // Pré-carregado não corresponde ao esperado (playlist mudou
                   // no meio do caminho) — refaz o conteúdo deste slot agora.
@@ -1382,7 +1509,7 @@ export default async function PlayerPage({
 
               var dur = (Number(m.duration) || 15) * 1000;
               var mediaId = m.id;
-              var el = (m.type === 'video') ? activeSlot.video : activeSlot.img;
+              var el = getSlotElement(activeSlot, m);
 
               // Motor de cor (Fase 5): extrai a cor dominante deste slide
               // assim que o frame estiver pronto, e mistura com a cor da
