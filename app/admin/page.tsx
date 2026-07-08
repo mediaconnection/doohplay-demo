@@ -1854,6 +1854,16 @@ function TabInstitucional() {
   const [error, setError] = useState("")
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Fase 9 — layout multi-zona e YouTube como tipo de slide, mais sequência
+  const [contentType, setContentType] = useState<"media" | "layout" | "youtube">("media")
+  const [layoutTemplateId, setLayoutTemplateId] = useState("")
+  const [layoutPresets, setLayoutPresets] = useState<any[]>([])
+  const [youtubeUrl, setYoutubeUrl] = useState("")
+  const [sequenceGroup, setSequenceGroup] = useState("")
+
+  useEffect(() => {
+    fetch("/api/admin/layout-templates").then(r => r.json()).then(d => setLayoutPresets(d.presets ?? [])).catch(() => {})
+  }, [])
 
   const load = () => {
     setLoading(true)
@@ -1870,7 +1880,9 @@ function TabInstitucional() {
   }
 
   const upload = async () => {
-    if (!file) { setError("Escolha um arquivo"); return }
+    if (contentType === "media" && !file) { setError("Escolha um arquivo"); return }
+    if (contentType === "layout" && !layoutTemplateId) { setError("Escolha um layout"); return }
+    if (contentType === "youtube" && !youtubeUrl.trim()) { setError("Cole a URL do vídeo do YouTube"); return }
     if (!name.trim()) { setError("Dê um nome pra essa peça"); return }
     if (!startDate || !endDate) { setError("Data de início e fim são obrigatórias"); return }
     if (startDate > endDate) { setError("Data de início não pode ser depois da data de fim"); return }
@@ -1878,7 +1890,10 @@ function TabInstitucional() {
     setError(""); setUploading(true)
     try {
       const form = new FormData()
-      form.append("file", file)
+      form.append("content_type", contentType)
+      if (contentType === "media" && file) form.append("file", file)
+      if (contentType === "layout") form.append("layout_template_id", layoutTemplateId)
+      if (contentType === "youtube") form.append("youtube_url", youtubeUrl.trim())
       form.append("name", name)
       form.append("duration", duration)
       form.append("position", position)
@@ -1888,11 +1903,13 @@ function TabInstitucional() {
       if (endTime) form.append("end_time", endTime)
       if (daysOfWeek.length < 7) form.append("days_of_week", daysOfWeek.join(","))
       form.append("display_format", displayFormat)
+      if (sequenceGroup.trim()) form.append("sequence_group", sequenceGroup.trim())
       const res = await fetch("/api/admin/institutional-media", { method: "POST", body: form })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar")
       setName(""); setFile(null); setStartDate(""); setEndDate(""); setStartTime(""); setEndTime("")
       setDaysOfWeek(DAYS.map(d => d.code)); setDisplayFormat("fullscreen")
+      setContentType("media"); setLayoutTemplateId(""); setYoutubeUrl(""); setSequenceGroup("")
       load()
     } catch (err: any) {
       setError(err.message || "Erro ao enviar")
@@ -2021,12 +2038,69 @@ function TabInstitucional() {
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Tipo de conteúdo</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => setContentType("media")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (contentType === "media" ? BLUE : BORDER),
+              background: contentType === "media" ? BLUE : BG,
+              color: contentType === "media" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>🖼️ Imagem/vídeo</button>
+            <button type="button" onClick={() => setContentType("layout")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (contentType === "layout" ? BLUE : BORDER),
+              background: contentType === "layout" ? BLUE : BG,
+              color: contentType === "layout" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>🗂️ Layout multi-zona</button>
+            <button type="button" onClick={() => setContentType("youtube")} style={{
+              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+              border: "1px solid " + (contentType === "youtube" ? BLUE : BORDER),
+              background: contentType === "youtube" ? BLUE : BG,
+              color: contentType === "youtube" ? "#fff" : TEXT2, cursor: "pointer",
+            }}>▶️ YouTube</button>
+          </div>
+          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            Esses 3 tipos entram misturados na mesma rotação, como slides de uma programação — não são mais um modo fixo de tela.
+          </div>
+        </div>
+
+        {contentType === "layout" && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Qual layout</label>
+            <select value={layoutTemplateId} onChange={e => setLayoutTemplateId(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+              <option value="">Selecione...</option>
+              {layoutPresets.map((p: any) => <option key={p.id} value={p.id}>{p.orientation === "vertical" ? "📱" : "🖥️"} {p.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {contentType === "youtube" && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>URL do vídeo</label>
+            <input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+              ⚠️ Precisa de internet no aparelho pra funcionar (diferente do resto, que roda de um cache local). Os controles do YouTube aparecem — é exigência deles, não removemos.
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Grupo de sequência (opcional)</label>
+          <input value={sequenceGroup} onChange={e => setSequenceGroup(e.target.value)} placeholder="Ex: bloco-manha" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            Itens com o mesmo nome de grupo tocam em bloco, um atrás do outro, quando a vez do institucional chegar — sensação de "canal DOOHPLAY" em vez de peça solta.
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Boas-vindas DOOHPLAY" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: TEXT2 }} />
-        </div>
+        {contentType === "media" && (
+          <div style={{ marginBottom: 12 }}>
+            <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: TEXT2 }} />
+          </div>
+        )}
         {error && <div style={{ fontSize: 12, color: RED, marginBottom: 10 }}>⚠️ {error}</div>}
         <button onClick={upload} disabled={uploading} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer" }}>
           {uploading ? "Enviando…" : "Adicionar à rotação institucional"}
