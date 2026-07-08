@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
   const pool = getPool()
   const { rows } = await pool.query(
     `SELECT id, name, type, url, duration, position, active, created_at, display_format,
-            start_date, end_date, start_time, end_time, days_of_week
+            start_date, end_date, start_time, end_time, days_of_week,
+            layout_template_id, sequence_group
      FROM institutional_media ORDER BY position ASC, created_at DESC`
   )
   return NextResponse.json({ count: rows.length, items: rows })
@@ -47,12 +48,18 @@ export async function GET(req: NextRequest) {
 // start_date/end_date são OBRIGATÓRIOS (agendamento forçado desde 01/07/2026).
 // days_of_week (CSV: "mon,tue,wed") e start_time/end_time (HH:MM) são opcionais
 // — vazio/ausente = sem restrição (todos os dias / dia inteiro).
+//
+// content_type (Fase 9): 'media' (padrão, exige file) | 'layout' (exige
+// layout_template_id, sem upload) | 'youtube' (exige youtube_url, sem
+// upload). sequence_group (opcional, qualquer tipo): itens com o mesmo
+// valor tocam em bloco, um atrás do outro, quando a vez do institucional
+// chegar na rotação — "canal DOOHPLAY".
 export async function POST(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   try {
     const form = await req.formData()
-    const file = form.get("file") as File | null
+    const contentType = String(form.get("content_type") || "media")
     const name = String(form.get("name") || "Institucional DOOHPLAY")
     const duration = Number(form.get("duration") || 15)
     const position = Number(form.get("position") || 0)
@@ -64,14 +71,55 @@ export async function POST(req: NextRequest) {
     const daysOfWeek = daysOfWeekRaw ? daysOfWeekRaw.split(",").filter(Boolean) : null
     const displayFormatRaw = String(form.get("display_format") || "fullscreen")
     const displayFormat = displayFormatRaw === "shrink_lateral" ? "shrink_lateral" : "fullscreen"
+    const sequenceGroup = String(form.get("sequence_group") || "").trim() || null
 
-    if (!file) return NextResponse.json({ error: "campo 'file' obrigatório" }, { status: 400 })
     if (!startDate || !endDate) {
       return NextResponse.json({ error: "data de início e fim são obrigatórias" }, { status: 400 })
     }
     if (startDate > endDate) {
       return NextResponse.json({ error: "data de início não pode ser depois da data de fim" }, { status: 400 })
     }
+
+    const pool = getPool()
+
+    // ── Slide-layout (N-zonas) — sem upload, só referencia um layout já criado ──
+    if (contentType === "layout") {
+      const layoutTemplateId = String(form.get("layout_template_id") || "")
+      if (!layoutTemplateId) {
+        return NextResponse.json({ error: "layout_template_id é obrigatório pra esse tipo" }, { status: 400 })
+      }
+      const res = await pool.query(
+        `INSERT INTO institutional_media
+           (id, name, type, url, duration, position, active, created_at,
+            start_date, end_date, start_time, end_time, days_of_week, display_format,
+            layout_template_id, sequence_group)
+         VALUES (gen_random_uuid(), $1, 'layout', '', $2, $3, true, NOW(), $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING id`,
+        [name, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, layoutTemplateId, sequenceGroup]
+      )
+      return NextResponse.json({ ok: true, id: res.rows[0].id })
+    }
+
+    // ── YouTube — sem upload, só a URL do vídeo ──
+    if (contentType === "youtube") {
+      const youtubeUrl = String(form.get("youtube_url") || "").trim()
+      if (!youtubeUrl) {
+        return NextResponse.json({ error: "youtube_url é obrigatório pra esse tipo" }, { status: 400 })
+      }
+      const res = await pool.query(
+        `INSERT INTO institutional_media
+           (id, name, type, url, duration, position, active, created_at,
+            start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group)
+         VALUES (gen_random_uuid(), $1, 'youtube', $2, $3, $4, true, NOW(), $5, $6, $7, $8, $9, $10, $11)
+         RETURNING id`,
+        [name, youtubeUrl, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup]
+      )
+      return NextResponse.json({ ok: true, id: res.rows[0].id })
+    }
+
+    // ── Imagem/vídeo (padrão, comportamento de sempre) ──
+    const file = form.get("file") as File | null
+    if (!file) return NextResponse.json({ error: "campo 'file' obrigatório" }, { status: 400 })
 
     const isVideo = file.type.startsWith("video/")
     const isImage = file.type.startsWith("image/")
@@ -121,15 +169,14 @@ export async function POST(req: NextRequest) {
 
     const url = `${PUBLIC_URL}/${key}`
 
-    const pool = getPool()
     const res = await pool.query(
       `INSERT INTO institutional_media
          (id, name, type, url, duration, position, active, created_at,
-          start_date, end_date, start_time, end_time, days_of_week, display_format)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10, $11)
+          start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [name, isVideo ? "video" : "image", url, duration, position,
-       startDate, endDate, startTime, endTime, daysOfWeek, displayFormat]
+       startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup]
     )
 
     // Sincroniza com a fundação unificada (Fase 1) — best-effort
