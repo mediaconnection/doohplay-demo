@@ -1005,17 +1005,32 @@ export default async function PlayerPage({
               return g;
             }
 
-            function pickNextMedia() {
+            function pickNextMedia(allowSpecialTypes) {
               // Fase 9 — se uma sequência (canal DOOHPLAY) está em andamento,
               // continua ela antes de sortear de novo por peso de categoria.
               if (sequenceQueue.length > 0) {
-                return sequenceQueue.shift();
+                var queued = sequenceQueue.shift();
+                if (!allowSpecialTypes && queued && (queued.type === 'layout' || queued.type === 'youtube')) {
+                  return null; // sub-zona não sabe renderizar — pula essa vez
+                }
+                return queued;
               }
 
+              // 'layout'/'youtube' só podem ser exibidos pela rotação de
+              // tela cheia (showSlide) — uma sub-zona dentro de um layout
+              // de página não sabe renderizar isso (só video/img), então
+              // filtra ANTES de escolher, em vez de sortear e tentar nulo
+              // depois (isso mexia no cursor compartilhado sem necessidade).
               var available = [];
               var totalWeight = 0;
+              var usableByCategory = {};
               for (var cat in CATEGORY_WEIGHTS) {
-                if (groups[cat] && groups[cat].length > 0) {
+                var rawList = groups[cat] || [];
+                var usable = allowSpecialTypes
+                  ? rawList
+                  : rawList.filter(function(x) { return x.type !== 'layout' && x.type !== 'youtube'; });
+                usableByCategory[cat] = usable;
+                if (usable.length > 0) {
                   available.push(cat);
                   totalWeight += CATEGORY_WEIGHTS[cat];
                 }
@@ -1030,7 +1045,7 @@ export default async function PlayerPage({
                 if (r <= acc) { chosen = available[j]; break; }
               }
 
-              var list = groups[chosen];
+              var list = usableByCategory[chosen];
               var idx = cursors[chosen] % list.length;
               cursors[chosen] = idx + 1;
               var picked = list[idx];
@@ -1375,7 +1390,7 @@ export default async function PlayerPage({
                       contentArea.innerHTML = '<div id="slides"></div>';
                       slotA = null; slotB = null; activeSlot = null;
                       initSlots();
-                      showSlide(pickNextMedia());
+                      showSlide(pickNextMedia(true));
                     }
                     showLateralSlide();
                     return;
@@ -1429,25 +1444,18 @@ export default async function PlayerPage({
                   var videoEl = document.createElement('video');
                   videoEl.muted = true; videoEl.playsInline = true; videoEl.autoplay = true;
                   videoEl.setAttribute('muted', ''); videoEl.setAttribute('playsinline', '');
+                  videoEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
                   var imgEl = document.createElement('img');
+                  imgEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
                   mediaHost.appendChild(videoEl);
                   mediaHost.appendChild(imgEl);
 
                   var adIdx = 0;
                   function getNext() {
-                    if (contentType === 'main_rotation') {
-                      // Uma sub-zona (dentro de um layout de página) não sabe
-                      // renderizar um item tipo 'layout'/'youtube' — só video/img.
-                      // Sorteia de novo até achar algo renderizável (poucas
-                      // tentativas, pra não travar se a lista for só isso).
-                      var picked = pickNextMedia();
-                      var attempts = 0;
-                      while (picked && (picked.type === 'layout' || picked.type === 'youtube') && attempts < 6) {
-                        picked = pickNextMedia();
-                        attempts++;
-                      }
-                      return (picked && (picked.type === 'layout' || picked.type === 'youtube')) ? null : picked;
-                    }
+                    // pickNextMedia() sem argumento já filtra 'layout'/'youtube'
+                    // sozinho — uma sub-zona (dentro de um layout de página)
+                    // não sabe renderizar isso, só video/img.
+                    if (contentType === 'main_rotation') return pickNextMedia();
                     if (!lateralMedias.length) return null;
                     var m = lateralMedias[adIdx % lateralMedias.length];
                     adIdx++;
@@ -1609,12 +1617,12 @@ export default async function PlayerPage({
 
               // Sorteia (respeitando os pesos de categoria) e pré-carrega a
               // próxima mídia no slot que ficou de fundo.
-              upcoming = pickNextMedia();
+              upcoming = pickNextMedia(true);
               preloadNext(upcoming);
             }
 
             function nextSlide() {
-              if (!upcoming) upcoming = pickNextMedia();
+              if (!upcoming) upcoming = pickNextMedia(true);
               var m = upcoming;
               upcoming = null;
               showSlide(m);
@@ -1684,7 +1692,7 @@ export default async function PlayerPage({
             }, RELOAD_INTERVAL_MS);
 
             // Inicia
-            if (!isGenericLayout) showSlide(pickNextMedia());
+            if (!isGenericLayout) showSlide(pickNextMedia(true));
             setInterval(sendHeartbeat, 30000);
             setInterval(pollPlaylist, POLL_INTERVAL_MS);
           })();
