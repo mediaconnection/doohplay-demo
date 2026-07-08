@@ -2117,14 +2117,18 @@ function TabInstitucional() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
           {items.map((it: any) => (
             <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden", opacity: it.active ? 1 : 0.5 }}>
-              <div style={{ height: 90, background: BG }}>
-                {it.type === "video"
+              <div style={{ height: 90, background: BG, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {it.type === "layout"
+                  ? <span style={{ fontSize: 28 }}>🗂️</span>
+                  : it.type === "youtube"
+                  ? <span style={{ fontSize: 28 }}>▶️</span>
+                  : it.type === "video"
                   ? <video src={it.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
                   : <img src={it.url} alt={it.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
               </div>
               <div style={{ padding: "8px 10px" }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
-                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s</div>
+                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s{it.sequence_group ? ` · 🔗 ${it.sequence_group}` : ""}</div>
                 <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📅 {scheduleSummary(it)}</div>
                 {it.display_format === "shrink_lateral" && (
                   <div style={{ fontSize: 10, color: BLUE, marginBottom: 6, fontWeight: 600 }}>↔️ Encolhe lateral</div>
