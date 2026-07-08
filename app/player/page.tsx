@@ -1435,7 +1435,19 @@ export default async function PlayerPage({
 
                   var adIdx = 0;
                   function getNext() {
-                    if (contentType === 'main_rotation') return pickNextMedia();
+                    if (contentType === 'main_rotation') {
+                      // Uma sub-zona (dentro de um layout de página) não sabe
+                      // renderizar um item tipo 'layout'/'youtube' — só video/img.
+                      // Sorteia de novo até achar algo renderizável (poucas
+                      // tentativas, pra não travar se a lista for só isso).
+                      var picked = pickNextMedia();
+                      var attempts = 0;
+                      while (picked && (picked.type === 'layout' || picked.type === 'youtube') && attempts < 6) {
+                        picked = pickNextMedia();
+                        attempts++;
+                      }
+                      return (picked && (picked.type === 'layout' || picked.type === 'youtube')) ? null : picked;
+                    }
                     if (!lateralMedias.length) return null;
                     var m = lateralMedias[adIdx % lateralMedias.length];
                     adIdx++;
