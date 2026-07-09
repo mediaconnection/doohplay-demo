@@ -103,6 +103,30 @@ export async function createCampaignPayment(params: {
   })
 }
 
+// Cria cobrança ÚNICA genérica, com externalReference livre — usada por
+// qualquer fluxo futuro que não seja campanha de anunciante nem assinatura
+// mensal (ex: tela extra self-service, Fase 11). externalReference decide
+// o roteamento no webhook (prefixo "algo:<id>").
+export async function createOneTimePayment(params: {
+  customerId: string
+  value: number
+  externalReference: string
+  description: string
+  cpfCnpj?: string
+  dueDate?: string
+}) {
+  const due = params.dueDate ?? new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
+  return asaas("/payments", "POST", {
+    customer: params.customerId,
+    billingType: "UNDEFINED",
+    value: params.value,
+    dueDate: due,
+    description: params.description,
+    externalReference: params.externalReference,
+    cpfCnpj: params.cpfCnpj?.replace(/\D/g, "") || undefined,
+  })
+}
+
 // Cancela assinatura
 export async function cancelSubscription(subscriptionId: string) {
   return asaas(`/subscriptions/${subscriptionId}`, "DELETE")

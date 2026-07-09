@@ -76,6 +76,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, event, campaign_id: campaignId })
     }
 
+    // ── Pagamento de TELA EXTRA (self-service, Fase 11) — cobrança única ──
+    // externalReference vem como "extra_screen:<uuid>", setado em
+    // client/screens/purchase. A tela só é criada de fato (client_screens)
+    // na confirmação — nunca antes, mesmo padrão da campanha de anunciante.
+    if (ref && ref.startsWith("extra_screen:")) {
+      const requestId = ref.slice("extra_screen:".length)
+
+      if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
+        const reqRow = await pool.query(
+          `SELECT client_code, player_id, label, status FROM screen_purchase_requests WHERE id = $1`,
+          [requestId]
+        )
+        if (reqRow.rows[0] && reqRow.rows[0].status !== "paid") {
+          const { client_code, player_id, label } = reqRow.rows[0]
+          await pool.query(
+            `INSERT INTO client_screens (client_code, player_id, label, same_content)
+             VALUES ($1, $2, $3, true)`,
+            [client_code, player_id, label]
+          )
+          await pool.query(
+            `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
+            [client_code, player_id]
+          )
+          await pool.query(
+            `UPDATE screen_purchase_requests SET status = 'paid', paid_at = NOW() WHERE id = $1`,
+            [requestId]
+          )
+        }
+      } else if (event === "PAYMENT_OVERDUE") {
+        await pool.query(`UPDATE screen_purchase_requests SET status = 'cancelled' WHERE id = $1 AND status = 'pending'`, [requestId])
+      } else if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
+        await pool.query(`UPDATE screen_purchase_requests SET status = 'cancelled' WHERE id = $1`, [requestId])
+      } else {
+        console.log("[webhook/asaas] evento de tela extra nao tratado:", event)
+      }
+
+      return NextResponse.json({ ok: true, event, screen_purchase_request_id: requestId })
+    }
+
     if (!payment?.subscription) {
       return NextResponse.json({ ok: true, skipped: "sem subscription" })
     }

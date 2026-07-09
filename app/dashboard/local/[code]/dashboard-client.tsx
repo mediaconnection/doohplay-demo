@@ -582,6 +582,35 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   // aparece visualmente quando há 2+ telas, pra não poluir o caso comum.
   const [screens, setScreens] = useState<any[]>([]);
   const [savingScreen, setSavingScreen] = useState<string | null>(null);
+  // Fase 11 — self-service: cliente adiciona tela nova, cobrado automaticamente
+  const [showAddScreen, setShowAddScreen] = useState(false);
+  const [addActivationCode, setAddActivationCode] = useState("");
+  const [addScreenLabel, setAddScreenLabel] = useState("");
+  const [addScreenLoading, setAddScreenLoading] = useState(false);
+  const [addScreenError, setAddScreenError] = useState("");
+  const [addScreenInvoiceUrl, setAddScreenInvoiceUrl] = useState("");
+  const [addScreenValue, setAddScreenValue] = useState<number | null>(null);
+
+  const purchaseScreen = async () => {
+    if (!addActivationCode.trim() || !addScreenLabel.trim()) {
+      setAddScreenError("Preencha o código de ativação e o nome da tela"); return
+    }
+    setAddScreenLoading(true); setAddScreenError(""); setAddScreenInvoiceUrl("")
+    try {
+      const res = await fetch("/api/client/screens/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: client.code, activation_code: addActivationCode.trim(), label: addScreenLabel.trim() }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao gerar cobrança")
+      setAddScreenInvoiceUrl(d.invoice_url)
+      setAddScreenValue(d.value)
+    } catch (err: any) {
+      setAddScreenError(err.message || "Erro ao gerar cobrança")
+    }
+    setAddScreenLoading(false)
+  }
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const loadScreens = () => {
     fetch(`/api/client/screens/${client.code}`)
@@ -662,6 +691,51 @@ function TabTV({ client, player, playlist, online, checking }: any) {
           )}
         </div>
       )}
+
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>➕ Adicionar tela nova</div>
+            <div style={{ fontSize: 11, color: C.text3 }}>Abra o app do DOOHPLAY no aparelho novo — ele vai mostrar um código tipo "DHP-A1B2C3"</div>
+          </div>
+          <button onClick={() => setShowAddScreen(v => !v)} style={{ fontSize: 12, fontWeight: 600, padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.blue}`, background: showAddScreen ? C.blue : C.blueLt, color: showAddScreen ? "#fff" : C.blue, cursor: "pointer" }}>
+            {showAddScreen ? "Fechar" : "Adicionar tela"}
+          </button>
+        </div>
+        {showAddScreen && (
+          <div style={{ padding: "0 18px 18px" }}>
+            {!addScreenInvoiceUrl ? (
+              <>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 11, color: C.text3, display: "block", marginBottom: 4 }}>Código de ativação (mostrado no aparelho)</label>
+                  <input value={addActivationCode} onChange={e => setAddActivationCode(e.target.value)} placeholder="Ex: DHP-A1B2C3" style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 14 }} />
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 11, color: C.text3, display: "block", marginBottom: 4 }}>Nome dessa tela</label>
+                  <input value={addScreenLabel} onChange={e => setAddScreenLabel(e.target.value)} placeholder="Ex: TV Recepção" style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 14 }} />
+                </div>
+                {addScreenError && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>⚠️ {addScreenError}</div>}
+                <button onClick={purchaseScreen} disabled={addScreenLoading} style={{ width: "100%", fontSize: 14, fontWeight: 600, padding: "12px 0", borderRadius: 8, border: "none", background: C.blue, color: "#fff", cursor: "pointer", opacity: addScreenLoading ? 0.6 : 1 }}>
+                  {addScreenLoading ? "Gerando cobrança..." : "Gerar cobrança e ativar tela"}
+                </button>
+                <div style={{ fontSize: 11, color: C.text3, marginTop: 8 }}>
+                  A tela é ativada automaticamente assim que o pagamento (Pix ou boleto) for confirmado.
+                </div>
+              </>
+            ) : (
+              <div>
+                <div style={{ fontSize: 13, color: C.text, marginBottom: 10 }}>
+                  ✅ Cobrança gerada{addScreenValue ? ` — R$ ${addScreenValue.toFixed(2)}` : ""}. Pague pra ativar a tela:
+                </div>
+                <a href={addScreenInvoiceUrl} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", fontSize: 14, fontWeight: 600, padding: "12px 0", borderRadius: 8, background: C.blue, color: "#fff", textDecoration: "none" }}>
+                  Abrir cobrança (Pix / Boleto)
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
         {screens.length > 1 && (
           <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
