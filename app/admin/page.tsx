@@ -1475,7 +1475,8 @@ function TabEnquetes({ data }: { data: any }) {
 
 // ── Gestão de frota em escala (Fase 6) — visão de rede inteira, tags,
 // grupos administrativos e ação em massa (aplicar layout a um grupo) ──
-function TabFrota() {
+function TabFrota({ data }: { data: any }) {
+  const { clients } = data
   const [screens, setScreens] = useState<any[]>([])
   const [groups, setGroups] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -1486,6 +1487,39 @@ function TabFrota() {
   const [chosenLayoutId, setChosenLayoutId] = useState("")
   const [message, setMessage] = useState("")
   const [tagDraft, setTagDraft] = useState<Record<string, string>>({})
+
+  // Adicionar tela nova a um cliente já existente
+  const [pendingDevices, setPendingDevices] = useState<any[]>([])
+  const [newScreenClient, setNewScreenClient] = useState("")
+  const [newScreenPlayerId, setNewScreenPlayerId] = useState("")
+  const [newScreenLabel, setNewScreenLabel] = useState("")
+  const [addingScreen, setAddingScreen] = useState(false)
+  const [addScreenMsg, setAddScreenMsg] = useState("")
+
+  const loadPendingDevices = () => {
+    fetch("/api/admin/players/link").then(r => r.json()).then(d => setPendingDevices(d.pending ?? [])).catch(() => {})
+  }
+
+  const addScreen = async () => {
+    if (!newScreenClient || !newScreenPlayerId || !newScreenLabel.trim()) {
+      setAddScreenMsg("⚠️ Preencha cliente, dispositivo e nome da tela"); return
+    }
+    setAddingScreen(true); setAddScreenMsg("")
+    try {
+      const res = await fetch("/api/admin/screens/add", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_code: newScreenClient, player_id: newScreenPlayerId, label: newScreenLabel.trim() }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao adicionar tela")
+      setAddScreenMsg("✅ Tela adicionada!")
+      setNewScreenPlayerId(""); setNewScreenLabel("")
+      loadPendingDevices(); load()
+    } catch (err: any) {
+      setAddScreenMsg("⚠️ " + (err.message || "Erro ao adicionar"))
+    }
+    setAddingScreen(false)
+  }
 
   const load = () => {
     setLoading(true)
@@ -1499,7 +1533,7 @@ function TabFrota() {
     }).catch(() => { setScreens([]); setGroups([]) })
       .finally(() => setLoading(false))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadPendingDevices() }, [])
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -1575,6 +1609,38 @@ function TabFrota() {
 
   return (
     <div>
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 16, marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>➕ Adicionar tela a um cliente existente</div>
+        <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+          Pro dispositivo aparecer na lista abaixo, ele precisa ter aberto o app do DOOHPLAY pelo menos uma vez (fica "aguardando pareamento" até ser vinculado).
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Cliente</label>
+            <select value={newScreenClient} onChange={e => setNewScreenClient(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+              <option value="">Selecione...</option>
+              {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Dispositivo (aguardando pareamento)</label>
+            <select value={newScreenPlayerId} onChange={e => setNewScreenPlayerId(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+              <option value="">Selecione...</option>
+              {pendingDevices.map((p: any) => <option key={p.id} value={p.id}>{p.device_type || p.platform || p.id.slice(0, 8)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da tela</label>
+            <input value={newScreenLabel} onChange={e => setNewScreenLabel(e.target.value)} placeholder="Ex: TV Recepção" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+          <button onClick={addScreen} disabled={addingScreen} style={{ fontSize: 13, fontWeight: 600, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer", opacity: addingScreen ? 0.6 : 1 }}>
+            {addingScreen ? "Adicionando..." : "Adicionar"}
+          </button>
+        </div>
+        {pendingDevices.length === 0 && <div style={{ fontSize: 11, color: TEXT2, marginTop: 8 }}>Nenhum dispositivo aguardando pareamento no momento.</div>}
+        {addScreenMsg && <div style={{ fontSize: 12, marginTop: 8 }}>{addScreenMsg}</div>}
+      </div>
+
       <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🖥️ Gestão de Frota</div>
       <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
         Visão de todas as telas da rede, de todos os clientes juntos — {onlineCount} de {screens.length} online agora.
@@ -2517,7 +2583,7 @@ export default function AdminPage() {
         {tab === "exemplos"    && <TabExemplos />}
         {tab === "institucional" && <TabInstitucional />}
         {tab === "templates"    && <TabTemplates data={data} />}
-        {tab === "frota"        && <TabFrota />}
+        {tab === "frota"        && <TabFrota data={data} />}
         {tab === "enquetes"     && <TabEnquetes data={data} />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
