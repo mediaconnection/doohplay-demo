@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   const { rows } = await pool.query(
-    `SELECT id, client_code, screen_id, template_key, location_lat, location_lon,
+    `SELECT id, client_code, screen_id, template_key, transition_effect, location_lat, location_lon,
             location_name, stock_tickers, news_country, active, created_at
      FROM screen_templates ORDER BY created_at DESC`
   )
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const clientCode = String(body.client_code || "").toUpperCase()
     const templateKey = body.template_key === "magazine" ? "magazine" : "fullscreen"
+    const transitionEffect = ["fade", "cortina", "deslizar", "none"].includes(body.transition_effect) ? body.transition_effect : "fade"
     const locationLat = body.location_lat ?? null
     const locationLon = body.location_lon ?? null
     const locationName = body.location_name || null
@@ -50,19 +51,19 @@ export async function POST(req: NextRequest) {
         `UPDATE screen_templates
          SET template_key = $1, location_lat = $2, location_lon = $3,
              location_name = $4, stock_tickers = $5, active = true, updated_at = NOW(),
-             layout_template_id = NULL
+             layout_template_id = NULL, transition_effect = $7
          WHERE id = $6
          RETURNING *`,
-        [templateKey, locationLat, locationLon, locationName, stockTickers, existing.rows[0].id]
+        [templateKey, locationLat, locationLon, locationName, stockTickers, existing.rows[0].id, transitionEffect]
       )
       row = res.rows[0]
     } else {
       const res = await pool.query(
         `INSERT INTO screen_templates
-           (client_code, template_key, location_lat, location_lon, location_name, stock_tickers)
-         VALUES ($1,$2,$3,$4,$5,$6)
+           (client_code, template_key, location_lat, location_lon, location_name, stock_tickers, transition_effect)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *`,
-        [clientCode, templateKey, locationLat, locationLon, locationName, stockTickers]
+        [clientCode, templateKey, locationLat, locationLon, locationName, stockTickers, transitionEffect]
       )
       row = res.rows[0]
     }

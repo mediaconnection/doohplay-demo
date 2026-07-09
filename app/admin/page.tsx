@@ -1756,6 +1756,7 @@ function TabTemplates({ data }: { data: any }) {
   const [loading, setLoading] = useState(true)
   const [clientCode, setClientCode] = useState("")
   const [templateKey, setTemplateKey] = useState("fullscreen")
+  const [transitionEffect, setTransitionEffect] = useState("fade")
   const [locationName, setLocationName] = useState("São Paulo, SP")
   const [locationLat, setLocationLat] = useState("-23.5505")
   const [locationLon, setLocationLon] = useState("-46.6333")
@@ -1815,6 +1816,7 @@ function TabTemplates({ data }: { data: any }) {
         body: JSON.stringify({
           client_code: clientCode,
           template_key: templateKey,
+          transition_effect: transitionEffect,
           location_name: locationName,
           location_lat: Number(locationLat),
           location_lon: Number(locationLon),
@@ -1881,6 +1883,25 @@ function TabTemplates({ data }: { data: any }) {
               background: templateKey === "magazine" ? BLUE : BG,
               color: templateKey === "magazine" ? "#fff" : TEXT2, cursor: "pointer",
             }}>🖼️ Magazine (clima+bolsa+notícias)</button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Efeito de transição entre slides</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[
+              { key: "fade", label: "🌫️ Fade" },
+              { key: "cortina", label: "🎬 Cortina" },
+              { key: "deslizar", label: "➡️ Deslizar" },
+              { key: "none", label: "✂️ Corte seco" },
+            ].map(opt => (
+              <button key={opt.key} type="button" onClick={() => setTransitionEffect(opt.key)} style={{
+                flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+                border: "1px solid " + (transitionEffect === opt.key ? BLUE : BORDER),
+                background: transitionEffect === opt.key ? BLUE : BG,
+                color: transitionEffect === opt.key ? "#fff" : TEXT2, cursor: "pointer",
+              }}>{opt.label}</button>
+            ))}
           </div>
         </div>
 
