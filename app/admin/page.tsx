@@ -1860,6 +1860,7 @@ function TabInstitucional() {
   const [layoutPresets, setLayoutPresets] = useState<any[]>([])
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [sequenceGroup, setSequenceGroup] = useState("")
+  const [zoneFiles, setZoneFiles] = useState<Record<string, File>>({})
 
   useEffect(() => {
     fetch("/api/admin/layout-templates").then(r => r.json()).then(d => setLayoutPresets(d.presets ?? [])).catch(() => {})
@@ -1893,6 +1894,11 @@ function TabInstitucional() {
       form.append("content_type", contentType)
       if (contentType === "media" && file) form.append("file", file)
       if (contentType === "layout") form.append("layout_template_id", layoutTemplateId)
+      if (contentType === "layout") {
+        Object.entries(zoneFiles).forEach(([zoneId, f]) => {
+          if (f) form.append(`zone_file_${zoneId}`, f)
+        })
+      }
       if (contentType === "youtube") form.append("youtube_url", youtubeUrl.trim())
       form.append("name", name)
       form.append("duration", duration)
@@ -1908,7 +1914,7 @@ function TabInstitucional() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar")
       setName(""); setFile(null); setStartDate(""); setEndDate(""); setStartTime(""); setEndTime("")
-      setDaysOfWeek(DAYS.map(d => d.code)); setDisplayFormat("fullscreen")
+      setDaysOfWeek(DAYS.map(d => d.code)); setDisplayFormat("fullscreen"); setZoneFiles({})
       setContentType("media"); setLayoutTemplateId(""); setYoutubeUrl(""); setSequenceGroup("")
       load()
     } catch (err: any) {
@@ -2067,10 +2073,36 @@ function TabInstitucional() {
         {contentType === "layout" && (
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Qual layout</label>
-            <select value={layoutTemplateId} onChange={e => setLayoutTemplateId(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <select value={layoutTemplateId} onChange={e => { setLayoutTemplateId(e.target.value); setZoneFiles({}) }} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
               <option value="">Selecione...</option>
               {layoutPresets.map((p: any) => <option key={p.id} value={p.id}>{p.orientation === "vertical" ? "📱" : "🖥️"} {p.name}</option>)}
             </select>
+
+            {layoutTemplateId && (() => {
+              const preset = layoutPresets.find((p: any) => p.id === layoutTemplateId)
+              const contentZones = (preset?.zones ?? []).filter((z: any) => z.content_type === "main_rotation" || z.content_type === "ad_only")
+              if (contentZones.length === 0) return null
+              return (
+                <div style={{ marginTop: 10, padding: 12, background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
+                  <div style={{ fontSize: 11, color: TEXT2, marginBottom: 10 }}>
+                    Escolha o que entra em cada bloco de conteúdo desse layout. Deixar em branco = mistura sozinho com o resto (sorteio automático, como antes).
+                  </div>
+                  {contentZones.map((z: any) => (
+                    <div key={z.id} style={{ marginBottom: 8 }}>
+                      <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 3 }}>
+                        Bloco "{z.content_type === "main_rotation" ? "Principal" : "Só anúncio"}" ({z.w}%×{z.h}%)
+                      </label>
+                      <input
+                        type="file" accept="image/*,video/*"
+                        onChange={e => setZoneFiles(prev => ({ ...prev, [z.id]: e.target.files?.[0] as File }))}
+                        style={{ fontSize: 12, color: TEXT2 }}
+                      />
+                      {zoneFiles[z.id] && <span style={{ fontSize: 11, color: "#10B981", marginLeft: 8 }}>✓ {zoneFiles[z.id].name}</span>}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
         )}
 

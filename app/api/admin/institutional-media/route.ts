@@ -31,6 +31,42 @@ async function checkAuth(req: NextRequest) {
   return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
 }
 
+// Upload de um arquivo (imagem/vídeo) pro R2, com a mesma validação de
+// resolução/bitrate usada em todo upload institucional — reutilizado tanto
+// pelo upload principal quanto pelo upload por zona de um slide-layout
+// (Fase 9c). Lança erro com mensagem amigável se o vídeo for pesado demais.
+async function uploadMediaFile(file: File): Promise<{ url: string; type: "image" | "video" }> {
+  const isVideo = file.type.startsWith("video/")
+  const isImage = file.type.startsWith("image/")
+  if (!isVideo && !isImage) throw new Error("tipo de arquivo não suportado: " + file.name)
+
+  const buffer = Buffer.from(await file.arrayBuffer())
+
+  if (isVideo) {
+    const info = probeMp4(buffer)
+    if (info) {
+      const maxDimension = Math.max(info.width, info.height)
+      const avgBitrateMbps = info.durationSec > 0
+        ? (buffer.length * 8) / 1_000_000 / info.durationSec
+        : 0
+      const MAX_VIDEO_DIMENSION    = 1920
+      const MAX_VIDEO_BITRATE_MBPS = 15
+      if (maxDimension > MAX_VIDEO_DIMENSION || avgBitrateMbps > MAX_VIDEO_BITRATE_MBPS) {
+        throw new Error(
+          `Vídeo "${file.name}" em resolução/qualidade alta demais para TVs (${info.width}x${info.height}, ~${avgBitrateMbps.toFixed(0)} Mbps). ` +
+          `Recomprima para 1080p e até 8 Mbps antes de enviar.`
+        )
+      }
+    }
+  }
+
+  const ext = isVideo ? "mp4" : (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg")
+  const key = `institucional/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  await r2.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buffer, ContentType: file.type }))
+
+  return { url: `${PUBLIC_URL}/${key}`, type: isVideo ? "video" : "image" }
+}
+
 // GET — lista todo conteúdo institucional, ativo e inativo
 export async function GET(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
@@ -38,7 +74,7 @@ export async function GET(req: NextRequest) {
   const { rows } = await pool.query(
     `SELECT id, name, type, url, duration, position, active, created_at, display_format,
             start_date, end_date, start_time, end_time, days_of_week,
-            layout_template_id, sequence_group
+            layout_template_id, sequence_group, zone_content
      FROM institutional_media ORDER BY position ASC, created_at DESC`
   )
   return NextResponse.json({ count: rows.length, items: rows })
@@ -88,14 +124,32 @@ export async function POST(req: NextRequest) {
       if (!layoutTemplateId) {
         return NextResponse.json({ error: "layout_template_id é obrigatório pra esse tipo" }, { status: 400 })
       }
+
+      // Fase 9c — upload de um arquivo por zona de conteúdo (main_rotation/
+      // ad_only), campos vindos como "zone_file_<zoneId>". Fica só a zona
+      // que o admin realmente escolheu preencher; zona sem arquivo cai no
+      // sorteio automático de sempre (comportamento antigo, preservado).
+      const zoneContent: Record<string, { type: string; url: string; name: string }> = {}
+      for (const [key, value] of form.entries()) {
+        if (!key.startsWith("zone_file_") || !(value instanceof File)) continue
+        const zoneId = key.slice("zone_file_".length)
+        try {
+          const uploaded = await uploadMediaFile(value)
+          zoneContent[zoneId] = { type: uploaded.type, url: uploaded.url, name: value.name }
+        } catch (zoneErr: any) {
+          return NextResponse.json({ error: zoneErr.message }, { status: 400 })
+        }
+      }
+
       const res = await pool.query(
         `INSERT INTO institutional_media
            (id, name, type, url, duration, position, active, created_at,
             start_date, end_date, start_time, end_time, days_of_week, display_format,
-            layout_template_id, sequence_group)
-         VALUES (gen_random_uuid(), $1, 'layout', '', $2, $3, true, NOW(), $4, $5, $6, $7, $8, $9, $10, $11)
+            layout_template_id, sequence_group, zone_content)
+         VALUES (gen_random_uuid(), $1, 'layout', '', $2, $3, true, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING id`,
-        [name, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, layoutTemplateId, sequenceGroup]
+        [name, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat,
+         layoutTemplateId, sequenceGroup, Object.keys(zoneContent).length ? JSON.stringify(zoneContent) : null]
       )
       return NextResponse.json({ ok: true, id: res.rows[0].id })
     }
@@ -121,53 +175,13 @@ export async function POST(req: NextRequest) {
     const file = form.get("file") as File | null
     if (!file) return NextResponse.json({ error: "campo 'file' obrigatório" }, { status: 400 })
 
-    const isVideo = file.type.startsWith("video/")
-    const isImage = file.type.startsWith("image/")
-    if (!isVideo && !isImage) {
-      return NextResponse.json({ error: "tipo de arquivo não suportado" }, { status: 400 })
+    let uploaded: { url: string; type: "image" | "video" }
+    try {
+      uploaded = await uploadMediaFile(file)
+    } catch (uploadErr: any) {
+      return NextResponse.json({ error: uploadErr.message, video_too_heavy: true }, { status: 400 })
     }
-
-    const buffer = Buffer.from(await file.arrayBuffer())
-
-    // ── Valida resolução/bitrate de vídeo (mesma checagem de studio/upload) ──
-    // Ainda mais crítico aqui: institucional aparece em TODAS as telas da
-    // rede, então um vídeo pesado trava todo mundo de uma vez, não só um
-    // cliente. Foi exatamente isso que aconteceu em 02/07/2026 — vídeo de
-    // 3min/~96MB travou o decodificador do T600 (BARBE332) até reiniciar.
-    if (isVideo) {
-      const info = probeMp4(buffer)
-      if (info) {
-        const maxDimension = Math.max(info.width, info.height)
-        const avgBitrateMbps = info.durationSec > 0
-          ? (buffer.length * 8) / 1_000_000 / info.durationSec
-          : 0
-        const MAX_VIDEO_DIMENSION    = 1920 // 1080p
-        const MAX_VIDEO_BITRATE_MBPS = 15
-
-        if (maxDimension > MAX_VIDEO_DIMENSION || avgBitrateMbps > MAX_VIDEO_BITRATE_MBPS) {
-          return NextResponse.json({
-            error: `Vídeo em resolução/qualidade alta demais para TVs (${info.width}x${info.height}, ~${avgBitrateMbps.toFixed(0)} Mbps). ` +
-              `Recomprima para 1080p e até 8 Mbps antes de enviar — qualquer editor de vídeo ou conversor online faz isso facilmente.`,
-            video_too_heavy: true,
-            detected: { width: info.width, height: info.height, bitrate_mbps: Math.round(avgBitrateMbps) },
-          }, { status: 400 })
-        }
-      }
-      // Se não conseguimos ler os metadados, deixa passar — preferimos não
-      // bloquear um upload legítimo por engano (mesmo critério do studio/upload).
-    }
-
-    const ext = isVideo ? "mp4" : (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg")
-    const key = `institucional/${Date.now()}.${ext}`
-
-    await r2.send(new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: file.type,
-    }))
-
-    const url = `${PUBLIC_URL}/${key}`
+    const { url, type: mediaType } = uploaded
 
     const res = await pool.query(
       `INSERT INTO institutional_media
@@ -175,7 +189,7 @@ export async function POST(req: NextRequest) {
           start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group)
        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
-      [name, isVideo ? "video" : "image", url, duration, position,
+      [name, mediaType, url, duration, position,
        startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup]
     )
 
@@ -185,7 +199,7 @@ export async function POST(req: NextRequest) {
       name,
       displayFormat,
       url,
-      type: isVideo ? "video" : "image",
+      type: mediaType,
       durationSeconds: duration,
       position,
       active: true,

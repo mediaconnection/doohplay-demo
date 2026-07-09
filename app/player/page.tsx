@@ -31,6 +31,7 @@ interface PlayerMedia {
   displayFormat: DisplayFormat;
   layoutZones?: any[] | null;   // preenchido quando type === 'layout'
   sequenceGroup?: string | null; // itens institucionais do mesmo grupo tocam em bloco
+  zoneContent?: Record<string, { type: string; url: string; name: string }> | null; // conteúdo escolhido por zona (Fase 9c)
 }
 
 async function getPlayerData(code: string) {
@@ -73,10 +74,10 @@ async function getPlayerData(code: string) {
     // ── Institucional (DOOHPLAY) — exibido em todas as telas ──
     const institutionalQuery = pool.query<{
       id: string; name: string; type: string; url: string; duration: number; display_format: string;
-      layout_template_id: string | null; sequence_group: string | null; layout_zones: any;
+      layout_template_id: string | null; sequence_group: string | null; layout_zones: any; zone_content: any;
     }>(`
       SELECT im.id, im.name, im.type, im.url, im.duration, im.display_format,
-             im.layout_template_id, im.sequence_group, lt.zones AS layout_zones
+             im.layout_template_id, im.sequence_group, lt.zones AS layout_zones, im.zone_content
       FROM institutional_media im
       LEFT JOIN layout_templates lt ON lt.id = im.layout_template_id
       WHERE im.active = true
@@ -120,13 +121,14 @@ async function getPlayerData(code: string) {
 
     const institutional: PlayerMedia[] = institutionalRes.rows.map((r: {
       id: string; name: string; type: string; url: string; duration: number; display_format: string;
-      layout_template_id: string | null; sequence_group: string | null; layout_zones: any;
+      layout_template_id: string | null; sequence_group: string | null; layout_zones: any; zone_content: any;
     }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url,
       duration: Number(r.duration) || 15, category: "institucional" as SlotCategory,
       displayFormat: (r.display_format === "shrink_lateral" ? "shrink_lateral" : "fullscreen") as DisplayFormat,
       layoutZones: r.layout_zones ?? null,
       sequenceGroup: r.sequence_group ?? null,
+      zoneContent: r.zone_content ?? null,
     }))
 
     const realAds: PlayerMedia[] = realAdsRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
@@ -1227,15 +1229,21 @@ export default async function PlayerPage({
             // temporizador aninhado demais). Reutilizada no topo e em zona
             // aninhada (Fase 9b) — não recursa em outro slide-layout lá
             // dentro, pra não criar aninhamento sem limite.
-            function populateLayoutSlideSubZones(containerEl) {
+            function populateLayoutSlideSubZones(containerEl, zoneContent) {
               var zoneEls = containerEl.querySelectorAll('.zone[data-content-type="main_rotation"], .zone[data-content-type="ad_only"]');
               for (var zi = 0; zi < zoneEls.length; zi++) {
                 (function(zoneEl) {
                   var contentType = zoneEl.getAttribute('data-content-type');
+                  var zoneId = zoneEl.getAttribute('data-zone-id');
                   var mediaHost = zoneEl.querySelector('.zone-media');
                   if (!mediaHost) return;
-                  var inner = (contentType === 'main_rotation') ? pickNextMedia() : (lateralMedias[0] || null);
+
+                  // Fase 9c — conteúdo escolhido pelo admin pra essa zona
+                  // específica tem prioridade sobre o sorteio automático.
+                  var chosen = (zoneContent && zoneId && zoneContent[zoneId]) ? zoneContent[zoneId] : null;
+                  var inner = chosen || ((contentType === 'main_rotation') ? pickNextMedia() : (lateralMedias[0] || null));
                   if (!inner) return;
+
                   var tag = inner.type === 'video' ? 'video' : 'img';
                   var innerEl = document.createElement(tag);
                   innerEl.style.cssText = 'width:100%;height:100%;object-fit:cover;';
@@ -1256,7 +1264,7 @@ export default async function PlayerPage({
                 clearCustomZoneTimers(slot);
 
                 slot.custom.innerHTML = buildCustomContentHtml(m);
-                if (m.type === 'layout') populateLayoutSlideSubZones(slot.custom);
+                if (m.type === 'layout') populateLayoutSlideSubZones(slot.custom, m.zoneContent);
                 slot.custom.style.display = 'block';
                 slot.custom.setAttribute('data-id', m.id);
                 slot.custom.setAttribute('data-duration', m.duration);
@@ -1506,7 +1514,7 @@ export default async function PlayerPage({
                       imgEl.style.display = 'none';
                       try { videoEl.pause(); } catch (e) {}
                       customEl.innerHTML = buildCustomContentHtml(m);
-                      if (m.type === 'layout') populateLayoutSlideSubZones(customEl);
+                      if (m.type === 'layout') populateLayoutSlideSubZones(customEl, m.zoneContent);
                       customEl.style.display = 'block';
                       var dur2 = (Number(m.duration) || 15) * 1000;
                       zoneTimer = setTimeout(showNext, dur2);
