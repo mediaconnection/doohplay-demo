@@ -1,6 +1,7 @@
 // app/api/finance/asaas/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { requireSuperAdmin } from "@/lib/require-super-admin"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -108,6 +109,7 @@ async function createSubscription(customerId: string, client: any, plan: string)
 
 // ── POST /api/finance/asaas — ativa cobrança para um cliente ─────────────────
 export async function POST(req: NextRequest) {
+  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   try {
     const { code, plan, cpf_cnpj } = await req.json()
 
@@ -192,6 +194,7 @@ export async function POST(req: NextRequest) {
 
 // ── GET /api/finance/asaas?code=ZIMERM — status financeiro ───────────────────
 export async function GET(req: NextRequest) {
+  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   try {
     const code = new URL(req.url).searchParams.get("code")
     if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
@@ -221,6 +224,12 @@ export async function GET(req: NextRequest) {
 }
 
 // ── PATCH /api/finance/asaas — atualiza CPF/CNPJ do cliente ──────────────────
+// Usado pelo próprio dashboard do cliente (cpf-form.tsx) — NÃO protegido
+// por requireSuperAdmin de propósito, já que é uma ação do próprio cliente,
+// não do admin. Lacuna conhecida: ainda não existe autenticação de cliente
+// de verdade aqui (qualquer um que soubesse o code poderia editar o CPF de
+// outro cliente) — depende de um sistema de login de cliente, que é um
+// problema maior e separado de "usuários e permissões do admin" (Fase 13).
 export async function PATCH(req: NextRequest) {
   try {
     const { code, cpf_cnpj, email, phone } = await req.json()
