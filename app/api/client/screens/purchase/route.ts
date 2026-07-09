@@ -53,9 +53,11 @@ export async function POST(req: NextRequest) {
     if (!c.email) return NextResponse.json({ error: "Cadastre um email antes de adicionar uma tela nova" }, { status: 400 })
     if (!c.cpf_cnpj) return NextResponse.json({ error: "Cadastre CPF/CNPJ antes de adicionar uma tela nova" }, { status: 400 })
 
-    const customer = c.asaas_customer_id
-      ? { id: c.asaas_customer_id }
-      : await getOrCreateAsaasCustomer({ name: c.name, email: c.email, phone: c.phone || "", cpfCnpj: c.cpf_cnpj })
+    // Sempre busca/cria via email (idempotente) em vez de confiar cegamente
+    // no asaas_customer_id salvo — esse id pode apontar pra um cliente que
+    // foi removido do lado do Asaas (ex: limpeza de teste), e nesse caso a
+    // cobrança falha com "cliente removido" sem essa checagem.
+    const customer = await getOrCreateAsaasCustomer({ name: c.name, email: c.email, phone: c.phone || "", cpfCnpj: c.cpf_cnpj })
 
     // Cria o pedido primeiro (pending) pra já ter um id de referência
     const pending = await pool.query(
