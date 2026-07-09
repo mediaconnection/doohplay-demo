@@ -143,9 +143,9 @@ async function getPlayerData(code: string) {
     // /player?screen=CODE) — fica registrado como limitação conhecida.
     const templateRes = await pool.query<{
       template_key: string; location_lat: number; location_lon: number;
-      location_name: string; stock_tickers: string[]; news_country: string;
+      location_name: string; stock_tickers: string[]; news_country: string; transition_effect: string;
     }>(`
-      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect
       FROM screen_templates
       WHERE client_code = $1 AND active = true
       ORDER BY screen_id NULLS LAST
@@ -268,13 +268,14 @@ async function getPlayerData(code: string) {
       primary_color: rows[0]?.primary_color ?? "#3B82F6",
       medias: [...ownAndAds, ...network, ...institutional, ...realAds],
       template: template?.template_key || "fullscreen",
+      transitionEffect: template?.transition_effect || "fade",
       widgets,
       layoutZones,
       poll,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", widgets: null as any, layoutZones: null as any, poll: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgets: null as any, layoutZones: null as any, poll: null as any }
   }
 }
 
@@ -727,16 +728,41 @@ export default async function PlayerPage({
           .slide {
             position: absolute;
             inset: 0;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            z-index: 1;
           }
-          .slide.active { display: flex; }
+          .slide.active { opacity: 1; z-index: 2; }
           .slide img, .slide video {
             width: 100%;
             height: 100%;
             object-fit: cover;
           }
+
+          /* Fase 12 — efeitos de transição entre slides. Corte instantâneo
+             continua sendo o padrão de segurança ("none") se algo não bater
+             com nenhum dos 3 casos abaixo. */
+          [data-transition="fade"] .slide {
+            transition: opacity 0.7s ease;
+          }
+
+          [data-transition="cortina"] .slide {
+            opacity: 1;
+            clip-path: inset(0 100% 0 0);
+            transition: clip-path 0.7s ease;
+          }
+          [data-transition="cortina"] .slide.active { clip-path: inset(0 0% 0 0); }
+          [data-transition="cortina"] .slide.leaving { clip-path: inset(0 0 0 100%); }
+
+          [data-transition="deslizar"] .slide {
+            opacity: 1;
+            transform: translateX(100%);
+            transition: transform 0.7s ease;
+          }
+          [data-transition="deslizar"] .slide.active { transform: translateX(0%); }
+          [data-transition="deslizar"] .slide.leaving { transform: translateX(-100%); }
           /* Ken Burns sutil só em imagens — dá sensação de vida mesmo em
              conteúdo estático. Vídeos já têm movimento próprio, não precisam. */
           @keyframes dw-kenburns { from { transform: scale(1); } to { transform: scale(1.06); } }
@@ -839,7 +865,7 @@ export default async function PlayerPage({
             max-width: 48px;
           }
         `}</style>
-      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
+      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} data-transition={data.transitionEffect} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
@@ -981,6 +1007,9 @@ export default async function PlayerPage({
             // pago), seu peso é redistribuído proporcionalmente entre as que têm
             // conteúdo — a tela nunca trava esperando uma categoria inexistente.
             var CATEGORY_WEIGHTS = { dono: 15, anunciante: 60, rede: 15, institucional: 10 };
+            // Fase 12 — precisa bater com a duração usada no CSS das
+            // transições (0.7s); se mudar um, muda o outro junto.
+            var TRANSITION_MS = 700;
             var groups  = {};  // { dono: [...], anunciante: [...], rede: [...], institucional: [...] }
             var cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
             var upcoming = null; // próxima mídia já sorteada e pré-carregada
@@ -1204,6 +1233,7 @@ export default async function PlayerPage({
               if (!slot) return;
               try { slot.video.pause(); } catch (e) {}
               slot.el.classList.remove('active');
+              slot.el.classList.remove('leaving');
             }
 
             function getSlotElement(slot, m) {
@@ -1581,8 +1611,15 @@ export default async function PlayerPage({
                   // no meio do caminho) — refaz o conteúdo deste slot agora.
                   fillSlot(targetSlot, m);
                 }
-                // Libera o slot que estava em exibição até agora.
-                releaseSlot(activeSlot);
+                // Fase 12 — o slot que estava em exibição entra em "saindo"
+                // (dispara a transição de saída via CSS) em vez de ser
+                // liberado na hora — isso daria um corte seco no meio do
+                // efeito. releaseSlot() de verdade (pausar vídeo etc.) só
+                // acontece depois que a transição termina.
+                var leavingSlot = activeSlot;
+                leavingSlot.el.classList.add('leaving');
+                leavingSlot.el.classList.remove('active');
+                setTimeout(function() { releaseSlot(leavingSlot); }, TRANSITION_MS);
               }
 
               activeSlot = targetSlot;
