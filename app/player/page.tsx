@@ -255,6 +255,13 @@ async function getPlayerData(code: string) {
       }
     }
 
+    // Fase 10 — slide-layout dentro do Institucional (não mais layout de
+    // página) também pode ter zonas de clima/bolsa/notícias. Sem isso, essas
+    // zonas ficavam pretas sempre que a tela não estivesse em modo Magazine.
+    if (!widgets && institutional.some(m => m.layoutZones?.some((z: any) => ["weather", "stocks", "news"].includes(z.content_type)))) {
+      widgets = await fetchWidgetsData(template)
+    }
+
     return {
       name: rows[0]?.name ?? "DOOHPLAY",
       business_type: rows[0]?.business_type ?? "",
