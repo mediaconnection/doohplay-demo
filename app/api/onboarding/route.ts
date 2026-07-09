@@ -35,7 +35,7 @@ function trialEndDate(): string {
 
 async function createAsaasSubscription(code: string, plan: string, cpf_cnpj: string) {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL || "https://doohplay.com.br"}/api/finance/asaas`, {
+    const res = await fetch(`${process.env.NEXTAUTH_URL || "https://doohplay.com.br"}/api/finance/asaas?secret=${encodeURIComponent(process.env.ADMIN_SECRET || "")}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, plan, cpf_cnpj }),

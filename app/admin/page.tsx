@@ -975,6 +975,124 @@ function TabEventos({ data }: { data: any }) {
   )
 }
 
+// ── Fase 13 · Usuários e permissões (só super_admin acessa) ────────────────
+function TabUsuarios() {
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [role, setRole] = useState("operador")
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState("")
+
+  const load = () => {
+    setLoading(true)
+    fetch("/api/admin/users").then(r => r.json()).then(d => setUsers(d.users ?? [])).catch(() => setUsers([])).finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const create = async () => {
+    if (!name.trim() || !email.trim() || password.length < 8) {
+      setError("Nome, email e senha (mín. 8 caracteres) são obrigatórios"); return
+    }
+    setError(""); setCreating(true)
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, role }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Erro ao criar")
+      setName(""); setEmail(""); setPassword(""); setRole("operador")
+      load()
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar")
+    }
+    setCreating(false)
+  }
+
+  const toggleActive = async (u: any) => {
+    await fetch("/api/admin/users", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: u.id, active: !u.active }),
+    })
+    load()
+  }
+
+  const changeRole = async (u: any, newRole: string) => {
+    await fetch("/api/admin/users", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: u.id, role: newRole }),
+    })
+    load()
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🔐 Usuários e permissões</div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+        Cada admin tem seu próprio login. <b>Super admin</b> vê tudo, incluindo Assinaturas/financeiro.
+        <b> Operador</b> vê todas as abas, exceto Assinaturas. O login mestre (env) continua funcionando sempre, como chave de emergência.
+      </div>
+
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Adicionar admin</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome</label>
+            <input value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Senha (mín. 8)</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Papel</label>
+            <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+              <option value="operador">Operador</option>
+              <option value="super_admin">Super admin</option>
+            </select>
+          </div>
+          <button onClick={create} disabled={creating} style={{ fontSize: 13, fontWeight: 600, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer", opacity: creating ? 0.6 : 1 }}>
+            {creating ? "Criando..." : "Criar"}
+          </button>
+        </div>
+        {error && <div style={{ fontSize: 12, color: RED, marginTop: 8 }}>⚠️ {error}</div>}
+      </div>
+
+      {loading ? <div style={{ color: TEXT2 }}>Carregando...</div> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {users.map(u => (
+            <div key={u.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{u.name} {!u.active && <span style={{ color: RED, fontSize: 11 }}> · inativo</span>}</div>
+                <div style={{ fontSize: 11, color: TEXT2 }}>
+                  {u.email} · {u.last_login_at ? `último login ${new Date(u.last_login_at).toLocaleString("pt-BR")}` : "nunca logou"}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <select value={u.role} onChange={e => changeRole(u, e.target.value)} style={{ fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "6px 8px", color: TEXT }}>
+                  <option value="operador">Operador</option>
+                  <option value="super_admin">Super admin</option>
+                </select>
+                <button onClick={() => toggleActive(u)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "1px solid " + (u.active ? RED : GREEN), background: "transparent", color: u.active ? RED : GREEN, cursor: "pointer" }}>
+                  {u.active ? "Desativar" : "Reativar"}
+                </button>
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && <div style={{ color: TEXT2, fontSize: 13 }}>Nenhum admin cadastrado ainda — só o login mestre existe.</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Galeria de Exemplos (biblioteca de mídia pronta por segmento) ──────────
 function TabExemplos() {
   const [items, setItems] = useState<any[]>([])
@@ -2544,6 +2662,8 @@ export default function AdminPage() {
   const pendingAlerts = data.duplicateAlerts?.filter((a: any) => !a.resolved).length ?? 0
   const pendingNetworkMedia = data.networkMedia?.filter((m: any) => m.status === "pending_review").length ?? 0
 
+  const isSuperAdmin = (session?.user as any)?.role === "super_admin"
+
   const TABS = [
     { id: "diagnostico", label: "Diagnóstico", icon: "🔍" },
     { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
@@ -2558,6 +2678,7 @@ export default function AdminPage() {
     { id: "enquetes",    label: "Enquetes",    icon: "🗳️" },
     { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
     { id: "eventos",     label: "Eventos",     icon: "⚡" },
+    ...(isSuperAdmin ? [{ id: "usuarios", label: "Usuários", icon: "🔐" }] : []),
   ]
 
   return (
@@ -2608,6 +2729,7 @@ export default function AdminPage() {
         {tab === "enquetes"     && <TabEnquetes data={data} />}
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
+        {tab === "usuarios" && isSuperAdmin && <TabUsuarios />}
       </div>
     </div>
   )
