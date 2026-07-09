@@ -1207,6 +1207,45 @@ export default async function PlayerPage({
               slot.customZoneTimers = [];
             }
 
+            // Devolve o HTML a injetar pra um item tipo 'layout'/'youtube' —
+            // usado tanto pelo slot de tela cheia quanto por uma zona aninhada
+            // dentro de um layout de página (Fase 9b).
+            function buildCustomContentHtml(m) {
+              if (m.type === 'youtube') {
+                var videoId = extractYouTubeId(m.url);
+                return videoId
+                  ? '<iframe style="width:100%;height:100%;border:0;" src="https://www.youtube.com/embed/' + videoId +
+                    '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>'
+                  : '';
+              }
+              return m.layoutHtml || '';
+            }
+
+            // Preenche as sub-zonas de conteúdo (main_rotation/ad_only) de um
+            // slide-layout recém-injetado — UM item só, fixo, pela duração
+            // inteira do slide (sem rotação própria lá dentro, evita
+            // temporizador aninhado demais). Reutilizada no topo e em zona
+            // aninhada (Fase 9b) — não recursa em outro slide-layout lá
+            // dentro, pra não criar aninhamento sem limite.
+            function populateLayoutSlideSubZones(containerEl) {
+              var zoneEls = containerEl.querySelectorAll('.zone[data-content-type="main_rotation"], .zone[data-content-type="ad_only"]');
+              for (var zi = 0; zi < zoneEls.length; zi++) {
+                (function(zoneEl) {
+                  var contentType = zoneEl.getAttribute('data-content-type');
+                  var mediaHost = zoneEl.querySelector('.zone-media');
+                  if (!mediaHost) return;
+                  var inner = (contentType === 'main_rotation') ? pickNextMedia() : (lateralMedias[0] || null);
+                  if (!inner) return;
+                  var tag = inner.type === 'video' ? 'video' : 'img';
+                  var innerEl = document.createElement(tag);
+                  innerEl.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                  if (tag === 'video') { innerEl.muted = true; innerEl.autoplay = true; innerEl.playsInline = true; innerEl.loop = true; }
+                  innerEl.src = inner.url;
+                  mediaHost.appendChild(innerEl);
+                })(zoneEls[zi]);
+              }
+            }
+
             function fillSlot(slot, m) {
               // Slide-layout (N-zonas) ou YouTube (Fase 9) — usa o elemento
               // "custom", não video/img.
@@ -1216,35 +1255,8 @@ export default async function PlayerPage({
                 try { slot.video.pause(); } catch (e) {}
                 clearCustomZoneTimers(slot);
 
-                if (m.type === 'youtube') {
-                  var videoId = extractYouTubeId(m.url);
-                  slot.custom.innerHTML = videoId
-                    ? '<iframe style="width:100%;height:100%;border:0;" src="https://www.youtube.com/embed/' + videoId +
-                      '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>'
-                    : '';
-                } else {
-                  slot.custom.innerHTML = m.layoutHtml || '';
-                  // Zonas de conteúdo (main_rotation/ad_only) dentro de um
-                  // slide-layout mostram UM item só, fixo, pela duração
-                  // inteira do slide — sem rotação própria lá dentro (evita
-                  // temporizador aninhado; o slide já tem seu próprio tempo).
-                  var zoneEls = slot.custom.querySelectorAll('.zone[data-content-type="main_rotation"], .zone[data-content-type="ad_only"]');
-                  for (var zi = 0; zi < zoneEls.length; zi++) {
-                    (function(zoneEl) {
-                      var contentType = zoneEl.getAttribute('data-content-type');
-                      var mediaHost = zoneEl.querySelector('.zone-media');
-                      if (!mediaHost) return;
-                      var inner = (contentType === 'main_rotation') ? pickNextMedia() : (lateralMedias[0] || null);
-                      if (!inner) return;
-                      var tag = inner.type === 'video' ? 'video' : 'img';
-                      var innerEl = document.createElement(tag);
-                      innerEl.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-                      if (tag === 'video') { innerEl.muted = true; innerEl.autoplay = true; innerEl.playsInline = true; innerEl.loop = true; }
-                      innerEl.src = inner.url;
-                      mediaHost.appendChild(innerEl);
-                    })(zoneEls[zi]);
-                  }
-                }
+                slot.custom.innerHTML = buildCustomContentHtml(m);
+                if (m.type === 'layout') populateLayoutSlideSubZones(slot.custom);
                 slot.custom.style.display = 'block';
                 slot.custom.setAttribute('data-id', m.id);
                 slot.custom.setAttribute('data-duration', m.duration);
@@ -1462,15 +1474,20 @@ export default async function PlayerPage({
                   videoEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
                   var imgEl = document.createElement('img');
                   imgEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
+                  // Fase 9b — layout/youtube dentro de uma zona aninhada
+                  // (dentro de um layout de página) usa esse terceiro
+                  // elemento, igual ao slot de tela cheia.
+                  var customEl = document.createElement('div');
+                  customEl.style.cssText = 'width:100%;height:100%;display:none;position:relative;';
                   mediaHost.appendChild(videoEl);
                   mediaHost.appendChild(imgEl);
+                  mediaHost.appendChild(customEl);
 
                   var adIdx = 0;
                   function getNext() {
-                    // pickNextMedia() sem argumento já filtra 'layout'/'youtube'
-                    // sozinho — uma sub-zona (dentro de um layout de página)
-                    // não sabe renderizar isso, só video/img.
-                    if (contentType === 'main_rotation') return pickNextMedia();
+                    // Fase 9b — zona aninhada agora também pode mostrar
+                    // layout/youtube (não só a rotação de tela cheia).
+                    if (contentType === 'main_rotation') return pickNextMedia(true);
                     if (!lateralMedias.length) return null;
                     var m = lateralMedias[adIdx % lateralMedias.length];
                     adIdx++;
@@ -1483,6 +1500,20 @@ export default async function PlayerPage({
                     var m = getNext();
                     if (!m) { zoneTimer = setTimeout(showNext, 5000); return; }
                     logPlay(m);
+
+                    if (m.type === 'layout' || m.type === 'youtube') {
+                      videoEl.style.display = 'none';
+                      imgEl.style.display = 'none';
+                      try { videoEl.pause(); } catch (e) {}
+                      customEl.innerHTML = buildCustomContentHtml(m);
+                      if (m.type === 'layout') populateLayoutSlideSubZones(customEl);
+                      customEl.style.display = 'block';
+                      var dur2 = (Number(m.duration) || 15) * 1000;
+                      zoneTimer = setTimeout(showNext, dur2);
+                      return;
+                    }
+                    customEl.style.display = 'none';
+                    customEl.innerHTML = '';
 
                     var el = (m.type === 'video') ? videoEl : imgEl;
                     var other = (m.type === 'video') ? imgEl : videoEl;
