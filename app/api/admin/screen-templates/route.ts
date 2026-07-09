@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
       const res = await pool.query(
         `UPDATE screen_templates
          SET template_key = $1, location_lat = $2, location_lon = $3,
-             location_name = $4, stock_tickers = $5, active = true, updated_at = NOW()
+             location_name = $4, stock_tickers = $5, active = true, updated_at = NOW(),
+             layout_template_id = NULL
          WHERE id = $6
          RETURNING *`,
         [templateKey, locationLat, locationLon, locationName, stockTickers, existing.rows[0].id]
