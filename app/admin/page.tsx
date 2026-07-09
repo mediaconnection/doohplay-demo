@@ -1815,16 +1815,8 @@ function TabTemplates({ data }: { data: any }) {
               background: templateKey === "magazine" ? BLUE : BG,
               color: templateKey === "magazine" ? "#fff" : TEXT2, cursor: "pointer",
             }}>🖼️ Magazine (clima+bolsa+notícias)</button>
-            <button type="button" onClick={() => setTemplateKey("custom")} style={{
-              flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (templateKey === "custom" ? BLUE : BORDER),
-              background: templateKey === "custom" ? BLUE : BG,
-              color: templateKey === "custom" ? "#fff" : TEXT2, cursor: "pointer",
-            }}>🎨 Layout personalizado</button>
           </div>
         </div>
-
-        {templateKey === "custom" && clientCode && <LayoutEditor clientCode={clientCode} />}
 
         {templateKey === "magazine" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
