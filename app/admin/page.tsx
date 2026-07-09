@@ -413,6 +413,20 @@ function TabDiagnostico() {
   const [loadingScreens, setLoadingScreens] = useState(true)
   const [removingScreen, setRemovingScreen] = useState<string | null>(null)
 
+  // Diagnóstico de conexão do WhatsApp (Evolution API) — "Falha ao enviar
+  // WhatsApp" pode ser bug de código OU sessão desconectada; sem isso não
+  // dava pra saber qual dos dois sem abrir o painel do Evolution na mão.
+  const [waStatus, setWaStatus] = useState<any>(null)
+  const [waLoading, setWaLoading] = useState(false)
+  const checkWhatsApp = () => {
+    setWaLoading(true); setWaStatus(null)
+    fetch("/api/admin/whatsapp-status")
+      .then(r => r.json())
+      .then(d => setWaStatus(d))
+      .catch(() => setWaStatus({ connected: false, error: "Erro ao checar" }))
+      .finally(() => setWaLoading(false))
+  }
+
   const loadScreens = () => {
     setLoadingScreens(true)
     fetch("/api/admin/screens")
@@ -459,6 +473,23 @@ function TabDiagnostico() {
 
   return (
     <div>
+      <div style={{ marginBottom: 24, background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>📱 Status do WhatsApp (Evolution API)</div>
+          <button onClick={checkWhatsApp} disabled={waLoading} style={{ fontSize: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", opacity: waLoading ? 0.6 : 1 }}>
+            {waLoading ? "Checando..." : "Checar conexão"}
+          </button>
+        </div>
+        <div style={{ fontSize: 12, color: TEXT2, marginBottom: waStatus ? 10 : 0 }}>
+          "Falha ao enviar WhatsApp" no login pode ser bug de código ou sessão desconectada (precisa escanear QR de novo) — isso aqui diz qual dos dois, sem precisar abrir o painel do Evolution na mão.
+        </div>
+        {waStatus && (
+          <div style={{ padding: 12, background: BG, borderRadius: 8, fontSize: 13, color: waStatus.connected ? "#10B981" : (waStatus.state === "connecting" ? AMBER : RED) }}>
+            {waStatus.message || waStatus.error || (waStatus.connected ? "Conectado" : "Desconectado")}
+          </div>
+        )}
+      </div>
+
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📲 Dispositivos aguardando pareamento</div>
         <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
