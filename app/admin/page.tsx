@@ -1118,27 +1118,35 @@ const LAYOUT_CONTENT_TYPES = [
 ]
 const ZONE_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#EF4444"]
 
-function LayoutEditor({ clientCode }: { clientCode: string }) {
+function LayoutEditor({ clientCode, onFinalize, initialZones, initialOrientation }: {
+  clientCode?: string
+  onFinalize?: (zones: any[], orientation: "horizontal" | "vertical") => void
+  initialZones?: any[]
+  initialOrientation?: "horizontal" | "vertical"
+}) {
   const [presets, setPresets] = useState<any[]>([])
-  const [zones, setZones] = useState<any[]>([])
-  const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal")
+  const [zones, setZones] = useState<any[]>(initialZones ?? [])
+  const [orientation, setOrientation] = useState<"horizontal" | "vertical">(initialOrientation ?? "horizontal")
   const [selectedZone, setSelectedZone] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
   const dragState = useRef<{ mode: "move" | "resize"; zoneId: string; startX: number; startY: number; orig: any } | null>(null)
+  const standalone = !clientCode // modo avulso — não vincula a nenhum cliente/tela
 
   const canvasW = orientation === "horizontal" ? 560 : 220
   const canvasH = orientation === "horizontal" ? 315 : 391
 
   useEffect(() => {
-    if (!clientCode) return
     setLoading(true)
-    fetch(`/api/admin/layout-templates?client_code=${encodeURIComponent(clientCode)}`)
+    const url = clientCode ? `/api/admin/layout-templates?client_code=${encodeURIComponent(clientCode)}` : "/api/admin/layout-templates"
+    fetch(url)
       .then(r => r.json())
       .then(d => {
         setPresets(d.presets ?? [])
-        if (d.current) {
+        if (initialZones && initialZones.length > 0) {
+          // já veio um layout pronto pra editar (reaproveita, não sobrescreve)
+        } else if (d.current) {
           setZones(d.current.zones)
           setOrientation(d.current.orientation)
         } else {
@@ -1206,6 +1214,13 @@ function LayoutEditor({ clientCode }: { clientCode: string }) {
 
   const save = async () => {
     if (zones.length === 0) { setMessage("⚠️ Adicione pelo menos um bloco"); return }
+
+    if (standalone && onFinalize) {
+      onFinalize(zones, orientation)
+      setMessage("✅ Layout pronto — role pra baixo pra escolher o conteúdo de cada bloco")
+      return
+    }
+
     setSaving(true); setMessage("")
     try {
       const res = await fetch("/api/admin/layout-templates", {
@@ -1297,7 +1312,7 @@ function LayoutEditor({ clientCode }: { clientCode: string }) {
 
       {message && <div style={{ fontSize: 12, marginTop: 12 }}>{message}</div>}
       <button onClick={save} disabled={saving} style={{ marginTop: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
-        {saving ? "Salvando..." : "Salvar layout personalizado"}
+        {saving ? "Salvando..." : standalone ? "Usar esse layout" : "Salvar layout personalizado"}
       </button>
     </div>
   )
@@ -1892,6 +1907,11 @@ function TabInstitucional() {
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [sequenceGroup, setSequenceGroup] = useState("")
   const [zoneFiles, setZoneFiles] = useState<Record<string, File>>({})
+  // Fase 9d — editor completo (arrastar/redimensionar/escolher tipo de
+  // bloco) em vez de só um preset fixo. customZones fica vazio até o admin
+  // clicar "Usar esse layout" no editor.
+  const [customZones, setCustomZones] = useState<any[]>([])
+  const [customOrientation, setCustomOrientation] = useState<"horizontal" | "vertical">("horizontal")
 
   useEffect(() => {
     fetch("/api/admin/layout-templates").then(r => r.json()).then(d => setLayoutPresets(d.presets ?? [])).catch(() => {})
@@ -1913,7 +1933,7 @@ function TabInstitucional() {
 
   const upload = async () => {
     if (contentType === "media" && !file) { setError("Escolha um arquivo"); return }
-    if (contentType === "layout" && !layoutTemplateId) { setError("Escolha um layout"); return }
+    if (contentType === "layout" && customZones.length === 0) { setError("Desenhe o layout e clique em \"Usar esse layout\""); return }
     if (contentType === "youtube" && !youtubeUrl.trim()) { setError("Cole a URL do vídeo do YouTube"); return }
     if (!name.trim()) { setError("Dê um nome pra essa peça"); return }
     if (!startDate || !endDate) { setError("Data de início e fim são obrigatórias"); return }
@@ -1921,10 +1941,24 @@ function TabInstitucional() {
     if (daysOfWeek.length === 0) { setError("Selecione pelo menos um dia da semana"); return }
     setError(""); setUploading(true)
     try {
+      // Layout desenhado no editor completo (Fase 9d) — cria o registro
+      // avulso primeiro pra ter um id, antes de cadastrar o item institucional.
+      let resolvedLayoutId = layoutTemplateId
+      if (contentType === "layout") {
+        const layoutRes = await fetch("/api/admin/layout-templates/custom", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name || "Layout personalizado", orientation: customOrientation, zones: customZones }),
+        })
+        const layoutData = await layoutRes.json()
+        if (!layoutRes.ok) throw new Error(layoutData.error || "Erro ao criar o layout")
+        resolvedLayoutId = layoutData.id
+      }
+
       const form = new FormData()
       form.append("content_type", contentType)
       if (contentType === "media" && file) form.append("file", file)
-      if (contentType === "layout") form.append("layout_template_id", layoutTemplateId)
+      if (contentType === "layout") form.append("layout_template_id", resolvedLayoutId)
       if (contentType === "layout") {
         Object.entries(zoneFiles).forEach(([zoneId, f]) => {
           if (f) form.append(`zone_file_${zoneId}`, f)
@@ -1947,6 +1981,7 @@ function TabInstitucional() {
       setName(""); setFile(null); setStartDate(""); setEndDate(""); setStartTime(""); setEndTime("")
       setDaysOfWeek(DAYS.map(d => d.code)); setDisplayFormat("fullscreen"); setZoneFiles({})
       setContentType("media"); setLayoutTemplateId(""); setYoutubeUrl(""); setSequenceGroup("")
+      setCustomZones([]); setCustomOrientation("horizontal")
       load()
     } catch (err: any) {
       setError(err.message || "Erro ao enviar")
@@ -2103,20 +2138,17 @@ function TabInstitucional() {
 
         {contentType === "layout" && (
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Qual layout</label>
-            <select value={layoutTemplateId} onChange={e => { setLayoutTemplateId(e.target.value); setZoneFiles({}) }} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
-              <option value="">Selecione...</option>
-              {layoutPresets.map((p: any) => <option key={p.id} value={p.id}>{p.orientation === "vertical" ? "📱" : "🖥️"} {p.name}</option>)}
-            </select>
+            <LayoutEditor
+              onFinalize={(zones, orientation) => { setCustomZones(zones); setCustomOrientation(orientation); setZoneFiles({}) }}
+            />
 
-            {layoutTemplateId && (() => {
-              const preset = layoutPresets.find((p: any) => p.id === layoutTemplateId)
-              const contentZones = (preset?.zones ?? []).filter((z: any) => z.content_type === "main_rotation" || z.content_type === "ad_only")
+            {customZones.length > 0 && (() => {
+              const contentZones = customZones.filter((z: any) => z.content_type === "main_rotation" || z.content_type === "ad_only")
               if (contentZones.length === 0) return null
               return (
                 <div style={{ marginTop: 10, padding: 12, background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
                   <div style={{ fontSize: 11, color: TEXT2, marginBottom: 10 }}>
-                    Escolha o que entra em cada bloco de conteúdo desse layout. Deixar em branco = mistura sozinho com o resto (sorteio automático, como antes).
+                    Escolha o que entra em cada bloco de conteúdo desse layout. Deixar em branco = mistura sozinho com o resto (sorteio automático).
                   </div>
                   {contentZones.map((z: any) => (
                     <div key={z.id} style={{ marginBottom: 8 }}>
