@@ -860,7 +860,7 @@ function TabAssinaturas({ data }: { data: any }) {
   )
 }
 
-function TabAnunciantes({ data }: { data: any }) {
+function TabAnunciantes({ data, isSuperAdmin }: { data: any; isSuperAdmin: boolean }) {
   const { advertisers, campaigns } = data
   const campByAdv = campaigns.reduce((acc: any, c: any) => { acc[c.advertiserCode] = (acc[c.advertiserCode] ?? 0) + 1; return acc }, {})
   return (
@@ -869,7 +869,9 @@ function TabAnunciantes({ data }: { data: any }) {
         <KpiCard label="Anunciantes"     value={advertisers.length}                                                                          color={BLUE}   />
         <KpiCard label="Campanhas"       value={campaigns.length}                                                                            color={PURPLE} />
         <KpiCard label="Ativas"          value={campaigns.filter((c: any) => c.status === "active").length}                                  color={GREEN}  />
-        <KpiCard label="Invest. Total"   value={brl(campaigns.reduce((a: number, c: any) => a + Number(c.budget ?? 0), 0))}                  color={AMBER}  />
+        {isSuperAdmin && (
+          <KpiCard label="Invest. Total"   value={brl(campaigns.reduce((a: number, c: any) => a + Number(c.budget ?? 0), 0))}                  color={AMBER}  />
+        )}
       </div>
       <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>Anunciantes</div>
       {advertisers.length === 0 ? (
@@ -2719,7 +2721,7 @@ export default function AdminPage() {
         {tab === "diagnostico" && <TabDiagnostico />}
         {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} />}
         {tab === "assinaturas" && isSuperAdmin && <TabAssinaturas data={data} />}
-        {tab === "anunciantes" && <TabAnunciantes data={data} />}
+        {tab === "anunciantes" && <TabAnunciantes data={data} isSuperAdmin={isSuperAdmin} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
         {tab === "rede"        && <TabRede        data={data} onRefresh={load} />}
         {tab === "exemplos"    && <TabExemplos />}
