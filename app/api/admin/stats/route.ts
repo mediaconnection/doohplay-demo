@@ -2,12 +2,13 @@
 import { getPool } from "@/lib/db"
 import { NextRequest } from "next/server"
 import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth-options"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   // Aceita tanto sessão NextAuth quanto secret legacy (retrocompatibilidade)
-  const session = await getServerSession()
+  const session = await getServerSession(authOptions)
   const secret  = req.nextUrl.searchParams.get("secret")
 
   const isNextAuth = !!session?.user
@@ -16,6 +17,11 @@ export async function GET(req: NextRequest) {
   if (!isNextAuth && !isLegacy) {
     return Response.json({ error: "unauthorized" }, { status: 401 })
   }
+
+  // Fase 13 — Assinaturas/financeiro é dado sensível, só super_admin recebe
+  // de verdade. Secret legacy (cron/automação) sempre trata como super_admin,
+  // já que hoje esse secret já dá acesso total a tudo mesmo.
+  const isSuperAdmin = isLegacy || (session?.user as any)?.role === "super_admin"
 
   const pool = getPool()
   try {
@@ -102,7 +108,7 @@ export async function GET(req: NextRequest) {
 
     return Response.json({
       clients:       clientsRes.rows,
-      subscriptions: subsRes.rows,
+      subscriptions: isSuperAdmin ? subsRes.rows : [],
       advertisers:   advertisersRes.rows,
       campaigns:     campaignsRes.rows,
       events:        eventsRes.rows[0],

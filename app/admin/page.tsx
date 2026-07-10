@@ -2667,7 +2667,7 @@ export default function AdminPage() {
   const TABS = [
     { id: "diagnostico", label: "Diagnóstico", icon: "🔍" },
     { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
-    { id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length },
+    ...(isSuperAdmin ? [{ id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length }] : []),
     { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
     { id: "midias",      label: "Mídias",      icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
     { id: "rede",        label: "Rede",        icon: "🤝", count: pendingNetworkMedia, alert: pendingNetworkMedia > 0 },
@@ -2718,7 +2718,7 @@ export default function AdminPage() {
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
         {tab === "diagnostico" && <TabDiagnostico />}
         {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} />}
-        {tab === "assinaturas" && <TabAssinaturas data={data} />}
+        {tab === "assinaturas" && isSuperAdmin && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
         {tab === "rede"        && <TabRede        data={data} onRefresh={load} />}
