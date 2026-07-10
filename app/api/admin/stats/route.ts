@@ -110,7 +110,10 @@ export async function GET(req: NextRequest) {
       clients:       clientsRes.rows,
       subscriptions: isSuperAdmin ? subsRes.rows : [],
       advertisers:   advertisersRes.rows,
-      campaigns:     campaignsRes.rows,
+      // Fase 13 — valor de investimento é dado financeiro, mesma lógica de
+      // subscriptions: quem não é super_admin recebe as campanhas sem o
+      // campo de orçamento (não só escondido na tela, removido de verdade).
+      campaigns:     isSuperAdmin ? campaignsRes.rows : campaignsRes.rows.map(({ budget, ...rest }: any) => rest),
       events:        eventsRes.rows[0],
       blocks:        blocksRes.rows[0],
       medias:        mediasRes.rows,
