@@ -5,12 +5,13 @@
 // (placeholder colado por engano, SQL confundido com comando de shell).
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth-options"
 import { getPool } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession()
+  const session = await getServerSession(authOptions)
   const { searchParams } = req.nextUrl
   const secret = searchParams.get("secret")
   const isNextAuth = !!session?.user
@@ -18,6 +19,13 @@ export async function GET(req: NextRequest) {
   if (!isNextAuth && !isLegacy) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
+
+  // Achado na revisão do papel operador (10/07/2026): esta rota mandava
+  // budget/payment pra qualquer admin logado, furando a mesma barreira que
+  // a Fase 13 construiu pra Assinaturas/Anunciantes (lá o campo é removido
+  // de verdade do servidor pra quem não é super_admin, aqui não era).
+  // Secret legacy trata como super_admin, mesma lógica de admin/stats.
+  const isSuperAdmin = isLegacy || (session?.user as any)?.role === "super_admin"
 
   const code = (searchParams.get("code") || "").trim().toUpperCase()
   if (!code) {
@@ -98,6 +106,19 @@ export async function GET(req: NextRequest) {
 
     if (result.found_as.length === 0) {
       return NextResponse.json({ error: "Nada encontrado para este código", code }, { status: 404 })
+    }
+
+    // Dado financeiro só pra super_admin — mesma régua de admin/stats:
+    // remove de verdade os campos, não só esconde na tela.
+    if (!isSuperAdmin) {
+      if (result.campaigns) {
+        result.campaigns = result.campaigns.map(({ budget, ...rest }: any) => rest)
+      }
+      if (result.campaign) {
+        const { budget, ...rest } = result.campaign
+        result.campaign = rest
+      }
+      delete result.payment
     }
 
     return NextResponse.json(result)

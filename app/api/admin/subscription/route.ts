@@ -1,6 +1,7 @@
 // app/api/admin/subscription/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { requireSuperAdmin } from "@/lib/require-super-admin"
 import {
   getOrCreateAsaasCustomer,
   createSubscription,
@@ -12,7 +13,14 @@ import {
 export const dynamic = "force-dynamic"
 
 // POST — cria assinatura para um cliente
+// Achado na revisão do papel operador (10/07/2026): essa rota não tinha
+// NENHUMA autenticação — nem sessão, nem secret. Qualquer um que soubesse o
+// endpoint podia criar/cancelar assinatura real no Asaas pra qualquer
+// cliente. Dado financeiro, mesma régua de finance/asaas e admin/users:
+// só super_admin (ou secret legacy, já tratado como equivalente dentro de
+// requireSuperAdmin).
 export async function POST(req: NextRequest) {
+  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   try {
     const { code, plan, next_due_date } = await req.json()
@@ -101,6 +109,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE — cancela assinatura
 export async function DELETE(req: NextRequest) {
+  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   try {
     const { code } = await req.json()
@@ -131,6 +140,7 @@ export async function DELETE(req: NextRequest) {
 
 // GET — busca status da assinatura
 export async function GET(req: NextRequest) {
+  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   try {
     const code = req.nextUrl.searchParams.get("code")

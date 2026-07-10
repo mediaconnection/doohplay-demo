@@ -5,7 +5,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || "http://2.25.180.53:32768"
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI"
+const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY ?? ""
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || "doohplay"
 const CRON_SECRET = process.env.CRON_SECRET || "doohplay-cron-2026"
 
