@@ -12,7 +12,7 @@ function normalizePhone(phone: string): string {
 
 async function sendWhatsApp(phone: string, message: string) {
   const url      = process.env.EVOLUTION_API_URL  || "http://2.25.180.53:32768"
-  const key      = process.env.EVOLUTION_API_KEY  || "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI"
+  const key      = process.env.EVOLUTION_API_KEY ?? ""
   const instance = process.env.EVOLUTION_INSTANCE || "doohplay"
   const number   = normalizePhone(phone)
   try {

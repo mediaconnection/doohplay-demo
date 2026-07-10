@@ -661,7 +661,7 @@ function TabDiagnostico() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
                 <Field label="Nome" value={result.campaign.name} />
                 <Field label="Status" value={result.campaign.status} />
-                <Field label="Orçamento" value={brl(result.campaign.budget)} />
+                <Field label="Orçamento" value={"budget" in result.campaign ? brl(result.campaign.budget) : "restrito"} />
                 <Field label="Anunciante" value={result.campaign.advertiserCode} />
               </div>
               {result.payment && (
@@ -678,7 +678,7 @@ function TabDiagnostico() {
   )
 }
 
-function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: () => void; isSuperAdmin: boolean }) {
   const [showCsv, setShowCsv] = useState(false)
   const [showSub, setShowSub] = useState<any>(null)
   const [deletingCode, setDeletingCode] = useState<string | null>(null)
@@ -788,10 +788,10 @@ function TabClientes({ data, onRefresh }: { data: any; onRefresh: () => void }) 
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Assinatura</div>
-                <Badge label={sub?.status ?? "sem assinatura"} color={hasActiveSub ? GREEN : AMBER} />
+                <Badge label={isSuperAdmin ? (sub?.status ?? "sem assinatura") : "restrito"} color={hasActiveSub ? GREEN : (isSuperAdmin ? AMBER : MUTED)} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                {!hasActiveSub && (
+                {isSuperAdmin && !hasActiveSub && (
                   <button onClick={() => setShowSub(c)}
                     style={{ fontSize: 12, background: GREEN, border: "none", borderRadius: 6, color: "white", cursor: "pointer", padding: "5px 10px", fontWeight: 600 }}>
                     💳 Assinar
@@ -2719,7 +2719,7 @@ export default function AdminPage() {
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
         {tab === "diagnostico" && <TabDiagnostico />}
-        {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} />}
+        {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} isSuperAdmin={isSuperAdmin} />}
         {tab === "assinaturas" && isSuperAdmin && <TabAssinaturas data={data} />}
         {tab === "anunciantes" && <TabAnunciantes data={data} isSuperAdmin={isSuperAdmin} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}

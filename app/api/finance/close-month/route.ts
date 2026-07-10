@@ -1,11 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { requireSuperAdmin } from "@/lib/require-super-admin"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-export async function POST(req: Request) {
+// Achado na revisão do papel operador (10/07/2026): rota sem nenhuma
+// autenticação — nem sessão, nem secret. Fechamento de mês é ação
+// financeira irreversível (grava snapshot), mesma régua de finance/asaas.
+export async function POST(req: NextRequest) {
+  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+
   const { year, month } = await req.json()
 
   if (!year || !month) {

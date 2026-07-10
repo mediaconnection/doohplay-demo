@@ -24,7 +24,7 @@ async function sendWhatsApp(phone: string, name: string, code: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI",
+        "apikey": process.env.EVOLUTION_API_KEY ?? "",
       },
       body: JSON.stringify({
         number: phone.replace(/\D/g, ""),

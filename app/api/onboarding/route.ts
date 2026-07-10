@@ -5,7 +5,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const EVOLUTION_URL      = process.env.EVOLUTION_API_URL  || "https://evo.doohplay.com.br"
-const EVOLUTION_KEY      = process.env.EVOLUTION_API_KEY  || "q8nC1RGZczvlT7T5figPsLUJTsnsXjtI"
+const EVOLUTION_KEY      = process.env.EVOLUTION_API_KEY ?? ""
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || "doohplay"
 const DOOHPLAY_PHONE     = process.env.DOOHPLAY_PHONE     || "5511962050987"
 
