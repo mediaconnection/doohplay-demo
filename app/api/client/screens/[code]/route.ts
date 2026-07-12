@@ -4,6 +4,7 @@
 // igual nesse caso (lista com 1 item), sem exigir UI condicional separada.
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
 
@@ -51,11 +52,23 @@ export async function GET(
 
 // Alterna same_content (true = mesma playlist de todas; false = conteúdo
 // próprio, exige atribuir mídia manualmente) e/ou edita o label de exibição.
+//
+// FIX (12/07/2026 — nível médio da varredura de segurança): antes só
+// checava que screen_id pertencia ao code da URL — code sozinho não é
+// segredo, então qualquer um sabendo o code de um cliente conseguia
+// renomear ou mudar o modo de conteúdo das telas dele. Agora exige sessão.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params
+  const upperCode = code.toUpperCase()
+
+  const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+  if (sessionCode !== upperCode) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
+  }
+
   const pool = getPool()
   try {
     const { screen_id, same_content, label } = await req.json()
@@ -67,7 +80,7 @@ export async function PATCH(
            label = COALESCE($2, label)
        WHERE id = $3 AND client_code = $4
        RETURNING id, label, same_content`,
-      [same_content ?? null, label ?? null, screen_id, code.toUpperCase()]
+      [same_content ?? null, label ?? null, screen_id, upperCode]
     )
     if (!rows[0]) return NextResponse.json({ error: "Tela não encontrada" }, { status: 404 })
     return NextResponse.json({ ok: true, ...rows[0] })
