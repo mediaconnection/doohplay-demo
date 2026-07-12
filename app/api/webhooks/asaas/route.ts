@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
               `🔴 *TV suspensa — DOOHPLAY*\n\n` +
               `Olá ${client.name}! Sua TV foi suspensa por falta de pagamento (${daysOverdue} dias em atraso).\n\n` +
               `Regularize agora para reativar:\n${payment.bankSlipUrl ?? payment.invoiceUrl ?? "—"}\n\n` +
-              `Dúvidas? WhatsApp: (11) 9 9999-9999`
+              `Dúvidas? WhatsApp: (11) 9 6205-0987`
             )
           }
         }

@@ -311,7 +311,7 @@ footer { border-top:1px solid #1E293B; padding:24px; text-align:center; font-siz
     <h2>Comece hoje.<br>É grátis por 7 dias.</h2>
     <p>Sem cartão de crédito. Sem burocracia.<br>Instale, veja funcionando e decida depois.</p>
     <a href="/cadastro" class="btn-main" style="display:inline-block">Criar minha conta grátis →</a>
-    <div style="margin-top:16px;font-size:12px;color:#475569">Dúvidas? WhatsApp: (11) 9 9999-9999</div>
+    <div style="margin-top:16px;font-size:12px;color:#475569">Dúvidas? WhatsApp: (11) 9 6205-0987</div>
   </div>
 </div>
 

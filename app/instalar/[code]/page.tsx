@@ -140,7 +140,7 @@ export default async function InstalarPage({
           </div>
 
           <div style={{ marginTop: 20, fontSize: 12, color: "#334155" }}>
-            Dúvidas? WhatsApp: (11) 9 9999-9999
+            Dúvidas? WhatsApp: (11) 9 6205-0987
           </div>
 
         </div>

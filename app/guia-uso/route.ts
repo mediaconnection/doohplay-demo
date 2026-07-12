@@ -127,7 +127,7 @@ export function GET() {
 
     '<div class="contact">',
     '<h3>Precisa de ajuda?</h3>',
-    '<p>WhatsApp: <a href="https://wa.me/5511999999999">(11) 9 9999-9999</a><br>',
+    '<p>WhatsApp: <a href="https://wa.me/5511962050987">(11) 9 6205-0987</a><br>',
     'Email: <a href="mailto:suporte@doohplay.com.br">suporte@doohplay.com.br</a><br>',
     'Acesse: <a href="https://doohplay.com.br">doohplay.com.br</a></p>',
     '</div>',
