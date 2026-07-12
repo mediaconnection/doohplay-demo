@@ -77,7 +77,12 @@ export async function GET(req: NextRequest) {
             layout_template_id, sequence_group, zone_content, segment_id
      FROM institutional_media ORDER BY position ASC, created_at DESC`
   )
-  return NextResponse.json({ count: rows.length, items: rows })
+  // Canal DOOHPLAY (12/07/2026): lista de segmentos disponíveis pro
+  // dropdown do admin, junto com o mesmo GET pra não precisar de rota nova.
+  const segmentsRes = await pool.query(
+    `SELECT id, name FROM inventory_segments_v2 ORDER BY name ASC`
+  ).catch(() => ({ rows: [] as any[] }))
+  return NextResponse.json({ count: rows.length, items: rows, segments: segmentsRes.rows })
 }
 
 // POST multipart/form-data — campos: file, name, duration, position (opcionais)
