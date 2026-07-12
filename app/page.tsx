@@ -782,11 +782,11 @@ export default function LandingPage() {
           {screens.toLocaleString("pt-BR")} telas ativas agora
         </div>
         <h2 style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 16px" }}>Comece a monetizar sua TV hoje.</h2>
-        <p style={{ fontSize: 18, color: "#64748B", margin: "0 0 2rem" }}>Grátis para comércios locais. Sem contrato. Sem taxa de adesão.</p>
+        <p style={{ fontSize: 18, color: "#64748B", margin: "0 0 2rem" }}>7 dias grátis pra testar. Sem cartão de crédito agora.</p>
         <div className="cta-btns" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
           <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B82F6", color: "#fff", padding: "16px 32px", borderRadius: 14, fontSize: 16, fontWeight: 700, textDecoration: "none" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            Instalar uma Tela — Grátis →
+            Testar 7 Dias Grátis →
           </Link>
           {/* ✅ CTA final também corrigido */}
           <button
@@ -817,7 +817,7 @@ export default function LandingPage() {
             {[
               { title: "PLATAFORMA",    links: ["Instalar Tela", "Planos", "Enterprise", "AI Revenue"] },
               { title: "SEGURANÇA",     links: ["Trust Center", "ProofChain Explorer", "Status da Rede", "Relatórios"] },
-              { title: "CERTIFICAÇÕES", links: ["ICP Brasil A3", "Blockchain Ethereum", "LGPD Compliance", "ISO 27001"] },
+              { title: "CERTIFICAÇÕES", links: ["ICP Brasil A3", "Blockchain Ethereum", "LGPD Compliance"] },
             ].map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{col.title}</div>
