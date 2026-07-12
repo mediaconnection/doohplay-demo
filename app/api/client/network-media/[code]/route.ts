@@ -8,6 +8,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { probeMp4 } from "@/lib/mp4-probe"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
+
+// FIX (12/07/2026 — nível médio da varredura de segurança): DELETE e POST
+// aqui só checavam que o `id`/arquivo pertencia ao `code` da URL, mas o
+// `code` sozinho não é segredo (aparece em URL, prints, QR code) — então
+// qualquer um sabendo o code de um cliente conseguia apagar ou subir mídia
+// no Clube de Telas dele. GET continua aberto de propósito, mesmo padrão
+// já usado em plan-usage/playlist (Fase 14).
 
 export const dynamic = "force-dynamic"
 
@@ -55,6 +63,12 @@ export async function DELETE(
 ) {
   const { code } = await params
   const upperCode = code.toUpperCase()
+
+  const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+  if (sessionCode !== upperCode) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
+  }
+
   const pool = getPool()
   try {
     const { searchParams } = req.nextUrl
@@ -95,6 +109,12 @@ export async function POST(
 ) {
   const { code } = await params
   const upperCode = code.toUpperCase()
+
+  const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+  if (sessionCode !== upperCode) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
+  }
+
   const pool = getPool()
 
   try {

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
 
@@ -27,6 +28,15 @@ export async function DELETE(
 
     if (!code) {
       return NextResponse.json({ error: "Código do cliente é obrigatório" }, { status: 400 })
+    }
+
+    // FIX (12/07/2026 — nível médio da varredura de segurança): antes só
+    // checava que a mídia pertencia ao code informado — code sozinho não é
+    // segredo, então qualquer um sabendo o code de um cliente conseguia
+    // apagar as mídias dele. Agora exige sessão.
+    const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+    if (sessionCode !== code.toUpperCase()) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
     // Confirma que a mídia pertence a uma campanha do cliente (segurança)
