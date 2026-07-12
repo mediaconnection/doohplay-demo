@@ -590,6 +590,10 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   const [addScreenError, setAddScreenError] = useState("");
   const [addScreenInvoiceUrl, setAddScreenInvoiceUrl] = useState("");
   const [addScreenValue, setAddScreenValue] = useState<number | null>(null);
+  // Indicador de uso do plano — desvincular tela não cancela/reduz a
+  // assinatura (decisão consciente, não é bug), mas o cliente não tinha
+  // nenhuma visibilidade de quantas telas o plano cobre vs quantas usa.
+  const [planUsage, setPlanUsage] = useState<any>(null);
 
   const purchaseScreen = async () => {
     if (!addActivationCode.trim() || !addScreenLabel.trim()) {
@@ -624,6 +628,12 @@ function TabTV({ client, player, playlist, online, checking }: any) {
       .catch(() => setScreens([]));
   };
   useEffect(() => { loadScreens() }, [client.code]);
+  useEffect(() => {
+    fetch(`/api/client/plan-usage/${client.code}`)
+      .then(r => r.json())
+      .then(setPlanUsage)
+      .catch(() => setPlanUsage(null));
+  }, [client.code]);
 
   const toggleSameContent = async (screenId: string, current: boolean) => {
     setSavingScreen(screenId)
@@ -689,6 +699,33 @@ function TabTV({ client, player, playlist, online, checking }: any) {
               💡 Telas com "Conteúdo próprio" não mostram nada até você atribuir mídias a elas na aba Conteúdo.
             </div>
           )}
+        </div>
+      )}
+
+      {planUsage?.hasPlan && (
+        <div style={{
+          background: planUsage.overLimit ? C.amberLt : C.white,
+          border: `1px solid ${planUsage.overLimit ? C.amber : C.border}`,
+          borderRadius: 12, padding: "14px 18px", marginBottom: 16,
+          display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10,
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+              Plano {planUsage.planName}: você usa {planUsage.screenCount} de {planUsage.maxScreens} tela{planUsage.maxScreens > 1 ? "s" : ""}
+            </div>
+            <div style={{ fontSize: 11, color: C.text3 }}>
+              {planUsage.overLimit
+                ? "Você está usando mais telas do que seu plano cobre — fale com a gente pra ajustar."
+                : "Precisa de mais telas do que seu plano cobre? Dá pra mudar de plano quando quiser."}
+            </div>
+          </div>
+          <a
+            href={`https://wa.me/5511962050987?text=${encodeURIComponent(`Oi! Sou o cliente ${client.code} (plano ${planUsage.planName}) e quero mudar de plano`)}`}
+            target="_blank" rel="noreferrer"
+            style={{ fontSize: 12, fontWeight: 600, padding: "8px 14px", borderRadius: 8, background: C.blue, color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}
+          >
+            Quero mudar de plano
+          </a>
         </div>
       )}
 
