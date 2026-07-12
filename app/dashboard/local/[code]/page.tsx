@@ -2,8 +2,11 @@
 export const dynamic = "force-dynamic"
 
 import { notFound } from "next/navigation"
+import { cookies } from "next/headers"
 import { getPool } from "@/lib/db"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 import DashboardClient from "./dashboard-client"
+import ClientLoginGate from "./client-login-gate"
 
 export type ClientData = {
   id: string
@@ -63,6 +66,24 @@ export default async function DashboardPage({
 }) {
   const { code } = await params
   const pool = getPool()
+
+  // Achado numa revisão de segurança (11/07/2026): esta página buscava
+  // cpf_cnpj/email/telefone direto do banco no servidor, antes de qualquer
+  // checagem de sessão — o dado sensível já saía no HTML mesmo que a UI
+  // "escondesse" atrás de uma tela de login em React. A proteção de
+  // verdade tem que estar aqui, antes da primeira query sensível.
+  const upperCode = code.toUpperCase()
+  const existsRes = await pool.query(
+    `SELECT code, name FROM studio_clients WHERE UPPER(code) = $1 AND active = true LIMIT 1`,
+    [upperCode]
+  )
+  if (!existsRes.rows[0]) return notFound()
+
+  const cookieStore = await cookies()
+  const sessionCode = verifyClientSessionToken(cookieStore.get(CLIENT_SESSION_COOKIE)?.value)
+  if (sessionCode !== upperCode) {
+    return <ClientLoginGate code={upperCode} clientName={existsRes.rows[0].name} />
+  }
 
   // 1. Busca cliente
   const clientRes = await pool.query(

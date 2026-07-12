@@ -1,24 +1,9 @@
 // app/api/webhooks/asaas/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { sendWhatsApp } from "@/lib/whatsapp"
 
 export const dynamic = "force-dynamic"
-
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL!
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY!
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE!
-
-async function sendWhatsApp(phone: string, message: string) {
-  try {
-    await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
-      body: JSON.stringify({ number: `55${phone.replace(/\D/g, "")}`, text: message }),
-    })
-  } catch (err) {
-    console.error("[webhook/asaas] WhatsApp error:", err)
-  }
-}
 
 // GET — validação do webhook pelo Asaas
 export async function GET() {

@@ -1,6 +1,7 @@
 // app/api/client/settings/[code]/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
 
@@ -27,6 +28,13 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const code = req.url.split("/").pop()?.toUpperCase()
   if (!code) return NextResponse.json({ error: "Código inválido" }, { status: 400 })
+
+  // Fase 14 — só o próprio cliente logado pode editar seus dados (antes,
+  // qualquer um que soubesse o código conseguia mudar CPF/CNPJ, email etc).
+  const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+  if (sessionCode !== code) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
+  }
 
   const pool = getPool()
   try {

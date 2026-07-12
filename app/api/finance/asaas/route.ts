@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { requireSuperAdmin } from "@/lib/require-super-admin"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -235,6 +236,15 @@ export async function PATCH(req: NextRequest) {
     const { code, cpf_cnpj, email, phone } = await req.json()
     if (!code || !cpf_cnpj) {
       return NextResponse.json({ error: "code e cpf_cnpj obrigatórios" }, { status: 400 })
+    }
+
+    // Fase 14 — esta era a lacuna documentada desde o início ("qualquer um
+    // que soubesse o code poderia editar"). Agora exige sessão do próprio
+    // cliente. Mantém possível uso administrativo futuro se necessário,
+    // mas por ora é estritamente "o cliente edita os próprios dados".
+    const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+    if (sessionCode !== String(code).toUpperCase()) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
     const pool = getPool()
