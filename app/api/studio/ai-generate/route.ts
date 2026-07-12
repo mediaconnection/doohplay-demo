@@ -94,6 +94,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Claude API to generate ad copy
+    // FIX (12/07/2026): "claude-sonnet-4-20250514" foi retirado pela
+    // Anthropic em 15/06/2026 — toda chamada com esse model string falhava
+    // com "Claude API error: 400". Atualizado para o modelo ativo atual.
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-5",
         max_tokens: 400,
         system: `Você é um especialista em copywriting para publicidade DOOH (Digital Out-of-Home) em telas de estabelecimentos comerciais brasileiros.
 Crie textos curtos, impactantes e diretos para anúncios que aparecem em TVs em locais físicos.
@@ -124,7 +127,12 @@ Responda com este JSON exato:
     })
 
     if (!claudeRes.ok) {
-      throw new Error(`Claude API error: ${claudeRes.status}`)
+      const errText = await claudeRes.text().catch(() => "")
+      console.error("Claude API error:", claudeRes.status, errText)
+      return NextResponse.json(
+        { error: `Erro ao gerar anúncio (Claude API ${claudeRes.status})` },
+        { status: 502 }
+      )
     }
 
     const claudeData = await claudeRes.json()
@@ -135,43 +143,19 @@ Responda com este JSON exato:
       const clean = textContent.replace(/```json|```/g, "").trim()
       adCopy = JSON.parse(clean)
     } catch {
+      console.error("Falha ao parsear resposta da IA:", textContent)
       return NextResponse.json({ error: "Erro ao processar resposta da IA" }, { status: 500 })
     }
 
-    // Generate image via Claude with image generation
-    let imageUrl: string | null = null
-    try {
-      const imgRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          tools: [{
-            type: "computer_20241022",
-            name: "computer",
-            display_width_px: 1280,
-            display_height_px: 720,
-          }],
-          messages: [{
-            role: "user",
-            content: `Generate a photorealistic background image for a digital advertising screen: ${adCopy.image_prompt}. 
-16:9 aspect ratio, no text, professional commercial photography style, vibrant colors.`
-          }]
-        })
-      })
-
-      // If image generation not available, use a contextual placeholder
-      if (!imgRes.ok) {
-        imageUrl = null
-      }
-    } catch {
-      imageUrl = null
-    }
+    // FIX (12/07/2026): removido o bloco antigo que chamava a tool
+    // "computer_20241022" (controle de tela/computador) achando que isso
+    // gerava imagem — nunca gerou nada, sempre falhava e o erro era
+    // engolido em silêncio (`catch { imageUrl = null }`), mascarando que
+    // essa funcionalidade nunca existiu de verdade. Por enquanto a rota
+    // é honesta: não gera imagem de fundo, devolve null explicitamente.
+    // Se quiser imagem de fundo por IA de verdade, isso precisa de um
+    // serviço de geração de imagem separado (não é a Messages API do Claude).
+    const imageUrl: string | null = null
 
     return NextResponse.json({
       ok: true,
