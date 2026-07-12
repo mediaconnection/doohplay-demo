@@ -107,6 +107,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
+  const [publishError, setPublishError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
@@ -159,30 +160,39 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
 
   const handlePublish = async () => {
     if (!selectedTpl || !client) return
-    setPublishing(true)
+    const headline = form.headline.trim() || selectedTpl.headline
+    setPublishing(true); setPublishError("")
     try {
-      const res = await fetch("/api/studio/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, asset_url: `https://doohplay-demo.onrender.com/studio/${code}/preview?tpl=${selectedTpl.id}&h=${encodeURIComponent(form.headline || selectedTpl.headline)}`, type: "url", duration: parseInt(form.duration), title: `${form.headline || selectedTpl.headline} - ${client.name}` }) })
+      const res = await fetch("/api/studio/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        code, type: "template",
+        headline, subline: form.subline || selectedTpl.subline, cta: form.cta || selectedTpl.cta || "Saiba mais",
+        photo_url: imageUrl || undefined,
+        duration: parseInt(form.duration) || 15,
+      }) })
       const data = await res.json()
-      if (data.ok) { setPublished(true); setPublishedItems(prev => [{ title: form.headline || selectedTpl.headline, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev]); setTimeout(() => setPublished(false), 4000) }
-    } catch {} finally { setPublishing(false) }
+      if (data.ok) { setPublished(true); setPublishedItems(prev => [{ title: headline, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev]); setTimeout(() => setPublished(false), 4000) }
+      else setPublishError(data.error ?? "Erro ao publicar")
+    } catch { setPublishError("Erro de conexão") } finally { setPublishing(false) }
   }
 
   const handlePublishYouTube = async () => {
-    if (!youtubeUrl.trim()) return; setPublishing(true)
+    if (!youtubeUrl.trim()) return; setPublishing(true); setPublishError("")
     try {
       const res = await fetch("/api/studio/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, asset_url: youtubeUrl.trim(), type: "youtube", duration: 60, title: `YouTube — ${youtubeUrl.slice(0, 40)}` }) })
       const data = await res.json()
       if (data.ok) { setYoutubeUrl(""); setPublished(true); setPublishedItems(prev => [{ title: `YouTube: ${youtubeUrl.slice(0,30)}...`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev]); setTimeout(() => setPublished(false), 3000) }
-    } catch {} finally { setPublishing(false) }
+      else setPublishError(data.error ?? "Erro ao publicar")
+    } catch { setPublishError("Erro de conexão") } finally { setPublishing(false) }
   }
 
   const handlePublishLive = async () => {
-    if (!streamUrl.trim()) return; setPublishing(true)
+    if (!streamUrl.trim()) return; setPublishing(true); setPublishError("")
     try {
       const res = await fetch("/api/studio/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, asset_url: streamUrl.trim(), type: "hls", duration: 3600, title: `Live — ${streamUrl.slice(0, 40)}` }) })
       const data = await res.json()
       if (data.ok) { setStreamUrl(""); setPublished(true); setPublishedItems(prev => [{ title: "Live stream publicado", time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev]); setTimeout(() => setPublished(false), 3000) }
-    } catch {} finally { setPublishing(false) }
+      else setPublishError(data.error ?? "Erro ao publicar")
+    } catch { setPublishError("Erro de conexão") } finally { setPublishing(false) }
   }
 
   const handleVideoUpload = async (file: File) => {
@@ -195,23 +205,47 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   }
 
   const handlePublishVideo = async () => {
-    if (!videoUrl) return; setPublishing(true)
+    if (!videoUrl) return; setPublishing(true); setPublishError("")
     try {
       const res = await fetch("/api/studio/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, asset_url: videoUrl, type: "video", duration: 30, title: `Vídeo — ${videoUrl.split("/").pop()}` }) })
       const data = await res.json()
       if (data.ok) { setVideoUrl(null); setPublished(true); setPublishedItems(prev => [{ title: `Vídeo publicado`, time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }, ...prev]); setTimeout(() => setPublished(false), 3000) }
-    } catch {} finally { setPublishing(false) }
+      else setPublishError(data.error ?? "Erro ao publicar")
+    } catch { setPublishError("Erro de conexão") } finally { setPublishing(false) }
   }
 
+  // Achado numa revisão de código (12/07/2026): estas 4 funções liam e
+  // escreviam em /api/studio/playlist, que guardava tudo numa tabela órfã
+  // (playlist_items) que o player real (app/player/page.tsx) nunca lê.
+  // Trocado pela mesma rota real que o dashboard usa (/api/client/playlist/
+  // [code], já migrada pra fundação unificada). Filtra só slot_category
+  // 'dono' — mídia institucional/de rede aparece no player mas não é
+  // editável/removível por aqui, então não faz sentido misturar na lista.
   const loadPlaylist = async () => {
     if (!client) return; setPlaylistLoading(true)
-    try { const res = await fetch(`/api/studio/playlist?code=${code}`); const data = await res.json(); if (data.items) setPlaylistItems(data.items) }
-    catch {} finally { setPlaylistLoading(false) }
+    try {
+      const res = await fetch(`/api/client/playlist/${code}`)
+      const data = await res.json()
+      const own = (data.items ?? []).filter((i: any) => i.slot_category === "dono")
+      setPlaylistItems(own.map((i: any) => ({
+        id: i.id, asset_url: i.asset_url, type: i.type,
+        duration: i.duration ?? 15, position: i.position ?? 0,
+        starts_at: i.start_date ?? null, ends_at: i.end_date ?? null,
+      })))
+    } catch {} finally { setPlaylistLoading(false) }
   }
 
+  // Sistema real não tem DELETE — remover vira "desativar" (active=false),
+  // mesmo padrão de soft-delete já usado no resto do app.
   const removeItem = async (itemId: string) => {
     if (!confirm("Remover este item da playlist?")) return
-    try { await fetch(`/api/studio/playlist?item_id=${itemId}&code=${code}`, { method: "DELETE" }); setPlaylistItems(prev => prev.filter(i => i.id !== itemId)) } catch {}
+    const item = playlistItems.find(i => i.id === itemId)
+    try {
+      await fetch(`/api/client/playlist/${code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        items: [{ id: itemId, position: item?.position ?? 0, duration: item?.duration ?? 15, active: false }],
+      }) })
+      setPlaylistItems(prev => prev.filter(i => i.id !== itemId))
+    } catch {}
   }
 
   const moveItem = async (fromId: string, toId: string) => {
@@ -221,13 +255,23 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
     const [moved] = items.splice(fromIdx, 1); items.splice(toIdx, 0, moved)
     const reordered = items.map((item, idx) => ({ ...item, position: idx + 1 }))
     setPlaylistItems(reordered)
-    try { await fetch("/api/studio/playlist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, order: reordered.map(i => i.id) }) }) } catch {}
+    try {
+      await fetch(`/api/client/playlist/${code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        items: reordered.map(i => ({ id: i.id, position: i.position, duration: i.duration, active: true })),
+      }) })
+    } catch {}
   }
 
   const saveDates = async (itemId: string) => {
     setSavingDates(true)
+    const item = playlistItems.find(i => i.id === itemId)
     try {
-      await fetch("/api/studio/playlist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, item_id: itemId, starts_at: dateForm.starts_at || null, ends_at: dateForm.ends_at || null }) })
+      await fetch(`/api/client/playlist/${code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        items: [{
+          id: itemId, position: item?.position ?? 0, duration: item?.duration ?? 15, active: true,
+          start_date: dateForm.starts_at || null, end_date: dateForm.ends_at || null,
+        }],
+      }) })
       setPlaylistItems(prev => prev.map(i => i.id === itemId ? { ...i, starts_at: dateForm.starts_at || null, ends_at: dateForm.ends_at || null } : i))
       setEditingDates(null)
     } catch {} finally { setSavingDates(false) }
@@ -348,6 +392,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                 ))}
               </div>
               <div style={{ padding: "1.25rem" }}>
+                {publishError && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px" }}>{publishError}</div>}
                 {mediaTab === "template" && (<><div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1rem", lineHeight: 1.5 }}>O template selecionado aparecerá na tela da {client.name} em instantes.</div><button onClick={handlePublish} disabled={publishing} style={{ width: "100%", background: publishing ? "#7DD3FA" : BRAND, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", letterSpacing: "0.05em", textTransform: "uppercase" }}>{publishing ? "Publicando..." : published ? "✓ Publicado!" : "Publicar na tela"}</button></>)}
                 {mediaTab === "youtube" && (<><div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>Cole a URL de qualquer vídeo do YouTube.</div><input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", marginBottom: 12 }} />{youtubeUrl && (<div style={{ marginBottom: 12, borderRadius: 8, overflow: "hidden", aspectRatio: "16/9" }}><iframe src={`https://www.youtube.com/embed/${youtubeUrl.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1] ?? ""}?mute=1&controls=1`} style={{ width: "100%", height: "100%", border: "none" }} allow="autoplay" /></div>)}<button onClick={handlePublishYouTube} disabled={publishing || !youtubeUrl.trim()} style={{ width: "100%", background: !youtubeUrl.trim() ? "#f3f4f6" : BRAND, color: !youtubeUrl.trim() ? "#9ca3af" : "#fff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !youtubeUrl.trim() ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>{publishing ? "Publicando..." : "Publicar YouTube"}</button></>)}
                 {mediaTab === "video" && (<><div style={{ fontSize: 12, color: "#6b7280", marginBottom: "12px", lineHeight: 1.5 }}>Faça upload de um vídeo MP4.</div><input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/mov" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleVideoUpload(f) }} />{videoUrl ? (<div style={{ marginBottom: 12 }}><video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 140 }} /><button onClick={() => setVideoUrl(null)} style={{ marginTop: 6, fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Remover vídeo</button></div>) : (<div onClick={() => videoInputRef.current?.click()} style={{ border: `2px dashed ${videoUploading ? BRAND : "#d1d5db"}`, borderRadius: 10, padding: "1.5rem", textAlign: "center", cursor: videoUploading ? "not-allowed" : "pointer", marginBottom: 12 }}>{videoUploading ? <div style={{ fontSize: 13, color: BRAND }}>Enviando vídeo...</div> : (<><div style={{ fontSize: 24, marginBottom: 6 }}>🎬</div><div style={{ fontSize: 13, color: "#6b7280" }}>Clique para fazer upload</div></>)}</div>)}<button onClick={handlePublishVideo} disabled={publishing || !videoUrl} style={{ width: "100%", background: !videoUrl ? "#f3f4f6" : BRAND, color: !videoUrl ? "#9ca3af" : "#fff", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: !videoUrl ? "not-allowed" : "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>{publishing ? "Publicando..." : "Publicar vídeo"}</button></>)}
