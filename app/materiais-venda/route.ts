@@ -118,7 +118,7 @@ nav { background:#1E293B; border-bottom:1px solid #334155; padding:0 24px; heigh
     </div>
     <div class="script-step" style="border-color:#10B981">
       <div class="script-label" style="color:#10B981">Se hesitar</div>
-      <div class="script-text">"Que tal eu instalar agora e você vê funcionando? Se não gostar nos primeiros 30 dias, cancela sem custo nenhum."</div>
+      <div class="script-text">"Que tal eu instalar agora e você vê funcionando? Se não gostar nos primeiros 7 dias, cancela sem custo nenhum."</div>
     </div>
   </div>
 
@@ -293,7 +293,7 @@ Qualquer dúvida, é só me chamar aqui no WhatsApp. Bem-vindo à rede! 🚀</di
     <div class="slide-tag">Slide 6 — Ação</div>
     <div class="slide-headline">Instalo hoje.<br>Você decide amanhã.</div>
     <div class="slide-body">
-      Instalação gratuita · 30 dias para experimentar · Suporte via WhatsApp<br><br>
+      Instalação gratuita · 7 dias para experimentar · Suporte via WhatsApp<br><br>
       <strong>O que preciso de você agora:</strong><br>
       Nome · WhatsApp · Email
     </div>

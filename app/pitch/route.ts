@@ -195,7 +195,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
       <div class="title">O que preciso de você:</div>
       <div class="items">📛 Nome do estabelecimento<br>📱 WhatsApp<br>📧 Email</div>
     </div>
-    <div class="sub" style="margin-top:16px;font-size:13px">Instalação gratuita · 30 dias para experimentar<br>Suporte via WhatsApp incluído</div>
+    <div class="sub" style="margin-top:16px;font-size:13px">Instalação gratuita · 7 dias para experimentar<br>Suporte via WhatsApp incluído</div>
   </div>
 
 </div>

@@ -140,7 +140,7 @@ function TrialBanner({ code }: { code: string }) {
       </div>
       {isWarning && (
         <a
-          href={`https://wa.me/5511999999999?text=Oi! Sou o cliente ${code} e quero continuar com o DOOHPLAY`}
+          href={`https://wa.me/5511962050987?text=Oi! Sou o cliente ${code} e quero continuar com o DOOHPLAY`}
           target="_blank"
           rel="noreferrer"
           style={{
