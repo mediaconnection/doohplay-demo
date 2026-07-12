@@ -85,11 +85,15 @@ export async function POST(req: NextRequest) {
 
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
         const reqRow = await pool.query(
-          `SELECT client_code, player_id, label, status FROM screen_purchase_requests WHERE id = $1`,
+          `SELECT spr.client_code, spr.player_id, spr.label, spr.status,
+                  sc.name AS client_name, sc.phone AS client_phone
+           FROM screen_purchase_requests spr
+           JOIN studio_clients sc ON sc.code = spr.client_code
+           WHERE spr.id = $1`,
           [requestId]
         )
         if (reqRow.rows[0] && reqRow.rows[0].status !== "paid") {
-          const { client_code, player_id, label } = reqRow.rows[0]
+          const { client_code, player_id, label, client_name, client_phone } = reqRow.rows[0]
           await pool.query(
             `INSERT INTO client_screens (client_code, player_id, label, same_content)
              VALUES ($1, $2, $3, true)`,
@@ -103,6 +107,18 @@ export async function POST(req: NextRequest) {
             `UPDATE screen_purchase_requests SET status = 'paid', paid_at = NOW() WHERE id = $1`,
             [requestId]
           )
+
+          // Achado na revisão do teste de Pix (11/07/2026): esse fluxo nunca
+          // avisava o cliente que a tela nova ficou pronta — ele só descobria
+          // voltando no dashboard sozinho. Mesmo padrão de mensagem usado na
+          // confirmação de assinatura, abaixo.
+          if (client_phone) {
+            await sendWhatsApp(client_phone,
+              `✅ *Tela extra ativada — DOOHPLAY*\n\n` +
+              `Olá ${client_name}! Seu pagamento de R$ ${Number(payment.value).toFixed(2).replace(".", ",")} foi confirmado e a tela "${label}" já está pronta pra exibir conteúdo. 📺\n\n` +
+              `Acesse seu dashboard: doohplay.com.br/dashboard/local/${client_code}`
+            )
+          }
         }
       } else if (event === "PAYMENT_OVERDUE") {
         await pool.query(`UPDATE screen_purchase_requests SET status = 'cancelled' WHERE id = $1 AND status = 'pending'`, [requestId])
