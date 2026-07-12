@@ -100,10 +100,26 @@ export default function NetworkMapPage() {
   const [filter,    setFilter]    = useState("todos")
   const [selCity,   setSelCity]   = useState<string | null>(null)
   const [selPlayer, setSelPlayer] = useState<any | null>(null)
+  const [geocoding, setGeocoding] = useState(false)
+  const [geocodeMsg, setGeocodeMsg] = useState("")
+
+  const runGeocode = async () => {
+    setGeocoding(true); setGeocodeMsg("")
+    try {
+      const res = await fetch("/api/admin/geocode-clients", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) { setGeocodeMsg(data.error || "Erro ao geocodificar"); setGeocoding(false); return }
+      setGeocodeMsg(`✓ ${data.summary.success} geocodificados, ${data.summary.skipped_no_address} sem endereço, ${data.summary.failed_not_found} não encontrados`)
+      load()
+    } catch {
+      setGeocodeMsg("Erro de conexão")
+    }
+    setGeocoding(false)
+  }
 
   const load = async () => {
     try {
-      const res = await fetch("/api/admin/network-map", { cache: "no-store" })
+      const res = await fetch("/api/network/map", { cache: "no-store" })
       if (!res.ok) return
       const data = await res.json()
       if (data.success) {
@@ -158,6 +174,10 @@ export default function NetworkMapPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: GREEN, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20 }}>⚡ LIVE</span>
+          {geocodeMsg && <span style={{ fontSize: 11, color: TEXT2 }}>{geocodeMsg}</span>}
+          <button onClick={runGeocode} disabled={geocoding} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "5px 12px", color: TEXT2, fontSize: 12, cursor: geocoding ? "not-allowed" : "pointer", opacity: geocoding ? 0.6 : 1 }}>
+            {geocoding ? "Geocodificando…" : "📍 Geocodificar clientes"}
+          </button>
           <button onClick={load} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "5px 12px", color: TEXT2, fontSize: 12, cursor: "pointer" }}>↻</button>
         </div>
       </nav>

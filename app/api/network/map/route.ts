@@ -170,8 +170,8 @@ export async function GET() {
             nullif(trim(p.player_code), ''),
             'Player ' || p.id::text
           ) AS player_name,
-          p.latitude,
-          p.longitude,
+          cl.latitude,
+          cl.longitude,
           p.location,
           p.device_type,
           p.platform,
@@ -180,6 +180,7 @@ export async function GET() {
           sc.code AS client_code
         FROM public.players p
         LEFT JOIN public.studio_clients sc ON sc.player_id = p.id
+        LEFT JOIN public.client_locations cl ON cl.client_code = sc.code
       ),
       all_players AS (
         SELECT player_id FROM latest_heartbeat
