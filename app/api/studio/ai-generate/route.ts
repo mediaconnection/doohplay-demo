@@ -106,7 +106,14 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 400,
+        max_tokens: 600,
+        // FIX (12/07/2026): no Sonnet 5, adaptive thinking vem ligado por
+        // padrão e o thinking conta dentro do max_tokens (pensamento +
+        // resposta somados) — com max_tokens baixo (era 400) a API rejeita
+        // com 400 antes de gerar. Essa rota só gera um JSON curto de
+        // copywriting, não precisa de raciocínio estendido, então desligamos
+        // o thinking explicitamente em vez de só aumentar o max_tokens.
+        thinking: { type: "disabled" },
         system: `Você é um especialista em copywriting para publicidade DOOH (Digital Out-of-Home) em telas de estabelecimentos comerciais brasileiros.
 Crie textos curtos, impactantes e diretos para anúncios que aparecem em TVs em locais físicos.
 Responda APENAS com JSON válido, sem markdown, sem explicações.`,
