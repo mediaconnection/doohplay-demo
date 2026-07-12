@@ -96,6 +96,11 @@ export async function syncInstitutionalToUnified(pool: Pool, params: {
   endTime?: string | null
   daysOfWeek?: string[] | null
   displayFormat?: string
+  // Canal DOOHPLAY (12/07/2026): null/undefined = conteúdo institucional
+  // genérico (5% do tempo de tela, todas as telas — comportamento de sempre).
+  // Com segmentId = conteúdo do "canal" daquele segmento (20% do tempo,
+  // só telas cujo business_type bate com o critério do segmento).
+  segmentId?: string | null
 }) {
   try {
     const campaignRes = await pool.query(
@@ -123,15 +128,16 @@ export async function syncInstitutionalToUnified(pool: Pool, params: {
     await pool.query(
       `INSERT INTO placements_v2
          (creative_asset_id, position, start_date, end_date, start_time, end_time,
-          days_of_week, active, source_table, source_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'institutional_media',$9)
+          days_of_week, active, segment_id, source_table, source_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'institutional_media',$10)
        ON CONFLICT (source_table, source_id) DO UPDATE SET
          position = EXCLUDED.position, start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
          start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
-         days_of_week = EXCLUDED.days_of_week, active = EXCLUDED.active`,
+         days_of_week = EXCLUDED.days_of_week, active = EXCLUDED.active,
+         segment_id = EXCLUDED.segment_id`,
       [assetId, params.position ?? 0, params.startDate ?? null, params.endDate ?? null,
        params.startTime ?? null, params.endTime ?? null, params.daysOfWeek ?? null,
-       params.active ?? true, params.mediaId]
+       params.active ?? true, params.segmentId ?? null, params.mediaId]
     )
   } catch (err) {
     console.error("[unifiedSync] syncInstitutionalToUnified failed:", err)

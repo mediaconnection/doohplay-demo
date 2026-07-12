@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
   const { rows } = await pool.query(
     `SELECT id, name, type, url, duration, position, active, created_at, display_format,
             start_date, end_date, start_time, end_time, days_of_week,
-            layout_template_id, sequence_group, zone_content
+            layout_template_id, sequence_group, zone_content, segment_id
      FROM institutional_media ORDER BY position ASC, created_at DESC`
   )
   return NextResponse.json({ count: rows.length, items: rows })
@@ -108,6 +108,11 @@ export async function POST(req: NextRequest) {
     const displayFormatRaw = String(form.get("display_format") || "fullscreen")
     const displayFormat = displayFormatRaw === "shrink_lateral" ? "shrink_lateral" : "fullscreen"
     const sequenceGroup = String(form.get("sequence_group") || "").trim() || null
+    // Canal DOOHPLAY (12/07/2026): vazio/ausente = institucional genérico
+    // (5% do tempo, todas as telas — comportamento de sempre). Com um
+    // segment_id válido (de inventory_segments_v2) = conteúdo do canal
+    // daquele segmento (20% do tempo, só telas com business_type que bate).
+    const segmentId = String(form.get("segment_id") || "").trim() || null
 
     if (!startDate || !endDate) {
       return NextResponse.json({ error: "data de início e fim são obrigatórias" }, { status: 400 })
@@ -145,11 +150,12 @@ export async function POST(req: NextRequest) {
         `INSERT INTO institutional_media
            (id, name, type, url, duration, position, active, created_at,
             start_date, end_date, start_time, end_time, days_of_week, display_format,
-            layout_template_id, sequence_group, zone_content)
-         VALUES (gen_random_uuid(), $1, 'layout', '', $2, $3, true, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            layout_template_id, sequence_group, zone_content, segment_id)
+         VALUES (gen_random_uuid(), $1, 'layout', '', $2, $3, true, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING id`,
         [name, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat,
-         layoutTemplateId, sequenceGroup, Object.keys(zoneContent).length ? JSON.stringify(zoneContent) : null]
+         layoutTemplateId, sequenceGroup, Object.keys(zoneContent).length ? JSON.stringify(zoneContent) : null,
+         segmentId]
       )
       return NextResponse.json({ ok: true, id: res.rows[0].id })
     }
@@ -163,10 +169,10 @@ export async function POST(req: NextRequest) {
       const res = await pool.query(
         `INSERT INTO institutional_media
            (id, name, type, url, duration, position, active, created_at,
-            start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group)
-         VALUES (gen_random_uuid(), $1, 'youtube', $2, $3, $4, true, NOW(), $5, $6, $7, $8, $9, $10, $11)
+            start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group, segment_id)
+         VALUES (gen_random_uuid(), $1, 'youtube', $2, $3, $4, true, NOW(), $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING id`,
-        [name, youtubeUrl, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup]
+        [name, youtubeUrl, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup, segmentId]
       )
       return NextResponse.json({ ok: true, id: res.rows[0].id })
     }
@@ -186,11 +192,11 @@ export async function POST(req: NextRequest) {
     const res = await pool.query(
       `INSERT INTO institutional_media
          (id, name, type, url, duration, position, active, created_at,
-          start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10, $11, $12)
+          start_date, end_date, start_time, end_time, days_of_week, display_format, sequence_group, segment_id)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`,
       [name, mediaType, url, duration, position,
-       startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup]
+       startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup, segmentId]
     )
 
     // Sincroniza com a fundação unificada (Fase 1) — best-effort
@@ -204,6 +210,7 @@ export async function POST(req: NextRequest) {
       position,
       active: true,
       startDate, endDate, startTime, endTime, daysOfWeek,
+      segmentId,
     })
 
     return NextResponse.json({ ok: true, id: res.rows[0].id, url })

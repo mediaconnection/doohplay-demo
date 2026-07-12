@@ -18,7 +18,7 @@ interface PlayerMediaRow {
   slot_category: SlotCategory;
 }
 
-type SlotCategory = "dono" | "anunciante" | "rede" | "institucional";
+type SlotCategory = "dono" | "anunciante" | "rede" | "institucional" | "canal";
 type DisplayFormat = "fullscreen" | "shrink_lateral";
 
 interface PlayerMedia {
@@ -1006,12 +1006,18 @@ export default async function PlayerPage({
             // Quando uma categoria está vazia (ex: cliente ainda sem anunciante
             // pago), seu peso é redistribuído proporcionalmente entre as que têm
             // conteúdo — a tela nunca trava esperando uma categoria inexistente.
-            var CATEGORY_WEIGHTS = { dono: 15, anunciante: 60, rede: 15, institucional: 10 };
+            // Pesos atualizados (12/07/2026 — Canal DOOHPLAY por segmento):
+            // 'rede' zerada (0 registros em produção, Clube de Telas ainda não
+            // usado por ninguém — reversível na hora se algum parceiro aparecer).
+            // Os 15% que eram dela + 5% tirados do institucional genérico viraram
+            // 'canal': conteúdo institucional segmentado por business_type do
+            // cliente (placements_v2.segment_id → inventory_segments_v2).
+            var CATEGORY_WEIGHTS = { dono: 15, anunciante: 60, rede: 0, institucional: 5, canal: 20 };
             // Fase 12 — precisa bater com a duração usada no CSS das
             // transições (0.7s); se mudar um, muda o outro junto.
             var TRANSITION_MS = 700;
             var groups  = {};  // { dono: [...], anunciante: [...], rede: [...], institucional: [...] }
-            var cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
+            var cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0, canal: 0 };
             var upcoming = null; // próxima mídia já sorteada e pré-carregada
             var sequenceQueue = []; // Fase 9 — resto de uma sequência (canal
                                      // DOOHPLAY) em andamento, tocando em bloco
@@ -1034,7 +1040,7 @@ export default async function PlayerPage({
             }
 
             function buildGroups(list) {
-              var g = { dono: [], anunciante: [], rede: [], institucional: [] };
+              var g = { dono: [], anunciante: [], rede: [], institucional: [], canal: [] };
               for (var i = 0; i < list.length; i++) {
                 var cat = list[i].category;
                 if (!g[cat]) g[cat] = [];
@@ -1456,7 +1462,7 @@ export default async function PlayerPage({
                     mainMedias = splitFirst.main;
                     lateralMedias = splitFirst.lateral;
                     groups = buildGroups(mainMedias);
-                    cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
+                    cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0, canal: 0 };
                     var contentArea = document.getElementById('content-area');
                     if (contentArea) {
                       contentArea.innerHTML = '<div id="slides"></div>';
@@ -1474,7 +1480,7 @@ export default async function PlayerPage({
                     mainMedias = splitNew.main;
                     lateralMedias = splitNew.lateral;
                     groups = buildGroups(mainMedias);
-                    cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0 };
+                    cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0, canal: 0 };
                     // não força troca imediata — deixa o ciclo atual terminar
                     // normalmente; o próximo pickNextMedia já usa os grupos novos.
                     // A zona lateral também não é interrompida — o timer em

@@ -31,6 +31,16 @@ export async function GET(
       }
     }
 
+    // Canal DOOHPLAY (12/07/2026): precisa do business_type do cliente ANTES
+    // da query unificada, pra filtrar/rotular o conteúdo institucional
+    // segmentado corretamente. Busca junto com o name (já usado no fim da
+    // rota) pra não duplicar round-trip.
+    const clientInfo = await pool.query(
+      `SELECT name, business_type FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
+      [upperCode]
+    ).catch(() => ({ rows: [] as any[] }))
+    const businessType = clientInfo.rows[0]?.business_type ?? null
+
     // ── Dono + Institucional — lidos da fundação unificada (Fase 1, 02/07/2026) ──
     // Substitui as antigas sub-queries separadas (CampaignMedia+playlist_schedule
     // e institutional_media). Migração validada com paridade 100% via
@@ -45,7 +55,14 @@ export async function GET(
         ca.type,
         ca.url                          AS asset_url,
         ca.status,
-        cv.owner_type                   AS slot_category,
+        -- Canal DOOHPLAY (12/07/2026): institucional com segmento definido
+        -- E que bate com o business_type do cliente vira categoria 'canal'
+        -- (20% do tempo). Institucional sem segmento continua 'institucional'
+        -- genérico (5%, todas as telas, comportamento de sempre).
+        CASE
+          WHEN cv.owner_type = 'institucional' AND p.segment_id IS NOT NULL THEN 'canal'
+          ELSE cv.owner_type
+        END                              AS slot_category,
         ca.display_format,
         ca.created_at,
         p.position,
@@ -60,6 +77,7 @@ export async function GET(
       FROM placements_v2 p
       JOIN creative_assets_v2 ca ON ca.id = p.creative_asset_id
       JOIN campaigns_v2 cv ON cv.id = ca.campaign_id
+      LEFT JOIN inventory_segments_v2 seg ON seg.id = p.segment_id
       WHERE
         (
           cv.owner_type = 'dono' AND cv.owner_code = $1
@@ -76,9 +94,14 @@ export async function GET(
                OR (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
                     EXTRACT(DOW FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::int + 1
                   ] = ANY(p.days_of_week))
+          -- Canal DOOHPLAY: sem segmento = institucional genérico, aparece
+          -- em toda tela (comportamento de sempre). Com segmento = só
+          -- aparece se o business_type do cliente bater com o critério.
+          -- Segmento definido que NÃO bate = excluído por completo daqui.
+          AND (p.segment_id IS NULL OR seg.criteria_json->>'business_type' = $4::text)
         )
       ORDER BY p.position ASC, ca.created_at ASC
-    `, [upperCode, sameContent, screenId])
+    `, [upperCode, sameContent, screenId, businessType])
 
     // ── Rede (Clube de Telas) — ainda não migrada pra fundação nova (0 registros
     // em produção hoje, fora do escopo da Fase 1) ──
@@ -149,10 +172,7 @@ export async function GET(
       ...realAds.rows,
     ]
 
-    const client = await pool.query(
-      `SELECT name FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
-      [upperCode]
-    ).catch(() => ({ rows: [] as any[] }))
+    const client = clientInfo
 
     return NextResponse.json({
       ok: true,
