@@ -20,9 +20,9 @@ async function asaas(path: string, method = "GET", body?: object) {
 }
 
 export const PLANS = {
-  starter: { name: "Starter",  value: 97,  description: "1 TV · Suporte básico" },
-  pro:     { name: "Pro",      value: 197, description: "1 TV · Relatórios · Prioridade" },
-  business:{ name: "Business", value: 397, description: "Até 3 TVs · Suporte dedicado" },
+  starter: { name: "Starter",  value: 97,  description: "1 TV · Suporte básico",         maxScreens: 1 },
+  pro:     { name: "Pro",      value: 197, description: "1 TV · Relatórios · Prioridade", maxScreens: 1 },
+  business:{ name: "Business", value: 397, description: "Até 3 TVs · Suporte dedicado",   maxScreens: 3 },
 } as const
 
 export type PlanKey = keyof typeof PLANS
