@@ -1381,6 +1381,11 @@ function TabConfiguracoes({ code }: { code: string }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div><label style={lbl}>WhatsApp *</label><input style={inp} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} type="tel" /></div>
           <div><label style={lbl}>Email</label><input style={inp} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} type="email" /></div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={lbl}>CPF/CNPJ</label>
+            <input style={inp} value={form.cpf_cnpj} onChange={e => setForm(f => ({ ...f, cpf_cnpj: e.target.value.replace(/\D/g, "") }))} placeholder="Só números" inputMode="numeric" />
+            <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>Necessário pra gerar cobrança de tela extra (Pix/Boleto) — sem isso, a compra de tela nova falha.</div>
+          </div>
         </div>
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px", marginBottom: 20 }}>
