@@ -29,6 +29,11 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
         body: JSON.stringify({ code }),
       })
       const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "Erro ao pedir código. Tenta de novo.")
+        setLoading(false)
+        return
+      }
       setSentMessage(data.message || "Se o código existir e tiver WhatsApp cadastrado, enviamos um código de acesso.")
       setStep("verify")
     } catch {
@@ -62,7 +67,7 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: 32, maxWidth: 380, width: "100%" }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>
           <span style={{ color: C.blue }}>DOOH</span>PLAY
