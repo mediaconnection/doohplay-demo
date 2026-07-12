@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { getOrCreateAsaasCustomer, createOneTimePayment } from "@/lib/asaas"
+import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
 
@@ -27,6 +28,14 @@ export async function POST(req: NextRequest) {
 
     if (!clientCode || !activationCode || !screenLabel) {
       return NextResponse.json({ error: "code, activation_code e label são obrigatórios" }, { status: 400 })
+    }
+
+    // Fase 14 — sem isso, qualquer um que soubesse o código do cliente
+    // conseguia gerar cobrança real em nome dele (achado numa sessão de
+    // teste de Pix anterior, documentado como lacuna conhecida até aqui).
+    const sessionCode = verifyClientSessionToken(req.cookies.get(CLIENT_SESSION_COOKIE)?.value)
+    if (sessionCode !== clientCode) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
     // Acha o dispositivo cujo código de ativação bate — só entre os ainda
