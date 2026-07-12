@@ -79,24 +79,42 @@ export async function POST(req: NextRequest) {
         )
         if (reqRow.rows[0] && reqRow.rows[0].status !== "paid") {
           const { client_code, player_id, label, client_name, client_phone } = reqRow.rows[0]
-          await pool.query(
-            `INSERT INTO client_screens (client_code, player_id, label, same_content)
-             VALUES ($1, $2, $3, true)`,
-            [client_code, player_id, label]
-          )
-          await pool.query(
-            `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
-            [client_code, player_id]
-          )
-          await pool.query(
-            `UPDATE screen_purchase_requests SET status = 'paid', paid_at = NOW() WHERE id = $1`,
-            [requestId]
-          )
+
+          // Achado numa revisão de código (11/07/2026): estas 3 escritas
+          // não estavam numa transação — se a segunda ou terceira falhasse
+          // depois da primeira ter sucesso, ficava um estado inconsistente
+          // (ex: tela criada mas player nunca marcado como pareado). Usa
+          // um client dedicado do pool pra BEGIN/COMMIT/ROLLBACK de verdade.
+          const txClient = await pool.connect()
+          try {
+            await txClient.query("BEGIN")
+            await txClient.query(
+              `INSERT INTO client_screens (client_code, player_id, label, same_content)
+               VALUES ($1, $2, $3, true)`,
+              [client_code, player_id, label]
+            )
+            await txClient.query(
+              `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
+              [client_code, player_id]
+            )
+            await txClient.query(
+              `UPDATE screen_purchase_requests SET status = 'paid', paid_at = NOW() WHERE id = $1`,
+              [requestId]
+            )
+            await txClient.query("COMMIT")
+          } catch (txErr) {
+            await txClient.query("ROLLBACK")
+            console.error("[webhook/asaas] rollback extra_screen:", txErr)
+            throw txErr
+          } finally {
+            txClient.release()
+          }
 
           // Achado na revisão do teste de Pix (11/07/2026): esse fluxo nunca
           // avisava o cliente que a tela nova ficou pronta — ele só descobria
           // voltando no dashboard sozinho. Mesmo padrão de mensagem usado na
-          // confirmação de assinatura, abaixo.
+          // confirmação de assinatura, abaixo. Fica fora da transação de
+          // propósito — WhatsApp falhar não deve desfazer a tela já paga.
           if (client_phone) {
             await sendWhatsApp(client_phone,
               `✅ *Tela extra ativada — DOOHPLAY*\n\n` +
