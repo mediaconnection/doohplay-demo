@@ -2,61 +2,85 @@ import { NextRequest, NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
+// Achado numa sessão de revisão (12/07/2026): as chaves aqui estavam em
+// inglês ("barber", "food"...), mas o campo business_type salvo de verdade
+// no cadastro é em português ("Barbearia", "Farmácia"...) — então a busca
+// NUNCA batia e a rota sempre caía no fallback, mostrando sugestão de
+// comida pra qualquer tipo de negócio, inclusive barbearia. Corrigido pra
+// bater com as opções reais do dropdown em app/cadastro/route.ts.
 const SUGGESTIONS: Record<string, string[]> = {
-  barber: [
+  "Barbearia": [
     "Promoção de corte + barba para sexta-feira",
     "Desconto especial para novos clientes",
     "Combo visagismo fim de semana",
     "Anúncio de horários disponíveis hoje",
   ],
-  food: [
-    "Combo almoço executivo com desconto",
-    "Happy hour cerveja gelada das 17h às 20h",
+  "Salão de Beleza": [
+    "Promoção de escova + hidratação",
+    "Combo unhas + sobrancelha com desconto",
+    "Novidade: coloração em oferta essa semana",
+    "Desconto para novas clientes",
+  ],
+  "Farmácia": [
+    "Desconto em genéricos essa semana",
+    "Promoção de vitaminas e suplementos",
+    "Vacina disponível — agende já",
+    "Frete grátis em compras acima de R$50",
+  ],
+  "Clínica": [
+    "Consulta com desconto para novos pacientes",
+    "Check-up completo com condição especial",
+    "Agende sua avaliação hoje",
+    "Pacote de exames com preço especial",
+  ],
+  "Lanchonete": [
+    "Combo lanche + refrigerante com desconto",
     "Promoção delivery grátis acima de R$50",
+    "Lanche do dia com preço especial",
+    "Happy hour bebida gelada das 17h às 20h",
+  ],
+  "Restaurante": [
     "Prato do dia com preço especial",
+    "Rodízio com desconto durante a semana",
+    "Reserve sua mesa para o fim de semana",
+    "Combo almoço executivo com desconto",
   ],
-  dessert: [
-    "Bolo especial para encomenda",
-    "Promoção de doces para festa",
-    "Novidade da semana na vitrine",
-    "Desconto em tortas no fim de semana",
+  "Academia": [
+    "Matrícula com desconto esse mês",
+    "Aula experimental grátis",
+    "Personal trainer com condição especial",
+    "Traga um amigo e ganhe desconto",
   ],
-  bakery: [
-    "Pão quentinho saindo do forno agora",
-    "Café da manhã completo por R$X",
-    "Promoção leve 3 pague 2",
-    "Encomendas para eventos especiais",
-  ],
-  pizza: [
-    "Promoção sexta-feira 2 pizzas pelo preço de 1",
-    "Delivery em 30 minutos garantido",
-    "Pizza família com borda recheada",
-    "Combo pizza + refrigerante",
-  ],
-  fashion: [
-    "Nova coleção chegou — confira as tendências",
-    "Liquidação até 70% OFF só hoje",
-    "Peças exclusivas para o inverno",
-    "Promoção relâmpago fin de semana",
-  ],
-  supermarket: [
+  "Mercado": [
     "Oferta especial de carnes para o fim de semana",
     "Hortifruti fresquinho com desconto",
     "Combo família com preço especial",
     "Promoção do dia — só até fechar",
   ],
-  perfumery: [
-    "Novo lançamento — a fragrância da estação",
-    "Kit presente perfume + hidratante",
-    "Desconto especial para Dia das Mães",
-    "Experimenta grátis na loja hoje",
+  "Petshop": [
+    "Banho e tosa com desconto essa semana",
+    "Promoção de ração — leve mais, pague menos",
+    "Vacina para seu pet — agende já",
+    "Combo banho + tosa + hidratação",
   ],
+  "Outro": [
+    "Promoção especial dessa semana",
+    "Desconto para novos clientes",
+    "Novidade chegando — confira",
+    "Condição especial só até domingo",
+  ],
+}
+
+function findSuggestions(businessType: string): string[] {
+  const normalized = businessType.trim().toLowerCase()
+  const match = Object.keys(SUGGESTIONS).find(k => k.toLowerCase() === normalized)
+  return match ? SUGGESTIONS[match] : SUGGESTIONS["Outro"]
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const businessType = searchParams.get("type") ?? "food"
-  const suggestions = SUGGESTIONS[businessType] ?? SUGGESTIONS.food
+  const businessType = searchParams.get("type") ?? "Outro"
+  const suggestions = findSuggestions(businessType)
   return NextResponse.json({ suggestions })
 }
 
