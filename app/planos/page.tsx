@@ -17,26 +17,28 @@ const PLANS = [
   {
     id: "starter",
     name: "Starter",
-    price: "Grátis",
-    period: "para sempre",
+    price: "R$ 97",
+    period: "por mês",
     color: GREEN,
     badge: null,
     desc: "Para comércios locais que querem monetizar sua TV.",
     features: [
       "1 tela conectada",
+      "7 dias grátis pra testar",
       "Conteúdo automático",
       "Anúncios de marcas nacionais",
+      "40% de repasse sobre receita de anúncio",
       "Dashboard básico",
       "Relatório mensal via WhatsApp",
-      "Trust Score auditável",
+      "Proof-of-Play auditável",
       "Suporte via WhatsApp",
     ],
     notIncluded: [
       "Múltiplas telas",
-      "Campanhas personalizadas",
-      "API de integração",
+      "Relatórios semanais",
+      "Suporte prioritário",
     ],
-    cta: "Começar grátis",
+    cta: "Testar 7 dias grátis",
     ctaHref: "/onboarding",
     ctaSecondary: false,
   },
@@ -44,51 +46,68 @@ const PLANS = [
     id: "pro",
     name: "Pro",
     price: "R$ 197",
-    period: "por tela / mês",
+    period: "por mês",
     color: BLUE,
     badge: "Mais popular",
     desc: "Para negócios que querem mais controle e receita.",
     features: [
-      "Até 5 telas conectadas",
+      "1 tela conectada",
+      "7 dias grátis pra testar",
       "Conteúdo personalizado",
       "Campanhas segmentadas",
+      "40% de repasse sobre receita de anúncio",
       "Dashboard completo",
       "Relatórios semanais",
-      "Trust Score + Blockchain",
+      "Proof-of-Play auditável",
       "Suporte prioritário",
-      "Revenue share 70/30",
-      "API de integração",
     ],
     notIncluded: [
-      "Telas ilimitadas",
-      "SLA enterprise",
+      "Múltiplas telas",
+      "Painel de agência",
     ],
-    cta: "Assinar Pro",
+    cta: "Testar 7 dias grátis",
     ctaHref: "/onboarding?plano=pro",
     ctaSecondary: false,
   },
   {
-    id: "multi",
-    name: "Multi / Enterprise",
-    price: "Sob consulta",
-    period: "por rede",
+    id: "business",
+    name: "Business",
+    price: "R$ 397",
+    period: "por mês",
     color: PURPLE,
-    badge: "Enterprise",
-    desc: "Para redes de lojas, shoppings e agências.",
+    badge: null,
+    desc: "Para quem tem mais de uma tela no mesmo negócio.",
     features: [
-      "Telas ilimitadas",
-      "Painel de agência centralizado",
-      "Campanhas por região",
-      "SLA 99.9% garantido",
-      "Relatórios em tempo real",
-      "ICP Brasil A3 dedicado",
-      "Suporte 24/7",
-      "Revenue share customizado",
-      "API completa + webhooks",
-      "Onboarding dedicado",
+      "Até 3 telas conectadas",
+      "7 dias grátis pra testar",
+      "Conteúdo personalizado por tela",
+      "Campanhas segmentadas",
+      "40% de repasse sobre receita de anúncio",
+      "Dashboard completo",
+      "Relatórios semanais",
+      "Proof-of-Play auditável",
+      "Suporte dedicado",
     ],
     notIncluded: [],
-    cta: "Falar com especialista",
+    cta: "Testar 7 dias grátis",
+    ctaHref: "/onboarding?plano=business",
+    ctaSecondary: false,
+  },
+  {
+    id: "enterprise",
+    name: "Redes maiores",
+    price: "Fale com a gente",
+    period: "sob medida",
+    color: AMBER,
+    badge: "Rede / Agência",
+    desc: "Pra redes de lojas, shoppings ou agências com mais de 3 telas.",
+    features: [
+      "Quantidade de telas sob medida",
+      "Onboarding acompanhado",
+      "Condições comerciais conversadas caso a caso",
+    ],
+    notIncluded: [],
+    cta: "Falar com a gente",
     ctaHref: "/marketplace?demo=1",
     ctaSecondary: true,
   },
@@ -96,28 +115,28 @@ const PLANS = [
 
 const FAQ = [
   {
-    q: "Como funciona o plano Grátis?",
-    a: "Você instala o app DOOHPLAY na sua TV, conecta à internet e começa a receber anúncios automaticamente. A receita é depositada via PIX todo dia 10 do mês.",
+    q: "Como funciona o teste grátis de 7 dias?",
+    a: "Você instala o app DOOHPLAY na sua TV, conecta à internet e já começa a receber anúncios. Os primeiros 7 dias não custam nada — a primeira cobrança só acontece depois disso, e você pode cancelar antes sem pagar nada.",
   },
   {
-    q: "Quanto vou ganhar com minha tela?",
-    a: "Depende da localização, fluxo de pessoas e horário de funcionamento. A média da rede é R$ 847/mês por tela. Você pode ver uma estimativa no dashboard após conectar.",
+    q: "Quanto vou ganhar de repasse de anúncio?",
+    a: "40% da receita bruta de cada campanha exibida na sua tela é repassado pra você, em qualquer plano. Depende da localização, fluxo de pessoas e horário de funcionamento quanto de anúncio sua tela vai atrair.",
   },
   {
     q: "O que é o Proof-of-Play?",
-    a: "É a tecnologia da DOOHPLAY que registra cada exibição na blockchain com certificação ICP Brasil. Anunciantes têm prova auditável de que o anúncio foi exibido — o que aumenta o valor do inventário.",
+    a: "É o registro de cada exibição feita na sua tela — data, hora e conteúdo exibido — auditável e certificado via blockchain com ICP Brasil. É a garantia de que o anúncio foi mesmo exibido, não simulado.",
   },
   {
     q: "Posso cancelar a qualquer momento?",
-    a: "Sim. O plano Starter é gratuito e não tem fidelidade. Os planos pagos podem ser cancelados a qualquer momento, sem multa.",
+    a: "Sim, a qualquer momento, sem multa. Se cancelar dentro dos 7 dias de teste, não paga nada.",
   },
   {
     q: "Que tipo de TV funciona?",
-    a: "Fire Stick (Amazon), Android TV, Chromecast, Raspberry Pi e qualquer TV com HDMI. O app funciona em qualquer dispositivo Android com acesso à internet.",
+    a: "Qualquer TV com Android TV ou um dispositivo Android conectado via HDMI (Fire Stick, box Android, etc), com acesso à internet.",
   },
   {
-    q: "Como funciona o painel de agência?",
-    a: "No plano Multi você tem acesso a um painel centralizado para gerenciar todas as telas da sua rede, com KPIs consolidados, filtros por unidade e relatórios automáticos.",
+    q: "E se eu precisar de mais telas do que meu plano cobre?",
+    a: "Dá pra comprar uma tela extra avulsa a qualquer momento pelo seu painel, ou mudar de plano — o Business cobre até 3 telas. Pra redes maiores, fale com a gente.",
   },
 ]
 
@@ -162,7 +181,7 @@ export default function PlanosPage() {
             <span style={{ color: BLUE }}>sem surpresas.</span>
           </h1>
           <p style={{ fontSize: 16, color: TEXT2, maxWidth: 520, margin: "0 auto" }}>
-            Comece grátis com uma tela. Escale conforme seu negócio cresce.
+            7 dias grátis pra testar. Depois, assinatura simples — sem letra miúda.
           </p>
         </div>
 
@@ -249,20 +268,18 @@ export default function PlanosPage() {
               </thead>
               <tbody>
                 {[
-                  ["Telas conectadas",        "1",        "Até 5",    "Ilimitadas"],
-                  ["Proof-of-Play",           "✓",        "✓",        "✓"],
-                  ["Trust Score",             "✓",        "✓",        "✓"],
-                  ["Blockchain auditável",    "✓",        "✓",        "✓"],
-                  ["ICP Brasil",              "✓",        "✓",        "✓ dedicado"],
-                  ["Dashboard",               "Básico",   "Completo", "Enterprise"],
-                  ["Relatórios",              "Mensal",   "Semanal",  "Tempo real"],
-                  ["API",                     "—",        "✓",        "✓ + webhooks"],
-                  ["Painel de agência",       "—",        "—",        "✓"],
-                  ["Revenue share",           "60/40",    "70/30",    "Custom"],
-                  ["Suporte",                 "WhatsApp", "Prioritário", "24/7"],
-                  ["SLA",                     "—",        "99.5%",    "99.9%"],
+                  ["Telas conectadas",        "1",        "1",           "Até 3",       "Sob medida"],
+                  ["Teste grátis",            "7 dias",   "7 dias",      "7 dias",      "—"],
+                  ["Proof-of-Play",           "✓",        "✓",           "✓",           "✓"],
+                  ["Blockchain auditável",    "✓",        "✓",           "✓",           "✓"],
+                  ["ICP Brasil",              "✓",        "✓",           "✓",           "✓"],
+                  ["Repasse de anúncio",      "40%",      "40%",         "40%",         "A combinar"],
+                  ["Dashboard",               "Básico",   "Completo",    "Completo",    "Sob medida"],
+                  ["Relatórios",              "Mensal",   "Semanal",     "Semanal",     "Sob medida"],
+                  ["Painel de agência",       "—",        "—",           "—",           "✓"],
+                  ["Suporte",                 "WhatsApp", "Prioritário", "Dedicado",    "Dedicado"],
                 ].map(([feature, ...values], i) => (
-                  <tr key={feature} style={{ borderBottom: i < 11 ? `1px solid rgba(255,255,255,0.04)` : "none" }}>
+                  <tr key={feature} style={{ borderBottom: i < 9 ? `1px solid rgba(255,255,255,0.04)` : "none" }}>
                     <td style={{ padding: "12px 20px", fontSize: 13, color: TEXT2 }}>{feature}</td>
                     {values.map((v, j) => (
                       <td key={j} style={{ padding: "12px 20px", textAlign: "center", fontSize: 13, color: v === "—" ? MUTED : TEXT, fontWeight: v === "✓" ? 600 : 400 }}>{v}</td>
@@ -290,10 +307,10 @@ export default function PlanosPage() {
         {/* CTA FINAL */}
         <div style={{ background: `linear-gradient(135deg, rgba(59,130,246,0.1), rgba(99,102,241,0.1))`, border: `1px solid rgba(59,130,246,0.2)`, borderRadius: 16, padding: "2.5rem", textAlign: "center" }}>
           <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Pronto para começar?</h2>
-          <p style={{ fontSize: 15, color: TEXT2, marginBottom: 24 }}>Instale grátis em menos de 5 minutos. Sem contrato, sem cartão de crédito.</p>
+          <p style={{ fontSize: 15, color: TEXT2, marginBottom: 24 }}>Instale e teste grátis por 7 dias em menos de 5 minutos. Sem cartão de crédito agora.</p>
           <div className="cta-btns" style={{ display: "flex", gap: 12, justifyContent: "center" }}>
             <Link href="/onboarding" style={{ background: BLUE, color: "#fff", borderRadius: 10, padding: "13px 28px", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
-              Instalar uma Tela — Grátis →
+              Testar 7 Dias Grátis →
             </Link>
             <Link href="/marketplace" style={{ background: "transparent", color: TEXT2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "13px 28px", fontSize: 15, textDecoration: "none" }}>
               Ver Marketplace
