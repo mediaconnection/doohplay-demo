@@ -2105,6 +2105,12 @@ function TabInstitucional() {
   const [layoutPresets, setLayoutPresets] = useState<any[]>([])
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [sequenceGroup, setSequenceGroup] = useState("")
+  // Canal DOOHPLAY (12/07/2026): "" = institucional genérico (5%, todas as
+  // telas, comportamento de sempre). Com um segmento escolhido = vira
+  // conteúdo do canal daquele segmento (20%, só telas do business_type
+  // correspondente).
+  const [segmentId, setSegmentId] = useState("")
+  const [segments, setSegments] = useState<{ id: string; name: string }[]>([])
   const [zoneFiles, setZoneFiles] = useState<Record<string, File>>({})
   // Fase 9d — editor completo (arrastar/redimensionar/escolher tipo de
   // bloco) em vez de só um preset fixo. customZones fica vazio até o admin
@@ -2120,7 +2126,7 @@ function TabInstitucional() {
     setLoading(true)
     fetch("/api/admin/institutional-media")
       .then(r => r.json())
-      .then(d => setItems(d.items ?? []))
+      .then(d => { setItems(d.items ?? []); setSegments(d.segments ?? []) })
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
   }
@@ -2174,12 +2180,14 @@ function TabInstitucional() {
       if (daysOfWeek.length < 7) form.append("days_of_week", daysOfWeek.join(","))
       form.append("display_format", displayFormat)
       if (sequenceGroup.trim()) form.append("sequence_group", sequenceGroup.trim())
+      if (segmentId) form.append("segment_id", segmentId)
       const res = await fetch("/api/admin/institutional-media", { method: "POST", body: form })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar")
       setName(""); setFile(null); setStartDate(""); setEndDate(""); setStartTime(""); setEndTime("")
       setDaysOfWeek(DAYS.map(d => d.code)); setDisplayFormat("fullscreen"); setZoneFiles({})
       setContentType("media"); setLayoutTemplateId(""); setYoutubeUrl(""); setSequenceGroup("")
+      setSegmentId("")
       setCustomZones([]); setCustomOrientation("horizontal")
       load()
     } catch (err: any) {
@@ -2387,6 +2395,19 @@ function TabInstitucional() {
         </div>
 
         <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Canal (opcional)</label>
+          <select value={segmentId} onChange={e => setSegmentId(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <option value="">Institucional genérico — todas as telas (5% do tempo)</option>
+            {segments.map(seg => (
+              <option key={seg.id} value={seg.id}>{seg.name}</option>
+            ))}
+          </select>
+          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            Sem escolher um canal, a peça é institucional genérico e aparece em toda tela da rede (5% do tempo). Escolhendo um canal, ela só aparece nas telas do tipo de negócio daquele canal (20% do tempo).
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Boas-vindas DOOHPLAY" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
         </div>
@@ -2422,7 +2443,7 @@ function TabInstitucional() {
               </div>
               <div style={{ padding: "8px 10px" }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
-                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s{it.sequence_group ? ` · 🔗 ${it.sequence_group}` : ""}</div>
+                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s{it.sequence_group ? ` · 🔗 ${it.sequence_group}` : ""}{it.segment_id ? ` · 📺 ${segments.find(s => s.id === it.segment_id)?.name ?? "canal"}` : ""}</div>
                 <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📅 {scheduleSummary(it)}</div>
                 {it.display_format === "shrink_lateral" && (
                   <div style={{ fontSize: 10, color: BLUE, marginBottom: 6, fontWeight: 600 }}>↔️ Encolhe lateral</div>
