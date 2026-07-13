@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
       `),
       pool.query(`
         SELECT m.id::text, m.name, m.type, m.status, m.url, m."createdAt",
+               m.content_tags,
                c.name AS campaign_name, c."advertiserCode",
                a.name AS advertiser_name, a.phone AS advertiser_phone
         FROM "CampaignMedia" m

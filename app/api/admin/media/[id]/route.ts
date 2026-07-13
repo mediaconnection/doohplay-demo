@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, context: any) {
   }
 
   const { id } = await context.params
-  const { status, reason } = body
+  const { status, reason, tags } = body
 
   if (!["approved", "rejected"].includes(status)) {
     return Response.json({ error: "status invalido" }, { status: 400 })
@@ -48,10 +48,20 @@ export async function PATCH(req: NextRequest, context: any) {
   const pool = getPool()
 
   try {
-    await pool.query(
-      `UPDATE "CampaignMedia" SET status = $1 WHERE id = $2`,
-      [status, id]
-    )
+    // Fase 16 (12/07/2026): tags de brand-safety, opcional. Só atualiza
+    // content_tags se o admin de fato mandou uma lista (não sobrescreve
+    // com null se o campo não vier na requisição).
+    if (Array.isArray(tags)) {
+      await pool.query(
+        `UPDATE "CampaignMedia" SET status = $1, content_tags = $2 WHERE id = $3`,
+        [status, tags.length ? tags : null, id]
+      )
+    } else {
+      await pool.query(
+        `UPDATE "CampaignMedia" SET status = $1 WHERE id = $2`,
+        [status, id]
+      )
+    }
 
     const { rows } = await pool.query(
       `SELECT m.name AS media_name, m.type,

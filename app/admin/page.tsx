@@ -2560,6 +2560,24 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const [loading, setLoading]   = useState<string | null>(null)
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [reason, setReason]     = useState("")
+  // Fase 16 (12/07/2026): tags de brand-safety escolhidas por item, antes
+  // de aprovar. Taxonomia fixa — mesma lista usada no dashboard do
+  // cliente (app/api/client/ad-tag-preferences/[code]/route.ts).
+  const AD_TAGS: { id: string; label: string }[] = [
+    { id: "bebida_alcoolica", label: "Bebida alcoólica" },
+    { id: "tabaco",           label: "Tabaco" },
+    { id: "apostas",          label: "Apostas / jogos de azar" },
+    { id: "conteudo_adulto",  label: "Conteúdo adulto/sensível" },
+    { id: "politica",         label: "Conteúdo político" },
+  ]
+  const [pendingTags, setPendingTags] = useState<Record<string, string[]>>({})
+  const toggleTag = (mediaId: string, tagId: string) => {
+    setPendingTags(prev => {
+      const current = prev[mediaId] ?? []
+      const next = current.includes(tagId) ? current.filter(t => t !== tagId) : [...current, tagId]
+      return { ...prev, [mediaId]: next }
+    })
+  }
   const medias  = data.medias ?? []
   const pending = medias.filter((m: any) => m.status === "pending")
   const others  = medias.filter((m: any) => m.status !== "pending")
@@ -2570,7 +2588,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       await fetch("/api/admin/media/" + id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, reason: r }),
+        body: JSON.stringify({ status, reason: r, tags: pendingTags[id] ?? [] }),
       })
       setRejectId(null); setReason(""); onRefresh()
     } catch {}
@@ -2596,6 +2614,17 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
               <div style={{ fontSize: 12, color: TEXT2, marginBottom: 2 }}>{m.advertiser_name} · {m.campaign_name}</div>
               <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>{fmt(m.createdAt)} · {m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</div>
               {m.url && <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: BLUE, textDecoration: "none" }}>↗ Abrir arquivo original</a>}
+              <div style={{ fontSize: 10, color: TEXT2, marginTop: 10, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Tags de brand-safety (opcional)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {AD_TAGS.map(tag => {
+                  const active = (pendingTags[m.id] ?? []).includes(tag.id)
+                  return (
+                    <button key={tag.id} onClick={() => toggleTag(m.id, tag.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, border: "1px solid " + (active ? AMBER : BORDER), background: active ? AMBER + "22" : "transparent", color: active ? AMBER : TEXT2, cursor: "pointer" }}>
+                      {tag.label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
@@ -2622,7 +2651,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid " + BORDER }}>
-                  {["Preview","Mídia","Anunciante","Campanha","Tipo","Status","Data"].map(h => (
+                  {["Preview","Mídia","Anunciante","Campanha","Tipo","Status","Tags","Data"].map(h => (
                     <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
@@ -2642,6 +2671,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
                     <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.campaign_name}</td>
                     <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
                     <td style={{ padding: "10px 16px" }}><Badge label={m.status} color={m.status === "approved" ? GREEN : m.status === "rejected" ? RED : AMBER} /></td>
+                    <td style={{ padding: "10px 16px", fontSize: 11, color: TEXT2 }}>{(m.content_tags ?? []).join(", ") || "—"}</td>
                     <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{fmt(m.createdAt)}</td>
                   </tr>
                 ))}
