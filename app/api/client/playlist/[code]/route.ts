@@ -36,13 +36,17 @@ export async function GET(
     // segmentado corretamente. Busca junto com o name (já usado no fim da
     // rota) pra não duplicar round-trip.
     const clientInfo = await pool.query(
-      `SELECT name, business_type, excluded_general_channels FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
+      `SELECT name, business_type, excluded_general_channels, excluded_ad_tags
+       FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
       [upperCode]
     ).catch(() => ({ rows: [] as any[] }))
     const businessType = clientInfo.rows[0]?.business_type ?? null
     // Canal DOOHPLAY (passo 5): canais gerais (Turismo/Diversão) que o
     // dono desligou explicitamente — NULL/vazio (padrão) = recebe todos.
     const excludedChannels: string[] = clientInfo.rows[0]?.excluded_general_channels ?? []
+    // Fase 16 (12/07/2026): tags de brand-safety que o dono desligou
+    // (ex: bebida alcoólica) — NULL/vazio (padrão) = aceita todas.
+    const excludedAdTags: string[] = clientInfo.rows[0]?.excluded_ad_tags ?? []
 
     // ── Dono + Institucional — lidos da fundação unificada (Fase 1, 02/07/2026) ──
     // Substitui as antigas sub-queries separadas (CampaignMedia+playlist_schedule
@@ -141,6 +145,16 @@ export async function GET(
 
     // ── Anunciante real (CampaignScreen) — ainda não migrada pra fundação nova
     // (0 registros em produção hoje, fora do escopo da Fase 1) ──
+    // Fase 16 (12/07/2026): brand-safety. Dois filtros novos, ambos
+    // aplicados ANTES de a peça chegar na tela (não é moderação de
+    // conteúdo — é preferência do dono de tela, igual ao Canal DOOHPLAY):
+    //   1) tags de brand-safety (bebida_alcoolica, tabaco, etc) que o
+    //      dono desligou explicitamente
+    //   2) concorrente direto: nunca mostra anúncio de um anunciante cujo
+    //      "segment" (auto-declarado no cadastro) bate com o
+    //      business_type do dono da tela. Sempre ativo, sem toggle —
+    //      não existe caso de uso real de "quero ver anúncio do meu
+    //      concorrente na minha própria tela".
     const realAdsQuery = pool.query(`
       SELECT
         cm.id,
@@ -162,12 +176,15 @@ export async function GET(
       FROM "CampaignScreen" cs
       JOIN "Campaign" c ON c.id = cs."campaignId"
       JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
+      JOIN "Advertiser" adv ON adv.code = c."advertiserCode"
       WHERE cs."screenId" = $1
         AND c.status = 'active'
         AND c."startDate" <= NOW()
         AND c."endDate" >= NOW()
         AND cm.status != 'rejected'
-    `, [upperCode])
+        AND (cm.content_tags IS NULL OR NOT (cm.content_tags && $3::text[]))
+        AND (adv.segment IS NULL OR $2::text IS NULL OR adv.segment IS DISTINCT FROM $2::text)
+    `, [upperCode, businessType, excludedAdTags])
 
 
 

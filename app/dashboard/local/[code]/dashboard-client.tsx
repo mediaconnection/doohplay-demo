@@ -1403,6 +1403,7 @@ function TabConfiguracoes({ code }: { code: string }) {
       {success && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.green }}>✓ Configurações salvas!</div>}
       <button onClick={save} disabled={saving} style={{ background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Salvando…" : "Salvar configurações"}</button>
       <ChannelPreferences code={code} />
+      <AdTagPreferences code={code} />
     </div>
   )
 }
@@ -1459,6 +1460,66 @@ function ChannelPreferences({ code }: { code: string }) {
           <div style={{ fontSize: 14, fontWeight: 500 }}>{ch.name}</div>
           <div style={{ width: 44, height: 24, borderRadius: 12, background: !excluded.includes(ch.id) ? C.blue : C.gray200, position: "relative", flexShrink: 0 }}>
             <div style={{ width: 18, height: 18, borderRadius: "50%", background: C.white, position: "absolute", top: 3, left: !excluded.includes(ch.id) ? 23 : 3, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+          </div>
+        </div>
+      ))}
+      {saved && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: C.green }}>✓ Preferências salvas!</div>}
+      <button onClick={save} disabled={saving} style={{ marginTop: 14, background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 10, padding: "10px 24px", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Salvando…" : "Salvar preferências"}</button>
+    </div>
+  )
+}
+
+// Fase 16 (12/07/2026): dono escolhe quais tags de brand-safety NÃO quer
+// receber em anúncio pago de terceiro (ex: bebida alcoólica). Exclusão de
+// concorrente direto não aparece aqui — é regra sempre ativa no servidor,
+// sem toggle. Mesmo padrão de componente independente do ChannelPreferences.
+function AdTagPreferences({ code }: { code: string }) {
+  const [tags, setTags] = useState<{ id: string; label: string }[]>([])
+  const [excluded, setExcluded] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/client/ad-tag-preferences/${code}`)
+      .then(r => r.json())
+      .then(d => { setTags(d.availableTags ?? []); setExcluded(d.excluded ?? []) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [code])
+
+  const toggle = (id: string) => {
+    setSaved(false)
+    setExcluded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await fetch(`/api/client/ad-tag-preferences/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* silencioso — não é crítico, dono pode tentar de novo */ }
+    setSaving(false)
+  }
+
+  if (loading || tags.length === 0) return null
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px", marginTop: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Tipos de anúncio que não quero na minha tela</div>
+      <div style={{ fontSize: 12, color: C.text3, marginBottom: 16 }}>
+        Anúncios pagos de outros anunciantes passam por aprovação da DOOHPLAY antes de entrar na sua tela. Você pode bloquear categorias específicas, além disso. Anúncio de concorrente direto do seu próprio ramo já é sempre bloqueado automaticamente.
+      </div>
+      {tags.map(tag => (
+        <div key={tag.id} onClick={() => toggle(tag.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
+          <div style={{ fontSize: 14, fontWeight: 500 }}>{tag.label}</div>
+          <div style={{ width: 44, height: 24, borderRadius: 12, background: excluded.includes(tag.id) ? C.blue : C.gray200, position: "relative", flexShrink: 0 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: C.white, position: "absolute", top: 3, left: excluded.includes(tag.id) ? 23 : 3, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
           </div>
         </div>
       ))}
