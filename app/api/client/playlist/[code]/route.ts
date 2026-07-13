@@ -36,10 +36,13 @@ export async function GET(
     // segmentado corretamente. Busca junto com o name (já usado no fim da
     // rota) pra não duplicar round-trip.
     const clientInfo = await pool.query(
-      `SELECT name, business_type FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
+      `SELECT name, business_type, excluded_general_channels FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
       [upperCode]
     ).catch(() => ({ rows: [] as any[] }))
     const businessType = clientInfo.rows[0]?.business_type ?? null
+    // Canal DOOHPLAY (passo 5): canais gerais (Turismo/Diversão) que o
+    // dono desligou explicitamente — NULL/vazio (padrão) = recebe todos.
+    const excludedChannels: string[] = clientInfo.rows[0]?.excluded_general_channels ?? []
 
     // ── Dono + Institucional — lidos da fundação unificada (Fase 1, 02/07/2026) ──
     // Substitui as antigas sub-queries separadas (CampaignMedia+playlist_schedule
@@ -101,9 +104,13 @@ export async function GET(
           -- Salão de Beleza, por exemplo). Segmento definido que NÃO
           -- inclui o tipo do cliente = excluído por completo daqui.
           AND (p.segment_id IS NULL OR seg.criteria_json->'business_types' ? $4::text)
+          -- Canal DOOHPLAY (passo 5): dono pode desligar canais GERAIS
+          -- específicos (Turismo/Diversão) — canais de segmento nunca
+          -- entram nessa lista (a rota de preferências valida isso).
+          AND (p.segment_id IS NULL OR NOT (p.segment_id = ANY($5::uuid[])))
         )
       ORDER BY p.position ASC, ca.created_at ASC
-    `, [upperCode, sameContent, screenId, businessType])
+    `, [upperCode, sameContent, screenId, businessType, excludedChannels])
 
     // ── Rede (Clube de Telas) — ainda não migrada pra fundação nova (0 registros
     // em produção hoje, fora do escopo da Fase 1) ──

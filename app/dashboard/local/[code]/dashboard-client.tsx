@@ -1402,6 +1402,68 @@ function TabConfiguracoes({ code }: { code: string }) {
       {error   && <div style={{ background: C.redLt,   border: `1px solid #FECACA`,      borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red   }}>⚠️ {error}</div>}
       {success && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.green }}>✓ Configurações salvas!</div>}
       <button onClick={save} disabled={saving} style={{ background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Salvando…" : "Salvar configurações"}</button>
+      <ChannelPreferences code={code} />
+    </div>
+  )
+}
+
+// Canal DOOHPLAY (12/07/2026, passo 5): dono pode desligar canais de
+// ENTRETENIMENTO GERAL (Turismo, Diversão) — canais de segmento (Beleza,
+// Saúde etc) não aparecem aqui de propósito, ficam sempre automáticos.
+// Componente separado com seu próprio fetch/save (rota própria), pra não
+// interferir na validação/fluxo do formulário principal de configurações.
+function ChannelPreferences({ code }: { code: string }) {
+  const [channels, setChannels] = useState<{ id: string; name: string }[]>([])
+  const [excluded, setExcluded] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/client/channel-preferences/${code}`)
+      .then(r => r.json())
+      .then(d => { setChannels(d.generalChannels ?? []); setExcluded(d.excluded ?? []) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [code])
+
+  const toggle = (id: string) => {
+    setSaved(false)
+    setExcluded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await fetch(`/api/client/channel-preferences/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* silencioso — não é crítico, dono pode tentar de novo */ }
+    setSaving(false)
+  }
+
+  if (loading || channels.length === 0) return null
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px", marginTop: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Conteúdo de entretenimento na sua tela</div>
+      <div style={{ fontSize: 12, color: C.text3, marginBottom: 16 }}>
+        Além do anúncio pago e do conteúdo do seu segmento, a DOOHPLAY mistura conteúdo geral de entretenimento (20% do tempo de tela, compartilhado com o canal do seu setor). Você pode desligar os que não fizerem sentido pro seu ambiente.
+      </div>
+      {channels.map(ch => (
+        <div key={ch.id} onClick={() => toggle(ch.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
+          <div style={{ fontSize: 14, fontWeight: 500 }}>{ch.name}</div>
+          <div style={{ width: 44, height: 24, borderRadius: 12, background: !excluded.includes(ch.id) ? C.blue : C.gray200, position: "relative", flexShrink: 0 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: C.white, position: "absolute", top: 3, left: !excluded.includes(ch.id) ? 23 : 3, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+          </div>
+        </div>
+      ))}
+      {saved && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: C.green }}>✓ Preferências salvas!</div>}
+      <button onClick={save} disabled={saving} style={{ marginTop: 14, background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 10, padding: "10px 24px", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Salvando…" : "Salvar preferências"}</button>
     </div>
   )
 }
