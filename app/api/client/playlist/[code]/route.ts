@@ -96,9 +96,11 @@ export async function GET(
                   ] = ANY(p.days_of_week))
           -- Canal DOOHPLAY: sem segmento = institucional genérico, aparece
           -- em toda tela (comportamento de sempre). Com segmento = só
-          -- aparece se o business_type do cliente bater com o critério.
-          -- Segmento definido que NÃO bate = excluído por completo daqui.
-          AND (p.segment_id IS NULL OR seg.criteria_json->>'business_type' = $4::text)
+          -- aparece se o business_type do cliente estiver na lista de
+          -- tipos do canal (canais amplos: "Beleza" cobre Barbearia +
+          -- Salão de Beleza, por exemplo). Segmento definido que NÃO
+          -- inclui o tipo do cliente = excluído por completo daqui.
+          AND (p.segment_id IS NULL OR seg.criteria_json->'business_types' ? $4::text)
         )
       ORDER BY p.position ASC, ca.created_at ASC
     `, [upperCode, sameContent, screenId, businessType])
