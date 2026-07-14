@@ -38,10 +38,19 @@ export async function PATCH(
   }
 }
 
-// Desvincula a tela (decomissionada/trocada de cliente) — NÃO apaga o
-// player nem o histórico de heartbeat/proof-of-play, só remove o vínculo
-// de "tela física deste cliente". Se o aparelho for pareado de novo no
-// futuro (mesmo ou outro cliente), passa por /api/player/activate normal.
+// Desvincula a tela (decomissionada/trocada de cliente). Fase 23
+// (14/07/2026) — achado em teste real: a versão anterior só apagava
+// client_screens, mas NUNCA resetava players.paired/player_code nem
+// studio_clients.player_id. Resultado prático: o aparelho continuava
+// achando que já estava pareado (respondia paired:true no
+// /api/player/activate), então (a) o conteúdo do cliente antigo
+// provavelmente continuava sendo exibido de verdade, e (b) não tinha
+// como vincular de novo pelo fluxo normal — nem "Vincular" no admin (some
+// da lista de pendentes porque paired continuava true) nem "Adicionar
+// tela nova" do próprio cliente (exige paired=false pra reconhecer o
+// código de ativação, e ainda geraria uma cobrança nova indevida).
+// Corrigido: agora reseta o aparelho de verdade, e ele reaparece sozinho
+// em "Dispositivos aguardando pareamento" — igual um aparelho novo.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -54,14 +63,31 @@ export async function DELETE(
   const pool = getPool()
   try {
     const { rows } = await pool.query(
-      `DELETE FROM client_screens WHERE id = $1 RETURNING client_code, label`,
+      `DELETE FROM client_screens WHERE id = $1 RETURNING client_code, label, player_id`,
       [id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Tela não encontrada" }, { status: 404 })
+    const { client_code: clientCode, player_id: playerId } = rows[0]
+
     // Limpa qualquer atribuição de mídia que apontava pra essa tela, pra
     // não deixar referência órfã em playlist_schedule.
     await pool.query(`UPDATE playlist_schedule SET screen_id = NULL WHERE screen_id = $1`, [id])
-    return NextResponse.json({ ok: true, removed: rows[0] })
+
+    // Reseta o aparelho de verdade — sem isso ele fica "preso" achando que
+    // ainda está pareado, sem aparecer em nenhuma lista de gerenciamento.
+    await pool.query(
+      `UPDATE players SET paired = false, paired_at = NULL, player_code = NULL WHERE id = $1`,
+      [playerId]
+    )
+    // Só limpa studio_clients.player_id se ele ainda apontar pra ESTE
+    // player — evita zerar por engano o ponteiro de uma tela diferente
+    // do mesmo cliente (studio_clients tem só 1 player_id "principal").
+    await pool.query(
+      `UPDATE studio_clients SET player_id = NULL WHERE code = $1 AND player_id = $2`,
+      [clientCode, playerId]
+    )
+
+    return NextResponse.json({ ok: true, removed: { client_code: clientCode, label: rows[0].label } })
   } catch (err) {
     console.error("[admin/screens/[id] DELETE]", err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
