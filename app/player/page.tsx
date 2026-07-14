@@ -44,6 +44,7 @@ async function getPlayerData(code: string) {
         sc.name,
         sc.business_type,
         sc.primary_color,
+        sc.audio_enabled,
         cm.id,
         cm.name              AS media_name,
         cm.type               AS media_type,
@@ -266,6 +267,7 @@ async function getPlayerData(code: string) {
       name: rows[0]?.name ?? "DOOHPLAY",
       business_type: rows[0]?.business_type ?? "",
       primary_color: rows[0]?.primary_color ?? "#3B82F6",
+      audio_enabled: rows[0]?.audio_enabled ?? false,
       medias: [...ownAndAds, ...network, ...institutional, ...realAds],
       template: template?.template_key || "fullscreen",
       transitionEffect: template?.transition_effect || "fade",
@@ -275,7 +277,7 @@ async function getPlayerData(code: string) {
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgets: null as any, layoutZones: null as any, poll: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgets: null as any, layoutZones: null as any, poll: null as any }
   }
 }
 
@@ -875,6 +877,11 @@ export default async function PlayerPage({
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
             var isGenericLayout = ${JSON.stringify(!!data.layoutZones)};
             var brandColorHex = ${JSON.stringify(data.primary_color || "#3B82F6")};
+            // Fase 20 (14/07/2026): opt-in de áudio por cliente. false
+            // (mudo) é o padrão de sempre — só muda se o dono configurar.
+            // "var" (não "const") porque o ciclo de refresh (pollPlaylist)
+            // pode atualizar isso se o dono ligar/desligar em outra aba.
+            var audioEnabled = ${JSON.stringify(!!data.audio_enabled)};
 
             // ── Motor de cor "Aurora" (Fase 5) ──────────────────────────────
             // A cor da marca (cadastrada pelo cliente) é a base. Sempre que o
@@ -1129,6 +1136,10 @@ export default async function PlayerPage({
               if (!lateralZoneEl) return;
               lateralZoneEl.innerHTML = '';
               lateralVideoEl = document.createElement('video');
+              // Fase 20 (14/07/2026): fica SEMPRE mudo, mesmo com audioEnabled
+              // ligado — é um vídeo secundário tocando ao lado do conteúdo
+              // principal (formato "encolhe lateral"); dois áudios ao mesmo
+              // tempo seria pior que nenhum. Decisão consciente de escopo.
               lateralVideoEl.muted = true;
               lateralVideoEl.playsInline = true;
               lateralVideoEl.setAttribute('muted', '');
@@ -1258,9 +1269,15 @@ export default async function PlayerPage({
             function buildCustomContentHtml(m) {
               if (m.type === 'youtube') {
                 var videoId = extractYouTubeId(m.url);
+                // Fase 20 (14/07/2026): segue a mesma preferência de áudio
+                // do resto do player — YouTube não tem fallback automático
+                // de autoplay bloqueado como o <video> tem, então com som
+                // ligado é possível que o navegador recuse o autoplay aqui
+                // (limitação conhecida do embed do YouTube).
+                var muteParam = audioEnabled ? '0' : '1';
                 return videoId
                   ? '<iframe style="width:100%;height:100%;border:0;" src="https://www.youtube.com/embed/' + videoId +
-                    '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>'
+                    '?autoplay=1&mute=' + muteParam + '&controls=1&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>'
                   : '';
               }
               return m.layoutHtml || '';
@@ -1290,6 +1307,10 @@ export default async function PlayerPage({
                   var tag = inner.type === 'video' ? 'video' : 'img';
                   var innerEl = document.createElement(tag);
                   innerEl.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                  // Fase 20 (14/07/2026): SEMPRE mudo, mesmo com audioEnabled
+                  // ligado — é conteúdo de fundo dentro de uma zona de um
+                  // layout multi-zona, tocando ao lado de outras zonas
+                  // (possivelmente outro vídeo). Decisão consciente de escopo.
                   if (tag === 'video') { innerEl.muted = true; innerEl.autoplay = true; innerEl.playsInline = true; innerEl.loop = true; }
                   innerEl.src = inner.url;
                   mediaHost.appendChild(innerEl);
@@ -1433,6 +1454,10 @@ export default async function PlayerPage({
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                   if (!data || !Array.isArray(data.items)) return;
+
+                  // Fase 20 (14/07/2026): reflete mudança de preferência de
+                  // áudio sem precisar recarregar a página inteira.
+                  if (typeof data.audio_enabled === 'boolean') audioEnabled = data.audio_enabled;
 
                   var fresh = data.items
                     .filter(function(item) {
@@ -1677,6 +1702,11 @@ export default async function PlayerPage({
 
               if (el && el.tagName === 'VIDEO') {
                 el.currentTime = 0;
+                // Fase 20 (14/07/2026): som é opt-in por cliente. Continua
+                // mudo por padrão (decisão de produto — ambiente de
+                // barbearia/farmácia/restaurante já tem som próprio) e só
+                // toca com áudio se o dono tiver ligado explicitamente.
+                el.muted = !audioEnabled;
                 // Vídeo corrompido, codec incompatível ou erro de rede —
                 // pula para o próximo em vez de travar a tela exibindo o
                 // ícone de play nativo do WebView (causa real do "player
@@ -1685,9 +1715,21 @@ export default async function PlayerPage({
                 el.onerror = function() { advanceOnce(); };
                 var playPromise = el.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
-                  // Autoplay bloqueado pela TV/WebView — também pula, em vez
-                  // de ficar parado esperando um clique que nunca vai vir.
-                  playPromise.catch(function() { advanceOnce(); });
+                  playPromise.catch(function() {
+                    // Autoplay COM som é bloqueado por padrão pelo navegador/
+                    // WebView (exige mudo ou um gesto do usuário que não
+                    // existe numa TV) — cai pro mudo e tenta de novo, em vez
+                    // de pular o slide inteiro só porque o som não tocou.
+                    if (!el.muted) {
+                      el.muted = true;
+                      var retryPromise = el.play();
+                      if (retryPromise && typeof retryPromise.catch === 'function') {
+                        retryPromise.catch(function() { advanceOnce(); });
+                      }
+                    } else {
+                      advanceOnce();
+                    }
+                  });
                 }
                 el.onended = function() { advanceOnce(); };
                 dur = Math.max(dur, (el.duration || 0) * 1000);
