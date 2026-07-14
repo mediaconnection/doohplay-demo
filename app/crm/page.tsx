@@ -24,7 +24,7 @@ const STAGES = [
   { id: "anunciando",label: "Anunciando",      color: GREEN,  icon: "💰", desc: "Primeiro anunciante ativo" },
 ]
 
-const BUSINESS_TYPES = ["Barbearia", "Salão", "Farmácia", "Lanchonete", "Restaurante", "Academia", "Clínica", "Outro"]
+const BUSINESS_TYPES = ["Barbearia", "Salão", "Farmácia", "Lanchonete", "Restaurante", "Academia", "Clínica", "Condomínio", "Outro"]
 
 type Lead = {
   id: string
