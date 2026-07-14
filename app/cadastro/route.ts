@@ -155,6 +155,7 @@ input::placeholder { color:#475569; }
           <option>Academia</option>
           <option>Mercado</option>
           <option>Petshop</option>
+          <option>Condomínio</option>
           <option>Outro</option>
         </select>
       </div>
