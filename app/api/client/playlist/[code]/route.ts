@@ -36,7 +36,7 @@ export async function GET(
     // segmentado corretamente. Busca junto com o name (já usado no fim da
     // rota) pra não duplicar round-trip.
     const clientInfo = await pool.query(
-      `SELECT name, business_type, excluded_general_channels, excluded_ad_tags
+      `SELECT name, business_type, excluded_general_channels, excluded_ad_tags, audio_enabled
        FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
       [upperCode]
     ).catch(() => ({ rows: [] as any[] }))
@@ -210,6 +210,9 @@ export async function GET(
     return NextResponse.json({
       ok: true,
       name: client.rows[0]?.name ?? upperCode,
+      // Fase 20 (14/07/2026): opt-in de áudio, por cliente. Default false
+      // (mudo) preserva o comportamento de sempre pra quem não configurou.
+      audio_enabled: client.rows[0]?.audio_enabled ?? false,
       items,
       // "slides" e "playlist" são aliases do mesmo array — mantidos para
       // compatibilidade com clientes (player web antigo, app Android nativo)
