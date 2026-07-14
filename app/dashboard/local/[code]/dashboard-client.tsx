@@ -1414,6 +1414,7 @@ function TabConfiguracoes({ code }: { code: string }) {
       <button onClick={save} disabled={saving} style={{ background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Salvando…" : "Salvar configurações"}</button>
       <ChannelPreferences code={code} />
       <AdTagPreferences code={code} />
+      <AudioPreference code={code} />
     </div>
   )
 }
@@ -1423,6 +1424,60 @@ function TabConfiguracoes({ code }: { code: string }) {
 // Saúde etc) não aparecem aqui de propósito, ficam sempre automáticos.
 // Componente separado com seu próprio fetch/save (rota própria), pra não
 // interferir na validação/fluxo do formulário principal de configurações.
+// Fase 20 (14/07/2026): opt-in de áudio. Desligado (mudo) é o padrão de
+// sempre — só o dono que pedir explicitamente é que liga. Mesmo padrão de
+// componente independente do ChannelPreferences/AdTagPreferences (auto-
+// contido, busca e salva sozinho).
+function AudioPreference({ code }: { code: string }) {
+  const [audioEnabled, setAudioEnabled] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/client/audio-preference/${code}`)
+      .then(r => r.json())
+      .then(d => setAudioEnabled(!!d.audioEnabled))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [code])
+
+  const toggle = async () => {
+    const next = !audioEnabled
+    setAudioEnabled(next) // otimista — sensação imediata de resposta
+    setSaving(true)
+    try {
+      await fetch(`/api/client/audio-preference/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio_enabled: next }),
+      })
+    } catch {
+      setAudioEnabled(!next) // falhou, desfaz o otimismo
+    }
+    setSaving(false)
+  }
+
+  if (loading) return null
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px", marginTop: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Som na tela</div>
+      <div style={{ fontSize: 12, color: C.text3, marginBottom: 16 }}>
+        Por padrão, todo vídeo (inclusive o Canal DOOHPLAY) toca mudo — a maioria dos ambientes já tem som próprio. Se o seu não tiver, ou se preferir os vídeos com áudio, ligue aqui. Alguns navegadores/TVs podem continuar mudos mesmo assim (limitação do próprio aparelho); nesse caso, o vídeo cai pro mudo sozinho, sem travar a tela.
+      </div>
+      <div onClick={toggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: saving ? "not-allowed" : "pointer" }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 500 }}>Tocar com áudio</div>
+          <div style={{ fontSize: 12, color: C.text3 }}>Vale pra vídeos e YouTube do Institucional/Canal DOOHPLAY</div>
+        </div>
+        <div style={{ width: 44, height: 24, borderRadius: 12, background: audioEnabled ? C.blue : C.gray200, position: "relative", flexShrink: 0, opacity: saving ? 0.6 : 1 }}>
+          <div style={{ width: 18, height: 18, borderRadius: "50%", background: C.white, position: "absolute", top: 3, left: audioEnabled ? 23 : 3, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ChannelPreferences({ code }: { code: string }) {
   const [channels, setChannels] = useState<{ id: string; name: string }[]>([])
   const [excluded, setExcluded] = useState<string[]>([])
