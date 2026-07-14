@@ -62,29 +62,32 @@ export async function DELETE(
 
   const pool = getPool()
   try {
-    const { rows } = await pool.query(
-      `DELETE FROM client_screens WHERE id = $1 RETURNING client_code, label, player_id`,
+    // Busca client_code/player_id ANTES de apagar — precisa existir a
+    // linha ainda pra saber quem avisar depois.
+    const existing = await pool.query(
+      `SELECT client_code, label, player_id FROM client_screens WHERE id = $1`,
       [id]
     )
-    if (!rows[0]) return NextResponse.json({ error: "Tela não encontrada" }, { status: 404 })
-    const { client_code: clientCode, player_id: playerId } = rows[0]
+    if (!existing.rows[0]) return NextResponse.json({ error: "Tela não encontrada" }, { status: 404 })
+    const { client_code: clientCode, label, player_id: playerId } = existing.rows[0]
 
-    // Limpa qualquer atribuição de mídia que apontava pra essa tela, pra
-    // não deixar referência órfã em playlist_schedule.
+    // Achado em teste real (14/07/2026), corrigido em duas rodadas:
+    // 1) faltava limpar placements_v2.screen_id e screen_templates.screen_id
+    //    (FKs pra client_screens que eu não tinha mapeado na primeira
+    //    passada, além de playlist_schedule que já era tratado).
+    // 2) o Postgres checa FK NA HORA do DELETE, não depois — então essas
+    //    limpezas precisam rodar ANTES do DELETE de client_screens, não
+    //    depois (erro que cometi na primeira correção: pus o DELETE antes
+    //    das limpezas, e continuou falhando exatamente igual).
+    // Nenhuma dessas limpezas apaga conteúdo — só solta a referência à
+    // tela removida (mesmo padrão já usado pra playlist_schedule).
+    // (fleet_group_members também referencia client_screens, mas já tem
+    // ON DELETE CASCADE — não precisa de tratamento manual.)
     await pool.query(`UPDATE playlist_schedule SET screen_id = NULL WHERE screen_id = $1`, [id])
-
-    // Achado em teste real (14/07/2026): existem MAIS DUAS tabelas com FK
-    // pra client_screens(id) além de playlist_schedule — nenhuma delas
-    // com ON DELETE CASCADE, então o DELETE de client_screens falhava
-    // ("violates foreign key constraint") sempre que a tela tivesse
-    // conteúdo atribuído especificamente a ela (placements_v2.screen_id)
-    // ou um template configurado por tela (screen_templates.screen_id).
-    // Mesmo tratamento que playlist_schedule: NULL, não apaga o conteúdo
-    // em si, só solta a referência à tela removida. (fleet_group_members
-    // também referencia client_screens, mas já tem ON DELETE CASCADE
-    // configurado — não precisa de tratamento manual aqui.)
     await pool.query(`UPDATE placements_v2 SET screen_id = NULL WHERE screen_id = $1`, [id])
     await pool.query(`UPDATE screen_templates SET screen_id = NULL WHERE screen_id = $1`, [id])
+
+    await pool.query(`DELETE FROM client_screens WHERE id = $1`, [id])
 
     // Reseta o aparelho de verdade — sem isso ele fica "preso" achando que
     // ainda está pareado, sem aparecer em nenhuma lista de gerenciamento.
@@ -100,7 +103,7 @@ export async function DELETE(
       [clientCode, playerId]
     )
 
-    return NextResponse.json({ ok: true, removed: { client_code: clientCode, label: rows[0].label } })
+    return NextResponse.json({ ok: true, removed: { client_code: clientCode, label } })
   } catch (err) {
     console.error("[admin/screens/[id] DELETE]", err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
