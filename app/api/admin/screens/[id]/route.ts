@@ -73,6 +73,19 @@ export async function DELETE(
     // não deixar referência órfã em playlist_schedule.
     await pool.query(`UPDATE playlist_schedule SET screen_id = NULL WHERE screen_id = $1`, [id])
 
+    // Achado em teste real (14/07/2026): existem MAIS DUAS tabelas com FK
+    // pra client_screens(id) além de playlist_schedule — nenhuma delas
+    // com ON DELETE CASCADE, então o DELETE de client_screens falhava
+    // ("violates foreign key constraint") sempre que a tela tivesse
+    // conteúdo atribuído especificamente a ela (placements_v2.screen_id)
+    // ou um template configurado por tela (screen_templates.screen_id).
+    // Mesmo tratamento que playlist_schedule: NULL, não apaga o conteúdo
+    // em si, só solta a referência à tela removida. (fleet_group_members
+    // também referencia client_screens, mas já tem ON DELETE CASCADE
+    // configurado — não precisa de tratamento manual aqui.)
+    await pool.query(`UPDATE placements_v2 SET screen_id = NULL WHERE screen_id = $1`, [id])
+    await pool.query(`UPDATE screen_templates SET screen_id = NULL WHERE screen_id = $1`, [id])
+
     // Reseta o aparelho de verdade — sem isso ele fica "preso" achando que
     // ainda está pareado, sem aparecer em nenhuma lista de gerenciamento.
     await pool.query(
