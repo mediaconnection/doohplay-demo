@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
         const reqRow = await pool.query(
-          `SELECT spr.client_code, spr.player_id, spr.label, spr.status,
+          `SELECT spr.client_code, spr.player_id, spr.label, spr.status, spr.asaas_subscription_id,
                   sc.name AS client_name, sc.phone AS client_phone
            FROM screen_purchase_requests spr
            JOIN studio_clients sc ON sc.code = spr.client_code
@@ -89,9 +89,9 @@ export async function POST(req: NextRequest) {
           try {
             await txClient.query("BEGIN")
             await txClient.query(
-              `INSERT INTO client_screens (client_code, player_id, label, same_content)
-               VALUES ($1, $2, $3, true)`,
-              [client_code, player_id, label]
+              `INSERT INTO client_screens (client_code, player_id, label, same_content, is_extra, extra_subscription_id)
+               VALUES ($1, $2, $3, true, true, $4)`,
+              [client_code, player_id, label, reqRow.rows[0].asaas_subscription_id ?? null]
             )
             await txClient.query(
               `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,

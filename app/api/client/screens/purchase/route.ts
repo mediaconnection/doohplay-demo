@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
-import { getOrCreateAsaasCustomer, createOneTimePayment } from "@/lib/asaas"
+import { getOrCreateAsaasCustomer, createExtraScreenSubscription, getFirstPaymentForSubscription } from "@/lib/asaas"
 import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
 
-// Preço da tela extra — configurável via env, com padrão sensato.
-// Cobrança única (não recorrente) no momento em que a tela é adicionada.
-const EXTRA_SCREEN_PRICE = Number(process.env.EXTRA_SCREEN_PRICE_BRL || 97)
+// Preço da tela extra — Fase 18 (14/07/2026): virou assinatura MENSAL
+// RECORRENTE (era cobrança única de R$97). Achado numa análise comercial
+// dos planos: cobrança única deixava Starter (R$97/mês) + telas extras
+// muito mais barato no longo prazo que assinar Business (R$397/mês) pro
+// mesmo número de telas — sem nenhum limite de plano sendo checado em
+// lugar nenhum do fluxo. Ver EXTRA_SCREEN_MONTHLY_PRICE em lib/asaas.ts.
+const EXTRA_SCREEN_PRICE = Number(process.env.EXTRA_SCREEN_MONTHLY_PRICE_BRL || 150)
 
 function activationCodeFromId(id: string) {
   // Mesmo algoritmo de app/api/player/activate/route.ts — precisa bater
@@ -76,24 +80,27 @@ export async function POST(req: NextRequest) {
     )
     const requestId = pending.rows[0].id
 
-    const payment = await createOneTimePayment({
+    const subscription = await createExtraScreenSubscription({
       customerId: customer.id,
-      value: EXTRA_SCREEN_PRICE,
+      screenLabel: screenLabel,
       externalReference: `extra_screen:${requestId}`,
-      description: `DOOHPLAY — Tela extra "${screenLabel}" (${clientCode})`,
-      cpfCnpj: c.cpf_cnpj,
     })
 
+    // A assinatura em si não traz invoiceUrl (é campo do pagamento, não
+    // da assinatura) — busca o primeiro pagamento que ela já gerou.
+    const firstPayment = await getFirstPaymentForSubscription(subscription.id).catch(() => null)
+
     await pool.query(
-      `UPDATE screen_purchase_requests SET asaas_payment_id = $1, invoice_url = $2 WHERE id = $3`,
-      [payment.id, payment.invoiceUrl ?? null, requestId]
+      `UPDATE screen_purchase_requests SET asaas_subscription_id = $1, invoice_url = $2 WHERE id = $3`,
+      [subscription.id, firstPayment?.invoiceUrl ?? null, requestId]
     )
 
     return NextResponse.json({
       ok: true,
       request_id: requestId,
-      invoice_url: payment.invoiceUrl,
+      invoice_url: firstPayment?.invoiceUrl ?? null,
       value: EXTRA_SCREEN_PRICE,
+      recurring: true,
     })
   } catch (err: any) {
     console.error("[client/screens/purchase POST]", err)

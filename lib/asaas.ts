@@ -39,6 +39,15 @@ export const PLAN_AI_GENERATION_LIMITS: Record<PlanKey, number> = {
 }
 export const DEFAULT_AI_GENERATION_LIMIT = 10 // fallback sem plano identificado
 
+// Fase 18 (14/07/2026): preço da tela extra recorrente. Antes disso era
+// cobrança ÚNICA de R$97 (ver createOneTimePayment mais abaixo, ainda
+// usada por outros fluxos) — achado numa análise comercial: cobrança
+// única deixava um cliente Starter (R$97/mês) + 2 telas extra muito mais
+// barato no longo prazo que assinar Business (R$397/mês) pro mesmo
+// número de telas, sem nenhum motivo racional pra escolher Business.
+// Recorrente e calibrado pra não competir de forma boba com o Business.
+export const EXTRA_SCREEN_MONTHLY_PRICE = Number(process.env.EXTRA_SCREEN_MONTHLY_PRICE_BRL || 150)
+
 // Cria ou busca cliente no Asaas
 export async function getOrCreateAsaasCustomer(params: {
   name: string
@@ -91,6 +100,39 @@ export async function createSubscription(params: {
     description: `DOOHPLAY ${plan.name} - ${plan.description}`,
     maxPayments: undefined, // sem limite
   })
+}
+
+// Fase 18 (14/07/2026): assinatura recorrente pra tela extra (substituiu
+// a cobrança única — ver EXTRA_SCREEN_MONTHLY_PRICE acima pro motivo).
+// Uma assinatura Asaas separada por tela extra, independente da
+// assinatura do plano base — permite cancelar só essa tela sem mexer no
+// plano principal, se o cliente desvincular ela depois.
+export async function createExtraScreenSubscription(params: {
+  customerId: string
+  screenLabel: string
+  externalReference: string
+  nextDueDate?: string // YYYY-MM-DD
+}) {
+  const nextDue = params.nextDueDate ?? new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
+  return asaas("/subscriptions", "POST", {
+    customer: params.customerId,
+    billingType: "UNDEFINED", // PIX + Boleto
+    value: EXTRA_SCREEN_MONTHLY_PRICE,
+    nextDueDate: nextDue,
+    cycle: "MONTHLY",
+    description: `DOOHPLAY - Tela extra (${params.screenLabel})`,
+    externalReference: params.externalReference,
+    maxPayments: undefined, // sem limite, até cancelar
+  })
+}
+
+// A resposta de criar assinatura NÃO traz invoiceUrl (esse campo é do
+// objeto Pagamento, não Assinatura) — a Asaas gera o primeiro pagamento
+// da assinatura de forma síncrona, mas como um recurso separado. Busca
+// ele pra ter o link de fatura pra mostrar ao cliente.
+export async function getFirstPaymentForSubscription(subscriptionId: string) {
+  const res = await asaas(`/payments?subscription=${subscriptionId}&limit=1`)
+  return res.data?.[0] ?? null
 }
 
 // Cria cobrança ÚNICA (não recorrente) — usada para campanhas de anúncio
