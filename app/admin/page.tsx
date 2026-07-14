@@ -455,7 +455,7 @@ function TabDiagnostico() {
 
   const [screenMsg, setScreenMsg] = useState<Record<string, string>>({})
   const removeScreen = async (screenId: string, label: string) => {
-    if (!confirm(`Desvincular "${label}" do cliente? O aparelho não é apagado, só deixa de ser uma tela ativa — pode ser pareado de novo depois.`)) return
+    if (!confirm(`Desvincular "${label}" do cliente? A tela física PARA de exibir conteúdo (volta a mostrar o código de ativação, como um aparelho novo). Não apaga o histórico do aparelho — pode ser pareado de novo depois, a qualquer cliente.`)) return
     setRemovingScreen(screenId)
     setScreenMsg(m => ({ ...m, [screenId]: "" }))
     try {
