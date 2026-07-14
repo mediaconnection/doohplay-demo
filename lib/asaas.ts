@@ -27,6 +27,18 @@ export const PLANS = {
 
 export type PlanKey = keyof typeof PLANS
 
+// Cota de gerações de IA (Studio) por mês, por plano. -1 = ilimitado.
+// Fase 17 (13/07/2026): antes disso, geração de IA não tinha limite
+// nenhum em plano nenhum — era a única feature com custo variável real
+// (tokens da Anthropic) sem controle. Starter/Pro ganham cota mensal,
+// Business continua ilimitado (parte do posicionamento premium do plano).
+export const PLAN_AI_GENERATION_LIMITS: Record<PlanKey, number> = {
+  starter: 10,
+  pro: 40,
+  business: -1,
+}
+export const DEFAULT_AI_GENERATION_LIMIT = 10 // fallback sem plano identificado
+
 // Cria ou busca cliente no Asaas
 export async function getOrCreateAsaasCustomer(params: {
   name: string
