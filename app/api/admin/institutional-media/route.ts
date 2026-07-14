@@ -162,6 +162,25 @@ export async function POST(req: NextRequest) {
          layoutTemplateId, sequenceGroup, Object.keys(zoneContent).length ? JSON.stringify(zoneContent) : null,
          segmentId]
       )
+
+      // Sincroniza com a fundação unificada (Fase 19) — sem isso, layout
+      // nunca chegava na tela real (só ficava configurado no admin).
+      await syncInstitutionalToUnified(pool, {
+        mediaId: res.rows[0].id,
+        name,
+        displayFormat,
+        url: "",
+        type: "layout",
+        durationSeconds: duration,
+        position,
+        active: true,
+        startDate, endDate, startTime, endTime, daysOfWeek,
+        segmentId,
+        layoutTemplateId,
+        zoneContent: Object.keys(zoneContent).length ? zoneContent : null,
+        sequenceGroup,
+      })
+
       return NextResponse.json({ ok: true, id: res.rows[0].id })
     }
 
@@ -179,6 +198,23 @@ export async function POST(req: NextRequest) {
          RETURNING id`,
         [name, youtubeUrl, duration, position, startDate, endDate, startTime, endTime, daysOfWeek, displayFormat, sequenceGroup, segmentId]
       )
+
+      // Sincroniza com a fundação unificada (Fase 19) — sem isso, o item
+      // de YouTube nunca chegava na tela real (só ficava configurado no admin).
+      await syncInstitutionalToUnified(pool, {
+        mediaId: res.rows[0].id,
+        name,
+        displayFormat,
+        url: youtubeUrl,
+        type: "youtube",
+        durationSeconds: duration,
+        position,
+        active: true,
+        startDate, endDate, startTime, endTime, daysOfWeek,
+        segmentId,
+        sequenceGroup,
+      })
+
       return NextResponse.json({ ok: true, id: res.rows[0].id })
     }
 
