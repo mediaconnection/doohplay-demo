@@ -69,3 +69,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
+// DELETE — descarta um dispositivo aguardando pareamento (aparelho de
+// teste, reinstalação, etc). Só apaga se ainda estiver de fato pendente
+// (paired=false/null, sem cliente vinculado) — trava de segurança pra
+// nunca remover sem querer uma tela que já está em uso de verdade.
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession()
+  const secret = req.nextUrl.searchParams.get("secret")
+  if (!session?.user && !(secret && secret === process.env.ADMIN_SECRET)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+
+  const playerId = req.nextUrl.searchParams.get("player_id")
+  if (!playerId) {
+    return NextResponse.json({ error: "player_id é obrigatório" }, { status: 400 })
+  }
+
+  const pool = getPool()
+  try {
+    // Limpa qualquer token de pareamento pendente pra esse aparelho antes
+    // de apagar o player em si — evita linha órfã em player_pairing_tokens.
+    await pool.query(`DELETE FROM player_pairing_tokens WHERE player_id = $1`, [playerId])
+
+    const { rows } = await pool.query(
+      `DELETE FROM players
+       WHERE id = $1
+         AND (paired = false OR paired IS NULL)
+         AND id NOT IN (SELECT player_id FROM studio_clients WHERE player_id IS NOT NULL)
+       RETURNING id`,
+      [playerId]
+    )
+    if (!rows[0]) {
+      return NextResponse.json({ error: "Dispositivo não encontrado ou já está vinculado a um cliente (não descartado por segurança)" }, { status: 404 })
+    }
+    return NextResponse.json({ ok: true, removed: rows[0].id })
+  } catch (err: any) {
+    console.error("[admin/players/link DELETE]", err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}
