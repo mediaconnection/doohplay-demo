@@ -210,6 +210,10 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
   const [detail, setDetail]   = useState("")
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated]   = useState<{ title: string; subtitle: string; cta: string; url: string } | null>(null)
+  const [aiQuota, setAiQuota] = useState<{ used: number; limit: number; unlimited?: boolean } | null>(null)
+  useEffect(() => {
+    fetch(`/api/client/plan-usage/${code}`).then(r => r.json()).then(d => { if (d.aiGenerations) setAiQuota(d.aiGenerations) }).catch(() => {})
+  }, [code])
   // ── Modo upload ──
   const [nome, setNome]       = useState("")
   const [duracao, setDuracao] = useState("15")
@@ -236,6 +240,7 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao gerar criativo")
       setGenerated({ ...data.copy, url: data.url })
+      fetch(`/api/client/plan-usage/${code}`).then(r => r.json()).then(d => { if (d.aiGenerations) setAiQuota(d.aiGenerations) }).catch(() => {})
       onRefresh?.()
     } catch (err: any) { setError(err.message || "Erro ao gerar criativo") }
     setGenerating(false)
@@ -339,6 +344,11 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>O que você quer divulgar? *</label>
                   <input value={product} onChange={e => setProduct(e.target.value)} placeholder="Ex: Corte + Barba, Combo do Dia, Promoção de Aniversário…" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
+                  {aiQuota && !aiQuota.unlimited && (
+                    <div style={{ fontSize: 11, color: aiQuota.used >= aiQuota.limit ? C.red : C.text3, marginTop: 6 }}>
+                      {aiQuota.used}/{aiQuota.limit} gerações usadas este mês
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
                   <div style={{ flex: 1 }}>
