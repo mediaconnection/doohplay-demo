@@ -24,6 +24,41 @@ const r2 = new S3Client({
 const BUCKET     = "dooh-media"
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
+// FIX (14/07/2026): achado testando em produção — essa rota nunca criava
+// a Campaign automaticamente, só verificava se já existia uma e falhava
+// com "Nenhuma campanha ativa encontrada" se não (depois de já ter gasto
+// a chamada da Anthropic + renderização Puppeteer, desperdiçando os dois).
+// app/api/studio/upload/route.ts já tinha essa lógica de auto-criação
+// (ensureCampaign) — só nunca foi replicada aqui. Copiado do mesmo padrão.
+async function ensureCampaign(pool: any, code: string, clientName: string, clientPhone: string = "", clientEmail: string = ""): Promise<string> {
+  await pool.query(
+    `INSERT INTO "Advertiser" (id, code, name, email, phone, "createdAt")
+     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
+     ON CONFLICT (code) DO UPDATE SET
+       phone = COALESCE(NULLIF("Advertiser".phone, ''), EXCLUDED.phone),
+       email = COALESCE(NULLIF("Advertiser".email, ''), EXCLUDED.email)`,
+    [code, clientName, clientEmail, clientPhone]
+  )
+
+  const { rows } = await pool.query(
+    `SELECT id FROM "Campaign"
+     WHERE "advertiserCode" = $1 AND name = 'Promoções da Loja'
+     LIMIT 1`,
+    [code]
+  )
+  if (rows.length > 0) return rows[0].id
+
+  const { rows: newRows } = await pool.query(
+    `INSERT INTO "Campaign"
+       (id, "advertiserCode", name, status, "startDate", "endDate", budget, impressions, "createdAt")
+     VALUES (gen_random_uuid()::text, $1, 'Promoções da Loja', 'active',
+             NOW(), NOW() + INTERVAL '1 year', 0, 0, NOW())
+     RETURNING id`,
+    [code]
+  )
+  return newRows[0].id
+}
+
 // ── Templates HTML por segmento ───────────────────────────────────────────
 // Cada template recebe: title, subtitle, price, cta, primaryColor, accentColor
 function buildHtml(params: {
@@ -255,6 +290,12 @@ export async function POST(req: NextRequest) {
     const { name: businessName, business_type } = clientRes.rows[0]
     const niche = (business_type || "default").toLowerCase()
 
+    // Garante a Campaign ANTES de chamar a Anthropic/Puppeteer — se não
+    // existir, cria agora (mesmo padrão de studio/upload). Evita gastar
+    // com IA e renderização só pra descobrir depois que não tinha
+    // campanha nenhuma pra salvar o resultado.
+    const campaignId = await ensureCampaign(pool, code.toUpperCase(), businessName)
+
     // ── Etapa 1: Gerar copy com Claude (fetch direto, sem SDK) ──────────
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -342,17 +383,8 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
     }))
     const url = `${PUBLIC_URL}/${key}`
 
-    // Insere como CampaignMedia normal — mesmo fluxo de qualquer mídia do dono
-    // Busca a campanha ativa do cliente — usa advertiserCode (campo real do schema,
-    // confirmado na rota de playlist). Não precisa de JOIN com Advertiser.
-    const campaignRes = await pool.query(
-      `SELECT id FROM "Campaign" WHERE "advertiserCode" = $1 AND status = 'active' LIMIT 1`,
-      [code.toUpperCase()]
-    )
-    if (!campaignRes.rows[0]) {
-      return NextResponse.json({ error: "Nenhuma campanha ativa encontrada pra este cliente" }, { status: 404 })
-    }
-    const campaignId = campaignRes.rows[0].id
+    // Insere como CampaignMedia normal — mesmo fluxo de qualquer mídia do dono.
+    // campaignId já garantido no início da rota (ensureCampaign).
 
     const mediaRes = await pool.query(
       `INSERT INTO "CampaignMedia"
