@@ -130,12 +130,16 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [aiResult, setAiResult] = useState<{ headline: string; subline: string; cta: string; image_url: string | null } | null>(null)
   const [aiError, setAiError] = useState("")
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+  const [aiQuota, setAiQuota] = useState<{ used: number; limit: number; unlimited?: boolean } | null>(null)
 
   useEffect(() => { if (activeTab === "playlist") loadPlaylist() }, [activeTab, client])
 
   useEffect(() => {
     if (!client) return
     fetch(`/api/studio/ai-generate?type=${client.business_type}`).then(r => r.json()).then(d => { if (d.suggestions) setAiSuggestions(d.suggestions) }).catch(() => {})
+    // Fase 17: cota de gerações de IA por plano — mesma rota que já
+    // mostra uso de telas, agora também devolve isso.
+    fetch(`/api/client/plan-usage/${code}`).then(r => r.json()).then(d => { if (d.aiGenerations) setAiQuota(d.aiGenerations) }).catch(() => {})
   }, [client])
 
   useEffect(() => {
@@ -280,9 +284,9 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim() || !client) return; setAiGenerating(true); setAiError(""); setAiResult(null)
     try {
-      const res = await fetch("/api/studio/ai-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: aiPrompt, business_name: client.name, business_type: client.business_type, client_color: clientAccent }) })
+      const res = await fetch("/api/studio/ai-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, prompt: aiPrompt, business_name: client.name, business_type: client.business_type, client_color: clientAccent }) })
       const data = await res.json()
-      if (data.ok) { setAiResult(data); setForm(f => ({ ...f, headline: data.headline, subline: data.subline, cta: data.cta })); if (data.image_url) setImageUrl(data.image_url) }
+      if (data.ok) { setAiResult(data); setForm(f => ({ ...f, headline: data.headline, subline: data.subline, cta: data.cta })); if (data.image_url) setImageUrl(data.image_url); fetch(`/api/client/plan-usage/${code}`).then(r => r.json()).then(d => { if (d.aiGenerations) setAiQuota(d.aiGenerations) }).catch(() => {}) }
       else setAiError(data.error ?? "Erro ao gerar conteúdo")
     } catch { setAiError("Erro de conexão") } finally { setAiGenerating(false) }
   }
@@ -425,6 +429,11 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                 <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #0284C7, #7C3AED)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✨</div>
                 <div><div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Gerador de anúncios com IA</div><div style={{ fontSize: 12, color: "#9ca3af" }}>Descreva o anúncio e a IA cria o texto</div></div>
               </div>
+              {aiQuota && !aiQuota.unlimited && (
+                <div style={{ fontSize: 11, color: aiQuota.used >= aiQuota.limit ? "#ef4444" : "#9ca3af", marginBottom: 10 }}>
+                  {aiQuota.used}/{aiQuota.limit} gerações usadas este mês
+                </div>
+              )}
               <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} placeholder="Ex: promoção de corte + barba para sexta-feira com 20% de desconto" rows={3} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", resize: "none", boxSizing: "border-box", lineHeight: 1.5, marginBottom: 10, fontFamily: "system-ui, sans-serif" }} />
               <button onClick={handleAiGenerate} disabled={aiGenerating || !aiPrompt.trim()} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: aiGenerating || !aiPrompt.trim() ? "#f3f4f6" : "linear-gradient(135deg, #0284C7, #7C3AED)", color: aiGenerating || !aiPrompt.trim() ? "#9ca3af" : "#fff", fontSize: 14, fontWeight: 600, cursor: aiGenerating || !aiPrompt.trim() ? "not-allowed" : "pointer" }}>
                 {aiGenerating ? "✨ Gerando..." : "✨ Gerar anúncio com IA"}

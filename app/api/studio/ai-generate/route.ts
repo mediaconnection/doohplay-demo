@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getPool } from "@/lib/db"
+import { PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PlanKey } from "@/lib/asaas"
 
 export const dynamic = "force-dynamic"
 
@@ -87,10 +89,48 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { prompt, business_name, business_type, client_color } = body
+    const { code, prompt, business_name, business_type, client_color } = body
 
     if (!prompt?.trim()) {
       return NextResponse.json({ error: "Prompt obrigatório" }, { status: 400 })
+    }
+
+    // Fase 17 (13/07/2026): cota de geração por IA, por plano. Antes disso
+    // não tinha limite nenhum — era a única feature com custo variável
+    // real (tokens da Anthropic) sem controle nenhum de plano.
+    const pool = getPool()
+    const upperCode = String(code ?? "").toUpperCase()
+    let aiLimit = DEFAULT_AI_GENERATION_LIMIT
+    if (upperCode) {
+      try {
+        const subRes = await pool.query(
+          `SELECT plan FROM financial_subscriptions WHERE code = $1 AND status = 'ACTIVE' LIMIT 1`,
+          [upperCode]
+        )
+        const planKey = subRes.rows[0]?.plan?.toLowerCase() as PlanKey | undefined
+        if (planKey && planKey in PLAN_AI_GENERATION_LIMITS) {
+          aiLimit = PLAN_AI_GENERATION_LIMITS[planKey]
+        }
+      } catch (err) {
+        console.warn("[ai-generate] Não foi possível buscar plano:", err)
+      }
+
+      if (aiLimit !== -1) {
+        const usageRes = await pool.query(
+          `SELECT COUNT(*)::int AS count FROM ai_generation_log
+           WHERE client_code = $1 AND created_at >= date_trunc('month', NOW())`,
+          [upperCode]
+        )
+        const used = usageRes.rows[0]?.count ?? 0
+        if (used >= aiLimit) {
+          return NextResponse.json({
+            error: `Limite de ${aiLimit} gerações de IA este mês atingido pro seu plano. Fala com o suporte pra fazer upgrade.`,
+            quotaExceeded: true,
+            limit: aiLimit,
+            used,
+          }, { status: 429 })
+        }
+      }
     }
 
     // Call Claude API to generate ad copy
@@ -163,6 +203,13 @@ Responda com este JSON exato:
     // Se quiser imagem de fundo por IA de verdade, isso precisa de um
     // serviço de geração de imagem separado (não é a Messages API do Claude).
     const imageUrl: string | null = null
+
+    // Fase 17: registra o uso — só depois que a geração deu certo de
+    // verdade, pra não gastar cota do cliente em tentativa que falhou.
+    if (upperCode) {
+      pool.query(`INSERT INTO ai_generation_log (client_code) VALUES ($1)`, [upperCode])
+        .catch((err: unknown) => console.warn("[ai-generate] Falha ao logar uso (não bloqueia a resposta):", err))
+    }
 
     return NextResponse.json({
       ok: true,
