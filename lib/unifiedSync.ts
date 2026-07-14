@@ -101,6 +101,12 @@ export async function syncInstitutionalToUnified(pool: Pool, params: {
   // Com segmentId = conteúdo do "canal" daquele segmento (20% do tempo,
   // só telas cujo business_type bate com o critério do segmento).
   segmentId?: string | null
+  // Fase 19 (14/07/2026): só usados quando type === 'layout' | 'youtube'.
+  // Sem isso esses dois tipos nunca chegavam em creative_assets_v2 — ficavam
+  // configurados no admin mas nunca tocavam na tela real (achado 14/07/2026).
+  layoutTemplateId?: string | null
+  zoneContent?: Record<string, { type: string; url: string; name: string }> | null
+  sequenceGroup?: string | null
 }) {
   try {
     const campaignRes = await pool.query(
@@ -114,14 +120,20 @@ export async function syncInstitutionalToUnified(pool: Pool, params: {
 
     const assetRes = await pool.query(
       `INSERT INTO creative_assets_v2
-         (campaign_id, name, url, type, display_format, duration_seconds, status, source_table, source_id)
-       VALUES ($1,$2,$3,$4,$5,$6,'approved','institutional_media',$7)
+         (campaign_id, name, url, type, display_format, duration_seconds, status, source_table, source_id,
+          layout_template_id, zone_content, sequence_group)
+       VALUES ($1,$2,$3,$4,$5,$6,'approved','institutional_media',$7,$8,$9,$10)
        ON CONFLICT (source_table, source_id) DO UPDATE SET
          name = EXCLUDED.name, url = EXCLUDED.url, type = EXCLUDED.type,
-         display_format = EXCLUDED.display_format, duration_seconds = EXCLUDED.duration_seconds
+         display_format = EXCLUDED.display_format, duration_seconds = EXCLUDED.duration_seconds,
+         layout_template_id = EXCLUDED.layout_template_id, zone_content = EXCLUDED.zone_content,
+         sequence_group = EXCLUDED.sequence_group
        RETURNING id`,
       [campaignV2Id, params.name, params.url, params.type, params.displayFormat || "fullscreen",
-       params.durationSeconds ?? 15, params.mediaId]
+       params.durationSeconds ?? 15, params.mediaId,
+       params.layoutTemplateId ?? null,
+       params.zoneContent ? JSON.stringify(params.zoneContent) : null,
+       params.sequenceGroup ?? null]
     )
     const assetId = assetRes.rows[0].id
 
