@@ -80,11 +80,18 @@ export async function GET(
         p.end_time::text,
         p.start_date::text,
         p.end_date::text,
-        p.screen_id
+        p.screen_id,
+        -- Fase 19 (14/07/2026): sem isso, item tipo 'layout'/'youtube'
+        -- chegava aqui sem ter como ser renderizado (achado 14/07/2026).
+        ca.layout_template_id,
+        ca.zone_content,
+        ca.sequence_group,
+        lt.zones                        AS layout_zones
       FROM placements_v2 p
       JOIN creative_assets_v2 ca ON ca.id = p.creative_asset_id
       JOIN campaigns_v2 cv ON cv.id = ca.campaign_id
       LEFT JOIN inventory_segments_v2 seg ON seg.id = p.segment_id
+      LEFT JOIN layout_templates lt ON lt.id = ca.layout_template_id
       WHERE
         (
           cv.owner_type = 'dono' AND cv.owner_code = $1
