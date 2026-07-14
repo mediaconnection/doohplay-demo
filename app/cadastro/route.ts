@@ -146,16 +146,16 @@ input::placeholder { color:#475569; }
         <label>Tipo de negócio *</label>
         <select id="business_type">
           <option value="">Selecione...</option>
-          <option>Barbearia</option>
-          <option>Salão de Beleza</option>
-          <option>Farmácia</option>
-          <option>Clínica</option>
-          <option>Lanchonete</option>
-          <option>Restaurante</option>
           <option>Academia</option>
+          <option>Barbearia</option>
+          <option>Clínica</option>
+          <option>Condomínio</option>
+          <option>Farmácia</option>
+          <option>Lanchonete</option>
           <option>Mercado</option>
           <option>Petshop</option>
-          <option>Condomínio</option>
+          <option>Restaurante</option>
+          <option>Salão de Beleza</option>
           <option>Outro</option>
         </select>
       </div>
