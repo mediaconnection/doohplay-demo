@@ -8,6 +8,7 @@ import puppeteer from "puppeteer"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
+import { PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PlanKey } from "@/lib/asaas"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -209,6 +210,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "code e product são obrigatórios" }, { status: 400 })
     }
 
+    // Fase 17 (13/07/2026): mesma cota de geração por IA da rota do
+    // Studio (app/api/studio/ai-generate) — achado numa sessão de teste:
+    // esse endpoint (usado pelo modal "Enviar conteúdo" do dashboard
+    // normal) também chama a Anthropic e tinha ficado de fora da cota
+    // na primeira leva, furando o controle de custo pelo caminho errado.
+    const upperCodeForQuota = code.toUpperCase()
+    let aiLimit = DEFAULT_AI_GENERATION_LIMIT
+    try {
+      const subRes = await pool.query(
+        `SELECT plan FROM financial_subscriptions WHERE code = $1 AND status = 'ACTIVE' LIMIT 1`,
+        [upperCodeForQuota]
+      )
+      const planKey = subRes.rows[0]?.plan?.toLowerCase() as PlanKey | undefined
+      if (planKey && planKey in PLAN_AI_GENERATION_LIMITS) {
+        aiLimit = PLAN_AI_GENERATION_LIMITS[planKey]
+      }
+    } catch (err) {
+      console.warn("[generate-creative] Não foi possível buscar plano:", err)
+    }
+    if (aiLimit !== -1) {
+      const usageRes = await pool.query(
+        `SELECT COUNT(*)::int AS count FROM ai_generation_log
+         WHERE client_code = $1 AND created_at >= date_trunc('month', NOW())`,
+        [upperCodeForQuota]
+      )
+      const used = usageRes.rows[0]?.count ?? 0
+      if (used >= aiLimit) {
+        return NextResponse.json({
+          error: `Limite de ${aiLimit} gerações de IA este mês atingido pro seu plano. Fala com o suporte pra fazer upgrade.`,
+          quotaExceeded: true, limit: aiLimit, used,
+        }, { status: 429 })
+      }
+    }
+
     // Buscar dados reais do cliente pra contextualizar o copy
     const clientRes = await pool.query(
       `SELECT name, business_type FROM studio_clients WHERE code = $1 LIMIT 1`,
@@ -347,6 +382,11 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
       status: "pending",
       durationSeconds: duration,
     })
+
+    // Fase 17: registra o uso na cota — só depois que deu tudo certo
+    // (copy gerado, imagem renderizada, salvo na playlist).
+    pool.query(`INSERT INTO ai_generation_log (client_code) VALUES ($1)`, [upperCodeForQuota])
+      .catch((err: unknown) => console.warn("[generate-creative] Falha ao logar uso (não bloqueia a resposta):", err))
 
     return NextResponse.json({
       ok: true,
