@@ -600,6 +600,10 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   const [addScreenError, setAddScreenError] = useState("");
   const [addScreenInvoiceUrl, setAddScreenInvoiceUrl] = useState("");
   const [addScreenValue, setAddScreenValue] = useState<number | null>(null);
+  // Fase 25 (14/07/2026) — primeira tela do cliente é ativada na hora,
+  // sem cobrança (já incluída no plano). Só a partir da segunda é que
+  // segue pro fluxo de cobrança de sempre.
+  const [addScreenFreeMsg, setAddScreenFreeMsg] = useState("");
   // Indicador de uso do plano — desvincular tela não cancela/reduz a
   // assinatura (decisão consciente, não é bug), mas o cliente não tinha
   // nenhuma visibilidade de quantas telas o plano cobre vs quantas usa.
@@ -609,7 +613,7 @@ function TabTV({ client, player, playlist, online, checking }: any) {
     if (!addActivationCode.trim() || !addScreenLabel.trim()) {
       setAddScreenError("Preencha o código de ativação e o nome da tela"); return
     }
-    setAddScreenLoading(true); setAddScreenError(""); setAddScreenInvoiceUrl("")
+    setAddScreenLoading(true); setAddScreenError(""); setAddScreenInvoiceUrl(""); setAddScreenFreeMsg("")
     try {
       const res = await fetch("/api/client/screens/purchase", {
         method: "POST",
@@ -618,8 +622,13 @@ function TabTV({ client, player, playlist, online, checking }: any) {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || "Erro ao gerar cobrança")
-      setAddScreenInvoiceUrl(d.invoice_url)
-      setAddScreenValue(d.value)
+      if (d.free) {
+        setAddScreenFreeMsg(d.message || "Tela ativada — já incluída no seu plano.")
+        loadScreens()
+      } else {
+        setAddScreenInvoiceUrl(d.invoice_url)
+        setAddScreenValue(d.value)
+      }
     } catch (err: any) {
       setAddScreenError(err.message || "Erro ao gerar cobrança")
     }
@@ -768,7 +777,11 @@ function TabTV({ client, player, playlist, online, checking }: any) {
         </div>
         {showAddScreen && (
           <div style={{ padding: "0 18px 18px" }}>
-            {!addScreenInvoiceUrl ? (
+            {addScreenFreeMsg ? (
+              <div style={{ fontSize: 13, color: C.green, fontWeight: 600 }}>
+                ✅ {addScreenFreeMsg}
+              </div>
+            ) : !addScreenInvoiceUrl ? (
               <>
                 <div style={{ marginBottom: 10 }}>
                   <label style={{ fontSize: 11, color: C.text3, display: "block", marginBottom: 4 }}>Código de ativação (mostrado no aparelho)</label>
@@ -780,10 +793,10 @@ function TabTV({ client, player, playlist, online, checking }: any) {
                 </div>
                 {addScreenError && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>⚠️ {addScreenError}</div>}
                 <button onClick={purchaseScreen} disabled={addScreenLoading} style={{ width: "100%", fontSize: 14, fontWeight: 600, padding: "12px 0", borderRadius: 8, border: "none", background: C.blue, color: "#fff", cursor: "pointer", opacity: addScreenLoading ? 0.6 : 1 }}>
-                  {addScreenLoading ? "Gerando cobrança..." : "Gerar cobrança e ativar tela"}
+                  {addScreenLoading ? "Ativando..." : "Ativar tela"}
                 </button>
                 <div style={{ fontSize: 11, color: C.text3, marginTop: 8 }}>
-                  A tela é ativada automaticamente assim que o pagamento (Pix ou boleto) for confirmado.
+                  Sua primeira tela é ativada na hora, sem cobrança extra (já incluída no plano). A partir da segunda tela, é gerada uma cobrança recorrente (Pix ou boleto) — a tela extra é ativada assim que o pagamento for confirmado.
                 </div>
               </>
             ) : (
