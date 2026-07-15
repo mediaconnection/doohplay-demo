@@ -20,8 +20,18 @@ function activationCodeFromId(id: string) {
 }
 
 // POST — cliente informa o código de ativação (mostrado no aparelho novo)
-// + nome da tela. Gera cobrança única; a tela só é criada de fato quando o
-// pagamento é confirmado (webhook), nunca antes.
+// + nome da tela.
+//
+// Fase 25 (14/07/2026) — unificado com a ativação da PRIMEIRA tela.
+// Antes, só existia esse fluxo self-service pra tela EXTRA (paga,
+// R$150/mês); a primeira tela (já inclusa na mensalidade do plano, cobrada
+// no cadastro) só podia ser ativada manualmente por um admin clicando
+// "Vincular" — sem nenhum caminho pro próprio cliente fazer sozinho.
+// Acertado com o fundador: mesma tela de ativação por código, mas a
+// PRIMEIRA tela do cliente (nenhuma linha em client_screens ainda) é
+// ativada na hora, de graça — sem gerar cobrança nenhuma, já que o plano
+// já cobre. Só a partir da segunda tela em diante é que continua indo
+// pro fluxo de assinatura extra de R$150/mês, exatamente como antes.
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
@@ -51,6 +61,40 @@ export async function POST(req: NextRequest) {
     if (!match) {
       return NextResponse.json({ error: "Código de ativação não encontrado. Confira se o aparelho está com o app aberto mostrando esse código." }, { status: 404 })
     }
+
+    // Fase 25 — ramo da PRIMEIRA tela (grátis, já incluída no plano).
+    const existingScreens = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM client_screens WHERE client_code = $1`,
+      [clientCode]
+    )
+    if (existingScreens.rows[0].count === 0) {
+      await pool.query(
+        `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
+        [clientCode, match.id]
+      )
+      // Só define studio_clients.player_id se ainda estiver vazio — não
+      // sobrescreve por engano se por algum motivo já apontar pra outro
+      // aparelho (não deveria acontecer numa primeira tela, mas seguro).
+      await pool.query(
+        `UPDATE studio_clients SET player_id = COALESCE(player_id, $1) WHERE code = $2`,
+        [match.id, clientCode]
+      )
+      const created = await pool.query(
+        `INSERT INTO client_screens (client_code, player_id, label, same_content)
+         VALUES ($1, $2, $3, true)
+         RETURNING id`,
+        [clientCode, match.id, screenLabel]
+      )
+      return NextResponse.json({
+        ok: true,
+        free: true,
+        screen_id: created.rows[0].id,
+        message: "Primeira tela ativada — já incluída no seu plano, sem cobrança adicional.",
+      })
+    }
+
+    // A partir daqui, é tela EXTRA (2ª em diante) — fluxo de cobrança
+    // recorrente de sempre, sem nenhuma mudança.
 
     // Cliente precisa ter email + CPF/CNPJ cadastrados (mesma exigência do
     // fluxo de campanha de anunciante) pra gerar cobrança no Asaas.
