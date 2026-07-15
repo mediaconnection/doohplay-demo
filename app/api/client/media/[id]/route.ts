@@ -57,6 +57,21 @@ export async function DELETE(
     // Remove a mídia do banco
     await pool.query(`DELETE FROM "CampaignMedia" WHERE id = $1`, [id])
 
+    // Achado em produção (14/07/2026): isso nunca tocava na fundação
+    // unificada (creative_assets_v2/placements_v2) — mesma classe de bug
+    // já corrigida duas vezes hoje pro institucional (Fase 19), só que
+    // ao contrário: aqui é a EXCLUSÃO que não sincronizava, não a
+    // criação. Resultado: o dono apagava a mídia no dashboard, ela
+    // sumia da lista "Conteúdo", mas continuava tocando de verdade na
+    // TV pra sempre — porque /api/client/playlist/[code] (o que a TV
+    // real consulta) só lê da fundação unificada, não das tabelas
+    // antigas. placements_v2 tem ON DELETE CASCADE a partir de
+    // creative_assets_v2, então apagar aqui já remove os dois.
+    await pool.query(
+      `DELETE FROM creative_assets_v2 WHERE source_table = 'CampaignMedia' AND source_id = $1`,
+      [id]
+    )
+
     // Remove o arquivo real do R2 — antes só apagava do banco, deixando um
     // arquivo órfão que continuava contando pro limite de mídia do plano
     // (que é checado direto no bucket). Best-effort: se o R2 falhar, o
