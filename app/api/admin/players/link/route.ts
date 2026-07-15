@@ -31,6 +31,15 @@ export async function GET(req: NextRequest) {
 // POST — vincula um player_id (já ativado, ainda não pareado) a um código
 // de cliente real (studio_clients.code). Atualiza os dois lados:
 // players.paired/player_code e studio_clients.player_id.
+//
+// Fase 24 (14/07/2026) — achado em teste real: isso NUNCA criava a linha
+// de client_screens (a "tela gerenciada" que aparece em Todas as
+// Telas/Minhas Telas). Resultado: o aparelho ficava pareado de verdade
+// (tocando conteúdo) mas invisível em qualquer lista de gerenciamento —
+// precisava de um passo manual extra (POST /api/admin/screens/add) toda
+// vez que uma tela era desvinculada e vinculada de novo, ou que o app
+// era reinstalado num aparelho já conhecido. Corrigido: agora cria a
+// tela automaticamente se ainda não existir uma pra esse player_id.
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
   const body = await req.json()
@@ -53,17 +62,45 @@ export async function POST(req: NextRequest) {
     if (!client.rows[0]) {
       return NextResponse.json({ error: "Código de cliente não encontrado" }, { status: 404 })
     }
+    const clientCode = client.rows[0].code
+
+    const playerRes = await pool.query(
+      `SELECT device_type FROM players WHERE id = $1 LIMIT 1`,
+      [player_id]
+    )
 
     await pool.query(
       `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
-      [client.rows[0].code, player_id]
+      [clientCode, player_id]
     )
     await pool.query(
       `UPDATE studio_clients SET player_id = $1 WHERE code = $2`,
-      [player_id, client.rows[0].code]
+      [player_id, clientCode]
     )
 
-    return NextResponse.json({ ok: true, code: client.rows[0].code, name: client.rows[0].name })
+    // Sem constraint única em client_screens.player_id (schema criado
+    // fora de migration versionada) — checa existência manualmente antes
+    // de inserir, pra nunca duplicar tela se "Vincular" for clicado mais
+    // de uma vez pro mesmo aparelho.
+    let screenId: string | null = null
+    const existingScreen = await pool.query(
+      `SELECT id FROM client_screens WHERE player_id = $1 LIMIT 1`,
+      [player_id]
+    )
+    if (existingScreen.rows[0]) {
+      screenId = existingScreen.rows[0].id
+    } else {
+      const label = playerRes.rows[0]?.device_type || "Minha Tela"
+      const created = await pool.query(
+        `INSERT INTO client_screens (client_code, player_id, label, same_content)
+         VALUES ($1, $2, $3, true)
+         RETURNING id`,
+        [clientCode, player_id, label]
+      )
+      screenId = created.rows[0].id
+    }
+
+    return NextResponse.json({ ok: true, code: clientCode, name: client.rows[0].name, screen_id: screenId })
   } catch (err: any) {
     console.error("[admin/players/link POST]", err)
     return NextResponse.json({ error: err.message }, { status: 500 })
