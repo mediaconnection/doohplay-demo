@@ -360,6 +360,257 @@ function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose:
   )
 }
 
+// ── Tab Dashboard ────────────────────────────────────────────────────────────
+// Visão geral da rede — toggle entre dado real (hoje, ainda pequeno) e modo
+// demonstração (números ilustrativos, sem marca de terceiro real nenhuma,
+// pra não sugerir falsa associação com empresas que não são clientes/
+// anunciantes de verdade).
+function TabDashboard({ data }: { data: any }) {
+  const [mode, setMode] = useState<"real" | "demo">("real")
+  const [geocoding, setGeocoding] = useState(false)
+  const [geocodeMsg, setGeocodeMsg] = useState<string | null>(null)
+
+  const clients = data?.clients ?? []
+  const campaigns = data?.campaigns ?? []
+  const advertisers = data?.advertisers ?? []
+  const daily = data?.dailyEvents ?? []
+
+  const online  = clients.filter((c: any) => c.player_status === "online").length
+  const offline = clients.filter((c: any) => c.player_status === "offline").length
+  const never   = clients.filter((c: any) => c.player_status === "never").length
+  const totalTelas = clients.length
+  const activeCampaigns = campaigns.filter((c: any) => c.status === "active").length
+  const events24h = data?.events?.last_24h ?? 0
+  const eventsTotal = data?.events?.total ?? 0
+
+  const runGeocode = async () => {
+    setGeocoding(true); setGeocodeMsg(null)
+    try {
+      const r = await fetch("/api/admin/geocode-clients", { method: "POST" })
+      const j = await r.json()
+      setGeocodeMsg(r.ok ? `✅ ${j.summary?.success ?? 0} cliente(s) geocodificado(s)` : `⚠️ ${j.error || "erro"}`)
+    } catch { setGeocodeMsg("⚠️ Falha ao chamar a geocodificação") }
+    setGeocoding(false)
+  }
+
+  // ── Dados de demonstração — sempre fictícios, nunca marca real de terceiro ──
+  const demoKpis = { telas: 1248, telasTotal: 1540, campanhas: 86, campanhasTotal: 132, execucoes: 152624, execucoesOntem: 132103, impressoes: 8951245, receita: 185430.75 }
+  const demoDaily = [120,135,128,148,142,160,155,168,162,178,172,185,180,196].map((v,i) => ({ day: `d${i}`, count: v * 1000 }))
+  const demoDonut = { online: 1248, offline: 208, idle: 84 }
+  const demoRanking = [
+    { name: "Sabor Real Alimentos", value: 2431256 },
+    { name: "Banco União Digital", value: 1856421 },
+    { name: "Grão Bar Cafés", value: 1247365 },
+    { name: "Vero Cosméticos", value: 1102598 },
+    { name: "TechMix Eletrônicos", value: 875452 },
+  ]
+  const demoCampaigns = [
+    { name: "Verão Refrescante", advertiser: "Sabor Real Alimentos", telas: 352, progresso: 72 },
+    { name: "Feito pro Futuro", advertiser: "Banco União Digital", telas: 284, progresso: 65 },
+    { name: "Combo do Dia", advertiser: "Grão Bar Cafés", telas: 198, progresso: 48 },
+  ]
+
+  const fmt = (n: number) => n.toLocaleString("pt-BR")
+  const money = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+
+  // ── SVG helpers (sem lib externa — tudo desenhado à mão, no mesmo estilo
+  // simples usado no resto do admin) ──
+  function Donut({ segments, size = 130 }: { segments: { value: number; color: string }[]; size?: number }) {
+    const total = segments.reduce((a, s) => a + s.value, 0) || 1
+    const r = size / 2 - 12
+    const c = 2 * Math.PI * r
+    let offset = 0
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {segments.map((s, i) => {
+          const frac = s.value / total
+          const dash = frac * c
+          const el = (
+            <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={16}
+              strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-offset}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+          )
+          offset += dash
+          return el
+        })}
+        <text x={size / 2} y={size / 2 - 6} textAnchor="middle" fontSize="20" fontWeight="700" fill={TEXT}>{fmt(total)}</text>
+        <text x={size / 2} y={size / 2 + 14} textAnchor="middle" fontSize="10" fill={TEXT2}>total</text>
+      </svg>
+    )
+  }
+
+  function LineChart({ points, width = 560, height = 160 }: { points: number[]; width?: number; height?: number }) {
+    const max = Math.max(...points, 1)
+    const stepX = width / (points.length - 1)
+    const coords = points.map((p, i) => [i * stepX, height - (p / max) * (height - 16) - 8])
+    const path = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c[0]},${c[1]}`).join(" ")
+    const areaPath = `${path} L${width},${height} L0,${height} Z`
+    return (
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <path d={areaPath} fill={BLUE + "22"} />
+        <path d={path} fill="none" stroke={BLUE} strokeWidth={2.5} />
+      </svg>
+    )
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📊 Dashboard</div>
+          <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>Visão geral da rede</div>
+        </div>
+        <div style={{ display: "flex", background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: 3 }}>
+          <button onClick={() => setMode("real")} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: mode === "real" ? BLUE : "transparent", color: mode === "real" ? "#fff" : TEXT2 }}>Dados reais</button>
+          <button onClick={() => setMode("demo")} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: mode === "demo" ? PURPLE : "transparent", color: mode === "demo" ? "#fff" : TEXT2 }}>Modo demonstração</button>
+        </div>
+      </div>
+
+      {mode === "demo" && (
+        <div style={{ background: PURPLE + "15", border: "1px solid " + PURPLE + "44", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: PURPLE, marginBottom: 20 }}>
+          ⚠️ Dados ilustrativos — nenhum número ou marca nesta tela é real. Serve pra visualizar como o dashboard fica com a rede em escala.
+        </div>
+      )}
+
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 24 }}>
+        {mode === "real" ? (
+          <>
+            <DashKpiCard icon="🖥️" color={BLUE} label="Telas Online" value={fmt(online)} sub={`de ${fmt(totalTelas)} telas`} />
+            <DashKpiCard icon="👥" color={GREEN} label="Clientes Ativos" value={fmt(clients.filter((c: any) => c.active).length)} sub={`de ${fmt(totalTelas)} cadastrados`} />
+            <DashKpiCard icon="📢" color={AMBER} label="Campanhas Ativas" value={fmt(activeCampaigns)} sub={`de ${fmt(campaigns.length)} campanhas`} />
+            <DashKpiCard icon="🏢" color={PURPLE} label="Anunciantes" value={fmt(advertisers.length)} sub="cadastrados" />
+            <DashKpiCard icon="▶️" color={RED} label="Execuções (24h)" value={fmt(events24h)} sub={`${fmt(eventsTotal)} desde o início`} />
+          </>
+        ) : (
+          <>
+            <DashKpiCard icon="🖥️" color={BLUE} label="Telas Online" value={fmt(demoKpis.telas)} sub={`de ${fmt(demoKpis.telasTotal)} telas`} />
+            <DashKpiCard icon="✅" color={GREEN} label="Campanhas Ativas" value={fmt(demoKpis.campanhas)} sub={`de ${fmt(demoKpis.campanhasTotal)} campanhas`} />
+            <DashKpiCard icon="▶️" color={AMBER} label="Execuções Hoje" value={fmt(demoKpis.execucoes)} sub={`${fmt(demoKpis.execucoesOntem)} ontem`} />
+            <DashKpiCard icon="👁️" color={PURPLE} label="Impressões Hoje" value={fmt(demoKpis.impressoes)} sub="+18,6%" />
+            <DashKpiCard icon="💰" color={RED} label="Receita Estimada" value={money(demoKpis.receita)} sub="no período" />
+          </>
+        )}
+      </div>
+
+      {/* Gráfico + Donut */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Execuções por Dia {mode === "demo" && <span style={{ color: PURPLE, fontWeight: 400 }}>(ilustrativo)</span>}</div>
+          {mode === "real" && daily.length === 0 ? (
+            <div style={{ fontSize: 12, color: TEXT2, padding: "40px 0", textAlign: "center" }}>Sem execuções registradas nos últimos 14 dias ainda.</div>
+          ) : (
+            <LineChart points={mode === "real" ? daily.map((d: any) => d.count) : demoDaily.map(d => d.count)} />
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: TEXT2, marginTop: 6 }}>
+            <span>{mode === "real" ? daily[0]?.day ?? "" : "há 14 dias"}</span>
+            <span>{mode === "real" ? daily[daily.length - 1]?.day ?? "" : "hoje"}</span>
+          </div>
+        </div>
+
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Status das Telas</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <Donut segments={mode === "real"
+              ? [{ value: online || 0.0001, color: GREEN }, { value: offline, color: RED }, { value: never, color: AMBER }]
+              : [{ value: demoDonut.online, color: GREEN }, { value: demoDonut.offline, color: RED }, { value: demoDonut.idle, color: AMBER }]
+            } />
+            <div style={{ fontSize: 11 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: GREEN, display: "inline-block" }} /> Online ({mode === "real" ? online : demoDonut.online})</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: RED, display: "inline-block" }} /> Offline ({mode === "real" ? offline : demoDonut.offline})</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: AMBER, display: "inline-block" }} /> {mode === "real" ? "Nunca conectou" : "Idle"} ({mode === "real" ? never : demoDonut.idle})</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mapa da rede */}
+      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 4 }}>Mapa da Rede</div>
+        {mode === "demo" ? (
+          <div style={{ fontSize: 12, color: TEXT2, padding: "30px 0", textAlign: "center", border: "1px dashed " + BORDER, borderRadius: 8, marginTop: 10 }}>
+            🗺️ Mapa ilustrativo — em escala, mostraria cada tela geolocalizada no país
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: TEXT2, marginBottom: 12 }}>Sem coordenadas ainda pra desenhar um mapa visual — lista de clientes por cidade abaixo.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, marginBottom: 12 }}>
+              {clients.map((c: any) => (
+                <div key={c.code} style={{ fontSize: 12, color: TEXT, background: BG, borderRadius: 6, padding: "8px 10px" }}>
+                  <div style={{ fontWeight: 600 }}>{c.name}</div>
+                  <div style={{ color: TEXT2, fontSize: 11 }}>{c.address || "sem endereço cadastrado"}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={runGeocode} disabled={geocoding} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "1px solid " + BLUE, background: "transparent", color: BLUE, cursor: geocoding ? "not-allowed" : "pointer" }}>
+              {geocoding ? "Geocodificando…" : "📍 Rodar geocodificação"}
+            </button>
+            {geocodeMsg && <span style={{ fontSize: 12, color: TEXT2, marginLeft: 10 }}>{geocodeMsg}</span>}
+          </>
+        )}
+      </div>
+
+      {/* Campanhas + Ranking */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Campanhas em Exibição {mode === "demo" && <span style={{ color: PURPLE, fontWeight: 400 }}>(ilustrativo)</span>}</div>
+          {(mode === "real" ? campaigns.filter((c: any) => c.status === "active") : demoCampaigns).length === 0 ? (
+            <div style={{ fontSize: 12, color: TEXT2, padding: "20px 0", textAlign: "center" }}>Nenhuma campanha ativa ainda.</div>
+          ) : (
+            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+              <thead><tr style={{ color: TEXT2, textAlign: "left" }}><th style={{ paddingBottom: 8 }}>Campanha</th><th>Telas</th><th>Status</th></tr></thead>
+              <tbody>
+                {mode === "real"
+                  ? campaigns.filter((c: any) => c.status === "active").map((c: any) => (
+                    <tr key={c.id} style={{ borderTop: "1px solid " + BORDER }}>
+                      <td style={{ padding: "8px 0", color: TEXT }}>{c.name}</td>
+                      <td style={{ color: TEXT2 }}>{c.screen_count}</td>
+                      <td style={{ color: GREEN }}>Em exibição</td>
+                    </tr>
+                  ))
+                  : demoCampaigns.map((c, i) => (
+                    <tr key={i} style={{ borderTop: "1px solid " + BORDER }}>
+                      <td style={{ padding: "8px 0", color: TEXT }}>{c.name}<div style={{ color: TEXT2, fontSize: 10 }}>{c.advertiser}</div></td>
+                      <td style={{ color: TEXT2 }}>{c.telas}</td>
+                      <td style={{ color: GREEN }}>{c.progresso}%</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Ranking de Anunciantes {mode === "demo" && <span style={{ color: PURPLE, fontWeight: 400 }}>(ilustrativo)</span>}</div>
+          {mode === "real" ? (
+            <div style={{ fontSize: 12, color: TEXT2, padding: "20px 0", textAlign: "center" }}>Nenhum anunciante com exibições registradas ainda.</div>
+          ) : (
+            demoRanking.map((r, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: i > 0 ? "1px solid " + BORDER : "none", fontSize: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ color: TEXT2 }}>{i + 1}</span><span style={{ color: TEXT }}>{r.name}</span></div>
+                <span style={{ color: TEXT2 }}>{fmt(r.value)}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DashKpiCard({ icon, color, label, value, sub }: { icon: string; color: string; label: string; value: string; sub: string }) {
+  return (
+    <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{icon}</div>
+        <div style={{ fontSize: 11, color: TEXT2 }}>{label}</div>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: TEXT }}>{value}</div>
+      <div style={{ fontSize: 10, color: TEXT2, marginTop: 2 }}>{sub}</div>
+    </div>
+  )
+}
+
 // ── Tab Clientes ──────────────────────────────────────────────────────────────
 // ── Diagnóstico: busca consolidada por código, sem precisar de SQL manual ──
 function TabDiagnostico() {
@@ -2755,7 +3006,7 @@ export default function AdminPage() {
   const router  = useRouter()
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [tab, setTab]         = useState("clientes")
+  const [tab, setTab]         = useState("dashboard")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/admin/login")
@@ -2784,6 +3035,7 @@ export default function AdminPage() {
   const isSuperAdmin = (session?.user as any)?.role === "super_admin"
 
   const TABS = [
+    { id: "dashboard",   label: "Dashboard",   icon: "📊" },
     { id: "diagnostico", label: "Diagnóstico", icon: "🔍" },
     { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
     ...(isSuperAdmin ? [{ id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length }] : []),
@@ -2835,6 +3087,7 @@ export default function AdminPage() {
       </div>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
+        {tab === "dashboard"   && <TabDashboard   data={data} />}
         {tab === "diagnostico" && <TabDiagnostico />}
         {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} isSuperAdmin={isSuperAdmin} />}
         {tab === "assinaturas" && isSuperAdmin && <TabAssinaturas data={data} />}
