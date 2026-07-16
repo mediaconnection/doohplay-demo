@@ -293,8 +293,8 @@ function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose:
 
   const PLANS_INFO: Record<string, { label: string; value: string; desc: string }> = {
     starter:  { label: "Starter",  value: "R$ 97/mês",  desc: "1 TV · Suporte básico" },
-    pro:      { label: "Pro",      value: "R$ 197/mês", desc: "1 TV · Relatórios · Prioridade" },
-    business: { label: "Business", value: "R$ 397/mês", desc: "Até 3 TVs · Suporte dedicado" },
+    pro:      { label: "Pro",      value: "R$ 290/mês", desc: "3 TVs · Relatórios · Prioridade" },
+    business: { label: "Business", value: "R$ 620/mês", desc: "Até 5 TVs · Suporte dedicado" },
   }
 
   const handleCreate = async () => {
