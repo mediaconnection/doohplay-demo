@@ -1196,6 +1196,17 @@ function TabExemplos() {
     setTogglingId(null)
   }
 
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const deleteExample = async (id: string, name: string) => {
+    if (!confirm(`Excluir "${name}" definitivamente? Isso apaga o arquivo do R2 também — não tem como desfazer.`)) return
+    setDeletingId(id)
+    try {
+      await fetch(`/api/admin/media-examples/${id}`, { method: "DELETE" })
+      load()
+    } catch {}
+    setDeletingId(null)
+  }
+
   const NICHES = ["barbearia", "padaria", "salao", "academia", "restaurante", "generico"]
 
   return (
@@ -1254,13 +1265,23 @@ function TabExemplos() {
               <div style={{ padding: "8px 10px" }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
                 <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6 }}>{ex.niche}</div>
-                <button
-                  onClick={() => toggleActive(ex.id, ex.active)}
-                  disabled={togglingId === ex.id}
-                  style={{ width: "100%", fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + BORDER, background: ex.active ? RED + "10" : GREEN + "10", color: ex.active ? RED : GREEN, cursor: togglingId === ex.id ? "not-allowed" : "pointer" }}
-                >
-                  {togglingId === ex.id ? "…" : ex.active ? "Desativar" : "Reativar"}
-                </button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => toggleActive(ex.id, ex.active)}
+                    disabled={togglingId === ex.id}
+                    style={{ flex: 1, fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + BORDER, background: ex.active ? RED + "10" : GREEN + "10", color: ex.active ? RED : GREEN, cursor: togglingId === ex.id ? "not-allowed" : "pointer" }}
+                  >
+                    {togglingId === ex.id ? "…" : ex.active ? "Desativar" : "Reativar"}
+                  </button>
+                  <button
+                    onClick={() => deleteExample(ex.id, ex.name)}
+                    disabled={deletingId === ex.id}
+                    title="Excluir definitivamente"
+                    style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 5, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, cursor: deletingId === ex.id ? "not-allowed" : "pointer" }}
+                  >
+                    {deletingId === ex.id ? "…" : "🗑"}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
