@@ -157,6 +157,7 @@ export async function POST(req: NextRequest) {
         email: email.toLowerCase().trim(),
         phone: phone.replace(/\D/g,""),
         cpfCnpj: cpf.replace(/\D/g,""),
+        externalReference: code,
       })
 
       const nextDueDate = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
@@ -165,6 +166,7 @@ export async function POST(req: NextRequest) {
         customerId: customer.id,
         plan: plan as PlanKey,
         nextDueDate,
+        externalReference: code,
       })
 
       await pool.query(

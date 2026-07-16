@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { requireSuperAdmin } from "@/lib/require-super-admin"
 import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
-import { PLANS, PlanKey } from "@/lib/asaas"
+import { PLANS, PlanKey, createSubscription, getOrCreateAsaasCustomer } from "@/lib/asaas"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -26,92 +26,6 @@ async function asaas(path: string, method = "GET", body?: object) {
 
 function cleanDocument(doc: string) {
   return doc.replace(/\D/g, "")
-}
-
-function isCNPJ(doc: string) {
-  return cleanDocument(doc).length === 14
-}
-
-// Cria ou busca cliente no Asaas por CPF/CNPJ (mais confiável que email)
-async function getOrCreateAsaasCustomer(client: {
-  name: string
-  email?: string
-  phone?: string
-  cpf_cnpj?: string
-  code: string
-  contact_name?: string
-}) {
-  const pool = getPool()
-  
-  // 1. Verifica se já tem asaas_customer_id salvo
-  try {
-    const r = await pool.query(
-      `SELECT asaas_customer_id FROM financial_subscriptions WHERE code = $1 LIMIT 1`,
-      [client.code]
-    )
-    if (r.rows[0]?.asaas_customer_id) {
-      const existing = await asaas(`/customers/${r.rows[0].asaas_customer_id}`)
-      if (!existing.errors) return existing
-    }
-  } catch {}
-
-  // 2. Busca por CPF/CNPJ no Asaas
-  if (client.cpf_cnpj) {
-    const doc = cleanDocument(client.cpf_cnpj)
-    const search = await asaas(`/customers?cpfCnpj=${doc}`)
-    if (search.data?.length > 0) return search.data[0]
-  }
-
-  // 3. Busca por email
-  if (client.email) {
-    const search = await asaas(`/customers?email=${encodeURIComponent(client.email)}`)
-    if (search.data?.length > 0) return search.data[0]
-  }
-
-  // 4. Cria novo cliente
-  const customerData: Record<string, string> = {
-    name: client.contact_name || client.name,
-    externalReference: client.code,
-  }
-  if (client.email)    customerData.email = client.email
-  if (client.phone)    customerData.mobilePhone = cleanDocument(client.phone)
-  if (client.cpf_cnpj) {
-    const doc = cleanDocument(client.cpf_cnpj)
-    customerData.cpfCnpj = doc
-    customerData.personType = isCNPJ(doc) ? "JURIDICA" : "FISICA"
-  }
-
-  return asaas("/customers", "POST", customerData)
-}
-
-// Cria cobrança recorrente
-//
-// Achado em produção (15/07/2026): esta função tinha sua PRÓPRIA tabela
-// de preços (`prices`), completamente desconectada de `lib/asaas.ts`
-// PLANS — a fonte que todo o resto do site usa (landing pages,
-// /cadastro, dashboard). Os valores nem batiam: essa tabela tinha
-// "starter: 197" (deveria ser 97), nomes de plano que não existem mais
-// ("local", "multi", "enterprise"). Isso rodava de verdade só no fluxo
-// de /onboarding (que chama esta rota) — ou seja, quem se cadastrava
-// por ali era cobrado com o valor ERRADO no Asaas, sem ninguém perceber
-// porque /cadastro (o outro fluxo de cadastro) sempre usou PLANS
-// corretamente e nunca deu sintoma. Corrigido: agora usa a mesma fonte
-// única de verdade que todo o resto do sistema usa.
-async function createSubscription(customerId: string, client: any, plan: string) {
-  const planInfo = PLANS[plan as PlanKey]
-  const value = planInfo?.value ?? PLANS.starter.value
-
-  return asaas("/subscriptions", "POST", {
-    customer: customerId,
-    billingType: "UNDEFINED",
-    value,
-    nextDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    cycle: "MONTHLY",
-    description: `DOOHPLAY — Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)} · ${client.name}`,
-    externalReference: client.code,
-    fine: { value: 2 },
-    interest: { value: 1 },
-  })
 }
 
 // ── POST /api/finance/asaas — ativa cobrança para um cliente ─────────────────
@@ -157,14 +71,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Cria/busca cliente no Asaas
-    const customer = await getOrCreateAsaasCustomer({ ...client, cpf_cnpj: client.cpf_cnpj })
+    // Cria/busca cliente no Asaas — busca primeiro se já existe um
+    // asaas_customer_id salvo (evita duplicar cliente no Asaas)
+    let existingCustomerId: string | undefined
+    try {
+      const r = await pool.query(
+        `SELECT asaas_customer_id FROM financial_subscriptions WHERE code = $1 LIMIT 1`,
+        [code.toUpperCase()]
+      )
+      existingCustomerId = r.rows[0]?.asaas_customer_id || undefined
+    } catch { /* tabela pode não existir ainda */ }
+
+    const customer = await getOrCreateAsaasCustomer({
+      name: client.contact_name || client.name,
+      email: client.email,
+      phone: client.phone,
+      cpfCnpj: client.cpf_cnpj,
+      existingCustomerId,
+      externalReference: code.toUpperCase(),
+    })
     if (customer.errors) {
       return NextResponse.json({ error: "Erro ao criar cliente no Asaas", details: customer.errors }, { status: 400 })
     }
 
     // Cria assinatura recorrente
-    const subscription = await createSubscription(customer.id, client, plan || client.plan || "starter")
+    const chosenPlan = (plan || client.plan || "starter") as PlanKey
+    if (!PLANS[chosenPlan]) {
+      return NextResponse.json({ error: `Plano inválido. Use: ${Object.keys(PLANS).join(", ")}` }, { status: 400 })
+    }
+    const subscription = await createSubscription({
+      customerId: customer.id,
+      plan: chosenPlan,
+      nextDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      externalReference: client.code,
+    })
     if (subscription.errors) {
       return NextResponse.json({ error: "Erro ao criar assinatura", details: subscription.errors }, { status: 400 })
     }
@@ -180,7 +120,7 @@ export async function POST(req: NextRequest) {
          ON CONFLICT (code) DO UPDATE
            SET asaas_customer_id = $2, asaas_subscription_id = $3,
                plan = $4, value = $5, status = 'ACTIVE'`,
-        [code, customer.id, subscription.id, plan, subscription.value]
+        [code, customer.id, subscription.id, chosenPlan, subscription.value]
       )
     } catch { /* tabela pode não existir */ }
 
@@ -309,8 +249,8 @@ export async function PATCH(req: NextRequest) {
       name: client.contact_name || client.name,
       email: email || client.email,
       phone: phone || client.phone,
-      cpf_cnpj: doc,
-      code: code.toUpperCase(),
+      cpfCnpj: doc,
+      externalReference: code.toUpperCase(),
     })
 
     if (newCustomer.errors) {

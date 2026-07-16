@@ -65,13 +65,49 @@ export const DEFAULT_AI_GENERATION_LIMIT = 10 // fallback sem plano identificado
 export const EXTRA_SCREEN_MONTHLY_PRICE = Number(process.env.EXTRA_SCREEN_MONTHLY_PRICE_BRL || 150)
 
 // Cria ou busca cliente no Asaas
+// Busca ou cria cliente no Asaas
+//
+// Achado em produção (16/07/2026): existia uma SEGUNDA implementação dessa
+// função, definida localmente dentro de app/api/finance/asaas/route.ts —
+// com um encadeamento de busca mais robusto (ID salvo no banco → CPF/CNPJ
+// → email → cria) do que esta versão compartilhada (só buscava por
+// email). Ou seja, dependendo de qual dos 3 caminhos de cadastro/cobrança
+// era usado, o risco de criar um cliente DUPLICADO no Asaas pra mesma
+// pessoa era diferente — mesma classe de bug do createSubscription
+// duplicado. Consolidado aqui: a lib de pagamento não depende do banco
+// (mantém a separação de responsabilidade), então quem já tiver um
+// asaas_customer_id salvo passa via `existingCustomerId`; o encadeamento
+// CPF/CNPJ → email → criar fica sempre dentro desta função única.
 export async function getOrCreateAsaasCustomer(params: {
   name: string
   email: string
   phone: string
   cpfCnpj?: string
+  existingCustomerId?: string
+  externalReference?: string
 }) {
-  // Tenta buscar pelo email
+  const cleanCpfCnpj = params.cpfCnpj?.replace(/\D/g, "")
+
+  // 0. Se quem chamou já sabe o ID salvo (ex: financial_subscriptions),
+  // confirma que ainda existe no Asaas antes de ir pra busca por atributo.
+  if (params.existingCustomerId) {
+    const existing = await asaas(`/customers/${params.existingCustomerId}`)
+    if (!existing.errors) {
+      if (cleanCpfCnpj) {
+        return asaas(`/customers/${existing.id}`, "POST", { cpfCnpj: cleanCpfCnpj })
+      }
+      return existing
+    }
+  }
+
+  // 1. Busca por CPF/CNPJ — mais preciso que email (evita duplicar
+  // cliente quando o mesmo documento já existe com email diferente/antigo)
+  if (cleanCpfCnpj) {
+    const byDoc = await asaas(`/customers?cpfCnpj=${cleanCpfCnpj}`)
+    if (byDoc.data?.length > 0) return byDoc.data[0]
+  }
+
+  // 2. Busca por email
   const search = await asaas(`/customers?email=${encodeURIComponent(params.email)}&limit=1`)
   if (search.data?.length > 0) {
     const existing = search.data[0]
@@ -80,29 +116,41 @@ export async function getOrCreateAsaasCustomer(params: {
     // (a Asaas pode omitir/mascarar esse campo na listagem por privacidade,
     // mesmo que esteja salvo de verdade — então checar "já tem ou não" por
     // ali não é confiável).
-    if (params.cpfCnpj) {
-      return asaas(`/customers/${existing.id}`, "POST", {
-        cpfCnpj: params.cpfCnpj.replace(/\D/g, ""),
-      })
+    if (cleanCpfCnpj) {
+      return asaas(`/customers/${existing.id}`, "POST", { cpfCnpj: cleanCpfCnpj })
     }
     return existing
   }
 
-  // Cria novo cliente
+  // 3. Cria novo cliente
   return asaas("/customers", "POST", {
     name: params.name,
     email: params.email,
     mobilePhone: params.phone.replace(/\D/g, ""),
-    cpfCnpj: params.cpfCnpj?.replace(/\D/g, "") || undefined,
+    cpfCnpj: cleanCpfCnpj || undefined,
+    personType: cleanCpfCnpj ? (cleanCpfCnpj.length === 14 ? "JURIDICA" : "FISICA") : undefined,
+    ...(params.externalReference ? { externalReference: params.externalReference } : {}),
     notificationDisabled: false,
   })
 }
 
 // Cria assinatura recorrente mensal
+//
+// Achado em produção (16/07/2026): existia uma SEGUNDA implementação dessa
+// mesma função, definida localmente dentro de app/api/finance/asaas/route.ts
+// — com `fine`/`interest`/`externalReference` que ESSA (a versão
+// compartilhada, usada por /api/cadastro e /api/admin/subscription) não
+// tinha. Ou seja, dependendo de qual dos 3 caminhos criava a assinatura, a
+// política de atraso (multa/juros) e a rastreabilidade no Asaas
+// (externalReference) eram diferentes, sem ninguém ter decidido isso de
+// propósito — mesma classe de bug já vista antes (dois caminhos paralelos
+// fazendo a mesma coisa de jeitos diferentes). Consolidado numa função só;
+// a rota duplicada agora chama esta.
 export async function createSubscription(params: {
   customerId: string
   plan: PlanKey
   nextDueDate?: string // YYYY-MM-DD
+  externalReference?: string
 }) {
   const plan = PLANS[params.plan]
   const nextDue = params.nextDueDate ?? new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)
@@ -115,6 +163,9 @@ export async function createSubscription(params: {
     cycle: "MONTHLY",
     description: `DOOHPLAY ${plan.name} - ${plan.description}`,
     maxPayments: undefined, // sem limite
+    ...(params.externalReference ? { externalReference: params.externalReference } : {}),
+    fine: { value: 2 },
+    interest: { value: 1 },
   })
 }
 
