@@ -265,20 +265,20 @@ footer { border-top:1px solid #1E293B; padding:24px; text-align:center; font-siz
     <a href="/cadastro?plano=pro" class="plano" style="text-decoration:none">
       <div class="plano-info">
         <div class="plano-nome">Pro</div>
-        <div class="plano-desc">1 TV · Relatórios · Prioridade no suporte</div>
+        <div class="plano-desc">3 TVs · Relatórios · Prioridade no suporte</div>
       </div>
       <div class="plano-preco">
-        <div class="plano-valor">R$197</div>
+        <div class="plano-valor">R$290</div>
         <div class="plano-periodo">/mês</div>
       </div>
     </a>
     <a href="/cadastro?plano=business" class="plano" style="text-decoration:none">
       <div class="plano-info">
         <div class="plano-nome">Business</div>
-        <div class="plano-desc">Até 3 TVs · Suporte dedicado</div>
+        <div class="plano-desc">Até 5 TVs · Suporte dedicado</div>
       </div>
       <div class="plano-preco">
-        <div class="plano-valor">R$397</div>
+        <div class="plano-valor">R$620</div>
         <div class="plano-periodo">/mês</div>
       </div>
     </a>

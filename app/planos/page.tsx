@@ -45,13 +45,13 @@ const PLANS = [
   {
     id: "pro",
     name: "Pro",
-    price: "R$ 197",
+    price: "R$ 290",
     period: "por mês",
     color: BLUE,
     badge: "Mais popular",
     desc: "Para negócios que querem mais controle e receita.",
     features: [
-      "1 tela conectada",
+      "3 telas conectadas",
       "7 dias grátis pra testar",
       "Conteúdo personalizado",
       "Campanhas segmentadas",
@@ -62,7 +62,6 @@ const PLANS = [
       "Suporte prioritário",
     ],
     notIncluded: [
-      "Múltiplas telas",
       "Painel de agência",
     ],
     cta: "Testar 7 dias grátis",
@@ -72,13 +71,13 @@ const PLANS = [
   {
     id: "business",
     name: "Business",
-    price: "R$ 397",
+    price: "R$ 620",
     period: "por mês",
     color: PURPLE,
     badge: null,
     desc: "Para quem tem mais de uma tela no mesmo negócio.",
     features: [
-      "Até 3 telas conectadas",
+      "Até 5 telas conectadas",
       "7 dias grátis pra testar",
       "Conteúdo personalizado por tela",
       "Campanhas segmentadas",
@@ -100,7 +99,7 @@ const PLANS = [
     period: "sob medida",
     color: AMBER,
     badge: "Rede / Agência",
-    desc: "Pra redes de lojas, shoppings ou agências com mais de 3 telas.",
+    desc: "Pra redes de lojas, shoppings ou agências com mais de 5 telas.",
     features: [
       "Quantidade de telas sob medida",
       "Onboarding acompanhado",

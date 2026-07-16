@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
-import { getOrCreateAsaasCustomer, createExtraScreenSubscription, getFirstPaymentForSubscription } from "@/lib/asaas"
+import { getOrCreateAsaasCustomer, createExtraScreenSubscription, getFirstPaymentForSubscription, PLANS, PlanKey } from "@/lib/asaas"
 import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
@@ -8,9 +8,13 @@ export const dynamic = "force-dynamic"
 // Preço da tela extra — Fase 18 (14/07/2026): virou assinatura MENSAL
 // RECORRENTE (era cobrança única de R$97). Achado numa análise comercial
 // dos planos: cobrança única deixava Starter (R$97/mês) + telas extras
-// muito mais barato no longo prazo que assinar Business (R$397/mês) pro
+// muito mais barato no longo prazo que assinar o plano de cima pro
 // mesmo número de telas — sem nenhum limite de plano sendo checado em
 // lugar nenhum do fluxo. Ver EXTRA_SCREEN_MONTHLY_PRICE em lib/asaas.ts.
+// Fase 27 (15/07/2026): Pro e Business passaram a incluir 3 e 5 telas
+// respectivamente (antes, todo plano cobria só 1) — valor de R$150/tela
+// extra recalibrado junto pra continuar sempre mais caro que migrar de
+// tier (ver nota em lib/asaas.ts sobre a conferência de preço).
 const EXTRA_SCREEN_PRICE = Number(process.env.EXTRA_SCREEN_MONTHLY_PRICE_BRL || 150)
 
 function activationCodeFromId(id: string) {
@@ -27,11 +31,15 @@ function activationCodeFromId(id: string) {
 // R$150/mês); a primeira tela (já inclusa na mensalidade do plano, cobrada
 // no cadastro) só podia ser ativada manualmente por um admin clicando
 // "Vincular" — sem nenhum caminho pro próprio cliente fazer sozinho.
-// Acertado com o fundador: mesma tela de ativação por código, mas a
-// PRIMEIRA tela do cliente (nenhuma linha em client_screens ainda) é
-// ativada na hora, de graça — sem gerar cobrança nenhuma, já que o plano
-// já cobre. Só a partir da segunda tela em diante é que continua indo
+// Acertado com o fundador: mesma tela de ativação por código, mas
+// qualquer tela ainda DENTRO do limite do plano do cliente é ativada na
+// hora, de graça — sem gerar cobrança nenhuma, já que o plano já cobre.
+// Só a partir da tela que EXCEDE o limite do plano é que continua indo
 // pro fluxo de assinatura extra de R$150/mês, exatamente como antes.
+// Fase 27 (15/07/2026): corrigido pra comparar contra PLANS[plan].maxScreens
+// de verdade (Pro/Business agora cobrem 3/5 telas, não só 1 — a versão
+// original só checava "é a primeira tela de todas", o que cobraria
+// errado a partir da 2ª tela de um cliente Pro/Business).
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
@@ -62,12 +70,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Código de ativação não encontrado. Confira se o aparelho está com o app aberto mostrando esse código." }, { status: 404 })
     }
 
-    // Fase 25 — ramo da PRIMEIRA tela (grátis, já incluída no plano).
+    // Fase 25 (14/07/2026) — ramo de tela GRÁTIS (já incluída no plano).
+    // Fase 27 (15/07/2026) — achado ao mudar Pro/Business pra cobrir mais
+    // de 1 tela: a checagem original só via se era "a primeira tela de
+    // todas" (count === 0), sem saber quantas telas o PLANO do cliente
+    // cobre. Isso cobrava R$150 errado a partir da 2ª tela de um cliente
+    // Pro/Business, mesmo ele tendo direito a mais telas grátis. Agora
+    // compara a contagem atual contra PLANS[plan].maxScreens de verdade.
+    const planRes = await pool.query(
+      `SELECT plan FROM financial_subscriptions WHERE code = $1 LIMIT 1`,
+      [clientCode]
+    )
+    const planKey = (planRes.rows[0]?.plan ?? "starter") as PlanKey
+    const maxScreens = PLANS[planKey]?.maxScreens ?? 1
+
     const existingScreens = await pool.query(
       `SELECT COUNT(*)::int AS count FROM client_screens WHERE client_code = $1`,
       [clientCode]
     )
-    if (existingScreens.rows[0].count === 0) {
+    if (existingScreens.rows[0].count < maxScreens) {
       await pool.query(
         `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
         [clientCode, match.id]
@@ -89,7 +110,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         free: true,
         screen_id: created.rows[0].id,
-        message: "Primeira tela ativada — já incluída no seu plano, sem cobrança adicional.",
+        message: `Tela ativada — já incluída no seu plano (${existingScreens.rows[0].count + 1} de ${maxScreens}), sem cobrança adicional.`,
       })
     }
 

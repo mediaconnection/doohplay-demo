@@ -219,10 +219,10 @@ input::placeholder { color:#475569; }
       <div class="plan-card" onclick="selectPlan('pro',this)" id="plan-pro">
         <div>
           <div class="plan-name">Pro</div>
-          <div class="plan-desc">1 TV · Relatórios avançados · Prioridade</div>
+          <div class="plan-desc">3 TVs · Relatórios avançados · Prioridade</div>
         </div>
         <div class="plan-price">
-          <div class="plan-value">R$197</div>
+          <div class="plan-value">R$290</div>
           <div class="plan-period">/mês</div>
         </div>
       </div>
@@ -230,10 +230,10 @@ input::placeholder { color:#475569; }
       <div class="plan-card" onclick="selectPlan('business',this)" id="plan-business">
         <div>
           <div class="plan-name">Business</div>
-          <div class="plan-desc">Até 3 TVs · Suporte dedicado · Agência</div>
+          <div class="plan-desc">Até 5 TVs · Suporte dedicado · Agência</div>
         </div>
         <div class="plan-price">
-          <div class="plan-value">R$397</div>
+          <div class="plan-value">R$620</div>
           <div class="plan-period">/mês</div>
         </div>
       </div>
@@ -357,7 +357,7 @@ function goStep3() {
   hideErr('err2')
   if (!selectedPlan) return showErr('err2','Selecione um plano')
 
-  const plans = { starter:'Starter — R$ 97/mês', pro:'Pro — R$ 197/mês', business:'Business — R$ 397/mês' }
+  const plans = { starter:'Starter — R$ 97/mês', pro:'Pro — R$ 290/mês', business:'Business — R$ 620/mês' }
   document.getElementById('summary').innerHTML =
     '<b style="color:#F1F5F9">'+formData.name+'</b><br>' +
     formData.business_type + ' · ' + formData.city + '<br>' +
