@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { PLANS, PlanKey } from "@/lib/asaas"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -98,11 +99,13 @@ export async function POST(req: NextRequest) {
       // Tabela leads pode não existir
     }
 
-    const planNames: Record<string, string> = {
-      starter: "Starter — R$197/mês",
-      pro:     "Pro — R$347/mês",
-      multi:   "Multi — R$547/mês",
-    }
+    // Achado em produção (15/07/2026): esse texto tinha valores de plano
+    // hardcoded e desatualizados ("Starter — R$197/mês", quando o Starter
+    // real é R$97), com nomes de plano ("multi") que nem existem mais em
+    // PLANS. Corrigido pra derivar sempre da mesma fonte única.
+    const planNames: Record<string, string> = Object.fromEntries(
+      Object.entries(PLANS).map(([key, p]) => [key, `${p.name} — R$${p.value}/mês`])
+    )
 
     // Cria assinatura no Asaas (só se tiver CPF/CNPJ)
     let asaasResult = null

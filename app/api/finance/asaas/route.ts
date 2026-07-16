@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { requireSuperAdmin } from "@/lib/require-super-admin"
 import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
+import { PLANS, PlanKey } from "@/lib/asaas"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -84,16 +85,21 @@ async function getOrCreateAsaasCustomer(client: {
 }
 
 // Cria cobrança recorrente
+//
+// Achado em produção (15/07/2026): esta função tinha sua PRÓPRIA tabela
+// de preços (`prices`), completamente desconectada de `lib/asaas.ts`
+// PLANS — a fonte que todo o resto do site usa (landing pages,
+// /cadastro, dashboard). Os valores nem batiam: essa tabela tinha
+// "starter: 197" (deveria ser 97), nomes de plano que não existem mais
+// ("local", "multi", "enterprise"). Isso rodava de verdade só no fluxo
+// de /onboarding (que chama esta rota) — ou seja, quem se cadastrava
+// por ali era cobrado com o valor ERRADO no Asaas, sem ninguém perceber
+// porque /cadastro (o outro fluxo de cadastro) sempre usou PLANS
+// corretamente e nunca deu sintoma. Corrigido: agora usa a mesma fonte
+// única de verdade que todo o resto do sistema usa.
 async function createSubscription(customerId: string, client: any, plan: string) {
-  const prices: Record<string, number> = {
-    local:      0,    // comissão, sem mensalidade
-    starter:  197,
-    business: 299,
-    pro:      347,
-    multi:    547,
-    enterprise: 0,  // negociado
-  }
-  const value = prices[plan] ?? 197
+  const planInfo = PLANS[plan as PlanKey]
+  const value = planInfo?.value ?? PLANS.starter.value
 
   return asaas("/subscriptions", "POST", {
     customer: customerId,

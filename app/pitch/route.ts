@@ -173,13 +173,13 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
       </div>
       <div class="price-card">
         <div class="price-name">PRO</div>
-        <div class="price-val">R$197</div>
-        <div class="price-period">/mês · + recursos</div>
+        <div class="price-val">R$290</div>
+        <div class="price-period">/mês · 3 TVs</div>
       </div>
       <div class="price-card">
         <div class="price-name">BUSINESS</div>
-        <div class="price-val">R$397</div>
-        <div class="price-period">/mês · 3 TVs</div>
+        <div class="price-val">R$620</div>
+        <div class="price-period">/mês · 5 TVs</div>
       </div>
     </div>
     <div class="sub">O plano Starter se paga com o <strong>primeiro anunciante local</strong>. Cancele quando quiser, sem multa.</div>

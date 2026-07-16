@@ -283,8 +283,8 @@ Qualquer dúvida, é só me chamar aqui no WhatsApp. Bem-vindo à rede! 🚀</di
     <div class="slide-headline">Comece por R$ 97/mês</div>
     <div class="price-row">
       <div class="price-card featured"><div class="price-name">STARTER</div><div class="price-value">R$97</div><div class="price-desc">/mês · 1 TV</div></div>
-      <div class="price-card"><div class="price-name">PRO</div><div class="price-value">R$197</div><div class="price-desc">/mês · Relatórios</div></div>
-      <div class="price-card"><div class="price-name">BUSINESS</div><div class="price-value">R$397</div><div class="price-desc">/mês · 3 TVs</div></div>
+      <div class="price-card"><div class="price-name">PRO</div><div class="price-value">R$290</div><div class="price-desc">/mês · 3 TVs · Relatórios</div></div>
+      <div class="price-card"><div class="price-name">BUSINESS</div><div class="price-value">R$620</div><div class="price-desc">/mês · 5 TVs</div></div>
     </div>
     <div class="slide-body" style="margin-top:14px">O plano Starter se paga com o primeiro anunciante local. Cancele quando quiser.</div>
   </div>
