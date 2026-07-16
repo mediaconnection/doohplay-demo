@@ -267,7 +267,7 @@ export default function PlanosPage() {
               </thead>
               <tbody>
                 {[
-                  ["Telas conectadas",        "1",        "1",           "Até 3",       "Sob medida"],
+                  ["Telas conectadas",        "1",        "3",           "Até 5",       "Sob medida"],
                   ["Teste grátis",            "7 dias",   "7 dias",      "7 dias",      "—"],
                   ["Proof-of-Play",           "✓",        "✓",           "✓",           "✓"],
                   ["Blockchain auditável",    "✓",        "✓",           "✓",           "✓"],
