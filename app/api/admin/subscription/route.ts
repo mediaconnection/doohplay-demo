@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       email: client.email,
       phone: client.phone,
       cpfCnpj: client.cpf_cnpj,
+      externalReference: code.toUpperCase(),
     })
 
     // Cria assinatura no Asaas
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
       customerId: customer.id,
       plan: plan as PlanKey,
       nextDueDate: next_due_date,
+      externalReference: code.toUpperCase(),
     })
 
     // Salva no banco
