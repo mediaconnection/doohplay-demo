@@ -53,9 +53,10 @@ const PLANS = [
 ]
 
 const BUSINESS_TYPES = [
-  "Academia", "Barbearia", "Cafeteria", "Clínica",
-  "Condomínio", "Farmácia", "Lanchonete", "Padaria",
-  "Pet shop", "Restaurante", "Salão de beleza", "Outro",
+  "Academia", "Automotivo", "Bar", "Barbearia", "Cafeteria",
+  "Casa & Serviços", "Clínica", "Condomínio", "Farmácia",
+  "Lanchonete", "Loja de Roupas", "Padaria", "Pet shop",
+  "Restaurante", "Salão de beleza", "Outro",
 ]
 
 const STEPS = [
