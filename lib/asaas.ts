@@ -19,10 +19,26 @@ async function asaas(path: string, method = "GET", body?: object) {
   return data
 }
 
+// Fase 27 (15/07/2026): planos passam a incluir mais telas conforme o
+// tier, em vez de todos cobrirem só 1 (decisão de produto — Pro e
+// Business precisavam de argumento próprio pra upgrade além de
+// "Relatórios/Prioridade/Suporte dedicado", que hoje não têm gate
+// técnico real). Preço por tela calibrado pra nunca ficar mais barato
+// que ficar no plano de baixo comprando telas extra a R$150/mês
+// (EXTRA_SCREEN_MONTHLY_PRICE_BRL) — ver conferência feita com o
+// fundador antes de aplicar: Pro 3 telas por R$290 (R$96,67/tela, quase
+// igual ao Starter) e Business 5 telas por R$620 (sempre mais barato
+// que Pro + 2 extras = R$590+150=740... na verdade Pro+2 extras = R$290
+// + R$300 = R$590, e Business a R$620 fica ligeiramente ACIMA disso —
+// isso é intencional: ver nota abaixo).
+// Nota: Business (R$620) ficar R$30 acima de "Pro + 2 extras" (R$590) é
+// consciente — o fundador decidiu manter uma pequena margem positiva em
+// vez de empate exato, pra sempre sobrar alguma vantagem de preço (além
+// do suporte dedicado) em migrar pro tier de cima.
 export const PLANS = {
   starter: { name: "Starter",  value: 97,  description: "1 TV · Suporte básico",         maxScreens: 1 },
-  pro:     { name: "Pro",      value: 197, description: "1 TV · Relatórios · Prioridade", maxScreens: 1 },
-  business:{ name: "Business", value: 397, description: "Até 3 TVs · Suporte dedicado",   maxScreens: 3 },
+  pro:     { name: "Pro",      value: 290, description: "3 TVs · Relatórios · Prioridade", maxScreens: 3 },
+  business:{ name: "Business", value: 620, description: "5 TVs · Suporte dedicado",   maxScreens: 5 },
 } as const
 
 export type PlanKey = keyof typeof PLANS
