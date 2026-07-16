@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const pool = getPool()
   try {
-    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, blocksRes, mediasRes, alertsRes, networkMediaRes] = await Promise.all([
+    const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, dailyEventsRes, blocksRes, mediasRes, alertsRes, networkMediaRes] = await Promise.all([
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
                sc.phone, sc.address, sc.created_at,
@@ -66,6 +66,17 @@ export async function GET(req: NextRequest) {
                COUNT(*) FILTER (WHERE played_at > NOW() - INTERVAL '7 days')::int AS last_7d
         FROM display_events
       `),
+      pool.query(`
+        SELECT to_char(d.day, 'DD/MM') AS day, COALESCE(e.count, 0)::int AS count
+        FROM generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, INTERVAL '1 day') AS d(day)
+        LEFT JOIN (
+          SELECT date_trunc('day', played_at) AS day, COUNT(*)::int AS count
+          FROM display_events
+          WHERE played_at > NOW() - INTERVAL '14 days'
+          GROUP BY 1
+        ) e ON e.day = d.day
+        ORDER BY d.day
+      `).catch(() => ({ rows: [] })),
       pool.query(`
         SELECT COUNT(*)::int AS total,
                COUNT(*) FILTER (WHERE anchored_at IS NOT NULL)::int AS anchored
@@ -116,6 +127,7 @@ export async function GET(req: NextRequest) {
       // campo de orçamento (não só escondido na tela, removido de verdade).
       campaigns:     isSuperAdmin ? campaignsRes.rows : campaignsRes.rows.map(({ budget, ...rest }: any) => rest),
       events:        eventsRes.rows[0],
+      dailyEvents:   dailyEventsRes.rows,
       blocks:        blocksRes.rows[0],
       medias:        mediasRes.rows,
       duplicateAlerts: alertsRes.rows,
