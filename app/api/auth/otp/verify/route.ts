@@ -14,7 +14,7 @@ function stripPhone(phone: string): string {
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
-    const { contact, otp, method, role } = await req.json()
+    const { contact, otp, method, role, intended_code } = await req.json()
 
     if (!contact || !otp || !role) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 })
@@ -61,6 +61,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Código inválido ou expirado. Solicite um novo." },
         { status: 401 }
+      )
+    }
+
+    // Mesma checagem de /otp/send, repetida aqui como camada extra — cobre
+    // o caso de um OTP pedido antes desta correção existir, ou qualquer
+    // chamada direta à API pulando a tela.
+    if (intended_code && String(tokenRow.user_code).toUpperCase() !== String(intended_code).toUpperCase()) {
+      return NextResponse.json(
+        { error: `Esse código pertence à conta ${tokenRow.user_code}, não a ${intended_code}.` },
+        { status: 403 }
       )
     }
 

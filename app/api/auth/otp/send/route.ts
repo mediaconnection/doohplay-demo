@@ -80,7 +80,7 @@ async function sendEmail(email: string, code: string, name: string) {
 export async function POST(req: NextRequest) {
   const pool = getPool()
   try {
-    const { contact, method, role } = await req.json()
+    const { contact, method, role, intended_code } = await req.json()
 
     if (!contact?.trim()) return NextResponse.json({ error: "Contato obrigatório" }, { status: 400 })
     if (!role || !["client", "advertiser", "agency"].includes(role)) {
@@ -118,6 +118,21 @@ export async function POST(req: NextRequest) {
             ? "WhatsApp não encontrado. Verifique o número ou fale com o suporte."
             : "Email não encontrado. Verifique o endereço informado." },
         { status: 404 }
+      )
+    }
+
+    // Achado em produção (16/07/2026): antes disto, qualquer contato válido
+    // logava a pessoa na PRÓPRIA conta dela, mesmo que ela estivesse tentando
+    // acessar uma conta específica diferente (ex: veio de um link/redirect
+    // pra AGENC787, mas digitou — ou o navegador autofilled — um contato que
+    // pertence à BARBE332). O destino pretendido era descartado sem aviso.
+    // Agora, se um destino específico foi informado, recusamos explicitamente
+    // quando o contato não pertence a ele, em vez de silenciosamente trocar
+    // de conta.
+    if (intended_code && String(userRow.code).toUpperCase() !== String(intended_code).toUpperCase()) {
+      return NextResponse.json(
+        { error: `Esse contato pertence à conta ${userRow.code}, não a ${intended_code}. Confirme o contato certo para essa conta específica.` },
+        { status: 403 }
       )
     }
 
