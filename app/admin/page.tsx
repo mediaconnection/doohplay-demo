@@ -452,6 +452,142 @@ function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSucce
 }
 
 
+// ── Modal Editar Cliente ──────────────────────────────────────────────────────
+// Mesma estrutura de campos do ModalNovoCliente, mas pré-preenchido e
+// chamando PATCH em vez de criar um registro novo.
+function ModalEditarCliente({ client, onClose, onSuccess }: { client: any; onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    name: client.name ?? "",
+    business_type: client.business_type ?? "",
+    address: client.address ?? "",
+    city: client.city ?? "",
+    phone: client.phone ?? "",
+    email: client.email ?? "",
+    cpf_cnpj: client.cpf_cnpj ?? "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+
+  const BUSINESS_TYPES = [
+    "Academia", "Automotivo", "Bar", "Barbearia", "Casa & Serviços", "Clínica",
+    "Condomínio", "Farmácia", "Lanchonete", "Loja de Roupas", "Mercado",
+    "Padaria", "Petshop", "Restaurante", "Salão de Beleza", "Outro",
+  ]
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = async () => {
+    setError("")
+    if (!form.name.trim())  { setError("Nome é obrigatório"); return }
+    if (!form.city.trim())  { setError("Cidade é obrigatória"); return }
+
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/clients/${client.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar")
+      setSuccess(true)
+      onSuccess()
+    } catch (err: any) {
+      setError(err.message || "Erro ao salvar")
+    }
+    setLoading(false)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 8,
+    padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none", boxSizing: "border-box",
+  }
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: TEXT2, marginBottom: 4, display: "block" }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>✏️ Editar Cliente</div>
+            <div style={{ fontSize: 12, color: TEXT2, marginTop: 3 }}>{client.name} · #{client.code}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
+          {success ? (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>Dados atualizados!</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Nome do estabelecimento *</label>
+                <input style={inputStyle} value={form.name} onChange={e => set("name", e.target.value)} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Tipo de negócio</label>
+                  <select style={inputStyle} value={form.business_type} onChange={e => set("business_type", e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Cidade *</label>
+                  <input style={inputStyle} value={form.city} onChange={e => set("city", e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Endereço</label>
+                <input style={inputStyle} value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, número, bairro" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>WhatsApp</label>
+                  <input style={inputStyle} value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 9 9999-9999" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <input style={inputStyle} type="email" value={form.email} onChange={e => set("email", e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>CPF/CNPJ</label>
+                <input style={inputStyle} value={form.cpf_cnpj} onChange={e => set("cpf_cnpj", e.target.value)} placeholder="Só números" />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: RED }}>
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
+          {success ? (
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BLUE, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+          ) : (
+            <>
+              <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? MUTED : BLUE, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                {loading ? "Salvando…" : "Salvar alterações"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 // ── Modal Assinatura ──────────────────────────────────────────────────────────
 function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose: () => void; onSuccess: () => void }) {
   const [plan, setPlan]       = useState("starter")
@@ -1144,6 +1280,7 @@ function TabDiagnostico() {
 function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: () => void; isSuperAdmin: boolean }) {
   const [showCsv, setShowCsv] = useState(false)
   const [showNovo, setShowNovo] = useState(false)
+  const [showEdit, setShowEdit] = useState<any>(null)
   const [showSub, setShowSub] = useState<any>(null)
   const [deletingCode, setDeletingCode] = useState<string | null>(null)
   const [pricingDraft, setPricingDraft] = useState<Record<string, { screen_size: string; price_multiplier: string }>>({})
@@ -1192,6 +1329,7 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
     <div>
       {showCsv && <ModalCsvImport onClose={() => setShowCsv(false)} onSuccess={onRefresh} />}
       {showNovo && <ModalNovoCliente onClose={() => setShowNovo(false)} onSuccess={onRefresh} />}
+      {showEdit && <ModalEditarCliente client={showEdit} onClose={() => setShowEdit(null)} onSuccess={onRefresh} />}
       {showSub && <ModalAssinatura client={showSub} onClose={() => setShowSub(null)} onSuccess={onRefresh} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -1276,6 +1414,12 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
                   style={{ fontSize: 12, color: PURPLE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + PURPLE + "44", borderRadius: 6 }}>
                   Dashboard
                 </Link>
+                <button
+                  onClick={() => setShowEdit(c)}
+                  style={{ fontSize: 12, color: BLUE, background: "transparent", border: "1px solid " + BLUE + "44", borderRadius: 6, padding: "5px 10px", cursor: "pointer" }}
+                >
+                  ✏️ Editar
+                </button>
                 <button
                   onClick={() => handleDelete(c.code, c.name)}
                   disabled={deletingCode === c.code}
