@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const [clientsRes, subsRes, advertisersRes, campaignsRes, eventsRes, dailyEventsRes, blocksRes, mediasRes, alertsRes, networkMediaRes] = await Promise.all([
       pool.query(`
         SELECT sc.id::text, sc.code, sc.name, sc.business_type, sc.active,
-               sc.phone, sc.address, sc.created_at,
+               sc.phone, sc.email, sc.cpf_cnpj, sc.address, sc.city, sc.created_at,
                sc.screen_size, sc.price_multiplier,
                p.id::text AS player_id, p.last_ping,
                CASE
@@ -119,7 +119,9 @@ export async function GET(req: NextRequest) {
     ])
 
     return Response.json({
-      clients:       clientsRes.rows,
+      // Fase 13 (mesmo padrão já usado no orçamento de campanhas) — CPF/CNPJ
+      // é dado pessoal sensível (LGPD), só super_admin recebe de verdade.
+      clients:       isSuperAdmin ? clientsRes.rows : clientsRes.rows.map(({ cpf_cnpj, ...rest }: any) => rest),
       subscriptions: isSuperAdmin ? subsRes.rows : [],
       advertisers:   advertisersRes.rows,
       // Fase 13 — valor de investimento é dado financeiro, mesma lógica de
