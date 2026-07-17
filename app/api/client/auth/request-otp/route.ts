@@ -52,11 +52,16 @@ export async function POST(req: NextRequest) {
       [clientCode, otpHash, expiresAt]
     )
 
-    await sendWhatsApp(client.phone,
+    // Não esperamos o envio terminar pra responder — mesmo com o timeout
+    // de 8s no lib/whatsapp.ts, não faz sentido o usuário ficar preso na
+    // tela até essa chamada de rede terceira resolver. O código já está
+    // salvo no banco; o envio continua em segundo plano, e uma falha aqui
+    // só vai pro log (não impede o fluxo nem gera erro pro usuário).
+    sendWhatsApp(client.phone,
       `🔐 *Código de acesso — DOOHPLAY*\n\n` +
       `Seu código: *${otp}*\n\n` +
       `Válido por ${OTP_TTL_MINUTES} minutos. Não compartilhe com ninguém.`
-    )
+    ).catch(err => console.error("[client/auth/request-otp] falha no envio de WhatsApp:", err))
 
     return GENERIC_OK
   } catch (err) {
