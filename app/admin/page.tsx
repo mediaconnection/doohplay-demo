@@ -120,7 +120,7 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const CSV_TEMPLATE = "name,business_type,address,city,phone,email,plan\nBarbearia Silva,Barbearia,Rua X 123,São Paulo,11999998888,silva@email.com,pro\nPadaria Central,Padaria,Av Y 456,Campinas,19988887777,padaria@email.com,starter"
+  const CSV_TEMPLATE = "name,business_type,address,city,phone,email\nBarbearia Silva,Barbearia,Rua X 123,São Paulo,11999998888,silva@email.com\nPadaria Central,Padaria,Av Y 456,Campinas,19988887777,padaria@email.com"
 
   const downloadTemplate = () => {
     const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" })
@@ -190,8 +190,8 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <div>
               <div style={{ background: BG, border: "1px solid " + BORDER, borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: TEXT2 }}>
                 <div style={{ fontWeight: 600, color: TEXT, marginBottom: 6 }}>Colunas esperadas:</div>
-                <code style={{ fontSize: 11, color: BLUE }}>name, business_type, address, city, phone, email, plan</code>
-                <div style={{ marginTop: 6, color: MUTED }}>Obrigatórios: <strong style={{ color: TEXT }}>name, city, phone</strong> · Planos: starter, pro, multi</div>
+                <code style={{ fontSize: 11, color: BLUE }}>name, business_type, address, city, phone, email</code>
+                <div style={{ marginTop: 6, color: MUTED }}>Obrigatórios: <strong style={{ color: TEXT }}>name, city, phone</strong> · Isso só cadastra o cliente — pra ativar cobrança, use "Assinatura" depois</div>
               </div>
               <div
                 onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -218,7 +218,7 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid " + BORDER }}>
-                    {["#","Nome","Tipo","Cidade","Telefone","Plano","Status"].map(h => (
+                    {["#","Nome","Tipo","Cidade","Telefone","Status"].map(h => (
                       <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -231,7 +231,6 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
                       <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.business_type || "—"}</td>
                       <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.city || "—"}</td>
                       <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.phone || "—"}</td>
-                      <td style={{ padding: "8px 12px" }}><Badge label={row.plan || "starter"} color={BLUE} /></td>
                       <td style={{ padding: "8px 12px" }}>
                         {row.valid
                           ? <span style={{ color: GREEN, fontSize: 11, fontWeight: 600 }}>✓ OK</span>
@@ -311,7 +310,7 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
 // depois, separadamente (mesmo padrão que o CSV import já segue).
 function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({
-    name: "", business_type: "", address: "", city: "", phone: "", email: "", plan: "starter",
+    name: "", business_type: "", address: "", city: "", phone: "", email: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -415,14 +414,6 @@ function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSucce
                   <label style={labelStyle}>Email</label>
                   <input style={inputStyle} type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="contato@email.com" />
                 </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Plano</label>
-                <select style={inputStyle} value={form.plan} onChange={e => set("plan", e.target.value)}>
-                  <option value="starter">Starter — 1 tela</option>
-                  <option value="pro">Pro — 3 telas</option>
-                  <option value="business">Business — 5 telas</option>
-                </select>
               </div>
             </div>
           )}
