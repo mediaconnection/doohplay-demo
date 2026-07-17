@@ -175,27 +175,35 @@ export default async function DashboardPage({
     }
   }
 
-  // 4. Playlist — lê de CampaignMedia (onde o upload realmente salva)
-  // e inclui playlist_schedule.screen_id para preservar a atribuição por tela
-  // física no dashboard local.
+  // 4. Playlist — Achado em produção (16/07/2026): esta query lia de
+  // CampaignMedia via Campaign.advertiserCode, tratando o CÓDIGO DO DONO
+  // como se fosse um "código de anunciante" — funcionava só por acidente,
+  // enquanto existia uma Campaign com advertiserCode = código do dono (like
+  // aconteceu com BARBE332, cadastrado por engano também como anunciante).
+  // A rota real que o player usa (/api/client/playlist/[code]) já migrou pra
+  // fundação unificada (creative_assets_v2/placements_v2) há muito tempo —
+  // essa aqui, que alimenta a aba "Conteúdo" do dashboard, nunca foi
+  // atualizada junto, e ficava mostrando vazio pro dono assim que ele não
+  // tivesse mais (ou nunca tivesse tido) uma Campaign própria. Mesma classe
+  // de bug já corrigida hoje em outros 6+ lugares — dois caminhos paralelos
+  // pra mesma informação, divergindo silenciosamente.
   let playlist: PlaylistItem[] = []
   try {
     const plRes = await pool.query(
       `SELECT
-         cm.id::text,
-         cm.type,
-         COALESCE(ps.duration, 15) AS duration,
-         COALESCE(ps.position,
-           ROW_NUMBER() OVER (ORDER BY cm."createdAt" ASC)::int) AS position,
-         cm.url            AS asset_url,
-         cm.name,
-         ps.screen_id::text AS screen_id
-       FROM "CampaignMedia" cm
-       JOIN "Campaign" c ON c.id = cm."campaignId"
-       LEFT JOIN playlist_schedule ps
-         ON ps.media_id = cm.id AND ps.client_code = UPPER($1)
-       WHERE c."advertiserCode" = $1
-       ORDER BY COALESCE(ps.position, 999), cm."createdAt" ASC
+         ca.source_id::text AS id,
+         ca.type,
+         COALESCE(ca.duration_seconds, 15) AS duration,
+         COALESCE(p.position,
+           ROW_NUMBER() OVER (ORDER BY ca.created_at ASC)::int) AS position,
+         ca.url            AS asset_url,
+         ca.name,
+         p.screen_id::text AS screen_id
+       FROM placements_v2 p
+       JOIN creative_assets_v2 ca ON ca.id = p.creative_asset_id
+       JOIN campaigns_v2 cv ON cv.id = ca.campaign_id
+       WHERE cv.owner_type = 'dono' AND cv.owner_code = UPPER($1)
+       ORDER BY COALESCE(p.position, 999), ca.created_at ASC
        LIMIT 20`,
       [code]
     )
