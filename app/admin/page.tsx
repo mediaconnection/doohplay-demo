@@ -302,6 +302,156 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
   )
 }
 
+// ── Modal Novo Cliente (cadastro manual, sem passar pelo link público) ───────
+// Reaproveita a mesma rota do CSV (/api/admin/clients/import), só que com uma
+// linha só — evita criar uma quarta lógica de cadastro paralela (já temos
+// /api/cadastro público, /api/admin/clients/import em lote, e agora isso é só
+// o caso de 1 linha da mesma rota). Por design, essa rota NÃO cria assinatura
+// no Asaas — só o registro do cliente. Pra cobrança, use o botão "Assinatura"
+// depois, separadamente (mesmo padrão que o CSV import já segue).
+function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    name: "", business_type: "", address: "", city: "", phone: "", email: "", plan: "starter",
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [result, setResult] = useState<{ code?: string; status: string; error?: string } | null>(null)
+
+  const BUSINESS_TYPES = [
+    "Academia", "Automotivo", "Bar", "Barbearia", "Casa & Serviços", "Clínica",
+    "Condomínio", "Farmácia", "Lanchonete", "Loja de Roupas", "Mercado",
+    "Padaria", "Petshop", "Restaurante", "Salão de Beleza", "Outro",
+  ]
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = async () => {
+    setError("")
+    if (!form.name.trim())  { setError("Nome é obrigatório"); return }
+    if (!form.city.trim())  { setError("Cidade é obrigatória"); return }
+    if (!form.phone.trim()) { setError("Telefone é obrigatório"); return }
+
+    setLoading(true)
+    try {
+      const res = await fetch("/api/admin/clients/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: [{ ...form, line: 1, valid: true, errors: [] }] }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao cadastrar")
+      const r = data.results?.[0]
+      setResult(r)
+      if (r?.status === "ok") onSuccess()
+    } catch (err: any) {
+      setError(err.message || "Erro ao cadastrar")
+    }
+    setLoading(false)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 8,
+    padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none", boxSizing: "border-box",
+  }
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: TEXT2, marginBottom: 4, display: "block" }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>+ Novo Cliente</div>
+            <div style={{ fontSize: 12, color: TEXT2, marginTop: 3 }}>Cadastro manual, sem passar pelo link público</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
+          {result ? (
+            result.status === "ok" ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: TEXT, marginBottom: 6 }}>Cliente cadastrado!</div>
+                <div style={{ fontSize: 13, color: TEXT2 }}>Código gerado: <span style={{ color: BLUE, fontWeight: 700 }}>{result.code}</span></div>
+                <div style={{ fontSize: 12, color: TEXT2, marginTop: 10 }}>
+                  Sem assinatura no Asaas ainda — use o botão <strong>"Assinatura"</strong> na lista de clientes pra ativar a cobrança quando quiser.
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "14px", fontSize: 13, color: RED }}>
+                ⚠️ {result.error}
+              </div>
+            )
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Nome do estabelecimento *</label>
+                <input style={inputStyle} value={form.name} onChange={e => set("name", e.target.value)} placeholder="Ex: Barbearia do João" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Tipo de negócio</label>
+                  <select style={inputStyle} value={form.business_type} onChange={e => set("business_type", e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Cidade *</label>
+                  <input style={inputStyle} value={form.city} onChange={e => set("city", e.target.value)} placeholder="São Paulo" />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Endereço</label>
+                <input style={inputStyle} value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, número, bairro" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>WhatsApp *</label>
+                  <input style={inputStyle} value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 9 9999-9999" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <input style={inputStyle} type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="contato@email.com" />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Plano</label>
+                <select style={inputStyle} value={form.plan} onChange={e => set("plan", e.target.value)}>
+                  <option value="starter">Starter — 1 tela</option>
+                  <option value="pro">Pro — 3 telas</option>
+                  <option value="business">Business — 5 telas</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: RED }}>
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
+          {result ? (
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BLUE, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+          ) : (
+            <>
+              <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? MUTED : GREEN, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                {loading ? "Cadastrando…" : "Cadastrar cliente →"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 // ── Modal Assinatura ──────────────────────────────────────────────────────────
 function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose: () => void; onSuccess: () => void }) {
   const [plan, setPlan]       = useState("starter")
@@ -993,6 +1143,7 @@ function TabDiagnostico() {
 
 function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: () => void; isSuperAdmin: boolean }) {
   const [showCsv, setShowCsv] = useState(false)
+  const [showNovo, setShowNovo] = useState(false)
   const [showSub, setShowSub] = useState<any>(null)
   const [deletingCode, setDeletingCode] = useState<string | null>(null)
   const [pricingDraft, setPricingDraft] = useState<Record<string, { screen_size: string; price_multiplier: string }>>({})
@@ -1040,15 +1191,21 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
   return (
     <div>
       {showCsv && <ModalCsvImport onClose={() => setShowCsv(false)} onSuccess={onRefresh} />}
+      {showNovo && <ModalNovoCliente onClose={() => setShowNovo(false)} onSuccess={onRefresh} />}
       {showSub && <ModalAssinatura client={showSub} onClose={() => setShowSub(null)} onSuccess={onRefresh} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>
           Clientes <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({clients.length})</span>
         </div>
-        <button onClick={() => setShowCsv(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: BLUE + "18", border: "1px solid " + BLUE + "44", color: BLUE, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          📄 Importar CSV
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setShowNovo(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: GREEN + "18", border: "1px solid " + GREEN + "44", color: GREEN, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Novo Cliente
+          </button>
+          <button onClick={() => setShowCsv(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: BLUE + "18", border: "1px solid " + BLUE + "44", color: BLUE, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            📄 Importar CSV
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
