@@ -88,10 +88,16 @@ export async function POST(req: NextRequest) {
 
         const phone = normalizePhone(row.phone || "")
 
+        // Achado em produção (16/07/2026): esta rota tentava gravar numa
+        // coluna "plan" que não existe em studio_clients — o plano é
+        // rastreado só em financial_subscriptions, criada separadamente
+        // (fluxo de "Assinatura"). Isso quebrava TODO cadastro, tanto via
+        // CSV quanto pelo botão "+ Novo Cliente" (que reaproveita esta
+        // mesma rota) — nunca tinha sido testado com dado real antes.
         await pool.query(
           `INSERT INTO studio_clients
-            (code, name, business_type, address, city, phone, email, plan, active, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,NOW())
+            (code, name, business_type, address, city, phone, email, active, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,true,NOW())
            ON CONFLICT (code) DO NOTHING`,
           [
             code,
@@ -101,7 +107,6 @@ export async function POST(req: NextRequest) {
             row.city.trim(),
             phone                     || null,
             row.email?.trim()         || null,
-            row.plan?.trim()          || "starter",
           ]
         )
 
