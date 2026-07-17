@@ -1,8 +1,8 @@
 // app/login/page.tsx
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 const BG      = "#0B1020"
 const SURFACE = "#111827"
@@ -25,8 +25,25 @@ const ROLES = [
   { id: "admin",      label: "Administrador",      icon: "⚙️", desc: "Acesso ao painel administrativo"       },
 ]
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Achado em produção (16/07/2026): esta tela recebia ?redirect=/dashboard/local/{codigo}
+  // do middleware (que sabe exatamente qual conta o usuário tentou acessar),
+  // mas nunca lia esse parâmetro — autenticava qualquer contato válido e
+  // mandava a pessoa pra ONDE QUER que a conta dela fosse, ignorando o
+  // destino pretendido. Combinado com autofill do navegador (email de uma
+  // conta salva de sessão anterior), isso fez alguém tentando entrar em
+  // AGENC787 ser silenciosamente levado pra BARBE332 (a conta de quem
+  // realmente era o email autofilled), sem nenhum aviso de que trocou de
+  // conta. Não era vazamento de dado entre contas (a pessoa só via a
+  // própria conta certa) — era o destino pretendido sendo descartado sem
+  // aviso. Agora extraímos e mostramos esse destino, e o backend recusa
+  // se o contato digitado não pertencer a ele.
+  const redirectParam = searchParams.get("redirect") ?? ""
+  const intendedCode = redirectParam.match(/\/(?:dashboard\/local|agencia|anunciante)\/([A-Z0-9]+)/i)?.[1]?.toUpperCase() ?? null
+
   const [step,    setStep]    = useState<Step>("role")
   const [role,    setRole]    = useState<Role | null>(null)
   const [method,  setMethod]  = useState<Method>("whatsapp")
@@ -60,7 +77,7 @@ export default function LoginPage() {
       const res  = await fetch("/api/auth/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contact: contact.trim(), method, role }),
+        body: JSON.stringify({ contact: contact.trim(), method, role, intended_code: intendedCode }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao enviar código")
@@ -81,7 +98,7 @@ export default function LoginPage() {
       const res  = await fetch("/api/auth/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contact: contact.trim(), otp, method, role }),
+        body: JSON.stringify({ contact: contact.trim(), otp, method, role, intended_code: intendedCode }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Código inválido")
@@ -154,6 +171,12 @@ export default function LoginPage() {
             <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>
               Enviaremos um código de verificação
             </div>
+
+            {intendedCode && (
+              <div style={{ background: BLUE + "15", border: `1px solid ${BLUE}44`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: BLUE, marginBottom: 20 }}>
+                🔒 Entrando na conta <strong>{intendedCode}</strong> — use o contato cadastrado especificamente para essa conta.
+              </div>
+            )}
 
             {/* Método */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -244,5 +267,13 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
   )
 }
