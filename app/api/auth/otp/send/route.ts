@@ -9,6 +9,26 @@ const EVOLUTION_API_KEY  = process.env.EVOLUTION_API_KEY!
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE!
 const RESEND_API_KEY     = process.env.RESEND_API_KEY!
 
+// Achado em produção (17/07/2026, mesma classe de bug já corrigida em
+// lib/whatsapp.ts): nem o envio de WhatsApp nem o de e-mail aqui tinham
+// timeout. Se a Evolution API ou a Resend ficassem lentas, o fetch ficava
+// pendurado até o Render encerrar a conexão sozinho, devolvendo uma página
+// de erro em vez de JSON — o que aparecia pro usuário como "Erro de
+// conexão" na tela de /login, sem nenhum log nosso. Com timeout, o próprio
+// código desiste primeiro, de forma controlada, e sempre devolve um JSON
+// de erro reconhecível.
+const SEND_TIMEOUT_MS = 8000
+
+async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
@@ -25,7 +45,7 @@ function stripPhone(phone: string): string {
 
 async function sendWhatsApp(phone: string, code: string) {
   const msg = `🔐 *DOOHPLAY* — Seu código de acesso:\n\n*${code}*\n\nVálido por 10 minutos. Não compartilhe com ninguém.`
-  const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+  const res = await fetchWithTimeout(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
     body: JSON.stringify({ number: phone, text: msg }),
@@ -38,7 +58,7 @@ async function sendWhatsApp(phone: string, code: string) {
 }
 
 async function sendEmail(email: string, code: string, name: string) {
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetchWithTimeout("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
