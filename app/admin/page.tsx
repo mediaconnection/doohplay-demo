@@ -1178,9 +1178,28 @@ function TabAssinaturas({ data }: { data: any }) {
   )
 }
 
-function TabAnunciantes({ data, isSuperAdmin }: { data: any; isSuperAdmin: boolean }) {
+function TabAnunciantes({ data, isSuperAdmin, onRefresh }: { data: any; isSuperAdmin: boolean; onRefresh: () => void }) {
   const { advertisers, campaigns } = data
   const campByAdv = campaigns.reduce((acc: any, c: any) => { acc[c.advertiserCode] = (acc[c.advertiserCode] ?? 0) + 1; return acc }, {})
+  const [deletingCode, setDeletingCode] = useState<string | null>(null)
+
+  const handleDelete = async (code: string, name: string) => {
+    const typed = prompt(`Isso exclui o anunciante "${name}" (${code}) e todas as campanhas/mídias dele pra sempre. Isso NÃO afeta a conta de dono de tela, caso exista uma com o mesmo código. Digite o código "${code}" pra confirmar:`)
+    if (typed !== code) {
+      if (typed !== null) alert("Código não corresponde. Nada foi excluído.")
+      return
+    }
+    setDeletingCode(code)
+    try {
+      const res = await fetch(`/api/admin/advertisers/${code}`, { method: "DELETE" })
+      if (!res.ok) throw new Error((await res.json()).error ?? "Erro ao excluir")
+      onRefresh()
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message)
+    }
+    setDeletingCode(null)
+  }
+
   return (
     <div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
@@ -1197,7 +1216,7 @@ function TabAnunciantes({ data, isSuperAdmin }: { data: any; isSuperAdmin: boole
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {advertisers.map((a: any) => (
-            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto", alignItems: "center", gap: 20 }}>
+            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
               <div>
                 <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>{a.name}</div>
                 <div style={{ fontSize: 12, color: TEXT2 }}>{a.email ?? "—"} · {a.phone ?? "—"}</div>
@@ -1208,6 +1227,13 @@ function TabAnunciantes({ data, isSuperAdmin }: { data: any; isSuperAdmin: boole
               </div>
               <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "2px 8px", borderRadius: 10 }}>#{a.code}</span>
               <Link href={"/anunciante/" + a.code} target="_blank" style={{ fontSize: 12, color: BLUE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + BLUE + "44", borderRadius: 6 }}>Portal</Link>
+              <button
+                onClick={() => handleDelete(a.code, a.name)}
+                disabled={deletingCode === a.code}
+                style={{ fontSize: 12, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "5px 10px", cursor: deletingCode === a.code ? "not-allowed" : "pointer" }}
+              >
+                {deletingCode === a.code ? "Excluindo…" : "🗑 Excluir"}
+              </button>
             </div>
           ))}
         </div>
@@ -3113,7 +3139,7 @@ export default function AdminPage() {
         {tab === "diagnostico" && <TabDiagnostico />}
         {tab === "clientes"    && <TabClientes    data={data} onRefresh={load} isSuperAdmin={isSuperAdmin} />}
         {tab === "assinaturas" && isSuperAdmin && <TabAssinaturas data={data} />}
-        {tab === "anunciantes" && <TabAnunciantes data={data} isSuperAdmin={isSuperAdmin} />}
+        {tab === "anunciantes" && <TabAnunciantes data={data} isSuperAdmin={isSuperAdmin} onRefresh={load} />}
         {tab === "midias"      && <TabMidias      data={data} onRefresh={load} />}
         {tab === "rede"        && <TabRede        data={data} onRefresh={load} />}
         {tab === "exemplos"    && <TabExemplos />}
