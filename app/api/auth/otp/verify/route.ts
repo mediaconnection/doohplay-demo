@@ -1,6 +1,7 @@
 // app/api/auth/otp/verify/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { createClientSessionToken, CLIENT_SESSION_COOKIE, CLIENT_SESSION_MAX_AGE_SECONDS } from "@/lib/client-session"
 
 export const dynamic = "force-dynamic"
 
@@ -94,6 +95,28 @@ export async function POST(req: NextRequest) {
       maxAge:   SESSION_MAX_AGE,
       path:     "/",
     })
+
+    // Achado em produção (17/07/2026): /dashboard/local/[code] não confia
+    // no doohplay_session acima — ele confere um cookie separado
+    // (doohplay_client_session, HMAC), por design, pra isolar sessão de
+    // cliente da de admin/operador (ver lib/client-session.ts). Como este
+    // endpoint nunca emitia esse segundo cookie, todo "dono de tela" que
+    // logava aqui (por e-mail OU WhatsApp) caía direto numa segunda tela
+    // de OTP, agora só por WhatsApp, sem aviso de que era um passo extra.
+    // Login por e-mail já prova quem é o dono do código — não faz sentido
+    // exigir prova de novo por outro canal na sequência. Emitimos os dois
+    // cookies aqui; a separação dos mecanismos continua existindo (não
+    // alteramos lib/client-session.ts nem a validação do dashboard), só
+    // paramos de deixar o cliente pendurado no meio do caminho.
+    if (role === "client") {
+      response.cookies.set(CLIENT_SESSION_COOKIE, createClientSessionToken(userCode), {
+        httpOnly: true,
+        secure:   process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge:   CLIENT_SESSION_MAX_AGE_SECONDS,
+        path:     "/",
+      })
+    }
 
     return response
   } catch (err) {
