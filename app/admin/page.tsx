@@ -6,6 +6,23 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
+function formatPhone(phone: string): string {
+  const d = (phone ?? "").replace(/\D/g, "")
+  // 55DDXXXXXXXXX (com 55) ou DDXXXXXXXXX (sem) — aceita os dois formatos
+  // que já vimos gravados em studio_clients ao longo do projeto.
+  const local = d.startsWith("55") && d.length > 11 ? d.slice(2) : d
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`
+  return phone
+}
+
+function formatCpfCnpj(doc: string): string {
+  const d = (doc ?? "").replace(/\D/g, "")
+  if (d.length === 11) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+  if (d.length === 14) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
+  return doc
+}
+
 const BG      = "#0B1020"
 const SURFACE = "#111827"
 const BORDER  = "#1F2937"
@@ -1045,7 +1062,12 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
                   <span style={{ fontWeight: 700, color: TEXT, fontSize: 15 }}>{c.name}</span>
                   <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "1px 7px", borderRadius: 10 }}>{c.code}</span>
                 </div>
-                <div style={{ fontSize: 12, color: TEXT2 }}>{c.business_type} · {c.address ?? "Sem endereço"}</div>
+                <div style={{ fontSize: 12, color: TEXT2 }}>{c.business_type} · {c.address ?? "Sem endereço"}{c.city ? `, ${c.city}` : ""}</div>
+                <div style={{ fontSize: 11, color: TEXT2, marginTop: 3, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <span>📱 {c.phone ? formatPhone(c.phone) : "sem telefone"}</span>
+                  <span>✉️ {c.email ?? "sem email"}</span>
+                  {c.cpf_cnpj !== undefined && <span>🪪 {c.cpf_cnpj ? formatCpfCnpj(c.cpf_cnpj) : "sem CPF/CNPJ"}</span>}
+                </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}>
                   <select
                     value={draftFor(c).screen_size}
