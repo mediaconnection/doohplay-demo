@@ -16,6 +16,7 @@ interface PlayerMediaRow {
   active: boolean;
   position: number;
   slot_category: SlotCategory;
+  transition_effect: string | null;
 }
 
 type SlotCategory = "dono" | "anunciante" | "rede" | "institucional" | "canal";
@@ -32,6 +33,11 @@ interface PlayerMedia {
   layoutZones?: any[] | null;   // preenchido quando type === 'layout'
   sequenceGroup?: string | null; // itens institucionais do mesmo grupo tocam em bloco
   zoneContent?: Record<string, { type: string; url: string; name: string }> | null; // conteúdo escolhido por zona (Fase 9c)
+  // Fase 29 (20/07/2026): transição escolhida por vídeo/imagem individual
+  // (feedback de cliente: "a transição não deveria ser uma só pra
+  // tela toda"). null = usa o padrão da tela (screen_templates), mesmo
+  // comportamento de antes.
+  transitionEffect?: string | null;
 }
 
 async function getPlayerData(code: string) {
@@ -52,7 +58,8 @@ async function getPlayerData(code: string) {
         COALESCE(ps.duration, 15)     AS duration,
         COALESCE(ps.active, true)     AS active,
         COALESCE(ps.position, 0)      AS position,
-        cm.content_source             AS slot_category
+        cm.content_source             AS slot_category,
+        cm.transition_effect          AS transition_effect
       FROM studio_clients sc
       LEFT JOIN "Campaign" c ON c."advertiserCode" = sc.code
       LEFT JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
@@ -113,6 +120,7 @@ async function getPlayerData(code: string) {
         duration: Number(r.duration) || 15,
         category: (r.slot_category as SlotCategory) || "dono",
         displayFormat: "fullscreen" as DisplayFormat,
+        transitionEffect: r.transition_effect ?? null,
       }))
 
     const network: PlayerMedia[] = networkRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
@@ -313,7 +321,13 @@ export default async function PlayerPage({
     const inner = m.type === "video"
       ? `<video src="${escapeHtml(m.url)}" autoplay muted playsinline></video>`
       : `<img src="${escapeHtml(m.url)}" alt="${escapeHtml(m.name)}" />`
-    return `<div class="${cls}" data-duration="${m.duration}" data-id="${escapeHtml(m.id)}">${inner}</div>`
+    // Fase 29 (20/07/2026): transição por slide, não mais uma só pra tela
+    // inteira. m.transitionEffect vem do CampaignMedia (dono escolheu pra
+    // aquele vídeo/imagem específico); sem escolha própria, cai no padrão
+    // da tela (data.transitionEffect, screen_templates) — mesmo
+    // comportamento de antes pra quem nunca configurou nada.
+    const slideTransition = m.transitionEffect || data.transitionEffect
+    return `<div class="${cls}" data-duration="${m.duration}" data-id="${escapeHtml(m.id)}" data-transition="${escapeHtml(slideTransition)}">${inner}</div>`
   }).join("")
 
   const qrFooterHtml = code
@@ -745,26 +759,30 @@ export default async function PlayerPage({
 
           /* Fase 12 — efeitos de transição entre slides. Corte instantâneo
              continua sendo o padrão de segurança ("none") se algo não bater
-             com nenhum dos 3 casos abaixo. */
-          [data-transition="fade"] .slide {
+             com nenhum dos 3 casos abaixo.
+             Fase 29 (20/07/2026): seletores movidos de [data-transition] no
+             CONTAINER pai (#player) pra [data-transition] em CADA .slide —
+             permite que vídeos diferentes na mesma tela usem transições
+             diferentes (antes era uma escolha só, pra tela inteira). */
+          .slide[data-transition="fade"] {
             transition: opacity 0.7s ease;
           }
 
-          [data-transition="cortina"] .slide {
+          .slide[data-transition="cortina"] {
             opacity: 1;
             clip-path: inset(0 100% 0 0);
             transition: clip-path 0.7s ease;
           }
-          [data-transition="cortina"] .slide.active { clip-path: inset(0 0% 0 0); }
-          [data-transition="cortina"] .slide.leaving { clip-path: inset(0 0 0 100%); }
+          .slide[data-transition="cortina"].active { clip-path: inset(0 0% 0 0); }
+          .slide[data-transition="cortina"].leaving { clip-path: inset(0 0 0 100%); }
 
-          [data-transition="deslizar"] .slide {
+          .slide[data-transition="deslizar"] {
             opacity: 1;
             transform: translateX(100%);
             transition: transform 0.7s ease;
           }
-          [data-transition="deslizar"] .slide.active { transform: translateX(0%); }
-          [data-transition="deslizar"] .slide.leaving { transform: translateX(-100%); }
+          .slide[data-transition="deslizar"].active { transform: translateX(0%); }
+          .slide[data-transition="deslizar"].leaving { transform: translateX(-100%); }
           /* Ken Burns sutil só em imagens — dá sensação de vida mesmo em
              conteúdo estático. Vídeos já têm movimento próprio, não precisam. */
           @keyframes dw-kenburns { from { transform: scale(1); } to { transform: scale(1.06); } }
@@ -867,7 +885,7 @@ export default async function PlayerPage({
             max-width: 48px;
           }
         `}</style>
-      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} data-transition={data.transitionEffect} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
+      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
