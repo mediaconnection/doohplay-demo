@@ -100,18 +100,29 @@ async function main() {
       console.log(`🎨 ${peca.id}: gerando foto...`);
       const fotoBuffer = await gerarFoto(ai, prompt);
 
+      // Salva a foto original também (útil pra conferir/reaproveitar),
+      // mas a composição usa um data URI embutido no HTML — evita
+      // depender do Chromium resolver "file://" corretamente dentro do
+      // container do Render, que travava esperando a rede "acalmar"
+      // (networkidle0) num recurso que nunca terminava de carregar.
       const fotoPath = path.join(TMP_IMG_DIR, `${peca.id}.png`);
       fs.writeFileSync(fotoPath, fotoBuffer);
 
+      const dataUri = `data:image/png;base64,${fotoBuffer.toString('base64')}`;
+
       const html = templateBase
-        .replaceAll('__IMAGE_URL__', `file://${fotoPath}`)
+        .replaceAll('__IMAGE_URL__', dataUri)
         .replaceAll('__CHANNEL_COLOR__', peca.cor || '#2563EB')
         .replaceAll('__CHANNEL_NAME__', escapeHtml(peca.canal || ''))
         .replaceAll('__HEADLINE__', escapeHtml(peca.headline || ''))
         .replaceAll('__SUBLINE__', escapeHtml(peca.subline || ''))
         .replaceAll('__CTA__', escapeHtml(peca.cta || ''));
 
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      // domcontentloaded é suficiente aqui: o HTML não faz nenhuma
+      // chamada de rede externa (imagem já embutida como data URI,
+      // fonte via @font-face local) — não há motivo pra esperar
+      // "network idle", que foi o que travava antes.
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
       const outPath = path.join(OUT_DIR, `${peca.id}.png`);
       await page.screenshot({ path: outPath, type: 'png' });
 
