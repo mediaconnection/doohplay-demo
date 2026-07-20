@@ -6,6 +6,13 @@ export function getPool(): Pool {
   if (!_pool) {
     _pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      // Mesma classe de bug já corrigida no WhatsApp/e-mail (fetch sem timeout):
+      // aqui, sem esses limites, uma conexão ou query travada podia prender a
+      // requisição indefinidamente até o Render encerrar a conexão sozinho.
+      connectionTimeoutMillis: 8000, // tempo máx. esperando uma conexão livre no pool
+      query_timeout: 10000,          // timeout do lado do cliente por query
+      statement_timeout: 10000,      // timeout do lado do Postgres por statement
+      idleTimeoutMillis: 30000,      // fecha conexões ociosas no pool
     })
     _pool.on("error", (err) => console.error("[DB] pool error:", err.message))
   }
