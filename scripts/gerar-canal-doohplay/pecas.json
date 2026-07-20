@@ -98,5 +98,45 @@
     "cta": "Faça sua lista",
     "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
     "_prompt_original": "Woman with shopping list browsing fresh produce in a bright modern market, natural colors, no text"
+  },
+  {
+    "id": "casa-servicos-1",
+    "canal": "Casa & Serviços",
+    "cor": "#0EA5E9",
+    "headline": "Reparo a Tempo",
+    "subline": "Pequenos consertos evitam problemas maiores depois",
+    "cta": "Chame um profissional",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Handyman fixing a leaky faucet with tools, warm home lighting, professional home repair photography, no text"
+  },
+  {
+    "id": "casa-servicos-2",
+    "canal": "Casa & Serviços",
+    "cor": "#0EA5E9",
+    "headline": "Casa Mais Eficiente",
+    "subline": "Pequenas mudanças que reduzem sua conta de energia",
+    "cta": "Confira mais dicas",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Modern smart thermostat on a wall in a cozy living room, natural light, no text"
+  },
+  {
+    "id": "jornalismo-1",
+    "canal": "Jornalismo",
+    "cor": "#64748B",
+    "headline": "Você Sabia?",
+    "subline": "Curiosidades que valem a pena conhecer",
+    "cta": "Fique por dentro",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Open newspaper with coffee cup on a wooden table, soft morning light, editorial photography, no text"
+  },
+  {
+    "id": "jornalismo-2",
+    "canal": "Jornalismo",
+    "cor": "#64748B",
+    "headline": "Fique Informado",
+    "subline": "As notícias que importam, direto pra você",
+    "cta": "Saiba mais",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Person reading news on a tablet in a cozy cafe, natural lighting, modern lifestyle photography, no text"
   }
 ]
