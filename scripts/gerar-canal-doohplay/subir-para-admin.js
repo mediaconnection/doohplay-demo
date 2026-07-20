@@ -61,6 +61,11 @@ const MAPA_CANAL_PARA_SEGMENTO = {
   'Saúde': 'Saúde',
   'Alimentação': 'Alimentação',
   'Fitness & Bem-estar': 'Fitness & Esportes',
+  // Fase 34 (20/07/2026): os dois batem exatamente com o nome real do
+  // segmento, sem precisar de tradução — mapeados aqui mesmo assim, só
+  // por clareza/consistência com os outros.
+  'Casa & Serviços': 'Casa & Serviços',
+  'Jornalismo': 'Canal Jornalismo',
   // As duas peças "varejo-pet" vêm de canais reais diferentes —
   // resolvido por id específico abaixo, não pelo campo `canal` genérico.
 };
