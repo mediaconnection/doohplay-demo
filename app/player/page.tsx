@@ -938,6 +938,9 @@ export default async function PlayerPage({
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
+            // Fase 29/31 (20/07/2026): padrão de transição da tela — usado
+            // como fallback pra item que não tem transição própria escolhida.
+            var screenDefaultTransition = ${JSON.stringify(data.transitionEffect)};
             var isGenericLayout = ${JSON.stringify(!!data.layoutZones)};
             var brandColorHex = ${JSON.stringify(data.primary_color || "#3B82F6")};
             // Fase 20 (14/07/2026): opt-in de áudio por cliente. false
@@ -1401,6 +1404,18 @@ export default async function PlayerPage({
             }
 
             function fillSlot(slot, m) {
+              // Fase 31 (20/07/2026 — correção de regressão da Fase 29):
+              // a Fase 29 moveu o CSS de transição pra [data-transition] em
+              // CADA .slide, mas só setava esse atributo no HTML renderizado
+              // no servidor (slidesHtml) — que este motor de dois slots
+              // (slotA/slotB, pré-carregamento) NUNCA usa de verdade: o JS
+              // limpa #slides e recria os slides do zero aqui. Resultado: a
+              // troca de slide real ficava SEM nenhuma transição configurada
+              // (o atributo nunca existia nesses elementos), diferente do
+              // "pulinho" que motivou a investigação, mas achado no caminho.
+              // Consertado aqui, no único lugar que de fato importa.
+              slot.el.setAttribute('data-transition', m.transitionEffect || screenDefaultTransition);
+
               // Slide-layout (N-zonas) ou YouTube (Fase 9) — usa o elemento
               // "custom", não video/img.
               if (m.type === 'layout' || m.type === 'youtube') {
