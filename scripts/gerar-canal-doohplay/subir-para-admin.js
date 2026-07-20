@@ -140,7 +140,17 @@ async function main() {
   const segmentos = await buscarSegmentos();
   console.log(`  ${segmentos.length} segmentos encontrados: ${segmentos.map(s => s.name).join(', ')}\n`);
 
-  const pecas = JSON.parse(fs.readFileSync(PECAS_PATH, 'utf8'));
+  let pecas = JSON.parse(fs.readFileSync(PECAS_PATH, 'utf8'));
+
+  // --somente id1,id2 — reenvia só as peças listadas, sem duplicar as
+  // que já subiram certo (útil quando algumas falharam por segmento
+  // ainda não existir no banco na hora, por exemplo).
+  const somenteIdx = process.argv.indexOf('--somente');
+  if (somenteIdx !== -1 && process.argv[somenteIdx + 1]) {
+    const ids = process.argv[somenteIdx + 1].split(',').map(s => s.trim());
+    pecas = pecas.filter(p => ids.includes(p.id));
+    console.log(`Filtro --somente aplicado: ${pecas.length} peça(s) selecionada(s) (${ids.join(', ')})\n`);
+  }
 
   for (const peca of pecas) {
     const nomeAlvo = MAPA_POR_ID[peca.id] || MAPA_CANAL_PARA_SEGMENTO[peca.canal] || peca.canal;
