@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<style>
+  @font-face {
+    font-family: 'Inter';
+    src: local('Inter');
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  .frame {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    background-image: url('__IMAGE_URL__');
+    background-size: cover;
+    background-position: center;
+  }
+  /* Gradiente escuro de baixo pra cima, pra garantir contraste do texto
+     sobre qualquer foto — mesmo princípio usado no motor de cor "Aurora" */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(11, 16, 32, 0) 35%,
+      rgba(11, 16, 32, 0.55) 65%,
+      rgba(11, 16, 32, 0.92) 100%
+    );
+  }
+  .content {
+    position: absolute;
+    left: 90px;
+    right: 90px;
+    bottom: 80px;
+    color: #ffffff;
+  }
+  .badge {
+    display: inline-block;
+    background: __CHANNEL_COLOR__;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 10px 24px;
+    border-radius: 999px;
+    margin-bottom: 28px;
+  }
+  .headline {
+    font-size: 88px;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    max-width: 1500px;
+  }
+  .subline {
+    font-size: 40px;
+    font-weight: 500;
+    color: #E5E7EB;
+    margin-bottom: 40px;
+    max-width: 1350px;
+    line-height: 1.3;
+  }
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    background: #ffffff;
+    color: #0B1020;
+    font-weight: 700;
+    font-size: 34px;
+    padding: 20px 40px;
+    border-radius: 16px;
+  }
+  .cta::after {
+    content: '→';
+    font-size: 34px;
+  }
+  .wordmark {
+    position: absolute;
+    top: 60px;
+    right: 90px;
+    font-size: 32px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="overlay"></div>
+    <div class="wordmark">DOOHPLAY</div>
+    <div class="content">
+      <div class="badge">__CHANNEL_NAME__</div>
+      <div class="headline">__HEADLINE__</div>
+      <div class="subline">__SUBLINE__</div>
+      <div class="cta">__CTA__</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "beleza-1",
+    "canal": "Beleza & Estética",
+    "cor": "#EC4899",
+    "headline": "Cabelo Hidratado",
+    "subline": "Segredo de salão pra brilho todo dia",
+    "cta": "Pergunte ao seu profissional",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Close-up photo of glossy, healthy hair being brushed, soft studio lighting, warm tones, professional salon photography, no text"
+  },
+  {
+    "id": "beleza-2",
+    "canal": "Beleza & Estética",
+    "cor": "#EC4899",
+    "headline": "Estilo em Alta",
+    "subline": "As tendências que estão bombando agora",
+    "cta": "Renove seu visual",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Fashionable young person with modern haircut and stylish outfit, urban background, vibrant colors, editorial photography, no text"
+  },
+  {
+    "id": "saude-1",
+    "canal": "Saúde",
+    "cor": "#16A34A",
+    "headline": "Beba Mais Água",
+    "subline": "2 litros por dia fazem a diferença",
+    "cta": "Cuide-se hoje",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Glass of water with condensation droplets on wooden table, morning sunlight, fresh and clean aesthetic, no text"
+  },
+  {
+    "id": "saude-2",
+    "canal": "Saúde",
+    "cor": "#16A34A",
+    "headline": "Check-up em Dia",
+    "subline": "Prevenir é sempre o melhor remédio",
+    "cta": "Consulte-se regularmente",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Calm modern medical clinic waiting area, natural light, clean and reassuring atmosphere, professional healthcare photography, no text"
+  },
+  {
+    "id": "alimentacao-1",
+    "canal": "Alimentação",
+    "cor": "#D97706",
+    "headline": "Sabor de Verdade",
+    "subline": "Comida boa é feita com tempo e cuidado",
+    "cta": "Aproveite o momento",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Rustic wooden table with fresh ingredients, herbs and vegetables, warm natural light, appetizing food photography, no text"
+  },
+  {
+    "id": "alimentacao-2",
+    "canal": "Alimentação",
+    "cor": "#D97706",
+    "headline": "Segredo de Cozinha",
+    "subline": "Um tempero a mais muda tudo",
+    "cta": "Experimente algo novo",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Chef's hands seasoning a dish in a professional kitchen, steam rising, warm golden lighting, no text"
+  },
+  {
+    "id": "fitness-1",
+    "canal": "Fitness & Bem-estar",
+    "cor": "#2563EB",
+    "headline": "Constância Vence",
+    "subline": "Todo treino conta, mesmo o mais simples",
+    "cta": "Comece hoje",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Person running outdoors at sunrise, motion blur, energetic and inspiring atmosphere, vibrant orange sky, no text"
+  },
+  {
+    "id": "fitness-2",
+    "canal": "Fitness & Bem-estar",
+    "cor": "#2563EB",
+    "headline": "Corpo e Mente",
+    "subline": "Movimento é remédio pra cabeça também",
+    "cta": "Cuide dos dois",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Person doing yoga or stretching in a bright peaceful space, soft natural light, calm wellness photography, no text"
+  },
+  {
+    "id": "varejo-pet-1",
+    "canal": "Varejo & Pet",
+    "cor": "#0EA5E9",
+    "headline": "Seu Pet Merece",
+    "subline": "Carinho todo dia, cuidado toda semana",
+    "cta": "Agende um banho",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Happy dog being groomed and brushed, soft indoor lighting, warm and affectionate atmosphere, no text"
+  },
+  {
+    "id": "varejo-pet-2",
+    "canal": "Varejo & Pet",
+    "cor": "#7C3AED",
+    "headline": "Compra Inteligente",
+    "subline": "Planejamento rende mais no fim do mês",
+    "cta": "Faça sua lista",
+    "imagem": "COLOQUE_URL_OU_CAMINHO_DA_FOTO_AQUI",
+    "_prompt_original": "Woman with shopping list browsing fresh produce in a bright modern market, natural colors, no text"
+  }
+]
