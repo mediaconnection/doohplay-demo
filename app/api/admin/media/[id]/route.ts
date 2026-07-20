@@ -39,11 +39,17 @@ export async function PATCH(req: NextRequest, context: any) {
   }
 
   const { id } = await context.params
-  const { status, reason, tags } = body
+  const { status, reason, tags, display_format } = body
 
   if (!["approved", "rejected"].includes(status)) {
     return Response.json({ error: "status invalido" }, { status: 400 })
   }
+
+  // Fase 33 (20/07/2026): admin escolhe o formato de exibição do anúncio
+  // (tela cheia/lateral/faixa inferior/flutuante) na hora de aprovar.
+  // Validação explícita — nunca aceita valor arbitrário vindo do body.
+  const validFormats = ["fullscreen", "shrink_lateral", "banner_bottom", "floating"]
+  const displayFormat = validFormats.includes(display_format) ? display_format : null
 
   const pool = getPool()
 
@@ -53,13 +59,13 @@ export async function PATCH(req: NextRequest, context: any) {
     // com null se o campo não vier na requisição).
     if (Array.isArray(tags)) {
       await pool.query(
-        `UPDATE "CampaignMedia" SET status = $1, content_tags = $2 WHERE id = $3`,
-        [status, tags.length ? tags : null, id]
+        `UPDATE "CampaignMedia" SET status = $1, content_tags = $2${displayFormat ? ", display_format = $4" : ""} WHERE id = $3`,
+        displayFormat ? [status, tags.length ? tags : null, id, displayFormat] : [status, tags.length ? tags : null, id]
       )
     } else {
       await pool.query(
-        `UPDATE "CampaignMedia" SET status = $1 WHERE id = $2`,
-        [status, id]
+        `UPDATE "CampaignMedia" SET status = $1${displayFormat ? ", display_format = $3" : ""} WHERE id = $2`,
+        displayFormat ? [status, id, displayFormat] : [status, id]
       )
     }
 
@@ -82,8 +88,8 @@ export async function PATCH(req: NextRequest, context: any) {
     const ownerCode = ownerRes.rows[0]?.owner_code
     if (ownerCode) {
       await pool.query(
-        `UPDATE creative_assets_v2 SET status = $1 WHERE source_table = 'CampaignMedia' AND source_id = $2`,
-        [status, id]
+        `UPDATE creative_assets_v2 SET status = $1${displayFormat ? ", display_format = $3" : ""} WHERE source_table = 'CampaignMedia' AND source_id = $2`,
+        displayFormat ? [status, id, displayFormat] : [status, id]
       )
       await pool.query(
         `UPDATE placements_v2 SET active = $1

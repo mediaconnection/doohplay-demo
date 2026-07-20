@@ -20,7 +20,7 @@ interface PlayerMediaRow {
 }
 
 type SlotCategory = "dono" | "anunciante" | "rede" | "institucional" | "canal";
-type DisplayFormat = "fullscreen" | "shrink_lateral";
+type DisplayFormat = "fullscreen" | "shrink_lateral" | "banner_bottom" | "floating";
 
 interface PlayerMedia {
   id: string;
@@ -93,8 +93,8 @@ async function getPlayerData(code: string) {
     `)
 
     // ── Anunciante real — campanha de terceiro vinculada a esta tela ──
-    const realAdsQuery = pool.query<{ id: string; name: string; type: string; url: string }>(`
-      SELECT cm.id, cm.name, cm.type, cm.url
+    const realAdsQuery = pool.query<{ id: string; name: string; type: string; url: string; display_format: string }>(`
+      SELECT cm.id, cm.name, cm.type, cm.url, cm.display_format
       FROM "CampaignScreen" cs
       JOIN "Campaign" c ON c.id = cs."campaignId"
       JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
@@ -109,6 +109,16 @@ async function getPlayerData(code: string) {
       clientQuery, networkQuery, institutionalQuery, realAdsQuery,
     ])
     const rows = clientRes.rows
+
+    // Fase 33 (20/07/2026): valida o valor que vem do banco contra o
+    // conjunto real de formatos suportados — nunca deixa um valor
+    // inesperado (dado antigo, digitação manual no banco, etc.) quebrar
+    // o player; cai pro fullscreen, o mais seguro.
+    function normalizeDisplayFormat(v: string | null | undefined): DisplayFormat {
+      return (v === "shrink_lateral" || v === "banner_bottom" || v === "floating")
+        ? v
+        : "fullscreen"
+    }
 
     const ownAndAds: PlayerMedia[] = rows
       .filter((r: PlayerMediaRow) => r.media_url && r.active)
@@ -134,15 +144,18 @@ async function getPlayerData(code: string) {
     }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url,
       duration: Number(r.duration) || 15, category: "institucional" as SlotCategory,
-      displayFormat: (r.display_format === "shrink_lateral" ? "shrink_lateral" : "fullscreen") as DisplayFormat,
+      displayFormat: normalizeDisplayFormat(r.display_format),
       layoutZones: r.layout_zones ?? null,
       sequenceGroup: r.sequence_group ?? null,
       zoneContent: r.zone_content ?? null,
     }))
 
-    const realAds: PlayerMedia[] = realAdsRes.rows.map((r: { id: string; name: string; type: string; url: string }) => ({
+    // Fase 33 (20/07/2026): antes, todo anúncio pago vinha fixo em
+    // fullscreen — display_format nem era lido do banco. Agora respeita
+    // a escolha feita na aprovação do admin (lateral/faixa/flutuante).
+    const realAds: PlayerMedia[] = realAdsRes.rows.map((r: { id: string; name: string; type: string; url: string; display_format: string }) => ({
       id: r.id, name: r.name, type: r.type, url: r.url, duration: 15, category: "anunciante" as SlotCategory,
-      displayFormat: "fullscreen" as DisplayFormat,
+      displayFormat: normalizeDisplayFormat(r.display_format),
     }))
 
     // ── Template (Fase 3b) — configuração de widgets por cliente/tela ──
@@ -487,7 +500,7 @@ export default async function PlayerPage({
 
   const playerInnerHtml = data.layoutZones
     ? `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="zones-root" style="position:relative;width:100%;height:100%;">${zonesHtml}</div>`
-    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="main-zone"><div id="content-area">${bodyContentHtml}</div></div><div id="lateral-zone">${widgetsPanelHtml}</div>`
+    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-row"><div id="main-zone"><div id="content-area">${bodyContentHtml}</div><div id="floating-zone"></div></div><div id="lateral-zone">${widgetsPanelHtml}</div></div><div id="bottom-zone"></div>`
 
   // Slides do tipo 'layout' (Fase 9) — a composição de N-zonas é
   // pré-renderizada aqui no servidor (reaproveitando renderZonesHtml, o
@@ -537,7 +550,7 @@ export default async function PlayerPage({
             position: relative;
             background: #0F172A;
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
           }
           /* Fase 30 (20/07/2026): tint sutil de fundo por horário do dia
              (manhã/tarde/entardecer/noite) — aditivo, não mexe em
@@ -550,6 +563,18 @@ export default async function PlayerPage({
             background: radial-gradient(ellipse 120% 80% at 15% 0%, var(--daytint-color, transparent), transparent 55%);
             opacity: var(--daytint-opacity, 0);
             transition: opacity 2.5s ease, background 2.5s ease;
+          }
+          /* Fase 33 (20/07/2026): #player virou coluna (era linha) pra caber
+             o #bottom-zone novo, embaixo de tudo. #content-row é a antiga
+             estrutura de linha (main+lateral), agora um nível abaixo —
+             comportamento idêntico ao de antes pra quem só usa lateral. */
+          #content-row {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: row;
           }
           /* ── Compositor de zonas (Fase 3) ──────────────────────────────
              #main-zone é o conteúdo de sempre (fullscreen), agora dentro de
@@ -593,6 +618,60 @@ export default async function PlayerPage({
             object-fit: cover;
             display: none;
           }
+
+          /* Fase 33 (20/07/2026): faixa inferior — mesmo padrão do lateral,
+             só que reduz ALTURA de #content-row em vez de largura de
+             #main-zone. Sem nenhum item banner_bottom, comportamento
+             idêntico a antes (altura 0). */
+          #bottom-zone {
+            position: relative;
+            width: 100%;
+            height: 0;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #000;
+            transition: height .5s ease;
+          }
+          #player.has-bottom-banner #bottom-zone {
+            height: 16vh;
+          }
+          #bottom-zone video, #bottom-zone img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: none;
+          }
+
+          /* Fase 33 (20/07/2026): flutuante — ao contrário de lateral/faixa,
+             NÃO reduz o conteúdo principal. Aparece por cima, periodicamente,
+             sem interromper a rotação de baixo (JS liga/desliga a opacidade
+             e o deslocamento; a rotação principal continua tocando atrás,
+             sem pausar). Canto inferior direito, como um "bug" de canal de
+             TV — familiar, discreto, não tampa o centro da tela. */
+          #floating-zone {
+            position: absolute;
+            right: 3vw; bottom: 3vh;
+            width: 22vw; height: 22vh;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,.45);
+            border: 2px solid rgba(255,255,255,.15);
+            opacity: 0;
+            transform: translateY(16px);
+            pointer-events: none;
+            transition: opacity .5s ease, transform .5s ease;
+            z-index: 8;
+            background: #000;
+          }
+          #floating-zone.visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          #floating-zone video, #floating-zone img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: none;
+          }
+
           /* ── Painel de widgets (Fase 3b: template magazine) ── */
           #widgets-panel {
             width: 100%; height: 100%;
@@ -1122,13 +1201,18 @@ export default async function PlayerPage({
             // enquanto existir pelo menos um).
             var mainMedias = [];
             var lateralMedias = [];
+            // Fase 33 (20/07/2026): mesma ideia da lateral, dois formatos novos.
+            var bottomMedias = [];
+            var floatingMedias = [];
             function splitByFormat(list) {
-              var main = [], lateral = [];
+              var main = [], lateral = [], bottom = [], floating = [];
               for (var i = 0; i < list.length; i++) {
                 if (list[i].displayFormat === 'shrink_lateral') lateral.push(list[i]);
+                else if (list[i].displayFormat === 'banner_bottom') bottom.push(list[i]);
+                else if (list[i].displayFormat === 'floating') floating.push(list[i]);
                 else main.push(list[i]);
               }
-              return { main: main, lateral: lateral };
+              return { main: main, lateral: lateral, bottom: bottom, floating: floating };
             }
 
             function buildGroups(list) {
@@ -1207,6 +1291,8 @@ export default async function PlayerPage({
             var split = splitByFormat(medias);
             mainMedias = split.main;
             lateralMedias = split.lateral;
+            bottomMedias = split.bottom;
+            floatingMedias = split.floating;
             groups = buildGroups(mainMedias);
 
             // ── Zona lateral — slot único, ciclo próprio e independente ────
@@ -1273,6 +1359,128 @@ export default async function PlayerPage({
               }
 
               lateralTimer = setTimeout(showLateralSlide, dur);
+            }
+
+            // ── Faixa inferior (Fase 33, 20/07/2026) ──────────────────────
+            // Mesmo padrão exato da zona lateral — só muda o elemento e a
+            // classe CSS (largura → altura). Ver showLateralSlide acima pro
+            // comentário completo da lógica.
+            var bottomZoneEl = document.getElementById('bottom-zone');
+            var bottomVideoEl = null;
+            var bottomImgEl = null;
+            var bottomTimer = null;
+            var bottomIdx = 0;
+
+            function initBottomZone() {
+              if (!bottomZoneEl) return;
+              bottomZoneEl.innerHTML = '';
+              bottomVideoEl = document.createElement('video');
+              bottomVideoEl.muted = true; // idem lateral: nunca dois áudios ao mesmo tempo
+              bottomVideoEl.playsInline = true;
+              bottomVideoEl.setAttribute('muted', '');
+              bottomVideoEl.setAttribute('playsinline', '');
+              bottomVideoEl.setAttribute('webkit-playsinline', '');
+              bottomVideoEl.disableRemotePlayback = true;
+              bottomImgEl = document.createElement('img');
+              bottomZoneEl.appendChild(bottomVideoEl);
+              bottomZoneEl.appendChild(bottomImgEl);
+            }
+
+            function showBottomSlide() {
+              if (isMagazine || isGenericLayout) return;
+
+              if (bottomTimer) { clearTimeout(bottomTimer); bottomTimer = null; }
+              if (!bottomMedias.length) {
+                if (playerEl) playerEl.classList.remove('has-bottom-banner');
+                return;
+              }
+              if (playerEl) playerEl.classList.add('has-bottom-banner');
+              if (!bottomVideoEl) initBottomZone();
+
+              var m = bottomMedias[bottomIdx % bottomMedias.length];
+              bottomIdx++;
+              logPlay(m);
+
+              var el = (m.type === 'video') ? bottomVideoEl : bottomImgEl;
+              var other = (m.type === 'video') ? bottomImgEl : bottomVideoEl;
+              other.style.display = 'none';
+              if (other.tagName === 'VIDEO') { try { other.pause(); } catch (e) {} }
+
+              if (el.tagName === 'IMG') el.alt = m.name || '';
+              if (el.src !== m.url) el.src = m.url;
+              el.style.display = 'block';
+
+              var dur = (Number(m.duration) || 15) * 1000;
+              if (el.tagName === 'VIDEO') {
+                el.currentTime = 0;
+                el.onerror = function() {};
+                var p = el.play();
+                if (p && typeof p.catch === 'function') p.catch(function() {});
+              }
+
+              bottomTimer = setTimeout(showBottomSlide, dur);
+            }
+
+            // ── Flutuante (Fase 33, 20/07/2026) ───────────────────────────
+            // Diferente de lateral/faixa: NUNCA reduz o conteúdo principal.
+            // Ciclo próprio de "aparece por X segundos, some por Y segundos,
+            // repete" — a rotação principal (showSlide) continua tocando por
+            // baixo o tempo todo, sem pausar nem saber que isso existe.
+            var FLOATING_VISIBLE_MS = 12000; // quanto tempo fica visível
+            var FLOATING_HIDDEN_MS  = 45000; // quanto tempo some entre aparições
+            var floatingZoneEl = document.getElementById('floating-zone');
+            var floatingVideoEl = null;
+            var floatingImgEl = null;
+            var floatingCycleTimer = null;
+            var floatingIdx = 0;
+
+            function initFloatingZone() {
+              if (!floatingZoneEl) return;
+              floatingVideoEl = document.createElement('video');
+              floatingVideoEl.muted = true; // sempre mudo — overlay nunca disputa áudio com o conteúdo principal
+              floatingVideoEl.playsInline = true;
+              floatingVideoEl.setAttribute('muted', '');
+              floatingVideoEl.setAttribute('playsinline', '');
+              floatingVideoEl.setAttribute('webkit-playsinline', '');
+              floatingVideoEl.disableRemotePlayback = true;
+              floatingImgEl = document.createElement('img');
+              floatingZoneEl.appendChild(floatingVideoEl);
+              floatingZoneEl.appendChild(floatingImgEl);
+            }
+
+            function floatingCycle() {
+              if (!floatingMedias.length || !floatingZoneEl) {
+                floatingCycleTimer = setTimeout(floatingCycle, FLOATING_HIDDEN_MS);
+                return;
+              }
+              if (!floatingVideoEl) initFloatingZone();
+
+              var m = floatingMedias[floatingIdx % floatingMedias.length];
+              floatingIdx++;
+              logPlay(m);
+
+              var el = (m.type === 'video') ? floatingVideoEl : floatingImgEl;
+              var other = (m.type === 'video') ? floatingImgEl : floatingVideoEl;
+              other.style.display = 'none';
+              if (other.tagName === 'VIDEO') { try { other.pause(); } catch (e) {} }
+
+              if (el.tagName === 'IMG') el.alt = m.name || '';
+              if (el.src !== m.url) el.src = m.url;
+              el.style.display = 'block';
+              if (el.tagName === 'VIDEO') {
+                el.currentTime = 0;
+                el.onerror = function() {};
+                var p = el.play();
+                if (p && typeof p.catch === 'function') p.catch(function() {});
+              }
+
+              floatingZoneEl.classList.add('visible');
+
+              floatingCycleTimer = setTimeout(function() {
+                floatingZoneEl.classList.remove('visible');
+                if (el.tagName === 'VIDEO') { try { el.pause(); } catch (e) {} }
+                floatingCycleTimer = setTimeout(floatingCycle, FLOATING_HIDDEN_MS);
+              }, FLOATING_VISIBLE_MS);
             }
 
             // ── Arquitetura de renderização sob demanda ──────────────────────
@@ -1568,7 +1776,10 @@ export default async function PlayerPage({
                         url: item.asset_url,
                         duration: Number(item.duration) || 15,
                         category: item.slot_category || 'dono',
-                        displayFormat: item.display_format === 'shrink_lateral' ? 'shrink_lateral' : 'fullscreen',
+                        // Fase 33 (20/07/2026): reconhece os 2 formatos novos
+                        // também no polling, não só na carga inicial.
+                        displayFormat: (item.display_format === 'shrink_lateral' || item.display_format === 'banner_bottom' || item.display_format === 'floating')
+                          ? item.display_format : 'fullscreen',
                         // Fase 19 (14/07/2026): sem isso, item 'layout'/'youtube'
                         // aparecia certo só na carga inicial (SSR) e sumia no
                         // primeiro refresh, porque esse mapper descartava os
@@ -1590,6 +1801,8 @@ export default async function PlayerPage({
                     var splitFirst = splitByFormat(medias);
                     mainMedias = splitFirst.main;
                     lateralMedias = splitFirst.lateral;
+                    bottomMedias = splitFirst.bottom;
+                    floatingMedias = splitFirst.floating;
                     groups = buildGroups(mainMedias);
                     cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0, canal: 0 };
                     var contentArea = document.getElementById('content-area');
@@ -1600,6 +1813,7 @@ export default async function PlayerPage({
                       showSlide(pickNextMedia(true));
                     }
                     showLateralSlide();
+                    showBottomSlide();
                     return;
                   }
 
@@ -1608,13 +1822,19 @@ export default async function PlayerPage({
                     var splitNew = splitByFormat(medias);
                     mainMedias = splitNew.main;
                     lateralMedias = splitNew.lateral;
+                    bottomMedias = splitNew.bottom;
+                    floatingMedias = splitNew.floating;
                     groups = buildGroups(mainMedias);
                     cursors = { dono: 0, anunciante: 0, rede: 0, institucional: 0, canal: 0 };
                     // não força troca imediata — deixa o ciclo atual terminar
                     // normalmente; o próximo pickNextMedia já usa os grupos novos.
-                    // A zona lateral também não é interrompida — o timer em
-                    // curso vai ler lateralMedias atualizado na próxima virada.
+                    // A zona lateral/faixa também não é interrompida — o timer
+                    // em curso vai ler os arrays atualizados na próxima virada.
+                    // Flutuante não precisa de tratamento especial aqui: seu
+                    // próprio ciclo (floatingCycle) já relê floatingMedias
+                    // sozinho a cada rodada.
                     if (!lateralTimer) showLateralSlide();
+                    if (!bottomTimer) showBottomSlide();
                   }
                 })
                 .catch(function() {
@@ -1724,6 +1944,8 @@ export default async function PlayerPage({
             } else {
               initSlots();
               showLateralSlide();
+              showBottomSlide();
+              floatingCycle();
             }
 
             function showSlide(m) {

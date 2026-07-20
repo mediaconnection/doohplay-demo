@@ -180,7 +180,7 @@ export async function GET(
         cm.url                          AS asset_url,
         cm.status,
         'anunciante'                     AS slot_category,
-        'fullscreen'                     AS display_format,
+        cm.display_format,
         cm."createdAt"                  AS created_at,
         999                              AS position,
         15                               AS duration,
