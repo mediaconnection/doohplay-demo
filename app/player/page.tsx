@@ -178,7 +178,7 @@ async function getPlayerData(code: string) {
       }
 
       const [weatherRes, stocksRes, newsRes] = await Promise.allSettled([
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
         fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } }),
         fetch(`https://g1.globo.com/rss/g1/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
       ])
@@ -187,7 +187,17 @@ async function getPlayerData(code: string) {
       if (weatherRes.status === "fulfilled" && weatherRes.value.ok) {
         const w = await weatherRes.value.json()
         const code = w.current?.weather_code ?? 0
-        weather = { temperature: Math.round(w.current?.temperature_2m ?? 0), code, ...(WMO[code] ?? { label: "—", emoji: "🌡️" }), location: locationName }
+        weather = {
+          temperature: Math.round(w.current?.temperature_2m ?? 0),
+          code, ...(WMO[code] ?? { label: "—", emoji: "🌡️" }),
+          location: locationName,
+          // Fase 30 (20/07/2026): grid de detalhe do clima — feedback de
+          // cliente prospectado pedindo "mais widgets"; Open-Meteo já
+          // oferecia esses 3 campos de graça, só não estavam sendo pedidos.
+          feelsLike: Math.round(w.current?.apparent_temperature ?? w.current?.temperature_2m ?? 0),
+          humidity: Math.round(w.current?.relative_humidity_2m ?? 0),
+          windSpeed: Math.round(w.current?.wind_speed_10m ?? 0),
+        }
       }
       if (stocksRes.status === "fulfilled" && stocksRes.value.ok) {
         const s = await stocksRes.value.json()
@@ -369,6 +379,11 @@ export default async function PlayerPage({
         <div class="dw-weather-temp">${w.temperature}<span>°C</span></div>
         <div class="dw-weather-label">${escapeHtml(w.label)}</div>
         <div class="dw-weather-location">${escapeHtml(w.location)}</div>
+        <div class="dw-weather-grid">
+          <div class="dw-weather-grid-item"><span class="dw-weather-grid-label">Sensação</span><span class="dw-weather-grid-value">${w.feelsLike}°</span></div>
+          <div class="dw-weather-grid-item"><span class="dw-weather-grid-label">Umidade</span><span class="dw-weather-grid-value">${w.humidity}%</span></div>
+          <div class="dw-weather-grid-item"><span class="dw-weather-grid-label">Vento</span><span class="dw-weather-grid-value">${w.windSpeed}km/h</span></div>
+        </div>
       </div>`
     }
     if (contentType === "stocks" && data.widgets?.stocks?.length) {
@@ -523,6 +538,18 @@ export default async function PlayerPage({
             background: #0F172A;
             display: flex;
             flex-direction: row;
+          }
+          /* Fase 30 (20/07/2026): tint sutil de fundo por horário do dia
+             (manhã/tarde/entardecer/noite) — aditivo, não mexe em
+             --accent-1/--accent-2 (esses continuam 100% controlados pelo
+             motor "Aurora", marca+conteúdo, Fase 5). Só um overlay de cor
+             de baixíssima opacidade atrás de tudo, puramente decorativo. */
+          #player::before {
+            content: '';
+            position: absolute; inset: 0; z-index: 0; pointer-events: none;
+            background: radial-gradient(ellipse 120% 80% at 15% 0%, var(--daytint-color, transparent), transparent 55%);
+            opacity: var(--daytint-opacity, 0);
+            transition: opacity 2.5s ease, background 2.5s ease;
           }
           /* ── Compositor de zonas (Fase 3) ──────────────────────────────
              #main-zone é o conteúdo de sempre (fullscreen), agora dentro de
@@ -682,6 +709,24 @@ export default async function PlayerPage({
           .dw-weather-location {
             font-size: 1.2vh; opacity: .4; margin-top: 1vh;
             letter-spacing: .12em; text-transform: uppercase;
+          }
+          /* Fase 30 (20/07/2026): grid de detalhe do clima (sensação/
+             umidade/vento) — mesmo padrão visual dos outros widgets, só
+             menor e em 3 colunas, com uma linha divisória sutil por cima. */
+          .dw-weather-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 0.4vw; width: 100%; margin-top: 1.6vh; padding-top: 1.4vh;
+            border-top: 1px solid rgba(255,255,255,.08);
+          }
+          .dw-weather-grid-item { display: flex; flex-direction: column; align-items: center; }
+          .dw-weather-grid-label {
+            font-size: 1vh; opacity: .45; text-transform: uppercase;
+            letter-spacing: .08em; margin-bottom: .3vh;
+          }
+          .dw-weather-grid-value {
+            font-family: 'Space Grotesk', ui-monospace, monospace;
+            font-variant-numeric: tabular-nums;
+            font-size: 1.7vh; font-weight: 600;
           }
 
           /* Bolsa — verde/rosa semânticos (alta/baixa), não seguem o tema dinâmico */
@@ -974,6 +1019,25 @@ export default async function PlayerPage({
               root.setProperty('--bg-tint', hexToRgbTuple(accent1));
             }
             applyColorTheme(null); // aplica a cor da marca já de cara, antes de qualquer extração
+
+            // ── Tint por horário do dia (Fase 30, 20/07/2026) ──────────────
+            // Puramente decorativo, aditivo — nunca reescreve --accent-1/2
+            // (esses continuam do motor Aurora). 4 momentos, cada um com um
+            // matiz e opacidade diferentes; noite mais sutil (tela já é mais
+            // escura por padrão), manhã/entardecer com tom mais quente.
+            function applyTimeOfDayTint() {
+              var hour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false }), 10);
+              var color, opacity;
+              if (hour >= 5 && hour < 12)       { color = '255,180,84';  opacity = '.12'; }  // manhã — quente
+              else if (hour >= 12 && hour < 18) { color = '0,217,255';   opacity = '.08'; }   // tarde — frio, sutil
+              else if (hour >= 18 && hour < 21) { color = '255,122,162'; opacity = '.14'; }    // entardecer — rosa/quente
+              else                              { color = '123,97,255'; opacity = '.10'; }    // noite — roxo suave
+              var root = document.documentElement.style;
+              root.setProperty('--daytint-color', 'rgba(' + color + ', ' + opacity + ')');
+              root.setProperty('--daytint-opacity', '1');
+            }
+            applyTimeOfDayTint();
+            setInterval(applyTimeOfDayTint, 60000);
 
             // ── Relógio ao vivo (Fase 4b) ──────────────────────────────────
             // Roda independente do modo (magazine ou zonas genéricas) — só
