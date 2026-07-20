@@ -86,12 +86,21 @@ export async function GET(
         ca.layout_template_id,
         ca.zone_content,
         ca.sequence_group,
-        lt.zones                        AS layout_zones
+        lt.zones                        AS layout_zones,
+        -- Fase 29 (20/07/2026): transição por item individual, só existe
+        -- de verdade na tabela legada CampaignMedia (fonte real pro
+        -- player, ver app/player/page.tsx) — trazida aqui via JOIN só
+        -- pra exibir/editar no dashboard. ca.source_table = 'CampaignMedia'
+        -- garante que só casa o JOIN pra itens do dono (mesma convenção
+        -- de source_id usada por syncDonoMediaToUnified) — institucional/
+        -- rede têm source_id de outras tabelas, nunca colidem aqui.
+        cmt.transition_effect
       FROM placements_v2 p
       JOIN creative_assets_v2 ca ON ca.id = p.creative_asset_id
       JOIN campaigns_v2 cv ON cv.id = ca.campaign_id
       LEFT JOIN inventory_segments_v2 seg ON seg.id = p.segment_id
       LEFT JOIN layout_templates lt ON lt.id = ca.layout_template_id
+      LEFT JOIN "CampaignMedia" cmt ON cmt.id = ca.source_id AND ca.source_table = 'CampaignMedia'
       WHERE
         (
           cv.owner_type = 'dono' AND cv.owner_code = $1
@@ -142,7 +151,8 @@ export async function GET(
         NULL::text                       AS start_time,
         NULL::text                       AS end_time,
         NULL::text                       AS start_date,
-        NULL::text                       AS end_date
+        NULL::text                       AS end_date,
+        NULL::text                       AS transition_effect
       FROM network_media_distribution nmd
       JOIN network_media nm ON nm.id = nmd.network_media_id
       WHERE nmd.displayed_on_code = $1
@@ -179,7 +189,8 @@ export async function GET(
         NULL::text                       AS start_time,
         NULL::text                       AS end_time,
         NULL::text                       AS start_date,
-        NULL::text                       AS end_date
+        NULL::text                       AS end_date,
+        NULL::text                       AS transition_effect
       FROM "CampaignScreen" cs
       JOIN "Campaign" c ON c.id = cs."campaignId"
       JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
@@ -262,6 +273,19 @@ export async function PATCH(
         item.start_date   ?? null,
         item.end_date     ?? null,
       ])
+
+      // Fase 29 (20/07/2026): transição por item — vive em CampaignMedia
+      // (não em playlist_schedule, que é só agendamento), então precisa
+      // de um UPDATE separado. Seguro rodar pra todo item, mesmo os que
+      // não são do dono (rede/institucional/anunciante) — o WHERE id
+      // simplesmente não casa com nenhuma linha nesses casos (ids vêm de
+      // tabelas diferentes), sem erro, sem efeito.
+      if (item.transition_effect !== undefined) {
+        pool.query(
+          `UPDATE "CampaignMedia" SET transition_effect = $1 WHERE id = $2`,
+          [item.transition_effect ?? null, item.id]
+        ).catch((e: any) => console.error("[playlist PATCH] falha ao salvar transition_effect:", e))
+      }
 
       // Sincroniza agendamento com a fundação unificada (Fase 1) — best-effort.
       // Só atualiza placements_v2 (posição/ativo/agendamento); não mexe em
