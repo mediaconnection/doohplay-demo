@@ -11,10 +11,22 @@ export const dynamic = "force-dynamic"
 // `event_chain`, e o player de verdade só gravava em `display_events`
 // (tabelas e rotas diferentes, nunca ligadas). Aqui é o ponto de conexão:
 // mantém a gravação em display_events exatamente como estava, e agora TAMBÉM
-// grava em event_chain — mesmo schema que o agregador real (getUnanchoredEvents)
-// já espera (prev_hash/event_hash/created_at, não o schema antigo e
-// desalinhado do helper em legacy/ledger/writeEvent.ts, que usa nomes de
-// coluna que não existem na tabela real e quebraria em runtime).
+// grava em event_chain.
+//
+// CORREÇÃO (20/07/2026): o INSERT usava a coluna `prev_hash`, que não
+// existe na tabela real — confirmado via information_schema.columns que
+// o nome de verdade é `previous_event_hash` (mesma coluna que as rotas de
+// auditoria/verificação de cadeia, `lib/domain/ledger/verifyChain.ts` e
+// `app/api/audit/event/[hash]/route.ts`, já leem com sucesso há tempos:
+// `e.previous_event_hash AS prev_hash`). O comentário original desta
+// função presumia que `prev_hash` batia com o schema real — não batia.
+// Causa raiz: `sql/create_core_tables.sql` usa `CREATE TABLE IF NOT
+// EXISTS`, e a tabela `event_chain` real já existia (criada fora do Git,
+// pelo sistema de prova original) com um schema bem mais rico — inclui
+// inclusive uma segunda coluna parecida, `previous_hash`, que NÃO é a
+// usada pela lógica real de verificação de cadeia (confirmado pelos 3
+// pontos de leitura acima, todos usando `previous_event_hash`). Fica
+// registrado aqui pra não confundir as duas de novo no futuro.
 async function appendToProofChain(pool: any, payload: Record<string, any>) {
   try {
     const prevRes = await pool.query(
@@ -29,7 +41,7 @@ async function appendToProofChain(pool: any, payload: Record<string, any>) {
       .digest("hex")
 
     await pool.query(
-      `INSERT INTO event_chain (event_id, event_hash, prev_hash, payload, created_at)
+      `INSERT INTO event_chain (event_id, event_hash, previous_event_hash, payload, created_at)
        VALUES ($1::uuid, $2, $3, $4::jsonb, NOW())`,
       [eventId, eventHash, prevHash, JSON.stringify(enriched)]
     )
