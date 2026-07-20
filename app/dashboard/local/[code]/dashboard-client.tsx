@@ -681,13 +681,20 @@ function TabTV({ client, player, playlist, online, checking }: any) {
     setSavingScreen(null)
   }
 
+  // Fase 35 (20/07/2026): achado — a lista sempre mostrava só "Conteúdo"/
+  // "Anúncio" genérico, mesmo com título real disponível. Causa: o
+  // lookup usava um mapa MOCK fixo (names[item.id], com ids "1"-"4" e
+  // nomes de marca inventados tipo "Bradesco — Black Friday") que nunca
+  // batia com o id real (UUID) de nenhum item de verdade — dado
+  // simulado sobrevivendo em produção, mesmo padrão já documentado
+  // outras vezes no projeto. O campo real (ca.name, populado certo pela
+  // query do servidor) já existia em item.name e nunca era usado.
   const items = playlist.length > 0 ? playlist : [
-    { id: "1", type: "ad",      duration: 15, position: 1, asset_url: null },
-    { id: "2", type: "content", duration: 30, position: 2, asset_url: null },
-    { id: "3", type: "ad",      duration: 15, position: 3, asset_url: null },
-    { id: "4", type: "content", duration: 20, position: 4, asset_url: null },
+    { id: "1", type: "ad",      duration: 15, position: 1, asset_url: null, name: "Exemplo de anúncio" },
+    { id: "2", type: "content", duration: 30, position: 2, asset_url: null, name: "Exemplo de conteúdo" },
+    { id: "3", type: "ad",      duration: 15, position: 3, asset_url: null, name: "Exemplo de anúncio" },
+    { id: "4", type: "content", duration: 20, position: 4, asset_url: null, name: "Exemplo de conteúdo" },
   ]
-  const names: Record<string, string> = { "1": "Bradesco — Black Friday", "2": "Cardápio do Dia", "3": "iFood — Cupom 30%", "4": "Boas-vindas Clientes" }
   const isPortrait = client?.screen_orientation === "portrait"
   return (
     <div>
@@ -892,21 +899,47 @@ function TabTV({ client, player, playlist, online, checking }: any) {
         </div>
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Playlist em execução</div>
-          <span style={{ fontSize: 12, color: C.text3 }}>{items.length} itens</span>
-        </div>
-        {items.map((item: any, i: number) => (
-          <div key={item.id} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < items.length - 1 ? `1px solid ${C.border2}` : "none" }}>
-            <span style={{ width: 24, fontSize: 12, color: C.text3, fontWeight: 600, flexShrink: 0 }}>{i + 1}</span>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: item.type === "ad" ? C.blueLt : C.greenLt, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 12, flexShrink: 0 }}>
-              <span style={{ fontSize: 12 }}>{item.type === "ad" ? "📢" : "🖼"}</span>
-            </div>
-            <div style={{ flex: 1, fontSize: 13, color: C.text, fontWeight: i === 0 ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{names[item.id] || (item.type === "ad" ? "Anúncio" : "Conteúdo")}</div>
-            <span style={{ fontSize: 12, color: C.text3, flexShrink: 0 }}>{item.duration || 15}s</span>
-            {i === 0 && <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, marginLeft: 8, flexShrink: 0 }} />}
-          </div>
-        ))}
+        {(() => {
+          // Fase 35 (20/07/2026): "programação por tela" — motivado por
+          // pedido direto do fundador. Até aqui, a lista "Playlist em
+          // execução" sempre mostrava TODOS os itens do cliente juntos,
+          // sem filtrar pela tela selecionada acima — mesmo quando o
+          // cliente tem 2+ telas com "Conteúdo próprio" (same_content
+          // = false, Fase 24). screen_id NULO = conteúdo comum, aparece
+          // em qualquer tela; screen_id preenchido = exclusivo daquela
+          // tela específica (client_screens.id, mesmo campo que a rota
+          // /api/client/screens/[code] devolve como `id`).
+          const sel = screens.find((s: any) => s.player_id === selectedPlayerId) ?? screens[0]
+          const filteredItems = sel
+            ? items.filter((it: any) => !it.screen_id || it.screen_id === sel.id)
+            : items
+          return (
+            <>
+              <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
+                  Programação {sel?.label ? `— ${sel.label}` : "em execução"}
+                </div>
+                <span style={{ fontSize: 12, color: C.text3 }}>{filteredItems.length} itens</span>
+              </div>
+              {filteredItems.length === 0 && (
+                <div style={{ padding: "24px 18px", textAlign: "center", fontSize: 13, color: C.text3 }}>
+                  Nenhum conteúdo específico pra essa tela ainda — ela só exibe o conteúdo comum (se houver).
+                </div>
+              )}
+              {filteredItems.map((item: any, i: number) => (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", padding: "12px 18px", borderBottom: i < filteredItems.length - 1 ? `1px solid ${C.border2}` : "none" }}>
+                  <span style={{ width: 24, fontSize: 12, color: C.text3, fontWeight: 600, flexShrink: 0 }}>{i + 1}</span>
+                  <div style={{ width: 28, height: 28, borderRadius: 6, background: item.type === "ad" ? C.blueLt : C.greenLt, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 12, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12 }}>{item.type === "ad" ? "📢" : "🖼"}</span>
+                  </div>
+                  <div style={{ flex: 1, fontSize: 13, color: C.text, fontWeight: i === 0 ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || (item.type === "ad" ? "Anúncio" : "Conteúdo")}</div>
+                  <span style={{ fontSize: 12, color: C.text3, flexShrink: 0 }}>{item.duration || 15}s</span>
+                  {i === 0 && <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, marginLeft: 8, flexShrink: 0 }} />}
+                </div>
+              ))}
+            </>
+          )
+        })()}
       </div>
     </div>
   )
