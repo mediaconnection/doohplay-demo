@@ -29,11 +29,20 @@ export async function syncDonoMediaToUnified(pool: Pool, params: {
   endTime?: string | null
   daysOfWeek?: string[] | null
   screenId?: string | null
+  displayFormat?: string | null
 }) {
   try {
     const mappedStatus =
       params.status === "rejected" ? "rejected" :
       params.status === "approved" ? "approved" : "pending_review"
+
+    // Fase 33 (20/07/2026): achado nesta sessão — display_format nunca
+    // era propagado aqui, sempre gravava 'fullscreen' fixo (inclusive no
+    // ON CONFLICT, que nem tocava na coluna). Resultado: um item com
+    // formato lateral/faixa/flutuante configurado em CampaignMedia
+    // aparecia certo na carga inicial (que lê CampaignMedia direto), mas
+    // voltava pra fullscreen no primeiro refresh via polling (que lê daqui).
+    const displayFormat = params.displayFormat || "fullscreen"
 
     const campaignRes = await pool.query(
       `INSERT INTO campaigns_v2 (owner_type, owner_code, name, status, source_table, source_id)
@@ -47,12 +56,13 @@ export async function syncDonoMediaToUnified(pool: Pool, params: {
     const assetRes = await pool.query(
       `INSERT INTO creative_assets_v2
          (campaign_id, name, url, type, display_format, duration_seconds, status, source_table, source_id)
-       VALUES ($1,$2,$3,$4,'fullscreen',$5,$6,'CampaignMedia',$7)
+       VALUES ($1,$2,$3,$4,$8,$5,$6,'CampaignMedia',$7)
        ON CONFLICT (source_table, source_id) DO UPDATE SET
          name = EXCLUDED.name, url = EXCLUDED.url, type = EXCLUDED.type,
-         duration_seconds = EXCLUDED.duration_seconds, status = EXCLUDED.status
+         duration_seconds = EXCLUDED.duration_seconds, status = EXCLUDED.status,
+         display_format = EXCLUDED.display_format
        RETURNING id`,
-      [campaignV2Id, params.name, params.url, params.type, params.durationSeconds ?? 15, mappedStatus, params.mediaId]
+      [campaignV2Id, params.name, params.url, params.type, params.durationSeconds ?? 15, mappedStatus, params.mediaId, displayFormat]
     )
     const assetId = assetRes.rows[0].id
 

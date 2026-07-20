@@ -3235,6 +3235,16 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       return { ...prev, [mediaId]: next }
     })
   }
+  // Fase 33 (20/07/2026): formato de exibição escolhido por item, antes de
+  // aprovar. Feedback direto de cliente prospectado pedindo mais posições
+  // de anúncio além de tela cheia (lateral/faixa inferior/flutuante).
+  const DISPLAY_FORMATS: { id: string; label: string }[] = [
+    { id: "fullscreen", label: "Tela cheia" },
+    { id: "shrink_lateral", label: "Lateral (reduz tela principal)" },
+    { id: "banner_bottom", label: "Faixa inferior (reduz tela principal)" },
+    { id: "floating", label: "Flutuante (não interrompe a programação)" },
+  ]
+  const [pendingFormat, setPendingFormat] = useState<Record<string, string>>({})
   const medias  = data.medias ?? []
   const pending = medias.filter((m: any) => m.status === "pending")
   const others  = medias.filter((m: any) => m.status !== "pending")
@@ -3245,7 +3255,7 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       await fetch("/api/admin/media/" + id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, reason: r, tags: pendingTags[id] ?? [] }),
+        body: JSON.stringify({ status, reason: r, tags: pendingTags[id] ?? [], display_format: pendingFormat[id] ?? "fullscreen" }),
       })
       setRejectId(null); setReason(""); onRefresh()
     } catch {}
@@ -3282,6 +3292,14 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
                   )
                 })}
               </div>
+              <div style={{ fontSize: 10, color: TEXT2, marginTop: 10, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Formato de exibição</div>
+              <select
+                value={pendingFormat[m.id] ?? "fullscreen"}
+                onChange={e => setPendingFormat(prev => ({ ...prev, [m.id]: e.target.value }))}
+                style={{ fontSize: 12, padding: "6px 10px", borderRadius: 7, border: "1px solid " + BORDER, background: BG, color: TEXT, outline: "none" }}
+              >
+                {DISPLAY_FORMATS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
