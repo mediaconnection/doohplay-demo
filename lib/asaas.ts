@@ -55,6 +55,21 @@ export const PLAN_AI_GENERATION_LIMITS: Record<PlanKey, number> = {
 }
 export const DEFAULT_AI_GENERATION_LIMIT = 10 // fallback sem plano identificado
 
+// Limite de QUANTIDADE total de mídias (imagens + vídeos somados) por
+// plano. -1 = ilimitado. Consolidado aqui em 20/07/2026 — antes vivia
+// só dentro de app/api/studio/upload/route.ts, desorganizado (pendência
+// já registrada anteriormente). Valores dobrados na mesma sessão
+// (Starter 10→20, Pro 25→50), motivado por feedback direto de cliente
+// prospectado pedindo mais espaço pra vídeo — custo de storage no R2 é
+// irrelevante nessa escala (~$0,12/mês mesmo a 100 telas, ver análise de
+// custo real de 16/07), o limite antigo não tinha lastro de custo.
+export const PLAN_MEDIA_LIMITS: Record<PlanKey, number> = {
+  starter: 20,
+  pro: 50,
+  business: -1,
+}
+export const DEFAULT_MEDIA_LIMIT = 10 // fallback sem plano identificado
+
 // Fase 18 (14/07/2026): preço da tela extra recorrente. Antes disso era
 // cobrança ÚNICA de R$97 (ver createOneTimePayment mais abaixo, ainda
 // usada por outros fluxos) — achado numa análise comercial: cobrança

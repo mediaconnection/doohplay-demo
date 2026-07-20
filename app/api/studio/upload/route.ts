@@ -4,6 +4,7 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/clien
 import { getPool } from "@/lib/db"
 import { probeMp4 } from "@/lib/mp4-probe"
 import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
+import { PLAN_MEDIA_LIMITS, DEFAULT_MEDIA_LIMIT, PlanKey } from "@/lib/asaas"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -35,15 +36,6 @@ const SIZE_LIMITS = {
   },
 }
 
-// ── Limite de QUANTIDADE total de mídias (imagens + vídeos somados) por plano ──
-// -1 significa ilimitado
-const PLAN_MEDIA_LIMITS: Record<string, number> = {
-  starter:  10,
-  pro:      25,
-  business: -1,
-}
-const DEFAULT_MEDIA_LIMIT = 10 // fallback se o cliente não tiver assinatura/plano identificado
-
 function getFileCategory(mime: string): "image" | "video" | null {
   if (SIZE_LIMITS.image.types.includes(mime)) return "image"
   if (SIZE_LIMITS.video.types.includes(mime)) return "video"
@@ -57,7 +49,10 @@ async function getMediaLimit(pool: any, code: string): Promise<{ limit: number; 
       [code]
     )
     const plan = rows[0]?.plan?.toLowerCase() ?? null
-    const limit = plan && plan in PLAN_MEDIA_LIMITS ? PLAN_MEDIA_LIMITS[plan] : DEFAULT_MEDIA_LIMIT
+    // Cast pro tipo estrito PlanKey — mesmo padrão de app/api/studio/ai-generate/route.ts
+    // (PLAN_AI_GENERATION_LIMITS) pra essa mesma checagem "plano existe?".
+    const planKey = plan as PlanKey | null
+    const limit = planKey && planKey in PLAN_MEDIA_LIMITS ? PLAN_MEDIA_LIMITS[planKey] : DEFAULT_MEDIA_LIMIT
     return { limit, plan }
   } catch (err) {
     console.warn("[upload] Não foi possível buscar plano:", err)

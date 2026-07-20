@@ -932,6 +932,19 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
   }, [client.code])
   const hasCustomScreens = screens.length > 1 && screens.some((s: any) => !s.same_content)
 
+  // Fase 32 (20/07/2026): indicador de uso de mídia — feedback de cliente
+  // pedindo mais espaço pra vídeo na playlist revelou que ninguém via
+  // quanto do limite do plano já tinha sido usado ANTES de tentar subir
+  // um arquivo e trombar com o erro. Mesmo endpoint que já alimenta o
+  // indicador de telas (plan-usage), campo `media` novo nele.
+  const [mediaUsage, setMediaUsage] = useState<{ used: number; limit: number; unlimited: boolean } | null>(null)
+  useEffect(() => {
+    fetch(`/api/client/plan-usage/${client.code}`)
+      .then(r => r.json())
+      .then(d => { if (d.media) setMediaUsage(d.media) })
+      .catch(() => {})
+  }, [client.code])
+
   // Galeria de Exemplos — biblioteca de mídia pronta por segmento, pro
   // cliente que não sabe criar conteúdo próprio ter algo profissional no
   // ar rapidamente (existia o backend pronto, nunca tinha UI consumindo).
@@ -1031,6 +1044,37 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
         <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Enviar mídia</button>
       </div>
+
+      {mediaUsage && !mediaUsage.unlimited && (
+        <div style={{
+          background: mediaUsage.used >= mediaUsage.limit ? C.amberLt : C.white,
+          border: `1px solid ${mediaUsage.used >= mediaUsage.limit ? C.amber : C.border}`,
+          borderRadius: 12, padding: "12px 16px", marginBottom: 16,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>
+              Você usa {mediaUsage.used} de {mediaUsage.limit} mídias do seu plano
+            </div>
+            <div style={{ height: 5, borderRadius: 3, background: C.gray100, marginTop: 6, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 3,
+                width: `${Math.min(100, Math.round((mediaUsage.used / mediaUsage.limit) * 100))}%`,
+                background: mediaUsage.used >= mediaUsage.limit ? C.amber : C.blue,
+              }} />
+            </div>
+          </div>
+          {mediaUsage.used >= mediaUsage.limit && (
+            <a
+              href={`https://wa.me/5511962050987?text=${encodeURIComponent(`Oi! Sou o cliente ${client.code} e quero mais espaço pra mídia (mudar de plano)`)}`}
+              target="_blank" rel="noreferrer"
+              style={{ fontSize: 11, fontWeight: 600, padding: "7px 12px", borderRadius: 8, background: C.blue, color: "#fff", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              Mudar de plano
+            </a>
+          )}
+        </div>
+      )}
 
       {!loadingExamples && examples.length > 0 && (
         <div style={{ background: realItems.length === 0 ? C.blueLt : C.white, border: `1px solid ${realItems.length === 0 ? C.blueBd : C.border}`, borderRadius: 12, padding: "16px", marginBottom: 16 }}>
