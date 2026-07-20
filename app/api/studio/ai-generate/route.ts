@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PlanKey } from "@/lib/asaas"
+import { generateBackgroundImage } from "@/lib/imageGeneration"
 
 export const dynamic = "force-dynamic"
+
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+const BUCKET     = "dooh-media"
+const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
 // Achado numa sessão de revisão (12/07/2026): as chaves aqui estavam em
 // inglês ("barber", "food"...), mas o campo business_type salvo de verdade
@@ -198,11 +211,40 @@ Responda com este JSON exato:
     // "computer_20241022" (controle de tela/computador) achando que isso
     // gerava imagem — nunca gerou nada, sempre falhava e o erro era
     // engolido em silêncio (`catch { imageUrl = null }`), mascarando que
-    // essa funcionalidade nunca existiu de verdade. Por enquanto a rota
-    // é honesta: não gera imagem de fundo, devolve null explicitamente.
-    // Se quiser imagem de fundo por IA de verdade, isso precisa de um
-    // serviço de geração de imagem separado (não é a Messages API do Claude).
-    const imageUrl: string | null = null
+    // essa funcionalidade nunca existiu de verdade.
+    //
+    // IMPLEMENTADO (20/07/2026): geração de imagem real via
+    // lib/imageGeneration.ts (Gemini 3.1 Flash Image), motivada pelo
+    // feedback direto de clientes prospectados ("IA de geração de
+    // conteúdo é fraca pra quem não tem habilidade com IA") — sem imagem
+    // de fundo real, o dono ficava só com o layout de gradiente genérico.
+    //
+    // Decisão consciente: melhor esforço, igual ao padrão de
+    // appendToProofChain — se a geração de imagem falhar (ex: sem
+    // GEMINI_API_KEY configurada, ou API fora do ar), a rota NÃO falha
+    // inteira; o copy (headline/subline/cta) já foi gerado com sucesso e
+    // continua sendo devolvido, só sem imagem de fundo (mesmo
+    // comportamento de antes). Nunca vale perder um copy bom por causa de
+    // uma imagem que falhou.
+    //
+    // Decisão de cota, registrada pra revisitar: a geração de imagem usa
+    // a MESMA cota de PLAN_AI_GENERATION_LIMITS do copy (uma "geração" =
+    // texto + imagem juntos), não uma cota separada — mais simples de
+    // implementar agora; se o custo de imagem (~$0,05-0,07, bem maior que
+    // o de texto) se mostrar desproporcional na prática, vale criar uma
+    // cota própria pra imagem no futuro.
+    let imageUrl: string | null = null
+    try {
+      const { buffer, mimeType } = await generateBackgroundImage(adCopy.image_prompt)
+      const ext = mimeType.split("/")[1] || "png"
+      const key = `studio/${upperCode || "sem-codigo"}/ai_bg_${Date.now()}.${ext}`
+      await r2.send(new PutObjectCommand({
+        Bucket: BUCKET, Key: key, Body: buffer, ContentType: mimeType,
+      }))
+      imageUrl = `${PUBLIC_URL}/${key}`
+    } catch (imgErr: any) {
+      console.warn("[ai-generate] Falha ao gerar imagem por IA (seguindo só com o copy):", imgErr.message)
+    }
 
     // Fase 17: registra o uso — só depois que a geração deu certo de
     // verdade, pra não gastar cota do cliente em tentativa que falhou.
