@@ -1,7 +1,7 @@
 // app/api/client/plan-usage/[code]/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
-import { PLANS, PlanKey, PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT } from "@/lib/asaas"
+import { PLANS, PlanKey, PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PLAN_MEDIA_LIMITS, DEFAULT_MEDIA_LIMIT } from "@/lib/asaas"
 
 export const dynamic = "force-dynamic"
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const pool = getPool()
   try {
-    const [subRow, screensRow, aiUsageRow] = await Promise.all([
+    const [subRow, screensRow, aiUsageRow, mediaRow] = await Promise.all([
       pool.query(
         `SELECT plan, status FROM financial_subscriptions WHERE code = $1 LIMIT 1`,
         [code]
@@ -34,11 +34,21 @@ export async function GET(req: NextRequest) {
          WHERE client_code = $1 AND created_at >= date_trunc('month', NOW())`,
         [code]
       ).catch(() => ({ rows: [{ count: 0 }] })),
+      // Fase 32 (20/07/2026): mesma contagem usada em
+      // app/api/studio/upload/route.ts pra checar o limite — trazida
+      // aqui também, pra exibir "você usa N de M mídias" no dashboard
+      // ANTES do cliente trombar com o limite tentando subir um arquivo.
+      pool.query(`
+        SELECT COUNT(*)::int AS count FROM "CampaignMedia" cm
+        JOIN "Campaign" c ON c.id = cm."campaignId"
+        WHERE c."advertiserCode" = $1 AND cm.type IN ('image', 'video')
+      `, [code]).catch(() => ({ rows: [{ count: 0 }] })),
     ])
 
     const sub = subRow.rows[0]
     const screenCount = screensRow.rows[0]?.count ?? 0
     const aiUsed = aiUsageRow.rows[0]?.count ?? 0
+    const mediaUsed = mediaRow.rows[0]?.count ?? 0
 
     if (!sub || !(sub.plan in PLANS)) {
       // Sem assinatura ativa (ex: cliente de teste, ou ainda não assinou) —
@@ -46,11 +56,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         hasPlan: false, screenCount,
         aiGenerations: { used: aiUsed, limit: DEFAULT_AI_GENERATION_LIMIT },
+        media: { used: mediaUsed, limit: DEFAULT_MEDIA_LIMIT, unlimited: false },
       })
     }
 
     const plan = PLANS[sub.plan as PlanKey]
     const aiLimit = PLAN_AI_GENERATION_LIMITS[sub.plan as PlanKey]
+    const mediaLimit = PLAN_MEDIA_LIMITS[sub.plan as PlanKey]
     return NextResponse.json({
       hasPlan: true,
       planKey: sub.plan,
@@ -60,6 +72,7 @@ export async function GET(req: NextRequest) {
       screenCount,
       overLimit: screenCount > plan.maxScreens,
       aiGenerations: { used: aiUsed, limit: aiLimit, unlimited: aiLimit === -1 },
+      media: { used: mediaUsed, limit: mediaLimit, unlimited: mediaLimit === -1 },
     })
   } catch (err) {
     console.error("[client/plan-usage GET]", err)
