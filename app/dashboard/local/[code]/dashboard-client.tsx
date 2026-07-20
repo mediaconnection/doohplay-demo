@@ -1782,6 +1782,7 @@ function TabPlaylist({ code }: { code: string }) {
             end_time:     it.end_time     ?? null,
             start_date:   it.start_date   ?? null,
             end_date:     it.end_date     ?? null,
+            transition_effect: it.transition_effect ?? null,
           }))
         }),
       })
@@ -1862,6 +1863,21 @@ function TabPlaylist({ code }: { code: string }) {
               </div>
               <select value={item.duration ?? 15} onChange={e => update(i, "duration", Number(e.target.value))} style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 6px", color: C.text, background: C.white, outline: "none" }}>
                 {[5,10,15,20,30,60].map(d => <option key={d} value={d}>{d}s</option>)}
+              </select>
+              {/* Fase 29 (20/07/2026): transição por item — feedback direto de
+                  cliente prospectado ("a transição não deveria ser uma só
+                  pra tela toda"). Vazio = usa o padrão da tela (Templates). */}
+              <select
+                value={item.transition_effect ?? ""}
+                onChange={e => update(i, "transition_effect", e.target.value || null)}
+                title="Transição de entrada deste item (vazio = usa o padrão da tela)"
+                style={{ fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 6px", color: C.text, background: C.white, outline: "none" }}
+              >
+                <option value="">Padrão da tela</option>
+                <option value="fade">Fade</option>
+                <option value="cortina">Cortina</option>
+                <option value="deslizar">Deslizar</option>
+                <option value="none">Corte seco</option>
               </select>
               <div onClick={() => update(i, "active", !item.active)} style={{ cursor: "pointer", flexShrink: 0 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: item.active ? C.greenLt : C.gray100, color: item.active ? C.green : C.text3, border: `1px solid ${item.active ? C.greenBd : C.border}` }}>
