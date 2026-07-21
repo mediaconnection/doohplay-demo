@@ -2555,6 +2555,7 @@ function TabTemplates({ data }: { data: any }) {
   const [clientCode, setClientCode] = useState("")
   const [templateKey, setTemplateKey] = useState("fullscreen")
   const [transitionEffect, setTransitionEffect] = useState("fade")
+  const [widgetLayoutMode, setWidgetLayoutMode] = useState("fixed")
   const [locationName, setLocationName] = useState("São Paulo, SP")
   const [locationLat, setLocationLat] = useState("-23.5505")
   const [locationLon, setLocationLon] = useState("-46.6333")
@@ -2615,6 +2616,7 @@ function TabTemplates({ data }: { data: any }) {
           client_code: clientCode,
           template_key: templateKey,
           transition_effect: transitionEffect,
+          widget_layout_mode: widgetLayoutMode,
           location_name: locationName,
           location_lat: Number(locationLat),
           location_lon: Number(locationLon),
@@ -2702,6 +2704,30 @@ function TabTemplates({ data }: { data: any }) {
             ))}
           </div>
         </div>
+
+        {templateKey === "magazine" && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>
+              Modo dos widgets (Fase 39)
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { key: "fixed", label: "📌 Fixos (4 empilhados)" },
+                { key: "revezando", label: "🔄 Revezando em pares" },
+              ].map(opt => (
+                <button key={opt.key} type="button" onClick={() => setWidgetLayoutMode(opt.key)} style={{
+                  flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+                  border: "1px solid " + (widgetLayoutMode === opt.key ? BLUE : BORDER),
+                  background: widgetLayoutMode === opt.key ? BLUE : BG,
+                  color: widgetLayoutMode === opt.key ? "#fff" : TEXT2, cursor: "pointer",
+                }}>{opt.label}</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+              Revezando: hora↔clima num card, bolsa↔economia noutro — menos cards, mais variedade.
+            </div>
+          </div>
+        )}
 
         {templateKey === "magazine" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
