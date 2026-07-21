@@ -1074,6 +1074,25 @@ function TabDiagnostico() {
         <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
           Aparelhos que abriram o app por baixo da primeira vez, sem código configurado. Vincule a um cliente real abaixo.
         </div>
+        {/* Fase 36 (20/07/2026): link de download bem visível — achado que
+            não existia nenhum lugar fácil de achar isso (a página web
+            /install é um protótipo desconectado do backend real, nunca
+            deveria ser usada; o /guia-instalacao aponta pra uma URL
+            antiga que também não é essa). Colocado bem aqui porque é
+            exatamente onde quem está instalando um aparelho novo já
+            está olhando. */}
+        <a
+          href="https://doohplay.com.br/downloads/doohplay-player-native.apk"
+          download
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            marginTop: 10, fontSize: 13, fontWeight: 600,
+            color: "#fff", background: BLUE, borderRadius: 8,
+            padding: "8px 14px", textDecoration: "none",
+          }}
+        >
+          ⬇️ Baixar APK do player (pra instalar num aparelho novo)
+        </a>
       </div>
 
       {loadingPending ? (
@@ -1089,6 +1108,7 @@ function TabDiagnostico() {
               <div style={{ flex: "1 1 200px" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{p.device_type ?? "Dispositivo"} · {p.platform ?? "—"}</div>
                 <div style={{ fontSize: 11, color: TEXT2 }}>Ativado em {fmt(p.created_at)}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginTop: 2, fontFamily: "monospace" }}>{p.activation_code}</div>
               </div>
               <input
                 placeholder="Código do cliente (ex: BARBE332)"
@@ -1139,6 +1159,7 @@ function TabDiagnostico() {
               <div style={{ flex: "1 1 220px" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{s.label || s.device_type} <span style={{ fontWeight: 400, color: TEXT2 }}>· {s.client_name} ({s.client_code})</span></div>
                 <div style={{ fontSize: 11, color: TEXT2 }}>{s.device_type} · {s.platform} · {s.same_content ? "Mesma playlist" : "Conteúdo próprio"}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginTop: 2, fontFamily: "monospace" }}>{s.activation_code}</div>
               </div>
               <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: s.online ? GREEN + "18" : RED + "18", color: s.online ? GREEN : RED }}>
                 {s.online ? "Online" : "Offline"}

@@ -25,7 +25,15 @@ export async function GET(req: NextRequest) {
      ORDER BY p.created_at DESC
      LIMIT 50`
   )
-  return NextResponse.json({ pending: pending.rows })
+  // Fase 37 (20/07/2026): mostrar o código de ativação (o mesmo exibido
+  // na tela física) junto de cada dispositivo — sem isso, ficava difícil
+  // saber qual aparelho da lista corresponde a qual TV de verdade quando
+  // tem mais de um aguardando ao mesmo tempo (achado em uso real).
+  const withCode = pending.rows.map((p: any) => ({
+    ...p,
+    activation_code: `DHP-${String(p.id).replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+  }))
+  return NextResponse.json({ pending: withCode })
 }
 
 // POST — vincula um player_id (já ativado, ainda não pareado) a um código
