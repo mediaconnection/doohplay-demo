@@ -166,8 +166,9 @@ async function getPlayerData(code: string) {
     const templateRes = await pool.query<{
       template_key: string; location_lat: number; location_lon: number;
       location_name: string; stock_tickers: string[]; news_country: string; transition_effect: string;
+      widget_layout_mode: string;
     }>(`
-      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect, widget_layout_mode
       FROM screen_templates
       WHERE client_code = $1 AND active = true
       ORDER BY screen_id NULLS LAST
@@ -190,13 +191,16 @@ async function getPlayerData(code: string) {
         80: { label: "Pancadas leves", emoji: "🌦️" }, 95: { label: "Tempestade", emoji: "⛈️" },
       }
 
-      const [weatherRes, stocksRes, newsRes] = await Promise.allSettled([
+      const [weatherRes, stocksRes, newsRes, econNewsRes] = await Promise.allSettled([
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
         fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } }),
         fetch(`https://g1.globo.com/rss/g1/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
+        // Fase 39 (20/07/2026): mesma fonte (G1), só a seção de Economia —
+        // usada pro widget "bolsa revezando com notícia de mercado".
+        fetch(`https://g1.globo.com/rss/g1/economia/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
       ])
 
-      let weather = null, stocks: any[] = [], news: any[] = []
+      let weather = null, stocks: any[] = [], news: any[] = [], econNews: any[] = []
       if (weatherRes.status === "fulfilled" && weatherRes.value.ok) {
         const w = await weatherRes.value.json()
         const code = w.current?.weather_code ?? 0
@@ -229,10 +233,22 @@ async function getPlayerData(code: string) {
           if (title) news.push({ title })
         }
       }
-      return { weather, stocks, news }
+      // Fase 39 (20/07/2026): mesmo parsing, fonte de economia.
+      if (econNewsRes.status === "fulfilled" && econNewsRes.value.ok) {
+        const xml = await econNewsRes.value.text()
+        const itemRegex = /<item>([\s\S]*?)<\/item>/g
+        let m
+        while ((m = itemRegex.exec(xml)) !== null && econNews.length < 4) {
+          const item = m[1]
+          const rawTitle = item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]>/)?.[1] || item.match(/<title>(.*?)<\/title>/)?.[1] || ""
+          const title = rawTitle.replace(/<[^>]*>/g, "").trim()
+          if (title) econNews.push({ title })
+        }
+      }
+      return { weather, stocks, news, econNews }
     }
 
-    let widgets: { weather: any; stocks: any; news: any } | null = null
+    let widgets: { weather: any; stocks: any; news: any; econNews: any } | null = null
     if (template?.template_key === "magazine") {
       widgets = await fetchWidgetsData(template)
     }
@@ -302,13 +318,14 @@ async function getPlayerData(code: string) {
       medias: [...ownAndAds, ...network, ...institutional, ...realAds],
       template: template?.template_key || "fullscreen",
       transitionEffect: template?.transition_effect || "fade",
+      widgetLayoutMode: template?.widget_layout_mode || "fixed",
       widgets,
       layoutZones,
       poll,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgets: null as any, layoutZones: null as any, poll: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgets: null as any, layoutZones: null as any, poll: null as any }
   }
 }
 
@@ -451,7 +468,39 @@ export default async function PlayerPage({
         </div>
       </div>`
     }
+    // Fase 39 (20/07/2026): mesmo padrão do "news", fonte de economia —
+    // usado no widget combinado "bolsa revezando com mercado".
+    if (contentType === "econnews" && data.widgets?.econNews?.length) {
+      return `<div class="dw dw-news">
+        <div class="dw-accent"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-news"></span>ECONOMIA · G1</div>
+        <div class="dw-news-list">
+          ${data.widgets.econNews.map((n: any) => `<div class="dw-news-item"><span class="dw-news-bar"></span><span>${escapeHtml(n.title)}</span></div>`).join("")}
+        </div>
+      </div>`
+    }
     return ""
+  }
+
+  // Fase 39 (20/07/2026): widget combinado — dois widgets no MESMO espaço,
+  // revezando (um visível de cada vez, com fade). Pedido do fundador:
+  // "hora que troca como o clima", "bolsa revezando com mercado" — assuntos
+  // afins compartilhando um card em vez de ocupar 2 cards fixos separados.
+  // JS (comboCycle, mais abaixo no script inline) troca a visibilidade
+  // sozinho a cada N segundos; aqui só monta os dois lados no HTML.
+  function renderComboWidgetHtml(typeA: string, typeB: string, comboId: string): string {
+    const htmlA = renderWidgetHtml(typeA)
+    const htmlB = renderWidgetHtml(typeB)
+    // Se um dos dois lados não tem dado real pra mostrar (ex: cliente sem
+    // ticker configurado), não faz sentido revezar com espaço vazio —
+    // mostra só o que existe, como widget normal.
+    if (!htmlA && !htmlB) return ""
+    if (!htmlA) return htmlB
+    if (!htmlB) return htmlA
+    return `<div class="dw-combo" data-combo-id="${comboId}">
+      <div class="dw-combo-side active" data-combo-side="a">${htmlA}</div>
+      <div class="dw-combo-side" data-combo-side="b">${htmlB}</div>
+    </div>`
   }
 
   const bodyContentHtml = data.medias.length === 0
@@ -470,12 +519,17 @@ export default async function PlayerPage({
     : `<div id="slides">${slidesHtml}</div>`
 
   const widgetsPanelHtml = data.template === "magazine" && data.widgets
-    ? `<div id="widgets-panel">
-        ${renderWidgetHtml("clock")}
-        ${renderWidgetHtml("weather")}
-        ${renderWidgetHtml("stocks")}
-        ${renderWidgetHtml("news")}
-      </div>`
+    ? (data.widgetLayoutMode === "revezando"
+        ? `<div id="widgets-panel">
+            ${renderComboWidgetHtml("clock", "weather", "clima-hora")}
+            ${renderComboWidgetHtml("stocks", "econnews", "bolsa-mercado")}
+          </div>`
+        : `<div id="widgets-panel">
+            ${renderWidgetHtml("clock")}
+            ${renderWidgetHtml("weather")}
+            ${renderWidgetHtml("stocks")}
+            ${renderWidgetHtml("news")}
+          </div>`)
     : ""
 
   // ── Layout genérico de N zonas (Fase 4) ─────────────────────────────────
@@ -679,6 +733,32 @@ export default async function PlayerPage({
             padding: 1vh 0.8vw;
             gap: 1vh;
             overflow: hidden;
+          }
+
+          /* Fase 39 (20/07/2026): widget combinado — dois lados no mesmo
+             espaço (mesmo flex: 1 do widget normal), revezando com fade.
+             JS (comboCycle) alterna a classe .active a cada intervalo. */
+          .dw-combo {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+          }
+          .dw-combo-side {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 1s ease;
+            pointer-events: none;
+          }
+          .dw-combo-side.active {
+            opacity: 1;
+            pointer-events: auto;
+          }
+          /* O widget dentro do combo ocupa 100% do espaço do lado (antes
+             era flex:1 dentro de uma coluna — aqui vira position:absolute) */
+          .dw-combo-side .dw {
+            position: absolute;
+            inset: 0;
           }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
@@ -1120,6 +1200,31 @@ export default async function PlayerPage({
             }
             applyTimeOfDayTint();
             setInterval(applyTimeOfDayTint, 60000);
+
+            // ── Widgets combinados (Fase 39, 20/07/2026) ──────────────────
+            // Cada .dw-combo tem 2 lados (.dw-combo-side); alterna qual está
+            // .active a cada COMBO_CYCLE_MS. Cada combo tem seu PRÓPRIO
+            // timer independente (não sincronizados entre si de propósito —
+            // evita os dois cards trocarem exatamente juntos, fica mais
+            // "vivo"). Só roda se existir pelo menos um combo na página
+            // (widgetLayoutMode !== 'revezando' não tem nenhum, não faz nada).
+            var COMBO_CYCLE_MS = 10000;
+            function initCombos() {
+              var combos = document.querySelectorAll('[data-combo-id]');
+              for (var i = 0; i < combos.length; i++) {
+                (function(combo) {
+                  var sides = combo.querySelectorAll('[data-combo-side]');
+                  if (sides.length < 2) return;
+                  var current = 0;
+                  setInterval(function() {
+                    sides[current].classList.remove('active');
+                    current = (current + 1) % sides.length;
+                    sides[current].classList.add('active');
+                  }, COMBO_CYCLE_MS);
+                })(combos[i]);
+              }
+            }
+            initCombos();
 
             // ── Relógio ao vivo (Fase 4b) ──────────────────────────────────
             // Roda independente do modo (magazine ou zonas genéricas) — só
