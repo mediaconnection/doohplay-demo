@@ -525,9 +525,12 @@ export default async function PlayerPage({
     if (!data.widgets?.news?.length) return ""
     const items = data.widgets.news.map((n: any) => escapeHtml(n.title)).join("&nbsp;&nbsp;•&nbsp;&nbsp;")
     return `<div class="dw-ticker-wrap">
-      <div class="dw-ticker-track">
-        <span class="dw-ticker-item">${items}</span>
-        <span class="dw-ticker-item">${items}</span>
+      <div class="dw-ticker-label">Ao vivo</div>
+      <div class="dw-ticker-scroll">
+        <div class="dw-ticker-track">
+          <span class="dw-ticker-item">${items}</span>
+          <span class="dw-ticker-item">${items}</span>
+        </div>
       </div>
     </div>`
   }
@@ -790,8 +793,8 @@ export default async function PlayerPage({
             position: relative;
             width: 100%; height: 100%;
             display: flex; flex-direction: column;
-            padding: 1vh 0.8vw;
-            gap: 1vh;
+            padding: 1.6vh 1.1vw;
+            gap: 1.2vh;
             overflow: hidden;
             /* Fase 41 (21/07/2026): fundo deixava de ser preto liso e sem
                hierarquia — achado real em uso (print de tela real). Usa a
@@ -835,13 +838,16 @@ export default async function PlayerPage({
             inset: 0;
           }
 
-          /* Fase 40 (20/07/2026): modo "compacto" — barra fina de hora+clima
-             + ticker corrido, em vez dos cards cheios do modo fixo/revezando.
-             #widgets-panel.widgets-compact troca de coluna esticada (flex:1
-             em cada widget) pra altura automática só do necessário — sobra
-             espaço vazio de propósito (design mais "clean", menos denso). */
+          /* Fase 42 (21/07/2026): reformulação — feedback direto em uso
+             real ("ainda não está bom"): o ticker em bloco de cor sólida
+             destoava dos outros 2 cards (vidro fosco discreto), e sobrava
+             espaço vazio preto embaixo. Agora os 3 elementos são da MESMA
+             família visual (vidro + faixa de destaque na cor de marca), e
+             o ticker cresce (flex:1) pra preencher o espaço que sobrar,
+             em vez de deixar vazio. */
           #widgets-panel.widgets-compact {
             justify-content: flex-start;
+            gap: 1.6vh;
           }
           #widgets-panel.widgets-compact .dw {
             flex: 0 0 auto;
@@ -851,12 +857,12 @@ export default async function PlayerPage({
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 1.8vh 1.3vw !important;
+            padding: 2vh 1.3vw !important;
             font-family: 'Space Grotesk', 'Inter', sans-serif;
             font-variant-numeric: tabular-nums;
           }
           .dw-compact-clock {
-            font-size: 4vh;
+            font-size: 4.2vh;
             font-weight: 800;
             letter-spacing: -.01em;
           }
@@ -867,28 +873,54 @@ export default async function PlayerPage({
           }
           .dw-compact-weather svg { width: 2.8vh; height: 2.8vh; }
 
-          /* Ticker corrido — dois blocos idênticos lado a lado, animação
-             translateX contínua de 0 a -50% (a largura de UM bloco) faz o
-             loop parecer infinito, sem "pulo" visível no fim do texto. */
+          /* Ticker corrido — agora um card de vidro igual aos outros
+             (mesmo fundo/blur/borda do .dw base), com faixa de destaque
+             na LATERAL (em vez de topo, pra diferenciar visualmente sem
+             perder a família) e rótulo fixo "AO VIVO" que não rola —
+             só o texto da notícia mesmo rola, como ticker de telejornal
+             de verdade (Bloomberg/CNBC usam esse padrão: fundo escuro,
+             faixa de cor, texto claro — nunca bloco de cor sólida cheio). */
           .dw-ticker-wrap {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            gap: 14px;
             width: 100%;
             overflow: hidden;
-            background: linear-gradient(90deg, var(--accent-1, #3B82F6), var(--accent-2, #7B61FF));
-            border-radius: 10px;
-            padding: 1.6vh 0;
+            background: linear-gradient(155deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,.08);
+            border-left: 4px solid var(--accent-1, #3B82F6);
+            border-radius: 14px;
+            padding: 0 1.3vw;
             white-space: nowrap;
-            transition: background 1.4s ease;
+            transition: border-color 1.4s ease;
           }
+          .dw-ticker-label {
+            flex-shrink: 0;
+            display: flex; align-items: center; gap: 6px;
+            font-size: 1.3vh; font-weight: 700; letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--accent-1, #3B82F6);
+            transition: color 1.4s ease;
+          }
+          .dw-ticker-label::before {
+            content: ''; width: 7px; height: 7px; border-radius: 50%;
+            background: currentColor;
+            animation: dwTickerPulse 2s ease-in-out infinite;
+          }
+          @keyframes dwTickerPulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+          .dw-ticker-scroll { flex: 1; overflow: hidden; min-width: 0; }
           .dw-ticker-track {
             display: inline-flex;
             animation: dwTickerScroll 28s linear infinite;
           }
           .dw-ticker-item {
             padding-right: 4vw;
-            font-size: 2.4vh;
-            font-weight: 700;
-            color: #fff;
-            text-shadow: 0 2px 6px rgba(0,0,0,.35);
+            font-size: 2.2vh;
+            font-weight: 600;
+            color: #F5F7FA;
             font-family: 'Inter', sans-serif;
           }
           @keyframes dwTickerScroll {
