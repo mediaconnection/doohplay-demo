@@ -510,6 +510,7 @@ export default async function PlayerPage({
   function renderCompactBarHtml(): string {
     const w = data.widgets?.weather
     return `<div class="dw dw-compact-bar">
+      <div class="dw-accent"></div>
       <span class="dw-compact-clock" data-live-clock-time>--:--</span>
       ${w ? `<span class="dw-compact-sep">·</span>
       <span class="dw-compact-weather">${weatherIconSvg(w.code ?? 0)}${w.temperature}°C ${escapeHtml(w.location)}</span>` : ""}
@@ -786,12 +787,27 @@ export default async function PlayerPage({
 
           /* ── Painel de widgets (Fase 3b: template magazine) ── */
           #widgets-panel {
+            position: relative;
             width: 100%; height: 100%;
             display: flex; flex-direction: column;
             padding: 1vh 0.8vw;
             gap: 1vh;
             overflow: hidden;
+            /* Fase 41 (21/07/2026): fundo deixava de ser preto liso e sem
+               hierarquia — achado real em uso (print de tela real). Usa a
+               mesma cor de marca do motor Aurora (--accent-1/--accent-2,
+               já calculada por sc.primary_color + extração de cor do
+               conteúdo) como um wash sutil de fundo, em vez de #000 puro. */
+            background: #05070D;
           }
+          #widgets-panel::before {
+            content: '';
+            position: absolute; inset: 0; z-index: 0; pointer-events: none;
+            background: linear-gradient(165deg, var(--accent-1, #3B82F6), transparent 65%);
+            opacity: .16;
+            transition: background 1.4s ease;
+          }
+          #widgets-panel > * { position: relative; z-index: 1; }
 
           /* Fase 39 (20/07/2026): widget combinado — dois lados no mesmo
              espaço (mesmo flex: 1 do widget normal), revezando com fade.
@@ -834,21 +850,22 @@ export default async function PlayerPage({
           .dw-compact-bar {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 1.4vh 1.1vw !important;
+            gap: 12px;
+            padding: 1.8vh 1.3vw !important;
             font-family: 'Space Grotesk', 'Inter', sans-serif;
             font-variant-numeric: tabular-nums;
           }
           .dw-compact-clock {
-            font-size: 2.4vh;
-            font-weight: 700;
+            font-size: 4vh;
+            font-weight: 800;
+            letter-spacing: -.01em;
           }
-          .dw-compact-sep { opacity: .4; font-size: 1.8vh; }
+          .dw-compact-sep { opacity: .35; font-size: 2.2vh; }
           .dw-compact-weather {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 1.8vh; font-weight: 500; opacity: .9;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 2.2vh; font-weight: 600; opacity: .95;
           }
-          .dw-compact-weather svg { width: 2.2vh; height: 2.2vh; }
+          .dw-compact-weather svg { width: 2.8vh; height: 2.8vh; }
 
           /* Ticker corrido — dois blocos idênticos lado a lado, animação
              translateX contínua de 0 a -50% (a largura de UM bloco) faz o
@@ -856,19 +873,22 @@ export default async function PlayerPage({
           .dw-ticker-wrap {
             width: 100%;
             overflow: hidden;
-            background: rgba(255,255,255,.04);
+            background: linear-gradient(90deg, var(--accent-1, #3B82F6), var(--accent-2, #7B61FF));
             border-radius: 10px;
-            padding: 1.2vh 0;
+            padding: 1.6vh 0;
             white-space: nowrap;
+            transition: background 1.4s ease;
           }
           .dw-ticker-track {
             display: inline-flex;
             animation: dwTickerScroll 28s linear infinite;
           }
           .dw-ticker-item {
-            padding-right: 3vw;
-            font-size: 1.6vh;
-            color: #F5F7FA;
+            padding-right: 4vw;
+            font-size: 2.4vh;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 6px rgba(0,0,0,.35);
             font-family: 'Inter', sans-serif;
           }
           @keyframes dwTickerScroll {
@@ -1007,7 +1027,7 @@ export default async function PlayerPage({
           .dw-stocks-list { display: flex; flex-direction: column; }
           .dw-stock-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 1vh 0; font-size: 1.8vh;
+            padding: 1.3vh 0; font-size: 2.3vh;
             border-bottom: 1px solid rgba(255,255,255,.06);
           }
           .dw-stock-row:last-child { border-bottom: none; }
@@ -1019,7 +1039,7 @@ export default async function PlayerPage({
           .dw-stock-change {
             font-family: 'Space Grotesk', ui-monospace, monospace;
             font-variant-numeric: tabular-nums;
-            font-size: 1.4vh; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+            font-size: 1.7vh; font-weight: 700; padding: 4px 9px; border-radius: 6px;
           }
           .dw-stock-change.up   { background: rgba(52,211,153,.15); color: #34D399; }
           .dw-stock-change.down { background: rgba(251,113,133,.15); color: #FB7185; }
