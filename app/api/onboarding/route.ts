@@ -114,6 +114,13 @@ export async function POST(req: NextRequest) {
     }
 
     // WhatsApp para o cliente
+    // Fase 38 (20/07/2026): achado real em suporte — o código do cliente
+    // (necessário pra logar no dashboard E pra ativar a TV) nunca era
+    // comunicado ao cliente por WhatsApp/email, só aparecia uma vez na
+    // tela de confirmação do cadastro. Se ele fechasse a aba, não tinha
+    // como descobrir o próprio código de novo sem pedir suporte — e não
+    // existe nenhum "esqueci meu código" no sistema ainda. Corrigido
+    // aqui: código bem destacado + passo a passo completo de ativação.
     const clientMsg = [
       `🎉 *Olá, ${contact_name}!*`,
       ``,
@@ -123,6 +130,15 @@ export async function POST(req: NextRequest) {
       `🏪 ${business_name}`,
       `📦 Plano ${planNames[plan] || plan}`,
       `📍 ${address}, ${city}`,
+      ``,
+      `🔑 *Seu código de acesso: ${code}*`,
+      `Guarde esse código — é com ele que você entra no seu painel e ativa sua tela. Se perder, é só nos chamar aqui que reenviamos.`,
+      ``,
+      `📺 *Como ativar sua tela:*`,
+      `1️⃣ Instale o app DOOHPLAY na TV (Fire Stick/Android TV)`,
+      `2️⃣ Abra o app — ele vai mostrar um código de ativação (tipo DHP-XXXXXX) na tela`,
+      `3️⃣ Acesse doohplay.com.br/dashboard/local/${code} pelo celular ou computador`,
+      `4️⃣ Na aba "Minha TV", digite o código que apareceu na sua TV e confirme`,
       ``,
       `🎁 *Você tem 7 dias grátis!*`,
       `A primeira cobrança será apenas no dia *${trialEnd}*.`,
