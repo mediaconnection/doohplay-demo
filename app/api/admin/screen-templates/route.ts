@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     // Fase 39 (20/07/2026): widgets fixos (padrão) ou revezando em pares
     // (hora+clima, bolsa+economia) — validado igual aos outros campos
     // fechados, nunca aceita valor arbitrário do body.
-    const widgetLayoutMode = ["fixed", "revezando"].includes(body.widget_layout_mode) ? body.widget_layout_mode : "fixed"
+    const widgetLayoutMode = ["fixed", "revezando", "compacto"].includes(body.widget_layout_mode) ? body.widget_layout_mode : "fixed"
     const locationLat = body.location_lat ?? null
     const locationLon = body.location_lon ?? null
     const locationName = body.location_name || null

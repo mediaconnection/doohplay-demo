@@ -2714,6 +2714,7 @@ function TabTemplates({ data }: { data: any }) {
               {[
                 { key: "fixed", label: "📌 Fixos (4 empilhados)" },
                 { key: "revezando", label: "🔄 Revezando em pares" },
+                { key: "compacto", label: "➖ Compacto (barra + ticker)" },
               ].map(opt => (
                 <button key={opt.key} type="button" onClick={() => setWidgetLayoutMode(opt.key)} style={{
                   flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,

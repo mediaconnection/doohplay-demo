@@ -503,6 +503,34 @@ export default async function PlayerPage({
     </div>`
   }
 
+  // Fase 40 (20/07/2026): modo "compacto" — inspirado em referência visual
+  // (template-grid-retail.html, cabeçalho "Hoje: 28°C · 14:35"). Linha
+  // única de texto, hora+clima juntos, em vez de 2 cards cheios revezando
+  // (mais discreto, ocupa bem menos espaço vertical).
+  function renderCompactBarHtml(): string {
+    const w = data.widgets?.weather
+    return `<div class="dw dw-compact-bar">
+      <span class="dw-compact-clock" data-live-clock-time>--:--</span>
+      ${w ? `<span class="dw-compact-sep">·</span>
+      <span class="dw-compact-weather">${weatherIconSvg(w.code ?? 0)}${w.temperature}°C ${escapeHtml(w.location)}</span>` : ""}
+    </div>`
+  }
+
+  // Fase 40 (20/07/2026): ticker corrido — mesma fonte de notícia (G1),
+  // mas rolando horizontalmente em vez de lista parada. Duplica o
+  // conteúdo uma vez (mesmo texto 2x seguidas) pra o loop de CSS
+  // (translateX -50%) ficar contínuo, sem "salto" visível no fim.
+  function renderTickerHtml(): string {
+    if (!data.widgets?.news?.length) return ""
+    const items = data.widgets.news.map((n: any) => escapeHtml(n.title)).join("&nbsp;&nbsp;•&nbsp;&nbsp;")
+    return `<div class="dw-ticker-wrap">
+      <div class="dw-ticker-track">
+        <span class="dw-ticker-item">${items}</span>
+        <span class="dw-ticker-item">${items}</span>
+      </div>
+    </div>`
+  }
+
   const bodyContentHtml = data.medias.length === 0
     ? `<div class="default-screen">
         <div class="logo-icon">
@@ -523,6 +551,12 @@ export default async function PlayerPage({
         ? `<div id="widgets-panel">
             ${renderComboWidgetHtml("clock", "weather", "clima-hora")}
             ${renderComboWidgetHtml("stocks", "econnews", "bolsa-mercado")}
+          </div>`
+        : data.widgetLayoutMode === "compacto"
+        ? `<div id="widgets-panel" class="widgets-compact">
+            ${renderCompactBarHtml()}
+            ${renderWidgetHtml("stocks")}
+            ${renderTickerHtml()}
           </div>`
         : `<div id="widgets-panel">
             ${renderWidgetHtml("clock")}
@@ -726,6 +760,30 @@ export default async function PlayerPage({
             display: none;
           }
 
+          /* Fase 40 (20/07/2026): selo "Patrocinado" — pedido do fundador
+             (referência: mockup "template-hero-ads.html"), transparência de
+             que o conteúdo daquela zona é anúncio pago, não institucional/
+             conteúdo do dono. JS alterna a classe .has-sponsor-badge
+             conforme a categoria do item que está tocando ali no momento —
+             o selo só existe quando a classe está presente. */
+          #lateral-zone.has-sponsor-badge::after,
+          #bottom-zone.has-sponsor-badge::after,
+          #floating-zone.has-sponsor-badge::after {
+            content: 'Patrocinado';
+            position: absolute;
+            top: 10px; right: 10px;
+            background: rgba(0,0,0,.65);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .02em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            z-index: 6;
+            pointer-events: none;
+          }
+
           /* ── Painel de widgets (Fase 3b: template magazine) ── */
           #widgets-panel {
             width: 100%; height: 100%;
@@ -759,6 +817,63 @@ export default async function PlayerPage({
           .dw-combo-side .dw {
             position: absolute;
             inset: 0;
+          }
+
+          /* Fase 40 (20/07/2026): modo "compacto" — barra fina de hora+clima
+             + ticker corrido, em vez dos cards cheios do modo fixo/revezando.
+             #widgets-panel.widgets-compact troca de coluna esticada (flex:1
+             em cada widget) pra altura automática só do necessário — sobra
+             espaço vazio de propósito (design mais "clean", menos denso). */
+          #widgets-panel.widgets-compact {
+            justify-content: flex-start;
+          }
+          #widgets-panel.widgets-compact .dw {
+            flex: 0 0 auto;
+            height: auto;
+          }
+          .dw-compact-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 1.4vh 1.1vw !important;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-variant-numeric: tabular-nums;
+          }
+          .dw-compact-clock {
+            font-size: 2.4vh;
+            font-weight: 700;
+          }
+          .dw-compact-sep { opacity: .4; font-size: 1.8vh; }
+          .dw-compact-weather {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 1.8vh; font-weight: 500; opacity: .9;
+          }
+          .dw-compact-weather svg { width: 2.2vh; height: 2.2vh; }
+
+          /* Ticker corrido — dois blocos idênticos lado a lado, animação
+             translateX contínua de 0 a -50% (a largura de UM bloco) faz o
+             loop parecer infinito, sem "pulo" visível no fim do texto. */
+          .dw-ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background: rgba(255,255,255,.04);
+            border-radius: 10px;
+            padding: 1.2vh 0;
+            white-space: nowrap;
+          }
+          .dw-ticker-track {
+            display: inline-flex;
+            animation: dwTickerScroll 28s linear infinite;
+          }
+          .dw-ticker-item {
+            padding-right: 3vw;
+            font-size: 1.6vh;
+            color: #F5F7FA;
+            font-family: 'Inter', sans-serif;
+          }
+          @keyframes dwTickerScroll {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-50%); }
           }
 
           /* ── Layout genérico de N zonas (Fase 4) ── */
@@ -1455,6 +1570,14 @@ export default async function PlayerPage({
               if (el.src !== m.url) el.src = m.url;
               el.style.display = 'block';
 
+              // Fase 40 (20/07/2026): selo "Patrocinado" — só aparece quando
+              // o item mostrado é de fato um anúncio pago (categoria
+              // 'anunciante'); conteúdo próprio/institucional/canal na
+              // mesma zona não leva selo.
+              if (lateralZoneEl) {
+                lateralZoneEl.classList.toggle('has-sponsor-badge', m.category === 'anunciante');
+              }
+
               var dur = (Number(m.duration) || 15) * 1000;
               if (el.tagName === 'VIDEO') {
                 el.currentTime = 0;
@@ -1514,6 +1637,12 @@ export default async function PlayerPage({
               if (el.tagName === 'IMG') el.alt = m.name || '';
               if (el.src !== m.url) el.src = m.url;
               el.style.display = 'block';
+
+              // Fase 40 (20/07/2026): mesmo selo da lateral, ver comentário
+              // em showLateralSlide.
+              if (bottomZoneEl) {
+                bottomZoneEl.classList.toggle('has-sponsor-badge', m.category === 'anunciante');
+              }
 
               var dur = (Number(m.duration) || 15) * 1000;
               if (el.tagName === 'VIDEO') {
@@ -1579,6 +1708,8 @@ export default async function PlayerPage({
                 if (p && typeof p.catch === 'function') p.catch(function() {});
               }
 
+              // Fase 40 (20/07/2026): mesmo selo da lateral/faixa.
+              floatingZoneEl.classList.toggle('has-sponsor-badge', m.category === 'anunciante');
               floatingZoneEl.classList.add('visible');
 
               floatingCycleTimer = setTimeout(function() {
