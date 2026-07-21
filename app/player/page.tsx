@@ -21,6 +21,10 @@ interface PlayerMediaRow {
 
 type SlotCategory = "dono" | "anunciante" | "rede" | "institucional" | "canal";
 type DisplayFormat = "fullscreen" | "shrink_lateral" | "banner_bottom" | "floating";
+// Fase 43 (nova): posição do painel de widgets na tela (modo magazine).
+// 'right' é o padrão de sempre — comportamento idêntico ao de hoje pra
+// quem nunca configurar isso.
+type WidgetPosition = "right" | "left" | "bottom";
 
 interface PlayerMedia {
   id: string;
@@ -163,12 +167,15 @@ async function getPlayerData(code: string) {
     // por tela física específica depende de o player identificar qual tela
     // está carregando a página (V96 vs T600 hoje carregam a mesma URL
     // /player?screen=CODE) — fica registrado como limitação conhecida.
+    // Fase 43 (nova, 21/07/2026): widget_position adicionado — coluna
+    // confirmada via information_schema antes de usar aqui (regra do
+    // Quinto padrão do projeto).
     const templateRes = await pool.query<{
       template_key: string; location_lat: number; location_lon: number;
       location_name: string; stock_tickers: string[]; news_country: string; transition_effect: string;
-      widget_layout_mode: string;
+      widget_layout_mode: string; widget_position: string;
     }>(`
-      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect, widget_layout_mode
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect, widget_layout_mode, widget_position
       FROM screen_templates
       WHERE client_code = $1 AND active = true
       ORDER BY screen_id NULLS LAST
@@ -319,13 +326,19 @@ async function getPlayerData(code: string) {
       template: template?.template_key || "fullscreen",
       transitionEffect: template?.transition_effect || "fade",
       widgetLayoutMode: template?.widget_layout_mode || "fixed",
+      // Fase 43 (nova): valida contra os 3 valores suportados — qualquer
+      // outra coisa (null, dado antigo, digitação manual) cai em "right",
+      // o comportamento de sempre.
+      widgetPosition: ((template?.widget_position === "left" || template?.widget_position === "bottom")
+        ? template.widget_position
+        : "right") as WidgetPosition,
       widgets,
       layoutZones,
       poll,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgets: null as any, layoutZones: null as any, poll: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgetPosition: "right" as WidgetPosition, widgets: null as any, layoutZones: null as any, poll: null as any }
   }
 }
 
@@ -570,6 +583,14 @@ export default async function PlayerPage({
           </div>`)
     : ""
 
+  // Fase 43 (nova): decide se o painel de widgets vai pra lateral (padrão)
+  // ou pro #bottom-zone (widget_position === 'bottom'). NUNCA os dois ao
+  // mesmo tempo. Quando vai pro bottom-zone, o #lateral-zone fica vazio
+  // (e continua disponível pra anúncio shrink_lateral normalmente).
+  const showWidgetsInBottom = data.template === "magazine" && data.widgetPosition === "bottom"
+  const lateralZoneContentHtml = showWidgetsInBottom ? "" : widgetsPanelHtml
+  const bottomZoneWidgetsHtml = showWidgetsInBottom ? widgetsPanelHtml : ""
+
   // ── Layout genérico de N zonas (Fase 4) ─────────────────────────────────
   // Extraído em função reutilizável (Fase 9) — o mesmo gerador agora serve
   // tanto pro layout fixo de página quanto pra um "slide-layout" dentro da
@@ -592,7 +613,7 @@ export default async function PlayerPage({
 
   const playerInnerHtml = data.layoutZones
     ? `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="zones-root" style="position:relative;width:100%;height:100%;">${zonesHtml}</div>`
-    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-row"><div id="main-zone"><div id="content-area">${bodyContentHtml}</div><div id="floating-zone"></div></div><div id="lateral-zone">${widgetsPanelHtml}</div></div><div id="bottom-zone"></div>`
+    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-row"><div id="main-zone"><div id="content-area">${bodyContentHtml}</div><div id="floating-zone"></div></div><div id="lateral-zone">${lateralZoneContentHtml}</div></div><div id="bottom-zone">${bottomZoneWidgetsHtml}</div>`
 
   // Slides do tipo 'layout' (Fase 9) — a composição de N-zonas é
   // pré-renderizada aqui no servidor (reaproveitando renderZonesHtml, o
@@ -668,6 +689,12 @@ export default async function PlayerPage({
             display: flex;
             flex-direction: row;
           }
+          /* Fase 43 (nova): painel lateral à esquerda — inverte a ordem
+             visual sem mudar o HTML (main-zone continua vindo primeiro
+             no DOM, só a ordem VISUAL é invertida via flex). */
+          #player.has-lateral-left #content-row {
+            flex-direction: row-reverse;
+          }
           /* ── Compositor de zonas (Fase 3) ──────────────────────────────
              #main-zone é o conteúdo de sempre (fullscreen), agora dentro de
              um container flex em vez de ocupar o #player inteiro. Quando
@@ -693,6 +720,14 @@ export default async function PlayerPage({
           #main-zone::after  { top: 20px; right: 20px; border-top: 2px solid; border-right: 2px solid; }
           #player.has-lateral #main-zone::before,
           #player.has-lateral #main-zone::after { opacity: .8; }
+          /* Fase 43 (nova): cantos viewfinder também nas variantes
+             esquerda/inferior — mesma sensação de "ao vivo" nos 3 modelos. */
+          #player.has-lateral-left #main-zone::before,
+          #player.has-lateral-left #main-zone::after,
+          #player.has-bottom-widgets #main-zone::before,
+          #player.has-bottom-widgets #main-zone::after {
+            opacity: .8;
+          }
           #lateral-zone {
             position: relative;
             width: 0;
@@ -726,6 +761,17 @@ export default async function PlayerPage({
           }
           #player.has-bottom-banner #bottom-zone {
             height: 16vh;
+          }
+          /* Fase 43 (nova): painel de widgets no bottom-zone — classe
+             SEPARADA de has-bottom-banner (que é só pra anúncio
+             banner_bottom). Nunca as duas ao mesmo tempo: widgetsPanelHtml
+             só entra aqui quando isMagazine, e showBottomSlide() já não
+             roda nesse modo (ver "if (isMagazine || isGenericLayout)
+             return;" dentro de showBottomSlide, no script). Altura maior
+             que o banner de anúncio porque o painel tem mais conteúdo
+             (clima/bolsa/notícia) do que um banner simples. */
+          #player.has-bottom-widgets #bottom-zone {
+            height: 22vh;
           }
           #bottom-zone video, #bottom-zone img {
             width: 100%; height: 100%;
@@ -1256,7 +1302,13 @@ export default async function PlayerPage({
             max-width: 48px;
           }
         `}</style>
-      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
+      <div id="player" className={
+        data.template === "magazine"
+          ? (data.widgetPosition === "bottom" ? "has-bottom-widgets"
+             : data.widgetPosition === "left" ? "has-lateral has-lateral-left"
+             : "has-lateral")
+          : ""
+      } dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
