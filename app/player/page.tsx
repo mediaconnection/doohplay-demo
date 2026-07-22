@@ -207,10 +207,16 @@ async function getPlayerData(code: string) {
         fetch(`https://g1.globo.com/rss/g1/economia/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
         // Fase 44 (nova, 21/07/2026): câmbio — AwesomeAPI, público, sem token.
         fetch(`https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL`, { next: { revalidate: 600 } }),
-        // Fase 44 (nova): indicadores — Banco Central (SGS), fonte oficial
-        // direta, sem token. Séries: 11 = Selic, 12 = CDI, 13522 = IPCA 12 meses.
-        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
-        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        // Fase 44 (correção 21/07/2026): série 11 é a Selic DIÁRIA (% a.d.,
+        // achado real em teste: mostrava "0.05%" em vez de ~10-15%). A
+        // série 432 é a Meta Selic definida pelo Copom, em % a.a. — a série
+        // certa pro que o widget quer mostrar. Confirmado na documentação
+        // oficial do Banco Central (dadosabertos.bcb.gov.br).
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        // Série 12 é o CDI diário (mesmo problema da Selic); 4389 é o CDI
+        // anualizado base 252, em % a.a. — confirmado na mesma fonte oficial.
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        // IPCA 12 meses acumulado — série correta desde o início, sem mudança.
         fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
         // Fase 44 (nova): qualidade do ar — mesma família Open-Meteo do clima.
         fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
@@ -279,7 +285,9 @@ async function getPlayerData(code: string) {
           }))
       }
 
-      // Fase 44 (nova): indicadores — Selic/CDI/IPCA, direto do Banco Central.
+      // Fase 44 (nova, correção 21/07/2026): indicadores — Selic/CDI/IPCA,
+      // direto do Banco Central, agora usando as séries anualizadas certas
+      // (432 e 4389 — ver comentário no fetch acima).
       async function parseBcbValue(res: PromiseSettledResult<Response>): Promise<number | null> {
         if (res.status !== "fulfilled" || !res.value.ok) return null
         const arr = await res.value.json()
@@ -597,7 +605,11 @@ export default async function PlayerPage({
     </div>`
   }
 
-  // Fase 44 (nova): qualidade do ar.
+  // Fase 44 (nova, correção 21/07/2026): qualidade do ar. A linha de PM2.5
+  // usa uma classe própria em vez de reaproveitar "dw-weather-location"
+  // (essa tem text-transform:uppercase, e o navegador deforma o símbolo
+  // "µ" ao forçar maiúscula — aparecia "MG/M³" em vez de "µg/m³" num
+  // print real de teste, 21/07/2026).
   function renderAirQualityWidgetHtml(): string {
     const aq = data.widgets?.airQuality
     if (!aq) return ""
@@ -605,7 +617,7 @@ export default async function PlayerPage({
       <div class="dw-accent"></div>
       <div class="dw-weather-temp">${aq.aqi}<span> AQI</span></div>
       <div class="dw-weather-label">Qualidade do ar · ${escapeHtml(aq.label)}</div>
-      <div class="dw-weather-location">PM2.5: ${aq.pm25} µg/m³</div>
+      <div class="dw-airquality-pm25">PM2.5: ${aq.pm25} µg/m³</div>
     </div>`
   }
 
@@ -1223,6 +1235,14 @@ export default async function PlayerPage({
           .dw-weather-location {
             font-size: 1.2vh; opacity: .4; margin-top: 1vh;
             letter-spacing: .12em; text-transform: uppercase;
+          }
+          /* Fase 44 (nova, correção 21/07/2026): linha de PM2.5 do widget
+             de qualidade do ar — classe própria, SEM text-transform,
+             porque o µ de "µg/m³" fica deformado em maiúscula (achado
+             real em teste, ver comentário em renderAirQualityWidgetHtml). */
+          .dw-airquality-pm25 {
+            font-size: 1.2vh; opacity: .4; margin-top: 1vh;
+            letter-spacing: .06em;
           }
           /* Fase 30 (20/07/2026): grid de detalhe do clima (sensação/
              umidade/vento) — mesmo padrão visual dos outros widgets, só
