@@ -899,6 +899,20 @@ export default async function PlayerPage({
             flex: 0 0 auto;
             height: auto;
           }
+          /* Correção (21/07/2026): .dw-compact-bar não declarava
+             flex-direction, então herdava "column" da regra genérica .dw
+             (que vem depois no CSS e empata em especificidade) — o
+             relógio ficava empilhado sobre o clima, em vez de lado a
+             lado numa barra fina. Especificidade maior aqui
+             (#id.class .class) garante que só a barra compacta seja
+             afetada, sem tocar nos outros widgets (bolsa continua em
+             coluna, como deve ser; ticker também não é afetado, pois
+             usa a classe .dw-ticker-wrap, fora de .dw). Achado real em
+             tela física (print de produção, 21/07/2026), não introduzido
+             por esta sessão — já existia desde a Fase 42. */
+          #widgets-panel.widgets-compact .dw-compact-bar {
+            flex-direction: row;
+          }
           .dw-compact-bar {
             display: flex;
             align-items: center;
