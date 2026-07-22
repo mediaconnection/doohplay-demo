@@ -198,13 +198,24 @@ async function getPlayerData(code: string) {
         80: { label: "Pancadas leves", emoji: "🌦️" }, 95: { label: "Tempestade", emoji: "⛈️" },
       }
 
-      const [weatherRes, stocksRes, newsRes, econNewsRes] = await Promise.allSettled([
+      const [weatherRes, stocksRes, newsRes, econNewsRes, currencyRes, selicRes, cdiRes, ipcaRes, airQualityRes, lotteryRes] = await Promise.allSettled([
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
         fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } }),
         fetch(`https://g1.globo.com/rss/g1/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
         // Fase 39 (20/07/2026): mesma fonte (G1), só a seção de Economia —
         // usada pro widget "bolsa revezando com notícia de mercado".
         fetch(`https://g1.globo.com/rss/g1/economia/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
+        // Fase 44 (nova, 21/07/2026): câmbio — AwesomeAPI, público, sem token.
+        fetch(`https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL`, { next: { revalidate: 600 } }),
+        // Fase 44 (nova): indicadores — Banco Central (SGS), fonte oficial
+        // direta, sem token. Séries: 11 = Selic, 12 = CDI, 13522 = IPCA 12 meses.
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        // Fase 44 (nova): qualidade do ar — mesma família Open-Meteo do clima.
+        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
+        // Fase 44 (nova): loteria — API pública da Caixa, sem token.
+        fetch(`https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 3600 } }),
       ])
 
       let weather = null, stocks: any[] = [], news: any[] = [], econNews: any[] = []
@@ -252,10 +263,57 @@ async function getPlayerData(code: string) {
           if (title) econNews.push({ title })
         }
       }
-      return { weather, stocks, news, econNews }
+
+      // Fase 44 (nova): câmbio — Dólar e Euro.
+      let currency: { symbol: string; name: string; bid: number; pctChange: number }[] = []
+      if (currencyRes.status === "fulfilled" && currencyRes.value.ok) {
+        const c = await currencyRes.value.json()
+        const map: Record<string, string> = { USDBRL: "Dólar", EURBRL: "Euro" }
+        currency = Object.keys(map)
+          .filter((k) => c[k])
+          .map((k) => ({
+            symbol: k === "USDBRL" ? "USD" : "EUR",
+            name: map[k],
+            bid: Number(c[k].bid) || 0,
+            pctChange: Number(c[k].pctChange) || 0,
+          }))
+      }
+
+      // Fase 44 (nova): indicadores — Selic/CDI/IPCA, direto do Banco Central.
+      async function parseBcbValue(res: PromiseSettledResult<Response>): Promise<number | null> {
+        if (res.status !== "fulfilled" || !res.value.ok) return null
+        const arr = await res.value.json()
+        const v = arr?.[0]?.valor
+        return v ? Number(v) : null
+      }
+      const indicators = {
+        selic: await parseBcbValue(selicRes),
+        cdi: await parseBcbValue(cdiRes),
+        ipca: await parseBcbValue(ipcaRes),
+      }
+
+      // Fase 44 (nova): qualidade do ar — índice US AQI + PM2.5.
+      let airQuality: { aqi: number; pm25: number; label: string } | null = null
+      if (airQualityRes.status === "fulfilled" && airQualityRes.value.ok) {
+        const a = await airQualityRes.value.json()
+        const aqi = Math.round(a.current?.us_aqi ?? 0)
+        const label = aqi <= 50 ? "Boa" : aqi <= 100 ? "Moderada" : aqi <= 150 ? "Ruim p/ sensíveis" : aqi <= 200 ? "Ruim" : "Muito ruim"
+        airQuality = { aqi, pm25: Math.round((a.current?.pm2_5 ?? 0) * 10) / 10, label }
+      }
+
+      // Fase 44 (nova): loteria — resultado mais recente da Mega-Sena.
+      let lottery: { name: string; contest: number; numbers: string[] } | null = null
+      if (lotteryRes.status === "fulfilled" && lotteryRes.value.ok) {
+        const l = await lotteryRes.value.json()
+        if (l?.listaDezenas?.length) {
+          lottery = { name: "Mega-Sena", contest: l.numero, numbers: l.listaDezenas }
+        }
+      }
+
+      return { weather, stocks, news, econNews, currency, indicators, airQuality, lottery }
     }
 
-    let widgets: { weather: any; stocks: any; news: any; econNews: any } | null = null
+    let widgets: { weather: any; stocks: any; news: any; econNews: any; currency: any; indicators: any; airQuality: any; lottery: any } | null = null
     if (template?.template_key === "magazine") {
       widgets = await fetchWidgetsData(template)
     }
@@ -492,7 +550,74 @@ export default async function PlayerPage({
         </div>
       </div>`
     }
+    // Fase 44 (nova, 21/07/2026): câmbio/indicadores/qualidade do ar/loteria
+    // — funções próprias, chamadas aqui só pra permitir uso via combo
+    // (renderComboWidgetHtml chama renderWidgetHtml por nome).
+    if (contentType === "currency") return renderCurrencyWidgetHtml()
+    if (contentType === "indicators") return renderIndicatorsWidgetHtml()
+    if (contentType === "airquality") return renderAirQualityWidgetHtml()
+    if (contentType === "lottery") return renderLotteryWidgetHtml()
     return ""
+  }
+
+  // Fase 44 (nova, 21/07/2026): câmbio.
+  function renderCurrencyWidgetHtml(): string {
+    if (!data.widgets?.currency?.length) return ""
+    return `<div class="dw dw-stocks">
+      <div class="dw-accent"></div>
+      <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>CÂMBIO</div>
+      <div class="dw-stocks-list">
+        ${data.widgets.currency.map((c: any) => `<div class="dw-stock-row">
+          <span class="dw-stock-symbol">${escapeHtml(c.name)}</span>
+          <span class="dw-stock-price">R$ ${c.bid.toFixed(2)}</span>
+          <span class="dw-stock-change ${c.pctChange >= 0 ? "up" : "down"}">${c.pctChange >= 0 ? "▲" : "▼"} ${Math.abs(c.pctChange).toFixed(1)}%</span>
+        </div>`).join("")}
+      </div>
+    </div>`
+  }
+
+  // Fase 44 (nova): indicadores econômicos.
+  function renderIndicatorsWidgetHtml(): string {
+    const ind = data.widgets?.indicators
+    if (!ind || (ind.selic === null && ind.cdi === null && ind.ipca === null)) return ""
+    const rows = [
+      ind.selic !== null ? { label: "Selic", value: ind.selic } : null,
+      ind.cdi !== null ? { label: "CDI", value: ind.cdi } : null,
+      ind.ipca !== null ? { label: "IPCA (12m)", value: ind.ipca } : null,
+    ].filter(Boolean) as { label: string; value: number }[]
+    return `<div class="dw dw-stocks">
+      <div class="dw-accent"></div>
+      <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>INDICADORES</div>
+      <div class="dw-stocks-list">
+        ${rows.map((r) => `<div class="dw-stock-row">
+          <span class="dw-stock-symbol">${escapeHtml(r.label)}</span>
+          <span class="dw-stock-price">${r.value.toFixed(2)}%</span>
+        </div>`).join("")}
+      </div>
+    </div>`
+  }
+
+  // Fase 44 (nova): qualidade do ar.
+  function renderAirQualityWidgetHtml(): string {
+    const aq = data.widgets?.airQuality
+    if (!aq) return ""
+    return `<div class="dw dw-weather">
+      <div class="dw-accent"></div>
+      <div class="dw-weather-temp">${aq.aqi}<span> AQI</span></div>
+      <div class="dw-weather-label">Qualidade do ar · ${escapeHtml(aq.label)}</div>
+      <div class="dw-weather-location">PM2.5: ${aq.pm25} µg/m³</div>
+    </div>`
+  }
+
+  // Fase 44 (nova): loteria.
+  function renderLotteryWidgetHtml(): string {
+    const l = data.widgets?.lottery
+    if (!l) return ""
+    return `<div class="dw dw-stocks">
+      <div class="dw-accent"></div>
+      <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>${escapeHtml(l.name)} · Concurso ${l.contest}</div>
+      <div class="dw-compact-clock" style="font-size:2.6vh;">${l.numbers.join(" · ")}</div>
+    </div>`
   }
 
   // Fase 39 (20/07/2026): widget combinado — dois widgets no MESMO espaço,
@@ -568,6 +693,8 @@ export default async function PlayerPage({
         ? `<div id="widgets-panel">
             ${renderComboWidgetHtml("clock", "weather", "clima-hora")}
             ${renderComboWidgetHtml("stocks", "econnews", "bolsa-mercado")}
+            ${renderComboWidgetHtml("currency", "indicators", "cambio-indicadores")}
+            ${renderComboWidgetHtml("airquality", "lottery", "ar-loteria")}
           </div>`
         : data.widgetLayoutMode === "compacto"
         ? `<div id="widgets-panel" class="widgets-compact">
@@ -580,6 +707,10 @@ export default async function PlayerPage({
             ${renderWidgetHtml("weather")}
             ${renderWidgetHtml("stocks")}
             ${renderWidgetHtml("news")}
+            ${renderCurrencyWidgetHtml()}
+            ${renderIndicatorsWidgetHtml()}
+            ${renderAirQualityWidgetHtml()}
+            ${renderLotteryWidgetHtml()}
           </div>`)
     : ""
 
@@ -905,11 +1036,8 @@ export default async function PlayerPage({
              relógio ficava empilhado sobre o clima, em vez de lado a
              lado numa barra fina. Especificidade maior aqui
              (#id.class .class) garante que só a barra compacta seja
-             afetada, sem tocar nos outros widgets (bolsa continua em
-             coluna, como deve ser; ticker também não é afetado, pois
-             usa a classe .dw-ticker-wrap, fora de .dw). Achado real em
-             tela física (print de produção, 21/07/2026), não introduzido
-             por esta sessão — já existia desde a Fase 42. */
+             afetada, sem tocar nos outros widgets. Confirmado corrigido
+             em produção (print real, 21/07/2026). */
           #widgets-panel.widgets-compact .dw-compact-bar {
             flex-direction: row;
           }
