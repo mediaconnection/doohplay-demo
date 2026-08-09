@@ -15,7 +15,7 @@ INSERT INTO screens (tenant_id, name, city, state, address, lat, lng, type, size
   ('00000000-0000-0000-0000-000000000001', 'Metrô Consolação',       'São Paulo',       'SP', 'R. da Consolação, s/n',      -23.5545, -46.6619, 'transit',    1920, 1080, 'online',      24.00, 'DOOH-SP003'),
   ('00000000-0000-0000-0000-000000000001', 'Rio Sul Center P2',      'Rio de Janeiro',  'RJ', 'R. Lauro Müller, 116',       -22.9487, -43.1791, 'retail',     1080, 1920, 'online',      19.00, 'DOOH-RJ001'),
   ('00000000-0000-0000-0000-000000000001', 'Eixão Norte BSB',        'Brasília',        'DF', 'Eixo Monumental Norte',      -15.7801, -47.9292, 'billboard',  1920, 1080, 'online',      28.00, 'DOOH-BSB01'),
-  ('00000000-0000-0000-0000-000000000001', 'BH Shopping Entrada',    'Belo Horizonte',  'MG', 'Rod. BR-356, 3049',          -19.9624, -43.9933, 'retail',     1920, 1080, 'degraded',    16.00, 'DOOH-BHZ01'),
+  ('00000000-0000-0000-0000-000000000001', 'BH Shopping Entrada',    'Belo Horizonte',  'MG', 'Rod. BR-356, 3049',          -19.9624, -43.9933, 'retail',     1920, 1080, 'maintenance', 16.00, 'DOOH-BHZ01'),
   ('00000000-0000-0000-0000-000000000001', 'Aeroporto GIG Check-in', 'Rio de Janeiro',  'RJ', 'Av. 20 de Janeiro, s/n',     -22.8099, -43.2505, 'indoor',     3840, 2160, 'online',      32.00, 'DOOH-RJ002'),
   ('00000000-0000-0000-0000-000000000001', 'Poste Smart Pinheriros',  'São Paulo',       'SP', 'R. dos Pinheiros, 870',      -23.5665, -46.6857, 'smart_city', 1080, 1920, 'offline',     22.00, 'DOOH-SP004');
 
