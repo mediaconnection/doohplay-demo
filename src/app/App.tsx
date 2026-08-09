@@ -164,7 +164,7 @@ import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import LiveTicker from "./components/LiveTicker";
 import QuickActions from "./components/QuickActions";
 import { soundEngine } from "./utils/SoundEngine";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 
 type View =
   | "landing" | "profile" | "install" | "local" | "business" | "enterprise"
@@ -219,11 +219,15 @@ type View =
 
 export default function App() {
   const [view, setViewRaw] = useState<View>("landing");
-  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdOpen, setCmdOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const userSession = useUserSession();
 
-  const setView = (v: View) => { soundEngine.play("navigate"); setViewRaw(v); };
+  const setView = (v: View) => {
+    soundEngine.play("navigate");
+    setViewRaw(v);
+  };
+
   const goBack = () => setView("landing");
   const goEnterprise = () => setView("enterprise");
   const handleSelect = (tier: string) => setView(tier as View);
@@ -232,8 +236,13 @@ export default function App() {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       const isInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdOpen(o => !o); }
-      if (!isInput && e.key === "?") { setShortcutsOpen(o => !o); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdOpen(o => !o);
+      }
+      if (!isInput && e.key === "?") {
+        setShortcutsOpen(o => !o);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "m") {
         e.preventDefault();
         const next = !soundEngine.enabled;
@@ -246,14 +255,87 @@ export default function App() {
   }, []);
 
   const handleEnterpriseNavigate = (target: string) => {
-    const views: View[] = ["campaign-manager","retail-media","trust-center","blockchain-explorer","network-map","ai-revenue","executive-dashboard","blockchain-center","audit-center","media-marketplace","programmatic-exchange","advertiser-center","agency-center","data-intelligence","executive-command","investor-dashboard","tv-designer","onboarding","partner-portal","reports-center","payment-plans","proofchain-center","content-studio","investor-dataroom","demand-side-platform","audience-intelligence","unicorn-roadmap","login","access-control","feature-gates","client-dashboard","advertiser-center2","screen-setup","campaign-creator","proof-verifier","notifications","device-manager","revenue-optimizer","content-calendar","analytics-dashboard","billing","support","onboarding-checklist","referral","goals","marketplace","api-center","status","whatsapp","report-exporter","playlist","advertiser-self-serve","network-map2","ai-assistant","leaderboard","inventory","franchise","contracts","creative-templates","events-calendar","tax-center","white-label","audience-builder","benchmark","player","integrations","payouts","security","changelog","roi-calculator","help-center","screen-health","campaign-analytics","public-demo","media-kit","sla-dashboard","partner-onboarding","notification-settings"];
-    if (views.includes(target as View)) setView(target as View);
+    const map: Record<string, View> = {
+      "campaign-manager": "campaign-manager", "retail-media": "retail-media",
+      "trust-center": "trust-center", "blockchain-explorer": "blockchain-explorer",
+      "network-map": "network-map", "ai-revenue": "ai-revenue",
+      "executive-dashboard": "executive-dashboard", "blockchain-center": "blockchain-center",
+      "audit-center": "audit-center", "media-marketplace": "media-marketplace",
+      "programmatic-exchange": "programmatic-exchange", "advertiser-center": "advertiser-center",
+      "agency-center": "agency-center", "data-intelligence": "data-intelligence",
+      "executive-command": "executive-command", "investor-dashboard": "investor-dashboard",
+      "tv-designer": "tv-designer", "onboarding": "onboarding",
+      "partner-portal": "partner-portal", "reports-center": "reports-center",
+      "payment-plans": "payment-plans", "proofchain-center": "proofchain-center",
+      "content-studio": "content-studio",
+      "investor-dataroom": "investor-dataroom",
+      "demand-side-platform": "demand-side-platform",
+      "audience-intelligence": "audience-intelligence",
+      "unicorn-roadmap": "unicorn-roadmap",
+      "login": "login",
+      "access-control": "access-control",
+      "feature-gates": "feature-gates",
+      "client-dashboard": "client-dashboard",
+      "advertiser-center2": "advertiser-center2",
+      "screen-setup": "screen-setup",
+      "campaign-creator": "campaign-creator",
+      "proof-verifier": "proof-verifier",
+      "notifications": "notifications",
+      "device-manager": "device-manager",
+      "revenue-optimizer": "revenue-optimizer",
+      "content-calendar": "content-calendar",
+      "analytics-dashboard": "analytics-dashboard",
+      "billing": "billing",
+      "support": "support",
+      "onboarding-checklist": "onboarding-checklist",
+      "referral": "referral",
+      "goals": "goals",
+      "marketplace": "marketplace",
+      "api-center": "api-center",
+      "status": "status",
+      "whatsapp": "whatsapp",
+      "report-exporter": "report-exporter",
+      "playlist": "playlist",
+      "advertiser-self-serve": "advertiser-self-serve",
+      "network-map2": "network-map2",
+      "ai-assistant": "ai-assistant",
+      "leaderboard": "leaderboard",
+      "inventory": "inventory",
+      "franchise": "franchise",
+      "contracts": "contracts",
+      "creative-templates": "creative-templates",
+      "events-calendar": "events-calendar",
+      "tax-center": "tax-center",
+      "white-label": "white-label",
+      "audience-builder": "audience-builder",
+      "benchmark": "benchmark",
+      "player": "player",
+      "integrations": "integrations",
+      "payouts": "payouts",
+      "security": "security",
+      "changelog": "changelog",
+      "roi-calculator": "roi-calculator",
+      "help-center": "help-center",
+      "screen-health": "screen-health",
+      "campaign-analytics": "campaign-analytics",
+      "public-demo": "public-demo",
+      "media-kit": "media-kit",
+      "sla-dashboard": "sla-dashboard",
+      "partner-onboarding": "partner-onboarding",
+      "notification-settings": "notification-settings",
+    };
+    if (map[target]) setView(map[target]);
   };
 
   const handleLogin = async (profile: string, plan: string, data?: { phone: string; name: string; businessType?: string }) => {
-    if (data) await userSession.login({ phone: data.phone, name: data.name, profile, plan, businessType: data.businessType });
-    if (profile === "owner") setView("client-dashboard");
-    else goEnterprise();
+    if (data) {
+      await userSession.login({ phone: data.phone, name: data.name, profile, plan, businessType: data.businessType });
+    }
+    if (profile === "owner") {
+      setView("client-dashboard");
+    } else {
+      goEnterprise();
+    }
   };
 
   return (
@@ -263,7 +345,16 @@ export default function App() {
       {view === "install" && <InstallPage onBack={goBack} />}
       {view === "local" && <LocalDashboard onBack={goBack} />}
       {view === "business" && <BusinessDashboard onBack={goBack} />}
-      {view === "enterprise" && <EnterpriseDashboard onBack={goBack} onNavigate={handleEnterpriseNavigate} userSession={userSession.session} screens={userSession.screens} aiQuota={userSession.aiQuota} onLogout={userSession.logout} />}
+      {view === "enterprise" && (
+        <EnterpriseDashboard
+          onBack={goBack}
+          onNavigate={handleEnterpriseNavigate}
+          userSession={userSession.session}
+          screens={userSession.screens}
+          aiQuota={userSession.aiQuota}
+          onLogout={userSession.logout}
+        />
+      )}
       {view === "pricing" && <PricingPage onBack={goBack} onSelect={(tier) => setView(tier as View)} />}
       {view === "components" && <ComponentLibrary onBack={goBack} />}
       {view === "campaign-manager" && <CampaignManager onBack={goEnterprise} />}
@@ -293,11 +384,28 @@ export default function App() {
       {view === "demand-side-platform" && <DemandSidePlatform onBack={goEnterprise} />}
       {view === "audience-intelligence" && <AudienceIntelligence onBack={goEnterprise} />}
       {view === "unicorn-roadmap" && <UnicornRoadmap onBack={goEnterprise} />}
-      {view === "login" && <LoginFlow onBack={goBack} onLogin={(profile, plan, data) => handleLogin(profile, plan, data)} />}
+      {view === "login" && (
+        <LoginFlow
+          onBack={goBack}
+          onLogin={(profile, plan, data) => handleLogin(profile, plan, data)}
+        />
+      )}
       {view === "access-control" && <AccessControl onBack={goEnterprise} />}
-      {view === "feature-gates" && <FeatureGates onBack={goEnterprise} userPlan={userSession.session?.plan ?? "starter"} onUpgrade={userSession.upgradePlan} />}
+      {view === "feature-gates" && (
+        <FeatureGates
+          onBack={goEnterprise}
+          userPlan={userSession.session?.plan ?? "starter"}
+          onUpgrade={userSession.upgradePlan}
+        />
+      )}
       {view === "advertiser-center2" && <AdvertiserCenter2 onBack={goEnterprise} />}
-      {view === "screen-setup" && <ScreenSetupWizard onBack={goBack} session={userSession.session} onComplete={() => setView("client-dashboard")} />}
+      {view === "screen-setup" && (
+        <ScreenSetupWizard
+          onBack={goBack}
+          session={userSession.session}
+          onComplete={() => setView("client-dashboard")}
+        />
+      )}
       {view === "campaign-creator" && <CampaignCreator onBack={goEnterprise} />}
       {view === "proof-verifier" && <PublicProofVerifier onBack={goBack} />}
       {view === "notifications" && <NotificationsCenter onBack={goBack} />}
@@ -307,10 +415,33 @@ export default function App() {
       {view === "analytics-dashboard" && <AnalyticsDashboard onBack={goEnterprise} />}
       {view === "billing" && <BillingCenter onBack={goEnterprise} session={userSession.session} />}
       {view === "support" && <SupportCenter onBack={goEnterprise} />}
-      {view === "onboarding-checklist" && <OnboardingChecklist onBack={goEnterprise} onNavigate={(v) => setView(v as any)} />}
-      {view === "referral" && <ReferralProgram onBack={goEnterprise} onNavigate={(v) => setView(v as any)} session={userSession.session} />}
-      {view === "goals" && <GoalsTracker onBack={goEnterprise} onNavigate={(v) => setView(v as any)} session={userSession.session} />}
-      {view === "marketplace" && <MarketplaceListings onBack={goEnterprise} onNavigate={(v) => setView(v as any)} session={userSession.session} />}
+      {view === "onboarding-checklist" && (
+        <OnboardingChecklist
+          onBack={goEnterprise}
+          onNavigate={(v) => setView(v as any)}
+        />
+      )}
+      {view === "referral" && (
+        <ReferralProgram
+          onBack={goEnterprise}
+          onNavigate={(v) => setView(v as any)}
+          session={userSession.session}
+        />
+      )}
+      {view === "goals" && (
+        <GoalsTracker
+          onBack={goEnterprise}
+          onNavigate={(v) => setView(v as any)}
+          session={userSession.session}
+        />
+      )}
+      {view === "marketplace" && (
+        <MarketplaceListings
+          onBack={goEnterprise}
+          onNavigate={(v) => setView(v as any)}
+          session={userSession.session}
+        />
+      )}
       {view === "api-center" && <APICenter onBack={goEnterprise} onNavigate={(v) => setView(v as any)} />}
       {view === "status" && <StatusPage onBack={goEnterprise} />}
       {view === "whatsapp" && <WhatsAppCenter onBack={goEnterprise} session={userSession.session} />}
@@ -419,13 +550,28 @@ export default function App() {
       {view === "ai-creative-lab" && <AICreativeLab onBack={goEnterprise} onNavigate={(v) => setView(v as any)} />}
       {view === "pixel-tracking" && <PixelTracking onBack={goEnterprise} onNavigate={(v) => setView(v as any)} />}
       {view === "network-intelligence" && <NetworkIntelligence onBack={goEnterprise} onNavigate={(v) => setView(v as any)} />}
-      {view === "client-dashboard" && <ClientDashboard onBack={goEnterprise} onNavigate={(v) => setView(v as any)} session={userSession.session} screens={userSession.screens} aiQuota={userSession.aiQuota} onUpgrade={(plan) => { userSession.upgradePlan(plan); }} />}
+      {view === "client-dashboard" && (
+        <ClientDashboard
+          onBack={goEnterprise}
+          onNavigate={(v) => setView(v as any)}
+          session={userSession.session}
+          screens={userSession.screens}
+          aiQuota={userSession.aiQuota}
+          onUpgrade={(plan) => { userSession.upgradePlan(plan); }}
+        />
+      )}
       <SoundControl />
       <QuickActions onNavigate={(v) => setView(v as any)} />
       <LiveTicker />
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} onNavigate={(v) => setView(v as any)} />
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <Toaster position="top-right" toastOptions={{ style: { background: "#0F1120", border: "1px solid #1A1D35", color: "#ECF0FF" }, duration: 3500 }} />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: { background: "#0F1120", border: "1px solid #1A1D35", color: "#ECF0FF" },
+          duration: 3500,
+        }}
+      />
     </div>
   );
 }
