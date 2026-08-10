@@ -98,7 +98,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
           <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/5"><ArrowLeft size={18} style={{ color: T.textSub }} /></button>
@@ -129,7 +128,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
 
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
 
-        {/* OVERVIEW */}
         {tab === "overview" && (
           <>
             <div className="grid grid-cols-4 gap-3">
@@ -152,7 +150,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
               })}
             </div>
 
-            {/* Top resellers */}
             <div>
               <h3 className="font-bold text-sm mb-3" style={{ color: T.textSub }}>Top revendedores por receita</h3>
               <div className="space-y-2">
@@ -186,7 +183,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
               </div>
             </div>
 
-            {/* Network map teaser */}
             <div className="p-5 rounded-2xl border" style={{ background: `linear-gradient(135deg, ${T.primary}10, ${T.accent}08)`, borderColor: T.primary + "25" }}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold">Rede White Label</h3>
@@ -207,7 +203,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
           </>
         )}
 
-        {/* BRANDING */}
         {tab === "branding" && (
           <>
             <div className="flex items-center justify-between">
@@ -220,9 +215,7 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
             </div>
 
             {previewMode ? (
-              /* Live preview of the branded platform */
               <div className="rounded-2xl overflow-hidden border" style={{ borderColor: brand.primaryColor + "40" }}>
-                {/* Fake header */}
                 <div className="px-6 py-4 flex items-center gap-3"
                   style={{ background: `linear-gradient(135deg, ${brand.primaryColor}20, ${brand.accentColor}15)`, borderBottom: `1px solid ${brand.primaryColor}30` }}>
                   <div className="font-black text-lg">{brand.logoText}</div>
@@ -232,7 +225,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
                     ))}
                   </div>
                 </div>
-                {/* Fake hero */}
                 <div className="px-6 py-10 text-center"
                   style={{ background: `radial-gradient(ellipse at 50% 0%, ${brand.primaryColor}15, transparent 60%)` }}>
                   <div className="font-black text-3xl mb-3" style={{ color: brand.primaryColor }}>{brand.name}</div>
@@ -242,7 +234,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
                     Acessar plataforma
                   </button>
                 </div>
-                {/* Fake domain bar */}
                 <div className="px-4 py-2.5 flex items-center gap-2 text-xs" style={{ background: T.panel, color: T.textSub }}>
                   <Globe size={11} />
                   https://{brand.domain}
@@ -250,7 +241,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Colors */}
                 <div className="p-4 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
                   <h4 className="font-bold text-sm mb-4">Cores da marca</h4>
                   <div className="space-y-4">
@@ -259,7 +249,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
                   </div>
                 </div>
 
-                {/* Text fields */}
                 <div className="p-4 rounded-2xl border space-y-4" style={{ background: T.card, borderColor: T.border }}>
                   <h4 className="font-bold text-sm">Identidade da marca</h4>
                   {[
@@ -278,7 +267,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
                   ))}
                 </div>
 
-                {/* Domain setup */}
                 <div className="p-4 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
                   <h4 className="font-bold text-sm mb-3">Configuração de DNS</h4>
                   <div className="p-3 rounded-xl font-mono text-xs" style={{ background: T.panel, color: T.textSub }}>
@@ -301,7 +289,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
           </>
         )}
 
-        {/* RESELLERS */}
         {tab === "resellers" && (
           <div className="space-y-3">
             {RESELLERS.map(r => {
@@ -349,7 +336,6 @@ export default function WhiteLabelPortal({ onBack, onNavigate }: Props) {
           </div>
         )}
 
-        {/* PRICING / COMMISSIONS */}
         {tab === "pricing" && (
           <div className="space-y-4">
             <div className="rounded-2xl border overflow-hidden" style={{ background: T.card, borderColor: T.border }}>

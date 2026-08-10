@@ -43,7 +43,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -77,9 +76,7 @@ export default function WhiteLabelPreview({ onBack }: Props) {
 
       <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-3 gap-6">
 
-        {/* Controls panel */}
         <div className="space-y-4">
-          {/* Presets */}
           <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
             <div className="text-xs font-black mb-3" style={{ color: T.textSub }}>TEMAS PRONTOS</div>
             <div className="space-y-2">
@@ -96,7 +93,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
             </div>
           </div>
 
-          {/* Brand settings */}
           <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
             <div className="text-xs font-black mb-3" style={{ color: T.textSub }}>MARCA</div>
             <div className="space-y-3">
@@ -115,7 +111,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
             </div>
           </div>
 
-          {/* Custom colors */}
           {preset.id === "custom" && (
             <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
               <div className="text-xs font-black mb-3" style={{ color: T.textSub }}>CORES CUSTOMIZADAS</div>
@@ -138,7 +133,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
             </div>
           )}
 
-          {/* Features */}
           <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
             <div className="text-xs font-black mb-3" style={{ color: T.textSub }}>MÓDULOS INCLUÍDOS</div>
             <div className="space-y-2">
@@ -152,17 +146,14 @@ export default function WhiteLabelPreview({ onBack }: Props) {
           </div>
         </div>
 
-        {/* Preview panel */}
         <div className="col-span-2">
           <div className="text-xs font-black mb-3 flex items-center gap-2" style={{ color: T.textSub }}>
             <Eye size={11} /> PREVIEW — {device === "desktop" ? "Desktop" : "Mobile"} · {domain}
           </div>
 
           {device === "desktop" ? (
-            /* Desktop preview */
             <div className="rounded-2xl overflow-hidden border shadow-2xl"
               style={{ background: colors.bg, borderColor: T.border }}>
-              {/* Browser chrome */}
               <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: T.panel, borderBottom: `1px solid ${T.border}` }}>
                 <div className="flex gap-1.5">
                   {["#FF5F57","#FFBD2E","#28CA41"].map(c => <div key={c} className="w-3 h-3 rounded-full" style={{ background: c }} />)}
@@ -172,11 +163,8 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                 </div>
               </div>
 
-              {/* App layout */}
               <div className="flex" style={{ minHeight: 460 }}>
-                {/* Sidebar */}
                 <div className="w-48 flex-shrink-0 border-r py-4" style={{ background: colors.panel || colors.bg, borderColor: colors.primary + "20" }}>
-                  {/* Brand */}
                   <div className="px-4 mb-5">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm"
@@ -198,9 +186,7 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                   ))}
                 </div>
 
-                {/* Main content */}
                 <div className="flex-1 p-5">
-                  {/* Top bar */}
                   <div className="flex items-center justify-between mb-5">
                     <h2 className="font-black text-base" style={{ color: colors.text }}>
                       {navItems.find(n => n.id === activeNav)?.label}
@@ -210,7 +196,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                     </div>
                   </div>
 
-                  {/* KPI cards */}
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     {[
                       { label: "Impressões", value: "2.4M",   color: colors.primary },
@@ -224,7 +209,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                     ))}
                   </div>
 
-                  {/* Chart placeholder */}
                   <div className="rounded-xl p-4 flex items-center justify-center"
                     style={{ background: colors.primary + "08", border: `1px dashed ${colors.primary}25`, height: 120 }}>
                     <div className="flex items-end gap-1">
@@ -237,22 +221,18 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                 </div>
               </div>
 
-              {/* Bottom domain bar */}
               <div className="px-4 py-2 text-xs text-center border-t" style={{ borderColor: T.border, color: T.textSub }}>
                 Powered by {brandName} · {domain}
               </div>
             </div>
           ) : (
-            /* Mobile preview */
             <div className="flex justify-center">
               <div className="w-64 rounded-[2.5rem] overflow-hidden border-4 shadow-2xl"
                 style={{ background: colors.bg, borderColor: T.border }}>
-                {/* Status bar */}
                 <div className="px-6 py-2 flex items-center justify-between text-xs"
                   style={{ background: colors.bg, color: colors.text + "80" }}>
                   <span>9:41</span><span>●●●</span>
                 </div>
-                {/* App header */}
                 <div className="px-4 py-3 flex items-center gap-2 border-b" style={{ borderColor: colors.primary + "20" }}>
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs"
                     style={{ background: colors.primary, color: "#fff" }}>
@@ -260,7 +240,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                   </div>
                   <span className="font-black text-sm" style={{ color: colors.text }}>{brandName}</span>
                 </div>
-                {/* Content */}
                 <div className="p-4 space-y-3">
                   <div className="font-black text-sm" style={{ color: colors.text }}>Dashboard</div>
                   {[
@@ -272,7 +251,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                       <div className="text-xs" style={{ color: colors.text + "60" }}>{kpi.label}</div>
                     </div>
                   ))}
-                  {/* Mini chart */}
                   <div className="rounded-xl p-3 flex items-end gap-0.5"
                     style={{ background: colors.primary + "08", height: 60 }}>
                     {[30,50,40,70,55,80,65].map((h, i) => (
@@ -281,7 +259,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
                     ))}
                   </div>
                 </div>
-                {/* Bottom nav */}
                 <div className="px-2 py-3 flex items-center justify-around border-t" style={{ borderColor: colors.primary + "20" }}>
                   {navItems.map(item => (
                     <button key={item.id} onClick={() => setActiveNav(item.id)} className="flex flex-col items-center gap-0.5">
@@ -294,7 +271,6 @@ export default function WhiteLabelPreview({ onBack }: Props) {
             </div>
           )}
 
-          {/* Plan card */}
           <div className="mt-4 p-4 rounded-2xl border flex items-center justify-between"
             style={{ background: T.card, borderColor: T.border }}>
             <div>

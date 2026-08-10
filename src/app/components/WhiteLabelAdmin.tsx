@@ -88,7 +88,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -119,7 +118,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
 
-        {/* KPIs */}
         <div className="grid grid-cols-4 gap-4">
           {[
             { label: "Revendedores Ativos", value: activeCount,                                            color: T.gold,    icon: Store },
@@ -137,7 +135,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
           ))}
         </div>
 
-        {/* RESELLERS TAB */}
         {tab === "resellers" && (
           <div className="flex gap-6">
             <div className="flex-1 space-y-4">
@@ -236,7 +233,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
               </div>
             </div>
 
-            {/* Detail */}
             {selected && (
               <div className="w-64 flex-shrink-0 p-5 rounded-2xl border space-y-4" style={{ background: T.card, borderColor: T.border }}>
                 <div className="flex items-center justify-between">
@@ -281,7 +277,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
           </div>
         )}
 
-        {/* BRAND TAB */}
         {tab === "brand" && (
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -341,12 +336,10 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
               </div>
             </div>
 
-            {/* Preview */}
             <div className="space-y-4">
               <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
                 <h3 className="font-black mb-4">Preview — Painel do Revendedor</h3>
                 <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${T.border}` }}>
-                  {/* Mock nav */}
                   <div className="px-4 py-3 flex items-center justify-between" style={{ background: "#1A1A2E" }}>
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-lg" style={{ background: T.primary }} />
@@ -357,7 +350,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
                       <div className="w-4 h-4 rounded-full" style={{ background: T.border }} />
                     </div>
                   </div>
-                  {/* Mock content */}
                   <div className="p-4 space-y-2" style={{ background: "#0D0D1A" }}>
                     <div className="grid grid-cols-3 gap-2">
                       {[T.success, T.primary, T.gold].map((c, i) => (
@@ -398,7 +390,6 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
           </div>
         )}
 
-        {/* ANALYTICS TAB */}
         {tab === "analytics" && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-6">
@@ -408,7 +399,7 @@ export default function WhiteLabelAdmin({ onBack, onNavigate }: Props) {
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={MRR_TREND}>
                     <defs>
-                      <linearGradient id="grad-mrr" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient key="grad-mrr" id="grad-mrr" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={T.gold} stopOpacity={0.3} />
                         <stop offset="100%" stopColor={T.gold} stopOpacity={0} />
                       </linearGradient>
