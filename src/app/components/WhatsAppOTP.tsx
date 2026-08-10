@@ -78,7 +78,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
 
   const otpFilled = otp.every(d => d !== "");
 
-  // countdown timer
   useEffect(() => {
     if (countdown <= 0) return;
     const id = setInterval(() => setCountdown(c => c - 1), 1000);
@@ -105,7 +104,7 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
     setStage("verifying");
     setTimeout(() => {
       const code = otp.join("");
-      if (code === "000000") { setError("Código inválido. Tente novamente."); setStage("otp"); setOtp(Array(6).fill(""))); }
+      if (code === "000000") { setError("Código inválido. Tente novamente."); setStage("otp"); setOtp(Array(6).fill("")) ; }
       else setStage("profile");
     }, 1800);
   };
@@ -122,7 +121,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
     <div className="min-h-screen flex flex-col items-center justify-center px-4"
       style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
 
-      {/* Logo */}
       <div className="mb-8 text-center">
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
           style={{ background: `linear-gradient(135deg, ${T.primary}, ${T.accent})` }}>
@@ -135,7 +133,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
       <div className="w-full max-w-sm">
         <div className="p-6 rounded-3xl border" style={{ background: T.card, borderColor: T.border }}>
 
-          {/* STAGE: phone */}
           {stage === "phone" && (
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -176,7 +173,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
             </div>
           )}
 
-          {/* STAGE: sending */}
           {stage === "sending" && (
             <div className="py-4 text-center">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -189,7 +185,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
             </div>
           )}
 
-          {/* STAGE: otp */}
           {(stage === "otp" || stage === "verifying") && (
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -216,19 +211,18 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
               <div className="text-center mt-4">
                 {countdown > 0
                   ? <p className="text-xs" style={{ color: T.textSub }}>Reenviar em {countdown}s</p>
-                  : <button onClick={() => { setOtp(Array(6).fill(""))); sendOTP(); }}
+                  : <button onClick={() => { setOtp(Array(6).fill("")) ; sendOTP(); }}
                       className="text-xs font-bold" style={{ color: T.wa }}>
                       Reenviar código
                     </button>}
               </div>
-              <button onClick={() => { setStage("phone"); setOtp(Array(6).fill(""))); setError(""); }}
+              <button onClick={() => { setStage("phone"); setOtp(Array(6).fill("")) ; setError(""); }}
                 className="w-full text-center mt-2 text-xs" style={{ color: T.textSub }}>
                 ← Alterar número
               </button>
             </div>
           )}
 
-          {/* STAGE: profile */}
           {stage === "profile" && (
             <div>
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -275,7 +269,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
             </div>
           )}
 
-          {/* STAGE: done */}
           {stage === "done" && (
             <div className="py-4 text-center">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -288,7 +281,6 @@ export default function WhatsAppOTP({ onBack, onNavigate }: Props) {
           )}
         </div>
 
-        {/* Security note */}
         {(stage === "phone" || stage === "otp") && (
           <div className="flex items-center gap-2 mt-4 justify-center">
             <Shield size={11} style={{ color: T.textSub }} />

@@ -87,7 +87,7 @@ const CONTACTS: Contact[] = [
 
 const TEMPLATES: Template[] = [
   { id: "t1", name: "Boas-vindas Proprietário", category: "UTILITY", status: "approved", body: "Olá {{1}}! 👋 Sua tela *{{2}}* foi ativada no DOOHPLAY. Acesse o painel: https://app.doohplay.com.br", vars: ["nome", "nome_tela"], sent: 1248, open: 94 },
-  { id: "t2", name: "Prova de Exibição", category: "UTILITY", status: "approved", body: "📺 *Prova de exibição disponível*\nCampanha: {{1}}\nTela: {{2}}\nData: {{3}}\nVerifique: https://verify.doohplay.com.br/{{4}}", vars: ["campanha", "tela", "data", "hash"], sent: 8920, open: 87 },
+  { id: "t2", name: "Prova de Exibição", category: "UTILITY", status: "approved", body: "💺 *Prova de exibição disponível*\nCampanha: {{1}}\nTela: {{2}}\nData: {{3}}\nVerifique: https://verify.doohplay.com.br/{{4}}", vars: ["campanha", "tela", "data", "hash"], sent: 8920, open: 87 },
   { id: "t3", name: "Cobrança Mensal", category: "UTILITY", status: "approved", body: "Olá {{1}}, sua fatura de {{2}} no valor de *R$ {{3}}* está disponível. Vencimento: {{4}}.", vars: ["nome", "mes", "valor", "vencimento"], sent: 412, open: 91 },
   { id: "t4", name: "Alerta de Tela Offline", category: "ALERT", status: "approved", body: "⚠️ *Alerta DOOHPLAY:* A tela *{{1}}* está offline desde {{2}}. Verifique a conexão ou acesse o painel.", vars: ["nome_tela", "horario"], sent: 234, open: 98 },
   { id: "t5", name: "Nova Proposta de Campanha", category: "MARKETING", status: "pending", body: "🎯 *Nova proposta!* O anunciante *{{1}}* quer exibir na sua tela por *{{2}}* ao valor de R${{3}}/mês. Aceite em 48h.", vars: ["anunciante", "duracao", "valor"], sent: 0, open: 0 },
@@ -141,7 +141,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
     };
     setMessages(prev => ({ ...prev, [activeContact.id]: [...(prev[activeContact.id] ?? []), msg] }));
     setInput("");
-    // Auto-reply sim
     setTimeout(() => {
       const reply: Message = {
         id: `m${Date.now() + 1}`, from: "them",
@@ -166,7 +165,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
     const msgs = messages[activeContact.id] ?? [];
     return (
       <div className="min-h-screen flex flex-col" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-        {/* Chat header */}
         <div className="flex-shrink-0 border-b" style={{ background: T.panel, borderColor: T.border }}>
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
             <button onClick={() => setActiveContact(null)} className="p-1.5 rounded-lg hover:bg-white/5">
@@ -184,7 +182,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
           </div>
         </div>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-2xl mx-auto w-full">
           {msgs.map(msg => {
             const isMe = msg.from === "me";
@@ -212,7 +209,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div className="flex-shrink-0 border-t p-3" style={{ borderColor: T.border, background: T.panel }}>
           <div className="max-w-2xl mx-auto flex items-center gap-2">
             <button className="p-2 rounded-full hover:bg-white/5"><Smile size={20} style={{ color: T.textSub }} /></button>
@@ -234,7 +230,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center gap-4">
           <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/5"><ArrowLeft size={18} style={{ color: T.textSub }} /></button>
@@ -271,7 +266,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
 
       <div className="max-w-2xl mx-auto px-6 py-6 space-y-4">
 
-        {/* ─── INBOX ─── */}
         {tab === "inbox" && (
           <>
             <div className="relative">
@@ -314,7 +308,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
           </>
         )}
 
-        {/* ─── BROADCAST ─── */}
         {tab === "broadcast" && (
           <>
             <div className="rounded-2xl border p-5" style={{ background: T.card, borderColor: T.border }}>
@@ -393,7 +386,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
           </>
         )}
 
-        {/* ─── TEMPLATES ─── */}
         {tab === "templates" && (
           <>
             <div className="flex items-center justify-between">
@@ -442,7 +434,6 @@ export default function WhatsAppCenter({ onBack, session }: Props) {
           </>
         )}
 
-        {/* ─── OTP LOG ─── */}
         {tab === "otp-log" && (
           <>
             <div className="grid grid-cols-3 gap-3">
