@@ -58,7 +58,6 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* KPI Hero */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Receita total", value: "R$ 847K", sub: "+21% MoM", color: "#22C55E", icon: DollarSign },
@@ -77,7 +76,6 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
           ))}
         </div>
 
-        {/* Secondary KPIs */}
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: "QR Scans", value: "12.480", icon: QrCode, color: "#00A3FF" },
@@ -97,7 +95,6 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Revenue by channel */}
           <div className="lg:col-span-2 rounded-xl p-5 border" style={{ background: dark.card, borderColor: dark.border }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-white" style={{ fontFamily: "'Inter Tight', sans-serif" }}>Receita por canal</h3>
@@ -109,11 +106,11 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
             <ResponsiveContainer width="100%" height={190}>
               <AreaChart data={revenueByChannel}>
                 <defs>
-                  <linearGradient key="rm-local-grad" id="rm-local-grad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="rm-local-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient key="rm-nacional-grad" id="rm-nacional-grad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="rm-nacional-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#00A3FF" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#00A3FF" stopOpacity={0} />
                   </linearGradient>
@@ -121,18 +118,17 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
                 <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#475569" }} axisLine={false} tickLine={false} />
                 <YAxis hide />
                 <Tooltip formatter={(v: number) => [`R$ ${(v / 1000).toFixed(0)}K`]} contentStyle={{ borderRadius: 8, border: `1px solid ${dark.border}`, background: dark.card, color: "#CBD5E1", fontSize: 11 }} />
-                <Area key="area-local" type="monotone" dataKey="local" stroke="#2563EB" strokeWidth={2} fill="url(#rm-local-grad)" dot={false} name="Local" />
-                <Area key="area-nacional" type="monotone" dataKey="nacional" stroke="#00A3FF" strokeWidth={2} fill="url(#rm-nacional-grad)" dot={false} name="Nacional" />
+                <Area type="monotone" dataKey="local" stroke="#2563EB" strokeWidth={2} fill="url(#rm-local-grad)" dot={false} name="Local" isAnimationActive={false} />
+                <Area type="monotone" dataKey="nacional" stroke="#00A3FF" strokeWidth={2} fill="url(#rm-nacional-grad)" dot={false} name="Nacional" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          {/* By category pie */}
           <div className="rounded-xl p-5 border" style={{ background: dark.card, borderColor: dark.border }}>
             <h3 className="font-semibold text-white mb-4" style={{ fontFamily: "'Inter Tight', sans-serif" }}>Por segmento</h3>
             <div className="flex justify-center mb-4">
               <PieChart width={140} height={140}>
-                <Pie key="pie-data" data={byCategory} cx={70} cy={70} innerRadius={42} outerRadius={60} dataKey="value" strokeWidth={0}>
+                <Pie data={byCategory} cx={70} cy={70} innerRadius={42} outerRadius={60} dataKey="value" strokeWidth={0} isAnimationActive={false}>
                   {byCategory.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
               </PieChart>
@@ -151,7 +147,6 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
           </div>
         </div>
 
-        {/* Top advertisers */}
         <div className="rounded-xl border" style={{ background: dark.card, borderColor: dark.border }}>
           <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: dark.border }}>
             <h3 className="font-semibold text-white" style={{ fontFamily: "'Inter Tight', sans-serif" }}>Top Anunciantes</h3>
@@ -177,7 +172,6 @@ export default function RetailMediaCenter({ onBack }: RetailMediaCenterProps) {
           </div>
         </div>
 
-        {/* Store ranking */}
         <div className="rounded-xl border" style={{ background: dark.card, borderColor: dark.border }}>
           <div className="p-5 border-b" style={{ borderColor: dark.border }}>
             <h3 className="font-semibold text-white" style={{ fontFamily: "'Inter Tight', sans-serif" }}>Ranking de Lojas</h3>

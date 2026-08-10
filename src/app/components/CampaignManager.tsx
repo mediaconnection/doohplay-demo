@@ -69,12 +69,11 @@ export default function CampaignManager({ onBack }: CampaignManagerProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           {[
             { label: "Impressões", value: "6.7M", icon: Eye, color: "#00A3FF" },
             { label: "Reach", value: "4.6M", icon: Users, color: "#22C55E" },
-            { label: "Frequência", value: "1.46", icon: Activity, color: "#FACC15" },
+            { label: "Freqüência", value: "1.46", icon: Activity, color: "#FACC15" },
             { label: "CPM médio", value: "R$ 7.90", icon: BarChart2, color: "#2563EB" },
             { label: "Budget usado", value: "R$ 940K", icon: DollarSign, color: "#FF6B00" },
             { label: "ROI estimado", value: "3.2x", icon: TrendingUp, color: "#22C55E" },
@@ -90,7 +89,6 @@ export default function CampaignManager({ onBack }: CampaignManagerProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Delivery by hour */}
           <div className="lg:col-span-2 rounded-xl p-5 border" style={{ background: dark.card, borderColor: dark.border }}>
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -102,7 +100,7 @@ export default function CampaignManager({ onBack }: CampaignManagerProps) {
             <ResponsiveContainer width="100%" height={160}>
               <AreaChart data={deliveryData}>
                 <defs>
-                  <linearGradient key="cm-delivery-grad" id="cm-delivery-grad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="cm-delivery-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
                   </linearGradient>
@@ -110,12 +108,11 @@ export default function CampaignManager({ onBack }: CampaignManagerProps) {
                 <XAxis dataKey="hour" tick={{ fontSize: 10, fill: "#475569" }} axisLine={false} tickLine={false} />
                 <YAxis hide />
                 <Tooltip formatter={(v: number) => [`${(v / 1000).toFixed(0)}K`, "Impressões"]} contentStyle={{ borderRadius: 8, border: `1px solid ${dark.border}`, background: dark.card, color: "#CBD5E1", fontSize: 11 }} />
-                <Area key="area-value" type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={2} fill="url(#cm-delivery-grad)" dot={false} />
+                <Area type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={2} fill="url(#cm-delivery-grad)" dot={false} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Region distribution */}
           <div className="rounded-xl p-5 border" style={{ background: dark.card, borderColor: dark.border }}>
             <h3 className="font-semibold text-white mb-4" style={{ fontFamily: "'Inter Tight', sans-serif" }}>Distribuição por região</h3>
             <div className="space-y-3">
@@ -134,7 +131,6 @@ export default function CampaignManager({ onBack }: CampaignManagerProps) {
           </div>
         </div>
 
-        {/* Filters + table */}
         <div className="rounded-xl border" style={{ background: dark.card, borderColor: dark.border }}>
           <div className="p-5 border-b flex items-center gap-3 flex-wrap" style={{ borderColor: dark.border }}>
             <div className="flex items-center gap-2 flex-1 min-w-48 px-3 py-2 rounded-lg" style={{ backgroundColor: dark.bg, border: `1px solid ${dark.border}` }}>
@@ -204,7 +200,6 @@ export default function CampaignManager({ onBack }: CampaignManagerProps) {
           </div>
         </div>
 
-        {/* Proof-of-Play status */}
         <div className="rounded-xl p-5 border" style={{ background: dark.card, borderColor: dark.border }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-white" style={{ fontFamily: "'Inter Tight', sans-serif" }}>Status de Proof-of-Play</h3>
