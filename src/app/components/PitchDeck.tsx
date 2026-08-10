@@ -30,9 +30,9 @@ const TAM_DATA = [
 ];
 
 const UNIT_DATA = [
-  { plan: "Starter",    mrr: 97,  customers: 840, arr: 97*840/1000  },
-  { plan: "Growth",     mrr: 290, customers: 320, arr: 290*320/1000 },
-  { plan: "Enterprise", mrr: 620, customers: 89,  arr: 620*89/1000  },
+  { plan: "Starter", mrr: 97,  customers: 840, arr: 97*840/1000  },
+  { plan: "Growth",  mrr: 290, customers: 320, arr: 290*320/1000 },
+  { plan: "Enterprise", mrr: 620, customers: 89, arr: 620*89/1000 },
 ];
 
 const ROADMAP = [
@@ -55,6 +55,7 @@ export default function PitchDeck({ onBack }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
+      {/* Top nav */}
       <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
         style={{ background: T.panel + "F0", borderColor: T.border }}>
         <div className="flex items-center gap-4">
@@ -62,7 +63,8 @@ export default function PitchDeck({ onBack }: Props) {
             <ArrowLeft size={18} style={{ color: T.textSub }} />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: T.gold + "20" }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: T.gold + "20" }}>
               <Award size={16} style={{ color: T.gold }} />
             </div>
             <span className="font-black">DOOHPLAY — Investor Pitch</span>
@@ -78,19 +80,23 @@ export default function PitchDeck({ onBack }: Props) {
             ))}
           </div>
           <div className="flex gap-1">
-            <button onClick={prev} disabled={slideIdx === 0} className="p-2 rounded-lg" style={{ opacity: slideIdx === 0 ? 0.3 : 1 }}>
+            <button onClick={prev} disabled={slideIdx === 0}
+              className="p-2 rounded-lg" style={{ opacity: slideIdx === 0 ? 0.3 : 1 }}>
               <ChevronLeft size={16} style={{ color: T.textSub }} />
             </button>
-            <button onClick={next} disabled={slideIdx === SLIDES.length - 1} className="p-2 rounded-lg" style={{ opacity: slideIdx === SLIDES.length - 1 ? 0.3 : 1 }}>
+            <button onClick={next} disabled={slideIdx === SLIDES.length - 1}
+              className="p-2 rounded-lg" style={{ opacity: slideIdx === SLIDES.length - 1 ? 0.3 : 1 }}>
               <ChevronRight size={16} style={{ color: T.textSub }} />
             </button>
           </div>
         </div>
       </div>
 
+      {/* Slide area */}
       <div className="flex-1 flex items-center justify-center p-8" style={{ minHeight: "calc(100vh - 73px)" }}>
         <div className="w-full max-w-5xl">
 
+          {/* COVER */}
           {slide === "cover" && (
             <div className="text-center py-12">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold mb-8"
@@ -99,7 +105,9 @@ export default function PitchDeck({ onBack }: Props) {
               </div>
               <h1 className="font-black mb-4" style={{ fontSize: 72, lineHeight: 1, color: T.text }}>DOOHPLAY</h1>
               <p className="text-xl mb-2" style={{ color: T.textSub }}>A plataforma que transforma anúncios físicos em dados digitais</p>
-              <p className="mb-10" style={{ color: T.textSub, fontSize: 15 }}>SaaS B2B para gestão, venda e certificação de inventário DOOH — com IA, blockchain e WhatsApp OTP</p>
+              <p className="mb-10" style={{ color: T.textSub, fontSize: 15 }}>
+                SaaS B2B para gestão, venda e certificação de inventário DOOH — com IA, blockchain e WhatsApp OTP
+              </p>
               <div className="flex items-center justify-center gap-8">
                 {[
                   { label: "ARR projetado 2025", value: "R$4.8M",   color: T.gold    },
@@ -116,6 +124,7 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* PROBLEM */}
           {slide === "problem" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.danger }}>O PROBLEMA</div>
@@ -127,7 +136,8 @@ export default function PitchDeck({ onBack }: Props) {
                   { title: "Dados em silos",           desc: "Cada publisher tem seu próprio sistema. Agências trabalham com 10+ ferramentas diferentes para gestão de inventário.", icon: Globe,   color: T.primary },
                 ].map((p, i) => (
                   <div key={i} className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: p.color + "30" }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: p.color + "20" }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+                      style={{ background: p.color + "20" }}>
                       <p.icon size={20} style={{ color: p.color }} />
                     </div>
                     <div className="font-black mb-2" style={{ color: T.text }}>{p.title}</div>
@@ -142,19 +152,21 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* SOLUTION */}
           {slide === "solution" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.success }}>A SOLUÇÃO</div>
               <h2 className="font-black text-4xl mb-8" style={{ color: T.text }}>Uma plataforma completa para o ciclo DOOH</h2>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { title: "ProofChain™",        desc: "Prova criptográfica de exibição com 4 camadas: RSA-SHA256 → Merkle → Polygon → TSA RFC3161. Primeiro do Brasil.", icon: Shield,    color: T.success, badge: "EXCLUSIVO" },
-                  { title: "Programmatic DOOH",  desc: "DSP próprio com RTB em tempo real. Compra e venda de inventário em segundos, não semanas.",                             icon: Zap,       color: T.primary, badge: "PATENTED"  },
-                  { title: "Gemini AI Copilot",  desc: "IA que gera planos de mídia, otimiza campanhas e prevê performance — integrado ao Google Gemini 2.0.",                 icon: TrendingUp, color: T.accent,  badge: "AI-FIRST"  },
-                  { title: "WhatsApp OTP Auth",  desc: "Login sem senha via WhatsApp. Barreira de entrada zero para publishers e anunciantes.",                                   icon: Users,     color: T.gold,    badge: "NO-CODE"   },
+                  { title: "ProofChain™",        desc: "Prova criptográfica de exibição com 4 camadas: RSA-SHA256 → Merkle → Polygon → TSA RFC3161. Primeiro do Brasil.", icon: Shield,   color: T.success, badge: "EXCLUSIVO" },
+                  { title: "Programmatic DOOH",  desc: "DSP próprio com RTB em tempo real. Compra e venda de inventário em segundos, não semanas.", icon: Zap,      color: T.primary, badge: "PATENTED"  },
+                  { title: "Gemini AI Copilot",  desc: "IA que gera planos de mídia, otimiza campanhas e prevê performance — integrado ao Google Gemini 2.0.", icon: TrendingUp, color: T.accent,  badge: "AI-FIRST"  },
+                  { title: "WhatsApp OTP Auth",  desc: "Login sem senha via WhatsApp. Barreira de entrada zero para publishers e anunciantes.", icon: Users,    color: T.gold,    badge: "NO-CODE"   },
                 ].map((s, i) => (
                   <div key={i} className="p-5 rounded-2xl border flex items-start gap-4" style={{ background: T.card, borderColor: s.color + "25" }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.color + "20" }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: s.color + "20" }}>
                       <s.icon size={18} style={{ color: s.color }} />
                     </div>
                     <div>
@@ -170,6 +182,7 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* TAM */}
           {slide === "tam" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.primary }}>MERCADO</div>
@@ -177,9 +190,11 @@ export default function PitchDeck({ onBack }: Props) {
               <div className="grid grid-cols-2 gap-8 items-center">
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={TAM_DATA} layout="vertical" barSize={28}>
-                    <XAxis type="number" tick={{ fill: T.textSub, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}B`} />
+                    <XAxis type="number" tick={{ fill: T.textSub, fontSize: 11 }} axisLine={false} tickLine={false}
+                      tickFormatter={v => `$${(v/1000).toFixed(0)}B`} />
                     <YAxis type="category" dataKey="name" tick={{ fill: T.textSub, fontSize: 11 }} axisLine={false} tickLine={false} width={120} />
-                    <Tooltip contentStyle={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }} formatter={(v: number) => [`$${(v/1000).toFixed(1)}B`, ""]} />
+                    <Tooltip contentStyle={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }}
+                      formatter={(v: number) => [`$${(v/1000).toFixed(1)}B`, ""]} />
                     <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                       {TAM_DATA.map((d, i) => <Cell key={i} fill={d.color} />)}
                     </Bar>
@@ -192,7 +207,8 @@ export default function PitchDeck({ onBack }: Props) {
                     { label: "SAM DOOHPLAY", value: "R$1.8B", sub: "Segmento SaaS + programmatic",   color: T.success },
                     { label: "SOM 2025E",    value: "R$420M", sub: "Meta de captura de mercado",     color: T.gold    },
                   ].map((m, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl" style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl"
+                      style={{ background: T.card, border: `1px solid ${T.border}` }}>
                       <div>
                         <div className="font-black text-xs" style={{ color: T.textSub }}>{m.label}</div>
                         <div className="text-xs" style={{ color: T.textSub }}>{m.sub}</div>
@@ -205,16 +221,17 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* TRACTION */}
           {slide === "traction" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.success }}>TRAÇÃO</div>
               <h2 className="font-black text-4xl mb-6" style={{ color: T.text }}>39× crescimento em ARR em 12 meses</h2>
               <div className="grid grid-cols-4 gap-3 mb-6">
                 {[
-                  { label: "MRR atual",    value: "R$400k",  change: "+38% m/m",        color: T.gold    },
-                  { label: "Clientes",     value: "1.249",   change: "+22 essa semana", color: T.primary },
-                  { label: "Telas ativas", value: "1.247",   change: "+8 hoje",          color: T.success },
-                  { label: "Churn",        value: "1.2%",    change: "Best in class",    color: T.accent  },
+                  { label: "MRR atual",   value: "R$400k",  change: "+38% m/m", color: T.gold    },
+                  { label: "Clientes",    value: "1.249",   change: "+22 essa semana", color: T.primary },
+                  { label: "Telas ativas",value: "1.247",   change: "+8 hoje",   color: T.success },
+                  { label: "Churn",       value: "1.2%",    change: "Best in class", color: T.accent },
                 ].map((m, i) => (
                   <div key={i} className="p-4 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
                     <div className="font-black text-2xl" style={{ color: m.color }}>{m.value}</div>
@@ -233,13 +250,15 @@ export default function PitchDeck({ onBack }: Props) {
                   </defs>
                   <XAxis dataKey="q" tick={{ fill: T.textSub, fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: T.textSub, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}k`} />
-                  <Tooltip contentStyle={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }} formatter={(v: number) => [`R$${v}k`, "ARR"]} />
+                  <Tooltip contentStyle={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }}
+                    formatter={(v: number) => [`R$${v}k`, "ARR"]} />
                   <Area type="monotone" dataKey="arr" stroke={T.gold} fill="url(#arrGrad)" strokeWidth={2.5} dot={{ fill: T.gold, r: 4 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
 
+          {/* UNIT ECONOMICS */}
           {slide === "unit-economics" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.accent }}>UNIT ECONOMICS</div>
@@ -251,10 +270,11 @@ export default function PitchDeck({ onBack }: Props) {
                     { label: "LTV médio (3 anos)",   value: "R$5.220",    note: "Churn de 1.2%",              color: T.gold    },
                     { label: "LTV/CAC",              value: "18×",        note: "Top 5% SaaS global",         color: T.success },
                     { label: "Gross Margin",         value: "82%",        note: "Infrastructure eficiente",   color: T.accent  },
-                    { label: "NRR (Net Rev. Ret.)",  value: "128%",       note: "Expansão orgânica de contas", color: T.warning },
+                    { label: "NRR (Net Rev. Ret.)",  value: "128%",       note: "Expansão orgânica de contas",color: T.warning },
                     { label: "Burn múltiplo",        value: "0.8×",       note: "Eficiência de capital rara", color: T.success },
                   ].map((m, i) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                    <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl"
+                      style={{ background: T.card, border: `1px solid ${T.border}` }}>
                       <div>
                         <div className="font-bold text-sm" style={{ color: T.text }}>{m.label}</div>
                         <div className="text-xs" style={{ color: T.textSub }}>{m.note}</div>
@@ -269,7 +289,8 @@ export default function PitchDeck({ onBack }: Props) {
                     <BarChart data={UNIT_DATA} barSize={48}>
                       <XAxis dataKey="plan" tick={{ fill: T.textSub, fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: T.textSub, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}k`} />
-                      <Tooltip contentStyle={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }} formatter={(v: number) => [`R$${v.toFixed(0)}k`, "ARR"]} />
+                      <Tooltip contentStyle={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }}
+                        formatter={(v: number) => [`R$${v.toFixed(0)}k`, "ARR"]} />
                       <Bar dataKey="arr" radius={[6, 6, 0, 0]}>
                         {UNIT_DATA.map((_, i) => <Cell key={i} fill={[T.primary, T.accent, T.gold][i]} />)}
                       </Bar>
@@ -280,6 +301,7 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* ROADMAP */}
           {slide === "roadmap" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.primary }}>ROADMAP</div>
@@ -309,18 +331,20 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* TEAM */}
           {slide === "team" && (
             <div>
               <div className="text-xs font-black mb-2" style={{ color: T.accent }}>TIME</div>
               <h2 className="font-black text-4xl mb-8" style={{ color: T.text }}>Fundadores com skin in the game</h2>
               <div className="grid grid-cols-3 gap-5">
                 {[
-                  { name: "Carlos Mendes",  role: "CEO & Co-founder", bg: T.primary, prev: "Ex-Google · Ex-OLX",          exp: "12 anos em adtech"     },
-                  { name: "Ana Lima",       role: "CTO & Co-founder", bg: T.accent,  prev: "Ex-iFood · Ex-Nubank",       exp: "10 anos em infra SaaS" },
-                  { name: "Felipe Torres", role: "CPO & Co-founder", bg: T.success, prev: "Ex-Globo · Ex-Clear Channel", exp: "8 anos em DOOH"        },
+                  { name: "Carlos Mendes",  role: "CEO & Co-founder", bg: T.primary, prev: "Ex-Google · Ex-OLX", exp: "12 anos em adtech" },
+                  { name: "Ana Lima",       role: "CTO & Co-founder", bg: T.accent,  prev: "Ex-iFood · Ex-Nubank", exp: "10 anos em infra SaaS" },
+                  { name: "Felipe Torres", role: "CPO & Co-founder", bg: T.success, prev: "Ex-Globo · Ex-Clear Channel", exp: "8 anos em DOOH" },
                 ].map((m, i) => (
                   <div key={i} className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white mb-4" style={{ background: m.bg }}>
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white mb-4"
+                      style={{ background: m.bg }}>
                       {m.name.split(" ").map(n => n[0]).join("")}
                     </div>
                     <div className="font-black" style={{ color: T.text }}>{m.name}</div>
@@ -332,9 +356,9 @@ export default function PitchDeck({ onBack }: Props) {
               </div>
               <div className="mt-5 grid grid-cols-3 gap-3">
                 {[
-                  { label: "Headcount",      value: "18 pessoas",          color: T.primary },
-                  { label: "Advisors",        value: "Sequoia, Monashees", color: T.gold    },
-                  { label: "Patents pending", value: "3 patentes",          color: T.success },
+                  { label: "Headcount",       value: "18 pessoas",   color: T.primary },
+                  { label: "Advisors",         value: "Sequoia, Monashees", color: T.gold },
+                  { label: "Patents pending",  value: "3 patentes",   color: T.success },
                 ].map((m, i) => (
                   <div key={i} className="px-4 py-3 rounded-xl text-center" style={{ background: T.panel }}>
                     <div className="font-black" style={{ color: m.color }}>{m.value}</div>
@@ -345,16 +369,19 @@ export default function PitchDeck({ onBack }: Props) {
             </div>
           )}
 
+          {/* ASK */}
           {slide === "ask" && (
             <div className="text-center py-8">
               <div className="text-xs font-black mb-2" style={{ color: T.gold }}>CAPTAÇÃO</div>
               <h2 className="font-black mb-4" style={{ fontSize: 56, color: T.text }}>R$12 milhões · Series A</h2>
-              <p className="text-lg mb-8 max-w-2xl mx-auto" style={{ color: T.textSub }}>Para escalar a equipe de vendas, expandir a rede de telas para 5.000+ em 12 meses e lançar o produto em 3 países da LATAM.</p>
+              <p className="text-lg mb-8 max-w-2xl mx-auto" style={{ color: T.textSub }}>
+                Para escalar a equipe de vendas, expandir a rede de telas para 5.000+ em 12 meses e lançar o produto em 3 países da LATAM.
+              </p>
               <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
                 {[
-                  { label: "40% — Go-to-Market",    value: "R$4.8M",  color: T.primary },
-                  { label: "35% — Produto & Eng.",  value: "R$4.2M",  color: T.accent  },
-                  { label: "25% — Expansão LATAM", value: "R$3.0M",  color: T.gold    },
+                  { label: "40% — Go-to-Market",      value: "R$4.8M",  color: T.primary },
+                  { label: "35% — Produto & Eng.",    value: "R$4.2M",  color: T.accent  },
+                  { label: "25% — Expansão LATAM",    value: "R$3.0M",  color: T.gold    },
                 ].map((m, i) => (
                   <div key={i} className="p-4 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
                     <div className="font-black text-2xl mb-1" style={{ color: m.color }}>{m.value}</div>
@@ -373,6 +400,7 @@ export default function PitchDeck({ onBack }: Props) {
         </div>
       </div>
 
+      {/* Slide nav keyboard hint */}
       <div className="flex items-center justify-center gap-6 py-3 border-t" style={{ borderColor: T.border }}>
         {SLIDES.map((s, i) => (
           <button key={s} onClick={() => setSlideIdx(i)}

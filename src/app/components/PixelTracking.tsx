@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Fingerprint, Copy, Check, TrendingUp, Users, MousePointer, MapPin, Clock, AlertTriangle } from "lucide-react";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
-  PieChart, Pie, Cell
+  AreaChart, Area, BarChart, Bar, FunnelChart, Funnel, XAxis, YAxis, ResponsiveContainer, Tooltip,
+  PieChart, Pie, Cell, LabelList
 } from "recharts";
 
 const T = {
@@ -13,7 +13,7 @@ const T = {
 
 interface Props { onBack: () => void; onNavigate: (v: string) => void; }
 
-const PIXEL_CODE = `<!-- DOOHPLAY Pixel -- cole antes de </head> -->
+const PIXEL_CODE = `<!-- DOOHPLAY Pixel — cole antes de </head> -->
 <script>
   (function(d,o,h,p,l,a,y){
     d[p]=d[p]||function(){(d[p].q=d[p].q||[]).push(arguments)};
@@ -26,17 +26,17 @@ const PIXEL_CODE = `<!-- DOOHPLAY Pixel -- cole antes de </head> -->
 
 const LIFT_DATA = [
   { cidade: "São Paulo", exposed: 8.4, control: 3.1, lift: 171 },
-  { cidade: "Rio",         exposed: 7.2, control: 2.8, lift: 157 },
-  { cidade: "Brasília",  exposed: 6.1, control: 2.5, lift: 144 },
-  { cidade: "BH",          exposed: 5.8, control: 2.4, lift: 142 },
-  { cidade: "Curitiba",    exposed: 5.2, control: 2.2, lift: 136 },
+  { cidade: "Rio", exposed: 7.2, control: 2.8, lift: 157 },
+  { cidade: "Brasília", exposed: 6.1, control: 2.5, lift: 144 },
+  { cidade: "BH", exposed: 5.8, control: 2.4, lift: 142 },
+  { cidade: "Curitiba", exposed: 5.2, control: 2.2, lift: 136 },
 ];
 
 const FUNNEL_DATA = [
   { name: "Impactados (DOOH)", value: 184000, fill: T.primary },
-  { name: "Visitaram o site",  value: 22400,  fill: T.accent  },
-  { name: "Engajaram",         value: 8760,   fill: T.warning },
-  { name: "Converteram",       value: 1842,   fill: T.success },
+  { name: "Visitaram o site", value: 22400, fill: T.accent },
+  { name: "Engajaram", value: 8760, fill: T.warning },
+  { name: "Converteram", value: 1842, fill: T.success },
 ];
 
 const TIMELINE = Array.from({ length: 14 }, (_, i) => ({
@@ -46,19 +46,19 @@ const TIMELINE = Array.from({ length: 14 }, (_, i) => ({
 }));
 
 const CHANNELS = [
-  { channel: "DOOH Direto",  conversoes: 1842, pct: 46, color: T.primary },
-  { channel: "DOOH + Search",conversoes: 980,  pct: 24, color: T.accent  },
-  { channel: "DOOH + Social",conversoes: 720,  pct: 18, color: T.success },
-  { channel: "Outros",       conversoes: 480,  pct: 12, color: T.textSub },
+  { channel: "DOOH Direto", conversoes: 1842, pct: 46, color: T.primary },
+  { channel: "DOOH + Search", conversoes: 980, pct: 24, color: T.accent },
+  { channel: "DOOH + Social", conversoes: 720, pct: 18, color: T.success },
+  { channel: "Outros", conversoes: 480, pct: 12, color: T.textSub },
 ];
 
 const EVENTS = [
-  { name: "PageView",   fires: "184.2k", status: "active"   },
-  { name: "AddToCart",  fires: "12.4k",  status: "active"   },
-  { name: "Purchase",   fires: "1.84k",  status: "active"   },
-  { name: "Lead",       fires: "6.7k",   status: "active"   },
-  { name: "AppInstall", fires: "892",    status: "warning"  },
-  { name: "VideoPlay",  fires: "0",      status: "inactive" },
+  { name: "PageView", fires: "184.2k", status: "active" },
+  { name: "AddToCart", fires: "12.4k", status: "active" },
+  { name: "Purchase", fires: "1.84k", status: "active" },
+  { name: "Lead", fires: "6.7k", status: "active" },
+  { name: "AppInstall", fires: "892", status: "warning" },
+  { name: "VideoPlay", fires: "0", status: "inactive" },
 ];
 
 export default function PixelTracking({ onBack }: Props) {
@@ -74,6 +74,7 @@ export default function PixelTracking({ onBack }: Props) {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif", padding: "32px" }}>
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={onBack} style={{ background: T.card, border: `1px solid ${T.textSub}22`, borderRadius: 8, padding: "6px 14px", color: T.textSub, cursor: "pointer", fontSize: 13 }}>← Voltar</button>
@@ -94,6 +95,7 @@ export default function PixelTracking({ onBack }: Props) {
         </div>
       </div>
 
+      {/* Status bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, padding: "10px 16px", background: `${T.success}11`, borderRadius: 10, border: `1px solid ${T.success}33` }}>
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.success }} />
         <span style={{ fontSize: 13, color: T.success, fontWeight: 600 }}>Pixel ativo</span>
@@ -105,12 +107,13 @@ export default function PixelTracking({ onBack }: Props) {
         <span style={{ fontSize: 13, color: T.textSub }}>6 eventos rastreados</span>
       </div>
 
+      {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
         {[
-          { label: "Visitantes Impactados", value: "184k",   sub: "por telas DOOH",       color: T.primary, icon: <Users size={15} color={T.primary} /> },
-          { label: "Conversões Atribuídas", value: "4.022",  sub: `janela ${window_}`,     color: T.success, icon: <MousePointer size={15} color={T.success} /> },
-          { label: "Visit Lift Médio",      value: "+158%",  sub: "vs grupo controle",    color: T.accent,  icon: <TrendingUp size={15} color={T.accent} /> },
-          { label: "Taxa de Conversão",    value: "2.18%",  sub: "expostos ao DOOH",     color: T.warning, icon: <Fingerprint size={15} color={T.warning} /> },
+          { label: "Visitantes Impactados", value: "184k", sub: "por telas DOOH", color: T.primary, icon: <Users size={15} color={T.primary} /> },
+          { label: "Conversões Atribuídas", value: "4.022", sub: `janela ${window_}`, color: T.success, icon: <MousePointer size={15} color={T.success} /> },
+          { label: "Visit Lift Médio", value: "+158%", sub: "vs grupo controle", color: T.accent, icon: <TrendingUp size={15} color={T.accent} /> },
+          { label: "Taxa de Conversão", value: "2.18%", sub: "expostos ao DOOH", color: T.warning, icon: <Fingerprint size={15} color={T.warning} /> },
         ].map(k => (
           <div key={k.label} style={{ background: T.panel, borderRadius: 12, padding: "16px 18px", border: `1px solid ${k.color}22` }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -123,6 +126,7 @@ export default function PixelTracking({ onBack }: Props) {
         ))}
       </div>
 
+      {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 22, background: T.card, borderRadius: 10, padding: 4, width: "fit-content" }}>
         {(["overview", "funnel", "attribution", "setup"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
@@ -136,6 +140,7 @@ export default function PixelTracking({ onBack }: Props) {
 
       {tab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Conversions timeline */}
           <div style={{ background: T.panel, borderRadius: 12, padding: 24, border: `1px solid ${T.textSub}18` }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px" }}>Conversões e Visitas Diárias</h3>
             <ResponsiveContainer width="100%" height={220}>
@@ -154,12 +159,13 @@ export default function PixelTracking({ onBack }: Props) {
                 <YAxis yAxisId="left" tick={{ fill: T.textSub, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fill: T.textSub, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: T.card, border: `1px solid ${T.textSub}33`, borderRadius: 8, color: T.text, fontSize: 12 }} />
-                <Area key="area-visits" yAxisId="left" type="monotone" dataKey="visits" stroke={T.primary} fill="url(#gVisits)" strokeWidth={2} name="Visitas" />
-                <Area key="area-conv" yAxisId="right" type="monotone" dataKey="conversoes" stroke={T.success} fill="url(#gConv)" strokeWidth={2} name="Conversões" />
+                <Area yAxisId="left" type="monotone" dataKey="visits" stroke={T.primary} fill="url(#gVisits)" strokeWidth={2} name="Visitas" />
+                <Area yAxisId="right" type="monotone" dataKey="conversoes" stroke={T.success} fill="url(#gConv)" strokeWidth={2} name="Conversões" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Visit lift by city */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
             <div style={{ background: T.panel, borderRadius: 12, padding: 20, border: `1px solid ${T.textSub}18` }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px" }}>Visit Lift por Cidade (%)</h3>
@@ -168,12 +174,13 @@ export default function PixelTracking({ onBack }: Props) {
                   <XAxis type="number" tick={{ fill: T.textSub, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
                   <YAxis type="category" dataKey="cidade" tick={{ fill: T.text, fontSize: 11 }} axisLine={false} tickLine={false} width={58} />
                   <Tooltip contentStyle={{ background: T.card, border: `1px solid ${T.textSub}33`, borderRadius: 8, color: T.text, fontSize: 12 }} formatter={(v: any, n: any) => [n === "lift" ? `+${v}%` : `${v}%`, n === "lift" ? "Lift" : n === "exposed" ? "Expostos" : "Controle"]} />
-                  <Bar key="bar-exposed" dataKey="exposed" fill={T.primary} name="exposed" radius={[0, 3, 3, 0]} opacity={0.6} />
-                  <Bar key="bar-control" dataKey="control" fill={T.textSub} name="control" radius={[0, 3, 3, 0]} opacity={0.4} />
+                  <Bar dataKey="exposed" fill={T.primary} name="exposed" radius={[0, 3, 3, 0]} opacity={0.6} />
+                  <Bar dataKey="control" fill={T.textSub} name="control" radius={[0, 3, 3, 0]} opacity={0.4} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
+            {/* Events */}
             <div style={{ background: T.panel, borderRadius: 12, padding: 20, border: `1px solid ${T.textSub}18` }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 14px" }}>Eventos Rastreados</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -211,7 +218,7 @@ export default function PixelTracking({ onBack }: Props) {
                         <span style={{ fontSize: 12, color: T.textSub }}>{pct}%</span>
                       </div>
                     </div>
-                    <div style={{ height: 28, background: `${T.textSub}18`, borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ height: 28, background: `${T.textSub}18`, borderRadius: 6, overflow: "hidden", position: "relative" }}>
                       <div style={{ height: "100%", width: `${pct}%`, background: step.fill, borderRadius: 6, opacity: 0.8 }} />
                     </div>
                     {i < FUNNEL_DATA.length - 1 && (
@@ -224,14 +231,15 @@ export default function PixelTracking({ onBack }: Props) {
               })}
             </div>
           </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: T.panel, borderRadius: 12, padding: 20, border: `1px solid ${T.textSub}18` }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 14px" }}>Métricas de Funil</h3>
               {[
-                { label: "Taxa Exposição → Visita",          value: "12.2%", color: T.primary },
-                { label: "Taxa Visita → Engajamento",         value: "39.1%", color: T.accent  },
-                { label: "Taxa Engajamento → Conversão",      value: "21.0%", color: T.success },
-                { label: "Taxa Geral (Exposição → Conv.)",   value: "1.00%", color: "#FFD700" },
+                { label: "Taxa Exposição → Visita", value: "12.2%", color: T.primary },
+                { label: "Taxa Visita → Engajamento", value: "39.1%", color: T.accent },
+                { label: "Taxa Engajamento → Conversão", value: "21.0%", color: T.success },
+                { label: "Taxa Geral (Exposição → Conv.)", value: "1.00%", color: T.gold },
               ].map(m => (
                 <div key={m.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${T.textSub}18` }}>
                   <span style={{ fontSize: 13, color: T.textSub }}>{m.label}</span>
@@ -242,10 +250,10 @@ export default function PixelTracking({ onBack }: Props) {
             <div style={{ background: T.panel, borderRadius: 12, padding: 20, border: `1px solid ${T.textSub}18` }}>
               <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 12px" }}>ROAS por Tipo de Tela</h3>
               {[
-                { tipo: "Billboard Premium", roas: "8.4×",  color: T.success },
-                { tipo: "Transit Media",     roas: "6.2×",  color: T.primary },
-                { tipo: "Retail Indoor",     roas: "11.1×", color: T.accent  },
-                { tipo: "Smart City",        roas: "7.8×",  color: T.warning },
+                { tipo: "Billboard Premium", roas: "8.4×", color: T.success },
+                { tipo: "Transit Media", roas: "6.2×", color: T.primary },
+                { tipo: "Retail Indoor", roas: "11.1×", color: T.accent },
+                { tipo: "Smart City", roas: "7.8×", color: T.warning },
               ].map(r => (
                 <div key={r.tipo} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${T.textSub}18` }}>
                   <span style={{ fontSize: 12, color: T.textSub }}>{r.tipo}</span>
@@ -281,21 +289,22 @@ export default function PixelTracking({ onBack }: Props) {
               ))}
             </div>
           </div>
+
           <div style={{ background: T.panel, borderRadius: 12, padding: 24, border: `1px solid ${T.textSub}18` }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 8px" }}>Janela de Atribuição</h3>
             <p style={{ fontSize: 12, color: T.textSub, margin: "0 0 16px" }}>Configure como crédito é dado ao DOOH</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[
-                { window: "Mesmo dia", conversoes: 820  },
-                { window: "1 dia",     conversoes: 1284 },
-                { window: "7 dias",    conversoes: 4022 },
-                { window: "14 dias",   conversoes: 5840 },
-                { window: "30 dias",   conversoes: 7120 },
+                { window: "Mesmo dia", conversoes: 820, model: "Last touch" },
+                { window: "1 dia", conversoes: 1284, model: "Last touch" },
+                { window: "7 dias", conversoes: 4022, model: "Last touch" },
+                { window: "14 dias", conversoes: 5840, model: "Last touch" },
+                { window: "30 dias", conversoes: 7120, model: "Last touch" },
               ].map(w => (
-                <div key={w.window} style={{ display: "flex", alignItems: "center", padding: "10px 14px", background: T.card, borderRadius: 8, border: `1px solid ${T.textSub}22`, gap: 10 }}>
+                <div key={w.window} style={{ display: "flex", alignItems: "center", justify: "space-between", padding: "10px 14px", background: window_ !== "30d" && w.window === `${window_}` ? `${T.primary}18` : T.card, borderRadius: 8, border: `1px solid ${T.textSub}22`, gap: 10 }}>
                   <Clock size={14} color={T.textSub} />
                   <span style={{ flex: 1, fontSize: 13 }}>{w.window}</span>
-                  <span style={{ fontSize: 12, color: T.textSub }}>Last touch</span>
+                  <span style={{ fontSize: 12, color: T.textSub }}>{w.model}</span>
                   <span style={{ fontSize: 14, fontWeight: 800, color: T.primary }}>{w.conversoes.toLocaleString()}</span>
                 </div>
               ))}
@@ -318,16 +327,17 @@ export default function PixelTracking({ onBack }: Props) {
               </button>
             </div>
           </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ background: T.panel, borderRadius: 12, padding: 20, border: `1px solid ${T.textSub}18` }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 14px" }}>Status de Implementação</h3>
               {[
-                { step: "Pixel instalado",                    done: true  },
-                { step: "PageView ativo",                    done: true  },
-                { step: "Eventos de conversão mapeados",  done: true  },
-                { step: "Teste de janela configurado",        done: true  },
-                { step: "Grupo controle definido",            done: true  },
-                { step: "Relatório de lift gerado",        done: false },
+                { step: "Pixel instalado", done: true },
+                { step: "PageView ativo", done: true },
+                { step: "Eventos de conversão mapeados", done: true },
+                { step: "Teste de janela configurado", done: true },
+                { step: "Grupo controle definido", done: true },
+                { step: "Relatório de lift gerado", done: false },
               ].map(s => (
                 <div key={s.step} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${T.textSub}18` }}>
                   <div style={{ width: 18, height: 18, borderRadius: "50%", background: s.done ? `${T.success}22` : `${T.textSub}18`, border: `2px solid ${s.done ? T.success : T.textSub}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
