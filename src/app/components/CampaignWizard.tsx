@@ -129,7 +129,6 @@ export default function CampaignWizard({ onBack }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -146,8 +145,6 @@ export default function CampaignWizard({ onBack }: Props) {
               </div>
             </div>
           </div>
-
-          {/* Step indicators */}
           <div className="flex items-center gap-1">
             {STEPS.map((s, i) => {
               const done = step > s.id;
@@ -172,8 +169,6 @@ export default function CampaignWizard({ onBack }: Props) {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-8">
-
-        {/* STEP 1 — Objetivo */}
         {step === 1 && (
           <div>
             <h2 className="font-black text-2xl mb-1">Qual é o objetivo da campanha?</h2>
@@ -204,7 +199,6 @@ export default function CampaignWizard({ onBack }: Props) {
           </div>
         )}
 
-        {/* STEP 2 — Audiência */}
         {step === 2 && (
           <div>
             <h2 className="font-black text-2xl mb-1">Defina sua audiência</h2>
@@ -225,7 +219,6 @@ export default function CampaignWizard({ onBack }: Props) {
           </div>
         )}
 
-        {/* STEP 3 — Telas */}
         {step === 3 && (
           <div>
             <h2 className="font-black text-2xl mb-1">Selecione tipos e regiões</h2>
@@ -277,7 +270,6 @@ export default function CampaignWizard({ onBack }: Props) {
           </div>
         )}
 
-        {/* STEP 4 — Criativo */}
         {step === 4 && (
           <div>
             <h2 className="font-black text-2xl mb-1">Configure o criativo</h2>
@@ -329,7 +321,6 @@ export default function CampaignWizard({ onBack }: Props) {
           </div>
         )}
 
-        {/* STEP 5 — Budget */}
         {step === 5 && (
           <div>
             <h2 className="font-black text-2xl mb-1">Budget e datas</h2>
@@ -389,7 +380,6 @@ export default function CampaignWizard({ onBack }: Props) {
           </div>
         )}
 
-        {/* Navigation */}
         <div className="flex items-center justify-between mt-8 pt-6 border-t" style={{ borderColor: T.border }}>
           <button onClick={() => step > 1 ? setStep(s => s - 1) : onBack()}
             className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold"

@@ -43,12 +43,11 @@ const statusConfig = {
 
 export default function CampaignPlanner({ onBack, onNavigate }: Props) {
   const [campaigns, setCampaigns] = useState<Campaign[]>(INITIAL_CAMPAIGNS);
-  const [currentMonth, setCurrentMonth] = useState(6); // July = index 6
+  const [currentMonth, setCurrentMonth] = useState(6);
   const [selected, setSelected] = useState<Campaign | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [tab, setTab] = useState<"calendar" | "list" | "budget">("calendar");
 
-  // Form state
   const [form, setForm] = useState({ name: "", startDay: 1, endDay: 7, budget: 500, screens: 1, type: "Promoção", color: T.primary });
 
   const monthCampaigns = campaigns.filter(c => c.month === currentMonth);
@@ -70,7 +69,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
     if (selected?.id === id) setSelected(null);
   };
 
-  // Generate calendar rows (7 days per row)
   const weeks: number[][] = [];
   for (let d = 1; d <= days; d += 7) {
     weeks.push(Array.from({ length: Math.min(7, days - d + 1) }, (_, i) => d + i));
@@ -81,7 +79,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -97,7 +94,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Month nav */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: T.card, border: `1px solid ${T.border}` }}>
               <button onClick={() => setCurrentMonth(m => Math.max(0, m - 1))} className="hover:opacity-70">
                 <ChevronLeft size={16} style={{ color: T.textSub }} />
@@ -114,7 +110,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
             </button>
           </div>
         </div>
-        {/* Tabs */}
         <div className="max-w-6xl mx-auto px-6 pb-0 flex gap-1">
           {(["calendar","list","budget"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
@@ -127,7 +122,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
-        {/* KPI strip */}
         <div className="grid grid-cols-4 gap-4">
           {[
             { label: "Campanhas no mês", value: monthCampaigns.length, color: T.primary, icon: Calendar },
@@ -147,19 +141,14 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
           ))}
         </div>
 
-        {/* Calendar tab */}
         {tab === "calendar" && (
           <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
             <h3 className="font-bold mb-4">{MONTH_NAMES[currentMonth]} 2026</h3>
-
-            {/* Day headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
                 <div key={d} className="text-center text-xs font-bold py-1" style={{ color: T.textSub }}>{d}</div>
               ))}
             </div>
-
-            {/* Days */}
             <div className="space-y-1">
               {weeks.map((week, wi) => (
                 <div key={wi} className="grid grid-cols-7 gap-1">
@@ -185,15 +174,12 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
                       </div>
                     );
                   })}
-                  {/* Fill remaining slots */}
                   {Array.from({ length: 7 - week.length }, (_, i) => (
                     <div key={`empty-${i}`} />
                   ))}
                 </div>
               ))}
             </div>
-
-            {/* Legend */}
             <div className="mt-4 flex flex-wrap gap-3">
               {monthCampaigns.map(c => (
                 <div key={c.id} className="flex items-center gap-1.5">
@@ -205,7 +191,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
           </div>
         )}
 
-        {/* List tab */}
         {tab === "list" && (
           <div className="space-y-3">
             {campaigns.map(c => (
@@ -243,7 +228,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
           </div>
         )}
 
-        {/* Budget tab */}
         {tab === "budget" && (
           <div className="space-y-4">
             <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
@@ -266,7 +250,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
                 <span style={{ color: T.gold }}>R${totalBudget.toLocaleString("pt-BR")}</span>
               </div>
             </div>
-
             <div className="grid grid-cols-3 gap-4">
               {[
                 { label: "Estimativa de impressões", value: "2.4M", color: T.primary },
@@ -282,7 +265,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
           </div>
         )}
 
-        {/* Selected campaign detail */}
         {selected && (
           <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: selected.color + "40" }}>
             <div className="flex items-center justify-between mb-4">
@@ -317,7 +299,6 @@ export default function CampaignPlanner({ onBack, onNavigate }: Props) {
         )}
       </div>
 
-      {/* Add campaign modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
           <div className="w-full max-w-md p-6 rounded-3xl border" style={{ background: T.panel, borderColor: T.border }}>

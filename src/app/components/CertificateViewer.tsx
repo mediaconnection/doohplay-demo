@@ -24,7 +24,6 @@ const MOCK_CERT = {
   duration:     "15s",
   impressions:  48200,
   status:       "VERIFIED",
-  // ProofChain layers
   contentHash:  "sha256:a3f9e2c1d847b61f9e23c4a08d72b53e19f04c62738a91d5e06b2c749f18e3a1",
   merkleRoot:   "0x7f4a2c9d1e83b56f2a0c4d8e91b37a5c26f8d0e4b19a73c52d86e047f9b1a4c",
   polygonTx:    "0x4a9e1f2c3b8d0e57a6f19c2b4d37e08a5c6b1f3d92e04c57a8b16d293f0e5c8",
@@ -65,7 +64,6 @@ export default function CertificateViewer({ onBack }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -96,10 +94,7 @@ export default function CertificateViewer({ onBack }: Props) {
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-
-        {/* Hero certificate */}
         <div className="rounded-3xl overflow-hidden border" style={{ borderColor: T.success + "30" }}>
-          {/* Header stripe */}
           <div className="px-8 py-6 flex items-center justify-between"
             style={{ background: `linear-gradient(135deg, ${T.success}18 0%, ${T.primary}12 100%)`, borderBottom: `1px solid ${T.success}25` }}>
             <div className="flex items-center gap-4">
@@ -119,7 +114,6 @@ export default function CertificateViewer({ onBack }: Props) {
             </div>
           </div>
 
-          {/* Campaign details */}
           <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-4" style={{ background: T.card }}>
             {[
               { label: "CAMPANHA",     value: MOCK_CERT.campaignName, color: T.text    },
@@ -136,7 +130,6 @@ export default function CertificateViewer({ onBack }: Props) {
             ))}
           </div>
 
-          {/* Impressions big number */}
           <div className="px-8 py-5 flex items-center gap-6 border-t" style={{ background: T.panel, borderColor: T.border }}>
             <div className="flex items-center gap-3">
               <Tv size={20} style={{ color: T.primary }} />
@@ -153,7 +146,6 @@ export default function CertificateViewer({ onBack }: Props) {
           </div>
         </div>
 
-        {/* 4-layer proof chain */}
         <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-black">Cadeia de Prova Criptográfica</h3>
@@ -162,7 +154,6 @@ export default function CertificateViewer({ onBack }: Props) {
             </button>
           </div>
 
-          {/* Visual chain */}
           <div className="grid grid-cols-4 gap-3 mb-4">
             {[
               { n: 1, label: "Conteúdo",  sub: "RSA-SHA256",     color: T.primary, icon: Lock    },
@@ -191,7 +182,6 @@ export default function CertificateViewer({ onBack }: Props) {
             ))}
           </div>
 
-          {/* Expanded hashes */}
           {expanded && (
             <div className="mt-2 p-4 rounded-xl" style={{ background: T.panel }}>
               <HashRow label="Content Hash" value={MOCK_CERT.contentHash} icon={Lock}     color={T.primary} />
@@ -208,7 +198,6 @@ export default function CertificateViewer({ onBack }: Props) {
           )}
         </div>
 
-        {/* Legal footer */}
         <div className="p-4 rounded-xl" style={{ background: T.panel, border: `1px solid ${T.border}` }}>
           <p className="text-xs leading-relaxed" style={{ color: T.textSub }}>
             Este certificado comprova criptograficamente a exibição do conteúdo descrito acima, com validade legal conforme{" "}
