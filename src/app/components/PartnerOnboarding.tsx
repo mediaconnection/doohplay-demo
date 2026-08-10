@@ -123,6 +123,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
+        {/* Step indicators */}
         <div className="flex items-center gap-1 mb-8">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
@@ -143,6 +144,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
           })}
         </div>
 
+        {/* Step 0 — Perfil pessoal */}
         {step === 0 && (
           <div className="space-y-5">
             <div>
@@ -164,6 +166,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
           </div>
         )}
 
+        {/* Step 1 — Empresa */}
         {step === 1 && (
           <div className="space-y-5">
             <div>
@@ -185,6 +188,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
           </div>
         )}
 
+        {/* Step 2 — Território */}
         {step === 2 && (
           <div className="space-y-5">
             <div>
@@ -220,6 +224,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
           </div>
         )}
 
+        {/* Step 3 — Tier */}
         {step === 3 && (
           <div className="space-y-5">
             <div>
@@ -261,6 +266,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
           </div>
         )}
 
+        {/* Step 4 — Review */}
         {step === 4 && (
           <div className="space-y-5">
             <div>
@@ -295,6 +301,7 @@ export default function PartnerOnboarding({ onBack, onNavigate }: { onBack: () =
           </div>
         )}
 
+        {/* Navigation */}
         <div className="flex items-center justify-between mt-8">
           <button onClick={() => setStep(s => Math.max(0, s - 1) as Step)}
             disabled={step === 0}

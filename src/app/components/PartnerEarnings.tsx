@@ -68,6 +68,7 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: T.bg, color: T.text, fontFamily: "'Inter', sans-serif" }}>
+      {/* Header */}
       <div className="sticky top-0 z-40 border-b" style={{ background: T.panel + "F2", borderColor: T.border, backdropFilter: "blur(16px)" }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -101,6 +102,8 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+        {/* KPIs */}
         <div className="grid grid-cols-5 gap-4">
           {[
             { label: "MRR Total Parceiros", value: `R$${(totalMRR/1000).toFixed(1)}k`, sub: "+18% vs mês ant.", color: T.success, icon: TrendingUp },
@@ -124,6 +127,7 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
         </div>
 
         <div className="grid grid-cols-3 gap-6">
+          {/* Earnings trend */}
           <div className="col-span-2 p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -152,6 +156,7 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
             </ResponsiveContainer>
           </div>
 
+          {/* Commission by tier */}
           <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
             <h3 className="font-black mb-1">Comissão por Tier</h3>
             <p className="text-xs mb-4" style={{ color: T.textSub }}>% de comissão por nível</p>
@@ -178,6 +183,7 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
           </div>
         </div>
 
+        {/* Pending payouts */}
         <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.warning + "20" }}>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -205,6 +211,7 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
           </div>
         </div>
 
+        {/* Partner table */}
         <div className="p-5 rounded-2xl border" style={{ background: T.card, borderColor: T.border }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-black">Todos os Parceiros</h3>
@@ -230,6 +237,7 @@ export default function PartnerEarnings({ onBack, onNavigate }: Props) {
               </div>
             </div>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
