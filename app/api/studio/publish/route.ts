@@ -12,7 +12,8 @@
 // playlist_schedule -> sync pra fundação unificada).
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
-import { buildHtml, segmentKeyFor, SEGMENT_COLORS, renderImageAndUpload, publishToRealPlaylist } from "@/lib/publishMedia"
+import { buildHtml, renderImageAndUpload, publishToRealPlaylist } from "@/lib/publishMedia"
+import { findStudioTemplate } from "@/lib/studioTemplates"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -43,18 +44,28 @@ export async function POST(req: NextRequest) {
     // já testado e funcionando — troca a ideia antiga de publicar uma URL de
     // preview ao vivo (tipo 'url', que o player real nunca soube renderizar).
     if (type === "template") {
-      const { headline, subline, cta, price, photo_url } = body
+      const { headline, subline, cta, price, photo_url, template_id } = body
       if (!headline?.trim()) {
         return NextResponse.json({ error: "Título é obrigatório" }, { status: 400 })
       }
-      const colors = SEGMENT_COLORS[segmentKeyFor(business_type)]
+      // Fase 44 (21/08/2026): antes disso, a publicação sempre usava uma
+      // cor fixa por business_type (SEGMENT_COLORS) e ignorava qual dos 3
+      // templates o dono tinha escolhido no editor — os templates só
+      // existiam de fato na prévia do navegador, nunca na tela real. Agora
+      // busca o template de verdade (nunca confia em bg/accent vindos do
+      // corpo da requisição — só o id, resolvido contra a lista real em
+      // lib/studioTemplates.ts, evita injeção de CSS arbitrário no HTML
+      // renderizado por Puppeteer). Sem template_id (ex: cliente antigo em
+      // cache) ou id desconhecido, cai no primeiro template do segmento —
+      // nunca quebra a publicação por causa disso.
+      const tpl = findStudioTemplate(business_type, template_id)
       const html = buildHtml({
         title: headline,
         subtitle: subline || "",
         price: price || undefined,
-        cta: cta || "Saiba mais",
-        primaryColor: colors.primary,
-        accentColor: colors.accent,
+        cta: cta || tpl.cta || "Saiba mais",
+        primaryColor: tpl.bg,
+        accentColor: tpl.accent,
         businessName: String(businessName).toUpperCase(),
         orientation,
         photoUrl: photo_url || undefined,
