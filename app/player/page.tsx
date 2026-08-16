@@ -191,35 +191,37 @@ async function getPlayerData(code: string) {
         80: { label: "Pancadas leves", emoji: "🌦️" }, 95: { label: "Tempestade", emoji: "⛈️" },
       }
 
-      // Fase 43 (21/07/2026): câmbio e indicadores (Selic/CDI/IPCA) exigem
-      // plano pago na brapi.dev — token SEMPRE de env var (BRAPI_TOKEN),
-      // nunca hardcoded. Sem a env var configurada, os dois requests nem
-      // saem (Promise.reject cai direto no catch abaixo, igual a uma
-      // fonte fora do ar) — o card correspondente simplesmente não entra
-      // no revezamento, mesmo padrão das outras fontes sem dado.
-      const brapiToken = process.env.BRAPI_TOKEN
-
-      const [weatherRes, stocksRes, newsRes, econNewsRes, cambioRes, indicadoresRes, airQualityRes, loteriaRes] = await Promise.allSettled([
+      // Fase 43 (21/08/2026, revisado): câmbio/indicadores/loteria — trocado
+      // de brapi.dev (que exigiria BRAPI_TOKEN pago) pras mesmas fontes
+      // públicas e gratuitas já validadas em produção por outra sessão
+      // (commits 506d738..3f7a78f, 21/07/2026, direto no GitHub): AwesomeAPI
+      // pro câmbio, Banco Central (BCB) pros indicadores, e o endpoint
+      // público da Caixa pra loteria. Nenhuma das 5 fontes novas depende de
+      // token — mais simples de manter, sem risco de plano pago expirar.
+      const [weatherRes, stocksRes, newsRes, econNewsRes, cambioRes, selicRes, cdiRes, ipcaRes, airQualityRes, loteriaRes] = await Promise.allSettled([
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
         fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } }),
         fetch(`https://g1.globo.com/rss/g1/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
         // Fase 39 (20/07/2026): mesma fonte (G1), só a seção de Economia —
         // usada pro widget "bolsa revezando com notícia de mercado".
         fetch(`https://g1.globo.com/rss/g1/economia/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
-        // Fase 43: câmbio (USD-BRL, EUR-BRL) — brapi.dev v2, exige token.
-        brapiToken
-          ? fetch(`https://brapi.dev/api/v2/currency?currency=USD-BRL,EUR-BRL`, { headers: { Authorization: `Bearer ${brapiToken}` }, next: { revalidate: 300 } })
-          : Promise.reject(new Error("BRAPI_TOKEN não configurado")),
-        // Fase 43: indicadores Selic/CDI/IPCA(12m) — brapi.dev v2/macro, exige token.
-        brapiToken
-          ? fetch(`https://brapi.dev/api/v2/macro/latest?symbols=selic,cdi,ipca12m`, { headers: { Authorization: `Bearer ${brapiToken}` }, next: { revalidate: 3600 } })
-          : Promise.reject(new Error("BRAPI_TOKEN não configurado")),
+        // Fase 43: câmbio — AwesomeAPI, público, sem token.
+        fetch(`https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL`, { next: { revalidate: 600 } }),
+        // Fase 43: Selic — série 432 é a Meta Selic definida pelo Copom, em
+        // % a.a. (a série 11 é a diária, formato errado pro widget — achado
+        // real em teste da outra sessão, 21/07/2026). Confirmado na doc
+        // oficial (dadosabertos.bcb.gov.br).
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        // CDI anualizado (série 4389, % a.a.) — mesmo motivo da Selic acima.
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
+        // IPCA 12 meses acumulado.
+        fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json`, { next: { revalidate: 3600 } }),
         // Fase 43: qualidade do ar — Open-Meteo (mesma família da previsão
         // do tempo acima), sem token.
         fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5&timezone=America%2FSao_Paulo`, { next: { revalidate: 3600 } }),
-        // Fase 43: loteria — resultado público da Caixa (Mega-Sena), sem
+        // Fase 43: loteria — endpoint público da Caixa (Mega-Sena), sem
         // token; é nacional, não depende de localização do cliente.
-        fetch(`https://loteriascaixa-api.herokuapp.com/api/megasena/latest`, { next: { revalidate: 3600 } }),
+        fetch(`https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 3600 } }),
       ])
 
       let weather = null, stocks: any[] = [], news: any[] = [], econNews: any[] = []
@@ -271,23 +273,40 @@ async function getPlayerData(code: string) {
           if (title) econNews.push({ title })
         }
       }
-      // Fase 43: câmbio — só entra no retorno se o request foi feito (token
-      // configurado) E respondeu OK; senão fica array vazio, igual às
-      // outras fontes sem dado (o card correspondente some do revezamento).
+      // Fase 43: câmbio — AwesomeAPI devolve um objeto chaveado por par
+      // (ex: "USDBRL"), não uma lista — normaliza pro mesmo formato que
+      // renderWidgetHtml("cambio") já espera (from/to/name/bid/pct).
       if (cambioRes.status === "fulfilled" && cambioRes.value.ok) {
         const c = await cambioRes.value.json()
-        cambio = (c.currency || []).map((x: any) => ({
-          from: x.fromCurrency, to: x.toCurrency, name: x.name,
-          bid: Number(x.bidPrice ?? 0), pct: Number(x.percentageChange ?? 0),
-        }))
+        const pares: Record<string, { from: string; to: string; name: string }> = {
+          USDBRL: { from: "USD", to: "BRL", name: "Dólar" },
+          EURBRL: { from: "EUR", to: "BRL", name: "Euro" },
+        }
+        cambio = Object.keys(pares)
+          .filter((k) => c[k])
+          .map((k) => ({
+            from: pares[k].from, to: pares[k].to, name: pares[k].name,
+            bid: Number(c[k].bid ?? 0), pct: Number(c[k].pctChange ?? 0),
+          }))
       }
-      if (indicadoresRes.status === "fulfilled" && indicadoresRes.value.ok) {
-        const ind = await indicadoresRes.value.json()
-        indicadores = (ind.results || []).map((r: any) => ({
-          slug: r.series?.slug, name: r.series?.name,
-          value: r.latest?.value, unit: r.series?.unit,
-        }))
+      // Fase 43: indicadores — 3 séries separadas do Banco Central (Selic
+      // meta a.a., CDI anualizado a.a., IPCA 12m), cada uma normalizada pro
+      // mesmo formato que renderWidgetHtml("indicadores") já espera
+      // (slug/name/value/unit). Só entra no array a série que respondeu.
+      async function parseBcbValue(res: PromiseSettledResult<Response>): Promise<number | null> {
+        if (res.status !== "fulfilled" || !res.value.ok) return null
+        const arr = await res.value.json()
+        const v = arr?.[0]?.valor
+        return v != null ? Number(v) : null
       }
+      const [selicValue, cdiValue, ipcaValue] = await Promise.all([
+        parseBcbValue(selicRes), parseBcbValue(cdiRes), parseBcbValue(ipcaRes),
+      ])
+      indicadores = [
+        selicValue !== null ? { slug: "selic", name: "Selic", value: selicValue, unit: "%" } : null,
+        cdiValue !== null ? { slug: "cdi", name: "CDI", value: cdiValue, unit: "%" } : null,
+        ipcaValue !== null ? { slug: "ipca12m", name: "IPCA (12m)", value: ipcaValue, unit: "%" } : null,
+      ].filter(Boolean) as any[]
       if (airQualityRes.status === "fulfilled" && airQualityRes.value.ok) {
         const aq = await airQualityRes.value.json()
         if (aq.current?.us_aqi != null) {
@@ -297,12 +316,16 @@ async function getPlayerData(code: string) {
           }
         }
       }
+      // Fase 43: loteria — endpoint da Caixa devolve numero/dataApuracao/
+      // listaDezenas/acumulado — normaliza pro mesmo formato que
+      // renderWidgetHtml("loteria") já espera (jogo/concurso/data/dezenas/
+      // acumulou).
       if (loteriaRes.status === "fulfilled" && loteriaRes.value.ok) {
         const lo = await loteriaRes.value.json()
-        if (Array.isArray(lo.dezenas) && lo.dezenas.length) {
+        if (Array.isArray(lo.listaDezenas) && lo.listaDezenas.length) {
           loteria = {
-            jogo: "Mega-Sena", concurso: lo.concurso, data: lo.data,
-            dezenas: lo.dezenas, acumulou: !!lo.acumulou,
+            jogo: "Mega-Sena", concurso: lo.numero, data: lo.dataApuracao,
+            dezenas: lo.listaDezenas, acumulou: !!lo.acumulado,
           }
         }
       }
@@ -543,8 +566,8 @@ export default async function PlayerPage({
         </div>
       </div>`
     }
-    // Fase 43 (21/07/2026): câmbio — mesmo padrão visual de "stocks", com
-    // preço de compra (bidPrice) e variação percentual da brapi.dev v2.
+    // Fase 43: câmbio — mesmo padrão visual de "stocks", com preço de
+    // compra (bid) e variação percentual, via AwesomeAPI (sem token).
     if (contentType === "cambio" && data.widgets?.cambio?.length) {
       return `<div class="dw dw-stocks">
         <div class="dw-accent"></div>
@@ -558,8 +581,8 @@ export default async function PlayerPage({
         </div>
       </div>`
     }
-    // Fase 43: indicadores — Selic/CDI/IPCA(12m), valor + unidade (%) direto
-    // da brapi.dev v2/macro.
+    // Fase 43: indicadores — Selic/CDI/IPCA(12m), direto do Banco Central
+    // (séries 432/4389/13522, sem token).
     if (contentType === "indicadores" && data.widgets?.indicadores?.length) {
       return `<div class="dw dw-stocks">
         <div class="dw-accent"></div>
