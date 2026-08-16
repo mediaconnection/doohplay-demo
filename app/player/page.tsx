@@ -745,9 +745,26 @@ export default async function PlayerPage({
   // ou magazine) — zero mudança de comportamento pra quem não configurou.
   const zonesHtml = data.layoutZones ? renderZonesHtml(data.layoutZones) : ""
 
+  // Fase 43: roteia o painel de widgets pra zona certa conforme
+  // widget_position — bottom (Modelo 1) vai pro #bottom-zone, lateral_left
+  // e lateral_right (Modelos 2/3) vão pro #lateral-zone. A zona que NÃO
+  // recebe o painel fica vazia, livre pro zoom de anúncio dinâmico (Fase
+  // 33) ocupar em runtime — ver widgetsInLateral/widgetsInBottom no script
+  // inline. Modelo 3 (lateral esquerda) inverte a ORDEM real no DOM
+  // (#lateral-zone antes de #main-zone) — como #content-row é flex row
+  // sem "order" explícito, isso já basta pra jogar o painel pra esquerda;
+  // #main-zone/#lateral-zone continuam com os mesmos ids, então nenhuma
+  // lógica JS (que usa getElementById) precisa saber a ordem.
+  const isBottomWidgets = data.widgetPosition === "bottom"
+  const isLeftWidgets = data.widgetPosition === "lateral_left"
+  const mainZoneHtml = `<div id="main-zone"><div id="content-area">${bodyContentHtml}</div><div id="floating-zone"></div></div>`
+  const lateralZoneHtml = `<div id="lateral-zone">${isBottomWidgets ? "" : widgetsPanelHtml}</div>`
+  const bottomZoneHtml = `<div id="bottom-zone">${isBottomWidgets ? widgetsPanelHtml : ""}</div>`
+  const contentRowInnerHtml = isLeftWidgets ? `${lateralZoneHtml}${mainZoneHtml}` : `${mainZoneHtml}${lateralZoneHtml}`
+
   const playerInnerHtml = data.layoutZones
     ? `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="zones-root" style="position:relative;width:100%;height:100%;">${zonesHtml}</div>`
-    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-row"><div id="main-zone"><div id="content-area">${bodyContentHtml}</div><div id="floating-zone"></div></div><div id="lateral-zone">${widgetsPanelHtml}</div></div><div id="bottom-zone"></div>`
+    : `<div id="progress-bar"></div><div id="heartbeat"></div>${qrFooterHtml}<div id="content-row">${contentRowInnerHtml}</div>${bottomZoneHtml}`
 
   // Slides do tipo 'layout' (Fase 9) — a composição de N-zonas é
   // pré-renderizada aqui no servidor (reaproveitando renderZonesHtml, o
@@ -826,10 +843,22 @@ export default async function PlayerPage({
           /* ── Compositor de zonas (Fase 3) ──────────────────────────────
              #main-zone é o conteúdo de sempre (fullscreen), agora dentro de
              um container flex em vez de ocupar o #player inteiro. Quando
-             existe conteúdo "encolhe lateral" ativo, #player ganha a classe
-             .has-lateral, que reduz #main-zone e abre #lateral-zone do lado.
-             Sem nenhum item shrink_lateral, o comportamento é IDÊNTICO ao
-             fullscreen de sempre — largura de #lateral-zone fica em 0. */
+             existe conteúdo "encolhe lateral" ativo, #player abre
+             #lateral-zone do lado.
+             Sem nenhum item shrink_lateral e sem painel de widgets,
+             comportamento é IDÊNTICO ao fullscreen de sempre — largura de
+             #lateral-zone fica em 0.
+             Fase 43 (21/08/2026): a classe .has-lateral era ÚNICA,
+             compartilhada entre o painel de widgets estático (server-side,
+             template magazine) e o zoom de anúncio dinâmico (Fase 33,
+             JS runtime) — os dois setavam/removiam a MESMA classe, o que
+             colidia sempre que os dois tentassem existir ao mesmo tempo.
+             Separado em duas classes independentes que controlam a MESMA
+             largura via seletor combinado (:is não usado de propósito —
+             suporte mais amplo em WebViews antigas de Fire Stick/Android
+             TV): .has-lateral-widgets (setada no server, permanente
+             enquanto o painel estiver nessa posição) e .has-lateral-ad-zoom
+             (setada/removida pelo JS, ver showLateralSlide). */
           #main-zone {
             position: relative;
             flex: 1 1 auto;
@@ -846,8 +875,10 @@ export default async function PlayerPage({
           }
           #main-zone::before { top: 20px; left: 20px; border-top: 2px solid; border-left: 2px solid; }
           #main-zone::after  { top: 20px; right: 20px; border-top: 2px solid; border-right: 2px solid; }
-          #player.has-lateral #main-zone::before,
-          #player.has-lateral #main-zone::after { opacity: .8; }
+          #player.has-lateral-widgets #main-zone::before,
+          #player.has-lateral-widgets #main-zone::after,
+          #player.has-lateral-ad-zoom #main-zone::before,
+          #player.has-lateral-ad-zoom #main-zone::after { opacity: .8; }
           #lateral-zone {
             position: relative;
             width: 0;
@@ -857,7 +888,8 @@ export default async function PlayerPage({
             background: #000;
             transition: width .5s ease;
           }
-          #player.has-lateral #lateral-zone {
+          #player.has-lateral-widgets #lateral-zone,
+          #player.has-lateral-ad-zoom #lateral-zone {
             width: 26vw;
           }
           #lateral-zone video, #lateral-zone img {
@@ -868,8 +900,10 @@ export default async function PlayerPage({
 
           /* Fase 33 (20/07/2026): faixa inferior — mesmo padrão do lateral,
              só que reduz ALTURA de #content-row em vez de largura de
-             #main-zone. Sem nenhum item banner_bottom, comportamento
-             idêntico a antes (altura 0). */
+             #main-zone. Sem nenhum item banner_bottom e sem painel de
+             widgets nessa posição, comportamento idêntico a antes (altura
+             0). Fase 43: mesma separação de classes do lateral — ver
+             comentário acima de #main-zone. */
           #bottom-zone {
             position: relative;
             width: 100%;
@@ -879,7 +913,8 @@ export default async function PlayerPage({
             background: #000;
             transition: height .5s ease;
           }
-          #player.has-bottom-banner #bottom-zone {
+          #player.has-bottom-banner-widgets #bottom-zone,
+          #player.has-bottom-banner-ad-zoom #bottom-zone {
             height: 16vh;
           }
           #bottom-zone video, #bottom-zone img {
@@ -1008,6 +1043,100 @@ export default async function PlayerPage({
             flex: 0 0 auto;
             height: auto;
           }
+
+          /* Fase 43 (21/08/2026): Modelo 1 — o painel vira uma barra
+             horizontal (largura toda, altura do #bottom-zone) em vez de
+             coluna vertical. Aplica em cima de qualquer widgetLayoutMode,
+             não só painel_completo — quem escolher "fixed" ou "revezando"
+             na faixa inferior também ganha o flip de eixo. */
+          #widgets-panel.widgets-position-bottom {
+            flex-direction: row;
+            align-items: stretch;
+          }
+          #widgets-panel.widgets-position-bottom > * {
+            flex: 1;
+            min-width: 0;
+          }
+
+          /* ── Painel completo (Fase 43) — card único central revezando
+             entre até 8 fontes de dado, com relógio+clima e logo fixos
+             nas pontas. Layout dos mockups modelo-1/2/3 aprovados. ── */
+          .widgets-painel-completo {
+            gap: 1vh;
+          }
+          .widgets-painel-completo.widgets-position-bottom {
+            gap: .8vw;
+          }
+          .dw-clockweather {
+            flex: 0 0 auto;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center;
+            padding: 1.4vh 1.2vw;
+            border-radius: 14px;
+            background: linear-gradient(155deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,.09);
+          }
+          .widgets-position-bottom .dw-clockweather {
+            min-width: 12vw;
+          }
+          .dw-clockweather-time {
+            font-size: 3.2vh; font-weight: 800; letter-spacing: -.01em;
+            font-variant-numeric: tabular-nums;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+          }
+          .dw-clockweather-weather {
+            margin-top: .6vh; font-size: 1.5vh; font-weight: 600; opacity: .85;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+          }
+          .dw-clockweather-weather svg { width: 1.8vh; height: 1.8vh; flex-shrink: 0; }
+
+          .dw-combo-shell {
+            position: relative;
+            flex: 1; min-height: 0; min-width: 0;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 1.4vh 1.2vw;
+            border-radius: 14px;
+            background: linear-gradient(155deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,.09);
+            border-left: 4px solid var(--accent-1, #3B82F6);
+            overflow: hidden;
+            transition: border-color 1.4s ease;
+          }
+          .widgets-position-bottom .dw-combo-shell {
+            border-left: none;
+            border-top: 4px solid var(--accent-1, #3B82F6);
+          }
+          .combo-inner {
+            width: 100%;
+            transition: opacity 1.2s ease;
+          }
+          /* O card revezado (renderWidgetHtml) já vem com o próprio
+             fundo/borda/accent (é o mesmo ".dw" usado nos outros modos) —
+             aqui dentro do shell isso duplicaria o "vidro" (card dentro de
+             card). Neutraliza o estilo próprio do card interno, deixando
+             só o conteúdo (header + linhas), já que o shell é quem dá o
+             fundo/borda dessa vez. */
+          .combo-inner .dw {
+            position: static;
+            width: 100%; height: auto;
+            padding: 0; margin: 0;
+            background: none; backdrop-filter: none; border: none;
+            border-radius: 0;
+          }
+          .combo-inner .dw-accent { display: none; }
+
+          .dw-logo-block {
+            flex: 0 0 auto;
+            display: flex; align-items: center; justify-content: center;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 1.6vh; font-weight: 800; letter-spacing: -.01em;
+            opacity: .85;
+            padding: 0 .6vw;
+          }
+          .dw-logo-block .accent { color: var(--accent-1, #3B82F6); }
+
           .dw-compact-bar {
             display: flex;
             align-items: center;
@@ -1411,7 +1540,7 @@ export default async function PlayerPage({
             max-width: 48px;
           }
         `}</style>
-      <div id="player" className={data.template === "magazine" ? "has-lateral" : ""} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
+      <div id="player" className={data.template === "magazine" ? (data.widgetPosition === "bottom" ? "has-bottom-banner-widgets" : "has-lateral-widgets") : ""} dangerouslySetInnerHTML={{ __html: playerInnerHtml }} />
 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
@@ -1419,6 +1548,18 @@ export default async function PlayerPage({
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
+            // Fase 43 (21/08/2026): onde o painel de widgets está — usado
+            // pra saber qual zona (lateral ou faixa inferior) está ocupada
+            // pelo painel e qual está livre pro zoom de anúncio dinâmico
+            // (Fase 33) continuar funcionando nela.
+            var widgetPosition = ${JSON.stringify(data.widgetPosition || "lateral_right")};
+            var widgetsInBottom = isMagazine && widgetPosition === "bottom";
+            var widgetsInLateral = isMagazine && widgetPosition !== "bottom";
+            // Fase 43: telas do "painel completo" (bolsa/câmbio/indicadores/
+            // notícias/economia/qualidade do ar/enquete/loteria), já
+            // renderizadas em HTML no servidor — o JS só troca qual delas
+            // fica visível, ver comboCompletoCycle mais abaixo.
+            var comboCompletoScreens = ${comboScreensJson};
             // Fase 29/31 (20/07/2026): padrão de transição da tela — usado
             // como fallback pra item que não tem transição própria escolhida.
             var screenDefaultTransition = ${JSON.stringify(data.transitionEffect)};
@@ -1547,6 +1688,34 @@ export default async function PlayerPage({
               }
             }
             initCombos();
+
+            // ── Painel completo (Fase 43, 21/08/2026) ───────────────────────
+            // Card único central revezando entre as telas de dado disponíveis
+            // (comboCompletoScreens, já em HTML pronto, montado no servidor).
+            // Mesmo padrão visual dos mockups aprovados: troca com fade (
+            // opacity 0 → swap innerHTML → opacity 1), próximo elemento a
+            // cada COMBO_COMPLETO_CYCLE_MS. Só roda se o elemento existir na
+            // página (widgetLayoutMode !== 'painel_completo' não tem nenhum).
+            var COMBO_COMPLETO_CYCLE_MS = 9000;
+            var COMBO_COMPLETO_FADE_MS = 1200;
+            function initComboCompleto() {
+              var el = document.getElementById('combo-completo-inner');
+              if (!el || !comboCompletoScreens.length) return;
+              var idx = 0;
+              function renderNext() {
+                el.style.opacity = '0';
+                setTimeout(function() {
+                  el.innerHTML = comboCompletoScreens[idx % comboCompletoScreens.length];
+                  idx++;
+                  el.style.opacity = '1';
+                }, COMBO_COMPLETO_FADE_MS);
+              }
+              renderNext();
+              if (comboCompletoScreens.length > 1) {
+                setInterval(renderNext, COMBO_COMPLETO_CYCLE_MS);
+              }
+            }
+            initComboCompleto();
 
             // ── Relógio ao vivo (Fase 4b) ──────────────────────────────────
             // Roda independente do modo (magazine ou zonas genéricas) — só
@@ -1750,18 +1919,23 @@ export default async function PlayerPage({
             }
 
             function showLateralSlide() {
-              // Modo magazine: a zona lateral já tem o painel de widgets
-              // renderizado pelo servidor — não deixa a rotação de anúncios
-              // (shrink_lateral) sobrescrever nem remover a classe que
-              // mantém o painel visível.
-              if (isMagazine || isGenericLayout) return;
+              // Fase 43 (21/08/2026): só pula quando o painel de widgets
+              // está de fato ocupando a zona LATERAL (widgetsInLateral) —
+              // antes disso o zoom de anúncio dinâmico (shrink_lateral)
+              // ficava sempre desligado com qualquer template magazine
+              // ativo, mesmo quando o painel estava na faixa inferior e a
+              // lateral estava livre. Classe própria (has-lateral-ad-zoom,
+              // separada de has-lateral-widgets setada pelo server) — as
+              // duas controlam a mesma largura via CSS combinado, sem
+              // uma pisar na outra.
+              if (widgetsInLateral || isGenericLayout) return;
 
               if (lateralTimer) { clearTimeout(lateralTimer); lateralTimer = null; }
               if (!lateralMedias.length) {
-                if (playerEl) playerEl.classList.remove('has-lateral');
+                if (playerEl) playerEl.classList.remove('has-lateral-ad-zoom');
                 return;
               }
-              if (playerEl) playerEl.classList.add('has-lateral');
+              if (playerEl) playerEl.classList.add('has-lateral-ad-zoom');
               if (!lateralVideoEl) initLateralZone();
 
               var m = lateralMedias[lateralIdx % lateralMedias.length];
@@ -1822,14 +1996,17 @@ export default async function PlayerPage({
             }
 
             function showBottomSlide() {
-              if (isMagazine || isGenericLayout) return;
+              // Fase 43: mesma lógica de showLateralSlide, espelhada pra
+              // faixa inferior — só pula quando o painel de widgets está
+              // de fato ocupando a zona DE BAIXO (widgetsInBottom).
+              if (widgetsInBottom || isGenericLayout) return;
 
               if (bottomTimer) { clearTimeout(bottomTimer); bottomTimer = null; }
               if (!bottomMedias.length) {
-                if (playerEl) playerEl.classList.remove('has-bottom-banner');
+                if (playerEl) playerEl.classList.remove('has-bottom-banner-ad-zoom');
                 return;
               }
-              if (playerEl) playerEl.classList.add('has-bottom-banner');
+              if (playerEl) playerEl.classList.add('has-bottom-banner-ad-zoom');
               if (!bottomVideoEl) initBottomZone();
 
               var m = bottomMedias[bottomIdx % bottomMedias.length];
