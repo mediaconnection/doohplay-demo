@@ -166,9 +166,9 @@ async function getPlayerData(code: string) {
     const templateRes = await pool.query<{
       template_key: string; location_lat: number; location_lon: number;
       location_name: string; stock_tickers: string[]; news_country: string; transition_effect: string;
-      widget_layout_mode: string;
+      widget_layout_mode: string; widget_position: string;
     }>(`
-      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect, widget_layout_mode
+      SELECT template_key, location_lat, location_lon, location_name, stock_tickers, news_country, transition_effect, widget_layout_mode, widget_position
       FROM screen_templates
       WHERE client_code = $1 AND active = true
       ORDER BY screen_id NULLS LAST
@@ -191,16 +191,42 @@ async function getPlayerData(code: string) {
         80: { label: "Pancadas leves", emoji: "🌦️" }, 95: { label: "Tempestade", emoji: "⛈️" },
       }
 
-      const [weatherRes, stocksRes, newsRes, econNewsRes] = await Promise.allSettled([
+      // Fase 43 (21/07/2026): câmbio e indicadores (Selic/CDI/IPCA) exigem
+      // plano pago na brapi.dev — token SEMPRE de env var (BRAPI_TOKEN),
+      // nunca hardcoded. Sem a env var configurada, os dois requests nem
+      // saem (Promise.reject cai direto no catch abaixo, igual a uma
+      // fonte fora do ar) — o card correspondente simplesmente não entra
+      // no revezamento, mesmo padrão das outras fontes sem dado.
+      const brapiToken = process.env.BRAPI_TOKEN
+
+      const [weatherRes, stocksRes, newsRes, econNewsRes, cambioRes, indicadoresRes, airQualityRes, loteriaRes] = await Promise.allSettled([
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m&timezone=America%2FSao_Paulo`, { next: { revalidate: 1800 } }),
         fetch(`https://brapi.dev/api/quote/${tickers.join(",")}`, { next: { revalidate: 300 } }),
         fetch(`https://g1.globo.com/rss/g1/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
         // Fase 39 (20/07/2026): mesma fonte (G1), só a seção de Economia —
         // usada pro widget "bolsa revezando com notícia de mercado".
         fetch(`https://g1.globo.com/rss/g1/economia/`, { headers: { "User-Agent": "DOOHPLAY/1.0" }, next: { revalidate: 300 } }),
+        // Fase 43: câmbio (USD-BRL, EUR-BRL) — brapi.dev v2, exige token.
+        brapiToken
+          ? fetch(`https://brapi.dev/api/v2/currency?currency=USD-BRL,EUR-BRL`, { headers: { Authorization: `Bearer ${brapiToken}` }, next: { revalidate: 300 } })
+          : Promise.reject(new Error("BRAPI_TOKEN não configurado")),
+        // Fase 43: indicadores Selic/CDI/IPCA(12m) — brapi.dev v2/macro, exige token.
+        brapiToken
+          ? fetch(`https://brapi.dev/api/v2/macro/latest?symbols=selic,cdi,ipca12m`, { headers: { Authorization: `Bearer ${brapiToken}` }, next: { revalidate: 3600 } })
+          : Promise.reject(new Error("BRAPI_TOKEN não configurado")),
+        // Fase 43: qualidade do ar — Open-Meteo (mesma família da previsão
+        // do tempo acima), sem token.
+        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5&timezone=America%2FSao_Paulo`, { next: { revalidate: 3600 } }),
+        // Fase 43: loteria — resultado público da Caixa (Mega-Sena), sem
+        // token; é nacional, não depende de localização do cliente.
+        fetch(`https://loteriascaixa-api.herokuapp.com/api/megasena/latest`, { next: { revalidate: 3600 } }),
       ])
 
       let weather = null, stocks: any[] = [], news: any[] = [], econNews: any[] = []
+      let cambio: any[] = []
+      let indicadores: any[] = []
+      let airQuality: { usAqi: number; pm25: number } | null = null
+      let loteria: { jogo: string; concurso: number; data: string; dezenas: string[]; acumulou: boolean } | null = null
       if (weatherRes.status === "fulfilled" && weatherRes.value.ok) {
         const w = await weatherRes.value.json()
         const code = w.current?.weather_code ?? 0
@@ -245,10 +271,45 @@ async function getPlayerData(code: string) {
           if (title) econNews.push({ title })
         }
       }
-      return { weather, stocks, news, econNews }
+      // Fase 43: câmbio — só entra no retorno se o request foi feito (token
+      // configurado) E respondeu OK; senão fica array vazio, igual às
+      // outras fontes sem dado (o card correspondente some do revezamento).
+      if (cambioRes.status === "fulfilled" && cambioRes.value.ok) {
+        const c = await cambioRes.value.json()
+        cambio = (c.currency || []).map((x: any) => ({
+          from: x.fromCurrency, to: x.toCurrency, name: x.name,
+          bid: Number(x.bidPrice ?? 0), pct: Number(x.percentageChange ?? 0),
+        }))
+      }
+      if (indicadoresRes.status === "fulfilled" && indicadoresRes.value.ok) {
+        const ind = await indicadoresRes.value.json()
+        indicadores = (ind.results || []).map((r: any) => ({
+          slug: r.series?.slug, name: r.series?.name,
+          value: r.latest?.value, unit: r.series?.unit,
+        }))
+      }
+      if (airQualityRes.status === "fulfilled" && airQualityRes.value.ok) {
+        const aq = await airQualityRes.value.json()
+        if (aq.current?.us_aqi != null) {
+          airQuality = {
+            usAqi: Math.round(aq.current.us_aqi),
+            pm25: Math.round(aq.current.pm2_5 ?? 0),
+          }
+        }
+      }
+      if (loteriaRes.status === "fulfilled" && loteriaRes.value.ok) {
+        const lo = await loteriaRes.value.json()
+        if (Array.isArray(lo.dezenas) && lo.dezenas.length) {
+          loteria = {
+            jogo: "Mega-Sena", concurso: lo.concurso, data: lo.data,
+            dezenas: lo.dezenas, acumulou: !!lo.acumulou,
+          }
+        }
+      }
+      return { weather, stocks, news, econNews, cambio, indicadores, airQuality, loteria }
     }
 
-    let widgets: { weather: any; stocks: any; news: any; econNews: any } | null = null
+    let widgets: { weather: any; stocks: any; news: any; econNews: any; cambio: any; indicadores: any; airQuality: any; loteria: any } | null = null
     if (template?.template_key === "magazine") {
       widgets = await fetchWidgetsData(template)
     }
@@ -319,13 +380,16 @@ async function getPlayerData(code: string) {
       template: template?.template_key || "fullscreen",
       transitionEffect: template?.transition_effect || "fade",
       widgetLayoutMode: template?.widget_layout_mode || "fixed",
+      // Fase 43: onde o painel aparece — lateral direita (padrão, idêntico
+      // ao comportamento de sempre), lateral esquerda ou faixa inferior.
+      widgetPosition: template?.widget_position || "lateral_right",
       widgets,
       layoutZones,
       poll,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgets: null as any, layoutZones: null as any, poll: null as any }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgetPosition: "lateral_right", widgets: null as any, layoutZones: null as any, poll: null as any }
   }
 }
 
@@ -479,7 +543,84 @@ export default async function PlayerPage({
         </div>
       </div>`
     }
+    // Fase 43 (21/07/2026): câmbio — mesmo padrão visual de "stocks", com
+    // preço de compra (bidPrice) e variação percentual da brapi.dev v2.
+    if (contentType === "cambio" && data.widgets?.cambio?.length) {
+      return `<div class="dw dw-stocks">
+        <div class="dw-accent"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>CÂMBIO</div>
+        <div class="dw-stocks-list">
+          ${data.widgets.cambio.map((c: any) => `<div class="dw-stock-row">
+            <span class="dw-stock-symbol">${escapeHtml(c.name || (c.from + "/" + c.to))}</span>
+            <span class="dw-stock-price">R$ ${Number(c.bid ?? 0).toFixed(2)}</span>
+            <span class="dw-stock-change ${(c.pct ?? 0) >= 0 ? "up" : "down"}">${(c.pct ?? 0) >= 0 ? "▲" : "▼"} ${Math.abs(c.pct ?? 0).toFixed(1)}%</span>
+          </div>`).join("")}
+        </div>
+      </div>`
+    }
+    // Fase 43: indicadores — Selic/CDI/IPCA(12m), valor + unidade (%) direto
+    // da brapi.dev v2/macro.
+    if (contentType === "indicadores" && data.widgets?.indicadores?.length) {
+      return `<div class="dw dw-stocks">
+        <div class="dw-accent"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>INDICADORES</div>
+        <div class="dw-stocks-list">
+          ${data.widgets.indicadores.map((i: any) => `<div class="dw-stock-row">
+            <span class="dw-stock-symbol">${escapeHtml(i.name || i.slug || "")}</span>
+            <span class="dw-stock-price">${Number(i.value ?? 0).toFixed(2)}${escapeHtml(i.unit || "%")}</span>
+          </div>`).join("")}
+        </div>
+      </div>`
+    }
+    // Fase 43: qualidade do ar — Open-Meteo (US AQI + PM2.5), sem token.
+    if (contentType === "airquality" && data.widgets?.airQuality) {
+      const aq = data.widgets.airQuality
+      const label = aq.usAqi <= 50 ? "Boa" : aq.usAqi <= 100 ? "Moderada" : aq.usAqi <= 150 ? "Ruim p/ sensíveis" : "Ruim"
+      return `<div class="dw dw-stocks">
+        <div class="dw-accent"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>QUALIDADE DO AR</div>
+        <div class="dw-stocks-list">
+          <div class="dw-stock-row"><span class="dw-stock-symbol">Índice (AQI)</span><span class="dw-stock-price">${aq.usAqi} · ${label}</span></div>
+          <div class="dw-stock-row"><span class="dw-stock-symbol">PM2.5</span><span class="dw-stock-price">${aq.pm25} µg/m³</span></div>
+        </div>
+      </div>`
+    }
+    // Fase 43: loteria — último resultado da Mega-Sena (Caixa), sem token.
+    if (contentType === "loteria" && data.widgets?.loteria) {
+      const lo = data.widgets.loteria
+      return `<div class="dw dw-stocks">
+        <div class="dw-accent"></div>
+        <div class="dw-header"><span class="dw-live-dot dw-live-dot-stocks"></span>${escapeHtml(lo.jogo)} · CONCURSO ${escapeHtml(String(lo.concurso))}</div>
+        <div class="dw-stocks-list">
+          <div class="dw-stock-row"><span class="dw-stock-price" style="font-size:1.6vh;letter-spacing:.05em;">${lo.dezenas.map(escapeHtml).join(" · ")}</span></div>
+          <div class="dw-stock-row"><span class="dw-stock-symbol">${lo.acumulou ? "Acumulou" : "Teve ganhador"}</span></div>
+        </div>
+      </div>`
+    }
+    // Fase 43: relógio + clima num único card centralizado — usado como
+    // cabeçalho fixo do "painel completo" (modelos 1/2/3), igual ao mockup
+    // aprovado. Não entra no revezamento; fica sempre visível.
+    if (contentType === "clockweather") {
+      const w = data.widgets?.weather
+      return `<div class="dw dw-clockweather">
+        <div class="dw-clockweather-time" data-live-clock-time>--:--</div>
+        ${w ? `<div class="dw-clockweather-weather">${weatherIconSvg(w.code ?? 0)}${w.temperature}°C ${escapeHtml(w.location)}</div>` : ""}
+      </div>`
+    }
     return ""
+  }
+
+  // Fase 43 (21/07/2026): "painel completo" — card único central revezando
+  // entre até 8 telas de dado (bolsa, câmbio, indicadores, notícias,
+  // economia, qualidade do ar, enquete ao vivo, loteria). Reaproveita os
+  // mesmos cards ".dw" já usados no modo fixo — só filtra fora qualquer
+  // fonte sem dado real (mesmo padrão de "sem dado, não mostra" do resto
+  // do arquivo). O JS inline (comboCompletoCycle, mais abaixo) troca qual
+  // desses fica visível a cada N segundos.
+  function renderComboScreensHtml(): string[] {
+    return ["stocks", "cambio", "indicadores", "news", "econnews", "airquality", "poll", "loteria"]
+      .map(t => renderWidgetHtml(t))
+      .filter(Boolean)
   }
 
   // Fase 39 (20/07/2026): widget combinado — dois widgets no MESMO espaço,
@@ -550,19 +691,33 @@ export default async function PlayerPage({
       </div>`
     : `<div id="slides">${slidesHtml}</div>`
 
+  // Fase 43: posição do painel — bottom (Modelo 1) ou lateral (Modelo 2/3).
+  // Só muda a classe wrapper (CSS cuida do resto); o conteúdo interno dos
+  // modos existentes (fixed/revezando/compacto) não muda em nada.
+  const widgetPositionClass = data.widgetPosition === "bottom" ? "widgets-position-bottom" : "widgets-position-lateral"
+
+  const comboScreensHtml = data.widgetLayoutMode === "painel_completo" ? renderComboScreensHtml() : []
+  const comboScreensJson = JSON.stringify(comboScreensHtml)
+
   const widgetsPanelHtml = data.template === "magazine" && data.widgets
-    ? (data.widgetLayoutMode === "revezando"
-        ? `<div id="widgets-panel">
+    ? (data.widgetLayoutMode === "painel_completo"
+        ? `<div id="widgets-panel" class="widgets-painel-completo ${widgetPositionClass}">
+            ${renderWidgetHtml("clockweather")}
+            <div class="dw dw-combo-shell"><div class="combo-inner" id="combo-completo-inner"></div></div>
+            <div class="dw-logo-block">DOOH<span class="accent">PLAY</span></div>
+          </div>`
+        : data.widgetLayoutMode === "revezando"
+        ? `<div id="widgets-panel" class="${widgetPositionClass}">
             ${renderComboWidgetHtml("clock", "weather", "clima-hora")}
             ${renderComboWidgetHtml("stocks", "econnews", "bolsa-mercado")}
           </div>`
         : data.widgetLayoutMode === "compacto"
-        ? `<div id="widgets-panel" class="widgets-compact">
+        ? `<div id="widgets-panel" class="widgets-compact ${widgetPositionClass}">
             ${renderCompactBarHtml()}
             ${renderWidgetHtml("stocks")}
             ${renderTickerHtml()}
           </div>`
-        : `<div id="widgets-panel">
+        : `<div id="widgets-panel" class="${widgetPositionClass}">
             ${renderWidgetHtml("clock")}
             ${renderWidgetHtml("weather")}
             ${renderWidgetHtml("stocks")}
