@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()
   const { rows } = await pool.query(
-    `SELECT id, client_code, screen_id, template_key, transition_effect, widget_layout_mode, location_lat, location_lon,
+    `SELECT id, client_code, screen_id, template_key, transition_effect, widget_layout_mode, widget_position, location_lat, location_lon,
             location_name, stock_tickers, news_country, active, created_at
      FROM screen_templates ORDER BY created_at DESC`
   )
@@ -34,7 +34,14 @@ export async function POST(req: NextRequest) {
     // Fase 39 (20/07/2026): widgets fixos (padrão) ou revezando em pares
     // (hora+clima, bolsa+economia) — validado igual aos outros campos
     // fechados, nunca aceita valor arbitrário do body.
-    const widgetLayoutMode = ["fixed", "revezando", "compacto"].includes(body.widget_layout_mode) ? body.widget_layout_mode : "fixed"
+    // Fase 43 (21/08/2026): "painel_completo" — card único revezando entre
+    // 8 fontes (bolsa/câmbio/indicadores/notícias/economia/qualidade do
+    // ar/enquete/loteria), aditivo aos 3 modos existentes.
+    const widgetLayoutMode = ["fixed", "revezando", "compacto", "painel_completo"].includes(body.widget_layout_mode) ? body.widget_layout_mode : "fixed"
+    // Fase 43: onde o painel aparece — faixa inferior (Modelo 1), lateral
+    // direita (Modelo 2, padrão — idêntico à posição de sempre) ou lateral
+    // esquerda (Modelo 3).
+    const widgetPosition = ["bottom", "lateral_left", "lateral_right"].includes(body.widget_position) ? body.widget_position : "lateral_right"
     const locationLat = body.location_lat ?? null
     const locationLon = body.location_lon ?? null
     const locationName = body.location_name || null
@@ -55,19 +62,19 @@ export async function POST(req: NextRequest) {
         `UPDATE screen_templates
          SET template_key = $1, location_lat = $2, location_lon = $3,
              location_name = $4, stock_tickers = $5, active = true, updated_at = NOW(),
-             layout_template_id = NULL, transition_effect = $7, widget_layout_mode = $8
+             layout_template_id = NULL, transition_effect = $7, widget_layout_mode = $8, widget_position = $9
          WHERE id = $6
          RETURNING *`,
-        [templateKey, locationLat, locationLon, locationName, stockTickers, existing.rows[0].id, transitionEffect, widgetLayoutMode]
+        [templateKey, locationLat, locationLon, locationName, stockTickers, existing.rows[0].id, transitionEffect, widgetLayoutMode, widgetPosition]
       )
       row = res.rows[0]
     } else {
       const res = await pool.query(
         `INSERT INTO screen_templates
-           (client_code, template_key, location_lat, location_lon, location_name, stock_tickers, transition_effect, widget_layout_mode)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           (client_code, template_key, location_lat, location_lon, location_name, stock_tickers, transition_effect, widget_layout_mode, widget_position)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          RETURNING *`,
-        [clientCode, templateKey, locationLat, locationLon, locationName, stockTickers, transitionEffect, widgetLayoutMode]
+        [clientCode, templateKey, locationLat, locationLon, locationName, stockTickers, transitionEffect, widgetLayoutMode, widgetPosition]
       )
       row = res.rows[0]
     }

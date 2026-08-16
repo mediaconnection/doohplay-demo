@@ -2556,6 +2556,10 @@ function TabTemplates({ data }: { data: any }) {
   const [templateKey, setTemplateKey] = useState("fullscreen")
   const [transitionEffect, setTransitionEffect] = useState("fade")
   const [widgetLayoutMode, setWidgetLayoutMode] = useState("fixed")
+  // Fase 43 (21/08/2026): onde o painel aparece — Modelo 1 (faixa
+  // inferior), Modelo 2 (lateral direita, padrão de sempre) ou Modelo 3
+  // (lateral esquerda).
+  const [widgetPosition, setWidgetPosition] = useState("lateral_right")
   const [locationName, setLocationName] = useState("São Paulo, SP")
   const [locationLat, setLocationLat] = useState("-23.5505")
   const [locationLon, setLocationLon] = useState("-46.6333")
@@ -2617,6 +2621,7 @@ function TabTemplates({ data }: { data: any }) {
           template_key: templateKey,
           transition_effect: transitionEffect,
           widget_layout_mode: widgetLayoutMode,
+          widget_position: widgetPosition,
           location_name: locationName,
           location_lat: Number(locationLat),
           location_lon: Number(locationLon),
@@ -2715,6 +2720,7 @@ function TabTemplates({ data }: { data: any }) {
                 { key: "fixed", label: "📌 Fixos (4 empilhados)" },
                 { key: "revezando", label: "🔄 Revezando em pares" },
                 { key: "compacto", label: "➖ Compacto (barra + ticker)" },
+                { key: "painel_completo", label: "🗂️ Painel completo (8 fontes)" },
               ].map(opt => (
                 <button key={opt.key} type="button" onClick={() => setWidgetLayoutMode(opt.key)} style={{
                   flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
@@ -2725,7 +2731,34 @@ function TabTemplates({ data }: { data: any }) {
               ))}
             </div>
             <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
-              Revezando: hora↔clima num card, bolsa↔economia noutro — menos cards, mais variedade.
+              Revezando: hora↔clima num card, bolsa↔economia noutro. Painel completo (Fase 43): relógio+clima e
+              logo fixos nas pontas, card central revezando bolsa/câmbio/indicadores/notícias/economia/qualidade
+              do ar/enquete/loteria.
+            </div>
+          </div>
+        )}
+
+        {templateKey === "magazine" && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>
+              Posição do painel (Fase 43)
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { key: "bottom", label: "⬇️ Modelo 1 — Faixa inferior" },
+                { key: "lateral_right", label: "➡️ Modelo 2 — Lateral direita" },
+                { key: "lateral_left", label: "⬅️ Modelo 3 — Lateral esquerda" },
+              ].map(opt => (
+                <button key={opt.key} type="button" onClick={() => setWidgetPosition(opt.key)} style={{
+                  flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
+                  border: "1px solid " + (widgetPosition === opt.key ? BLUE : BORDER),
+                  background: widgetPosition === opt.key ? BLUE : BG,
+                  color: widgetPosition === opt.key ? "#fff" : TEXT2, cursor: "pointer",
+                }}>{opt.label}</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+              Lateral direita é a posição de sempre — trocar não afeta clientes já configurados a menos que você salve essa mudança pra eles.
             </div>
           </div>
         )}
