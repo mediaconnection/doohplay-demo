@@ -9,6 +9,8 @@ keys/private.pem
 # ❌ outros formatos sensíveis (prevenção)
 *.key
 *.crt
+*.pfx
+*.p12
 
 # 🌐 permitir chave pública
 !public.pem
