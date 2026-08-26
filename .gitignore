@@ -11,6 +11,8 @@ keys/private.pem
 *.crt
 *.pfx
 *.p12
+*.der
+*.pem
 
 # 🌐 permitir chave pública
 !public.pem
