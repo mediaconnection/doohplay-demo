@@ -1,4 +1,22 @@
-﻿export const dynamic = "force-dynamic"
+﻿/**
+ * @deprecated Esta rota alimenta a tabela `evidence`, parte de um pipeline
+ * que NUNCA foi usado em producao.
+ *
+ * Investigacao em 2026-08-26 confirmou: esta e a UNICA rota que escreve em
+ * `evidence`, e ela parou de receber chamadas em 2026-06-01 (35 linhas na
+ * vida toda). O fluxo real de impressoes (lib/adserver/registerImpression.ts)
+ * nunca chamou esta rota nem escreveu em `evidence` diretamente.
+ * lib/proof/ledger/buildBlock.ts (que le desta tabela) tambem esta marcado
+ * @deprecated pelo mesmo motivo.
+ *
+ * O pipeline real de producao e `runProofChainAggregator()` em
+ * lib/proof/aggregator/proofChainAggregator.ts, agendado a cada 5 minutos
+ * dentro de worker.ts.
+ *
+ * Mantido sem remocao por decisao explicita — nao usar como referencia
+ * nem estender. Ver STATUS_PROJETO.md para o historico completo.
+ */
+export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 

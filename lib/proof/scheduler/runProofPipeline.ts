@@ -1,3 +1,21 @@
+/**
+ * @deprecated Este pipeline NUNCA foi usado em producao.
+ *
+ * Investigacao em 2026-08-26 confirmou: nenhum cron ou scheduler chama
+ * a rota que aciona este arquivo (app/api/cron/proof-pipeline/route.ts —
+ * zero logs de invocacao encontrados no Render). Alem disso, depende de
+ * buildBlock() (que le da tabela `evidence`, morta desde 2026-06-01) e
+ * do stub signPkcs7 dentro de generateCertificatesForBlock (tabela
+ * `impressions.block_height` nunca preenchida, `proof_certificates`
+ * sempre com 0 linhas).
+ *
+ * O pipeline real de producao e `runProofChainAggregator()` em
+ * lib/proof/aggregator/proofChainAggregator.ts, agendado a cada 5 minutos
+ * dentro de worker.ts (scheduleAggregatorJob).
+ *
+ * Mantido sem remocao por decisao explicita — nao usar como referencia
+ * nem estender. Ver STATUS_PROJETO.md para o historico completo.
+ */
 // @ts-nocheck
 import { buildBlock } from "../ledger/buildBlock"
 import { createAnchor } from "../anchor/createAnchor"

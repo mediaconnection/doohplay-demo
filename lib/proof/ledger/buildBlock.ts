@@ -1,3 +1,21 @@
+/**
+ * @deprecated Este pipeline NUNCA foi usado em producao.
+ *
+ * Investigacao em 2026-08-26 confirmou: builda blocos a partir da tabela
+ * `evidence`, alimentada apenas pela rota isolada
+ * app/api/protocol/evidence/route.ts, que parou de receber dados em
+ * 2026-06-01 (35 linhas na vida toda). O fluxo real de impressoes
+ * (lib/adserver/registerImpression.ts) nunca escreveu em `evidence`.
+ *
+ * O pipeline real de producao e `runProofChainAggregator()` em
+ * lib/proof/aggregator/proofChainAggregator.ts, agendado a cada 5 minutos
+ * dentro de worker.ts (scheduleAggregatorJob). Esse sim processou
+ * eventos reais de `event_chain` e criou blocos/certificacoes/ancoragens
+ * de verdade.
+ *
+ * Mantido sem remocao por decisao explicita — nao usar como referencia
+ * nem estender. Ver STATUS_PROJETO.md para o historico completo.
+ */
 // @ts-nocheck
 import crypto from "crypto"
 import { pool } from "@/lib/db"
