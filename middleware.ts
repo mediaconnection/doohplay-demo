@@ -29,16 +29,17 @@ function sessionMiddleware(req: NextRequest) {
     } catch {}
   }
 
-  // Protege /dashboard/local/[code]
-  if (pathname.startsWith("/dashboard/local/")) {
-    const routeCode = pathname.split("/")[3]
-    if (!session || role !== "client" || code !== routeCode) {
-      const url = new URL("/login", req.url)
-      url.searchParams.set("redirect", pathname)
-      if (session) url.searchParams.set("error", "unauthorized")
-      return NextResponse.redirect(url)
-    }
-  }
+  // /dashboard/local/[code] NÃO é protegido aqui de propósito — usa um
+  // sistema de sessão separado (CLIENT_SESSION_COOKIE, HMAC-SHA256 via
+  // lib/client-session.ts), verificado dentro do próprio Server Component
+  // (app/dashboard/local/[code]/page.tsx), que também não pode ser
+  // importado aqui porque usa o módulo `crypto` do Node, incompatível com
+  // o Edge Runtime deste middleware. Esta rota chegou a ficar bloqueada
+  // pra sempre (redirecionava todo mundo pra /login, que nem tem o fluxo
+  // de OTP por WhatsApp que o cliente real usa) porque este bloco checava
+  // o cookie errado (doohplay_session em vez de doohplay_client_session) —
+  // corrigido em 2026-08-27 removendo a checagem redundante e incorreta
+  // daqui; page.tsx já protege a rota corretamente sozinho.
 
   // Protege /anunciante/[code] — mas NÃO /anunciante/novo, que é a página
   // pública de cadastro (sem sessão ainda, é quem está se cadastrando).
@@ -81,7 +82,6 @@ export default withAuth(
 export const config = {
   matcher: [
     "/admin/((?!login).*)",
-    "/dashboard/local/:path*",
     "/anunciante/:path*",
     "/agencia/:path*",
   ],
