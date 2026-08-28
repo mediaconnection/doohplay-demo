@@ -60,7 +60,23 @@ export const aggregatorWorker = new Proxy({} as Worker, {
 // ─── Scheduler ───────────────────────────────────────────────────────────────
 
 export async function scheduleAggregatorJob(): Promise<void> {
-  await getAggregatorQueue().add(
+  // Idempotente de propósito: worker.ts chama isso a cada boot, e o worker
+  // reinicia com muita frequência (auto-deploy em qualquer commit do repo,
+  // não só mudanças relacionadas a fila). Sem essa checagem, todo boot batia
+  // no Upstash com um write de agendamento completo, mesmo quando o job
+  // repetido já existia — contribuindo pro rate-limit persistente
+  // investigado em 2026-08-27 (ver STATUS_PROJETO.md). Agora só faz 1
+  // leitura leve na maioria dos boots, e só escreve se realmente faltar.
+  const queue = getAggregatorQueue()
+  const existing = await queue.getRepeatableJobs()
+  const alreadyScheduled = existing.some((job) => job.id === "proofchain-aggregator-repeat")
+
+  if (alreadyScheduled) {
+    console.log("[proofchain] Repeat job já estava agendado — nada a fazer.")
+    return
+  }
+
+  await queue.add(
     "aggregate",
     {},
     {
