@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const pool = getPool()
     const r = await pool.query(
-      `SELECT id, name, business_type, primary_color FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
+      `SELECT id, name, business_type, primary_color, playlist_id::text FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
       [code]
     )
     if (!r.rows[0]) return NextResponse.json({ ok: false }, { status: 401 })
