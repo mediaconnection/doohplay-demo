@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 
 export async function persistEvent(args: {
   contentHash: string;
@@ -12,7 +12,7 @@ export async function persistEvent(args: {
 }) {
   console.log("INSERTING INTO SUPABASE:", args);
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from("digital_certifications")
     .insert({
       content_hash: args.contentHash,

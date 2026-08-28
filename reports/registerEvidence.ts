@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { generateMerkleProof } from "./generateMerkleProof"
-import { supabase } from "@/lib/supabase"
+import { supabaseServer } from "@/lib/supabase"
 
 export async function registerEvidence(data: {
   hash: string
@@ -8,7 +8,7 @@ export async function registerEvidence(data: {
   signedPdf: string
 }) {
 
-  const { data: all } = await supabase
+  const { data: all } = await supabaseServer
     .from("evidences")
     .select("hash")
 
@@ -29,7 +29,7 @@ export async function registerEvidence(data: {
     created_at: new Date().toISOString()
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from("evidences")
     .insert(evidence)
 

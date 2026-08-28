@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 import { signHash } from "./signHash";
 
 export async function finalizeCertification(contentHash: string) {
@@ -9,7 +9,7 @@ export async function finalizeCertification(contentHash: string) {
   // 🕒 Timestamp (placeholder até integrar TSA real)
   const timestampToken = "TSA_PENDING_REAL_INTEGRATION";
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from("digital_certifications")
     .update({
       signed_hash: signedHash,
