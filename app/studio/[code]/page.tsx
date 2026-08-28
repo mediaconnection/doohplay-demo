@@ -565,7 +565,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
               <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6 }}>Configure em quais dias e horários cada anúncio aparece na tela. Itens sem regra ficam sempre ativos.</div>
             </div>
             <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-              <SchedulerEditor playlistId={playlistId} />
+              <SchedulerEditor playlistId={playlistId} code={code} />
             </div>
           </div>
         </div>

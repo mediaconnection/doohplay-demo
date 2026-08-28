@@ -47,7 +47,7 @@ type PlaylistItem = {
   schedule?: ScheduleRule | null
 }
 
-export default function SchedulerEditor({ playlistId }: { playlistId: string }) {
+export default function SchedulerEditor({ playlistId, code }: { playlistId: string; code: string }) {
   const [items, setItems] = useState<PlaylistItem[]>([])
   const [selected, setSelected] = useState<PlaylistItem | null>(null)
   const [rule, setRule] = useState<ScheduleRule | null>(null)
@@ -127,25 +127,24 @@ export default function SchedulerEditor({ playlistId }: { playlistId: string }) 
     if (!rule || !selected) return
     setSaving(true)
 
-    // Upsert na tabela schedule_rules
-    const { error } = await supabase
-      .from("schedule_rules")
-      .upsert({
-        ...(rule.id ? { id: rule.id } : {}),
-        playlist_item_id: rule.playlist_item_id,
+    // Escrita movida pra API route de servidor (achado de segurança
+    // 2026-08-28): antes ia direto pro Supabase com a chave anônima, sem
+    // nenhuma checagem de posse. A rota confirma que o item pertence ao
+    // playlist_id do cliente antes de gravar.
+    const res = await fetch("/api/studio/schedule-rule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        playlist_item_id: selected.id,
+        rule_id: rule.id,
         days_of_week: rule.days_of_week,
-        time_start: rule.time_start + ":00",
-        time_end: rule.time_end + ":00",
+        time_start: rule.time_start,
+        time_end: rule.time_end,
         priority: rule.priority,
-        is_active: true,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "playlist_item_id" })
-
-    // Atualiza schedule_type do item
-    await supabase
-      .from("playlist_items")
-      .update({ schedule_type: "scheduled" })
-      .eq("id", selected.id)
+      }),
+    })
+    const { error } = await res.json()
 
     setSaving(false)
     if (!error) {
@@ -156,10 +155,15 @@ export default function SchedulerEditor({ playlistId }: { playlistId: string }) 
 
   async function removeRule() {
     if (!rule?.id || !selected) return
-    await supabase.from("schedule_rules").delete().eq("id", rule.id)
-    await supabase.from("playlist_items")
-      .update({ schedule_type: "always" })
-      .eq("id", selected.id)
+    await fetch("/api/studio/schedule-rule", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        playlist_item_id: selected.id,
+        rule_id: rule.id,
+      }),
+    })
     setSelected(null)
     setRule(null)
     loadItems()
