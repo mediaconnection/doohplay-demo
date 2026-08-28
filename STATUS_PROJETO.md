@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-08-28_
+_Última atualização: 2026-08-27_
 
 ## Visão geral
 
@@ -105,6 +105,36 @@ Descoberto durante o design da correção de segurança do `SchedulerEditor.tsx`
 1. **Corrigir `/api/studio/auth` pra selecionar `playlist_id`** — correção pequena e isolada (adicionar a coluna no `SELECT`), mas precisa de decisão sobre o que fazer com clientes que **não têm** `playlist_id` próprio hoje (criar um novo? migrar dado da playlist compartilhada, se houver algo real lá?).
 2. **Investigar se a playlist compartilhada (`bbbbbbbb-0001-0001-0001-000000000001`) tem dado real de algum cliente específico** — antes de qualquer correção, vale conferir quem gravou o quê ali, pra não perder configuração de agendamento de ninguém na migração.
 3. **Autenticação real pro fluxo Studio** — hoje é só o `code`, igual ao "achado" do middleware do `/dashboard/local/[code]` que corrigimos antes, mas aqui nunca existiu proteção nenhuma pra remover (não é regressão, é lacuna original). Considerar reaproveitar o mesmo sistema de OTP via WhatsApp já usado em `/dashboard/local/[code]`.
+
+## ✅ Correção — RLS/RPC do dashboard interno e escritas via chave anônima (2026-08-27)
+
+Continuação da varredura de segurança da chave anônima do Supabase (seção anterior, achado do playlist compartilhado do Studio). Duas frentes corrigidas nesta sessão.
+
+### 1) Escritas via chave anônima movidas para acesso privilegiado (5 pontos)
+
+- `financial_invoices` (leitura de PDF de fatura, `app/api/invoices/[invoice_id]/pdf/route.ts`, não tinha nenhuma checagem de sessão) — de `supabase` (anon) pra `supabaseServer` (service_role) — commit `e5e5e12`
+- `digital_certifications` (insert, `services/persistEvent.ts` + `src/services/persistEvent.ts`) — anon → service_role — commit `e5e5e12`
+- `digital_certifications` (update, `services/finalizeCertification.ts` + `src/services/finalizeCertification.ts`) — anon → service_role — commit `e5e5e12`
+- `evidences` (`reports/registerEvidence.ts`, select+insert) — anon → service_role — commit `e5e5e12`
+- `playlist_items`/`schedule_rules` (escrita do Scheduler Editor do Studio) — antes gravava direto do navegador com a chave anon, sem nenhuma checagem de posse; movida pra `app/api/studio/schedule-rule/route.ts` (server-side, `supabaseServer`), que confirma que o item pertence ao `playlist_id` do `code` informado antes de gravar — commit `6587852`
+
+Leituras que continuam via anon, avaliadas e mantidas conscientemente: `digital_certifications` (SELECT filtrado por `is_public=true`), `playlist_items`/`schedule_rules` (leitura do próprio Scheduler Editor), `playback_logs` (somente leitura, classificado como baixo risco).
+
+### 2) Bypass de RLS via `SECURITY DEFINER` nas funções RPC do dashboard interno
+
+Achado novo desta sessão: as 3 funções RPC usadas pelo dashboard interno (`app/dashboard/components/Kpis.tsx`, `CampaignsChart.tsx`, `PlayersChart.tsx`) — `dashboard_kpis`, `dashboard_executions_by_campaign`, `dashboard_executions_by_player` — eram `SECURITY DEFINER`, ou seja, rodavam como o dono da função e **ignoravam RLS por completo**, mesmo sendo chamadas com a chave anônima do navegador via `.rpc()`. Isso expunha KPIs e execuções de **toda a plataforma** (todos os tenants), não só do cliente logado. `dashboard_executions_over_time` (usada por `ExecutionsChart.tsx`) já era `SECURITY INVOKER` — não fazia parte do problema.
+
+Investigação adicional feita **antes** de qualquer mudança: a tabela `players` tinha a política de RLS `"Players read only"`, papel `anon`, comando `SELECT`, condição `true` — totalmente aberta. A tabela tem uma coluna `auth_token`, então essa política expunha esse dado pra qualquer chamada anônima direta em `players`, independente das 3 funções acima. Confirmado por investigação de código (zero ocorrências de `.from("players")` e zero ocorrências de `auth_token` em todo o repositório, nas 3 rotas reais que um player físico chama — `activate`, `pairing/confirm`, `heartbeat` — todas usando `pg.Pool` direto via `lib/db.ts` ou `@/core/audit/eventChainRepository`) que **nenhum player físico real depende dessa política** — a autenticação de dispositivo nunca passa pelo PostgREST/Supabase, só por Postgres direto com credencial do próprio app.
+
+**Aplicado em produção (banco Supabase `DOOHPLAY`, projeto `mdlbajgnntjwhycouzit`) em 2026-08-27:**
+1. `dashboard_kpis`, `dashboard_executions_by_campaign`, `dashboard_executions_by_player`: `SECURITY DEFINER` → `SECURITY INVOKER` (mesma lógica SQL, agora respeitando RLS de `campaigns`/`players`/`play_logs_certified`)
+2. `DROP POLICY "Players read only" ON public.players;` — removida a política aberta pra `anon`, incluindo a exposição de `auth_token`. Permanecem `no direct access` (deny-all pra `public`) e `player_can_read_own_data` (`auth.uid() = id`)
+3. `ALTER TABLE public.play_logs_certified ENABLE ROW LEVEL SECURITY;` — tabela nunca tinha RLS habilitado; agora habilitado sem nenhuma política pública (só `service_role` e o dono da tabela têm acesso)
+
+**Efeito colateral conhecido e aceito:** o gráfico "Execuções por Player" (`PlayersChart.tsx`, dashboard interno `/dashboard`) chama `dashboard_executions_by_player` via `.rpc()` com a chave anônima. Como a função agora respeita RLS e não existe sessão real de usuário autenticado nesse painel hoje, o `JOIN` com `players` retorna vazio — o gráfico passa a mostrar "Sem dados no período". `Kpis.tsx` e `CampaignsChart.tsx` sofrem o mesmo efeito, pela mesma razão (RLS de `campaigns`/`play_logs_certified` bloqueando `anon` sem sessão). **Nenhuma tela de cliente final é afetada** — em particular `/dashboard/local/[code]` (usada pelo BARBE332) busca esses mesmos dados via `pool.query()` direto no servidor, nunca via Supabase/anon, então continua funcionando normalmente.
+
+### Pendência que fica em aberto
+Autenticação real pro dashboard interno (`/dashboard`) — hoje ele roda inteiramente com a chave anônima do navegador, sem sessão. As 3 funções corrigidas deixam de vazar dado de outros tenants, mas também deixam de mostrar qualquer dado nesses 3 widgets até existir sessão autenticada de verdade nesse painel.
 
 ## Arquitetura (resumo)
 
