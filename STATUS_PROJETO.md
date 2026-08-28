@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-08-26_
+_Última atualização: 2026-08-28_
 
 ## Visão geral
 
@@ -75,6 +75,36 @@ Cada um desses 3 arquivos agora tem um comentário `@deprecated` no topo explica
 **O pipeline real de produção**: `runProofChainAggregator()` em `lib/proof/aggregator/proofChainAggregator.ts`, agendado a cada 5 minutos dentro de `worker.ts` (serviço `doohplay-workers` no Render, via `scheduleAggregatorJob()`). Esse sim processou eventos reais de `event_chain` e criou blocos/certificações/ancoragens de verdade (1.491+ blocos, 10.026+ certificações) — mas está parado desde 2026-07-24 por um problema separado: o Redis (Upstash) está retornando `ERR Your database has been temporarily rate-limited` toda vez que o worker tenta agendar o job repetido, confirmado nos logs do `doohplay-workers`.
 
 **3) Nota — melhoria futura: auto-deploy amplo do `doohplay-workers`.** O serviço `doohplay-workers` (que roda `worker.ts`) tem `autoDeploy` ligado pra **qualquer commit em `master`**, não só mudanças relacionadas ao worker/pipeline de prova. Confirmado nos logs: ele reiniciou 4 vezes num único dia (2026-08-26) só por causa de commits de UI do dashboard, sem nenhuma relação com o worker. Cada reinício tenta reagendar o job do agregador e esbarra no rate-limit do Upstash. Vale considerar, como melhoria futura: restringir o auto-deploy desse serviço a mudanças em caminhos relevantes (`worker.ts`, `lib/proof/`, `lib/queue/`), ou migrar pra deploy manual/controlado, reduzindo reinícios desnecessários e a chance de bater no rate-limit do Redis repetidamente.
+
+## ⚠️ Achado crítico — todo cliente Studio compartilha a mesma playlist (2026-08-28)
+
+Descoberto durante o design da correção de segurança do `SchedulerEditor.tsx` (varredura de tabelas acessadas via chave anônima do Supabase). É um bug **ativo**, não teórico — afeta qualquer cliente usando o Scheduler Editor do Studio agora.
+
+**Causa raiz** — dois problemas empilhados em `app/studio/[code]/page.tsx` e `app/api/studio/auth/route.ts`:
+
+1. `GET /api/studio/auth` busca o cliente assim:
+   ```sql
+   SELECT id, name, business_type, primary_color FROM studio_clients WHERE code = $1 AND active = true LIMIT 1
+   ```
+   **Não seleciona `playlist_id`**, embora a coluna exista de verdade em `studio_clients` (confirmado via schema real).
+
+2. `app/studio/[code]/page.tsx` (linha ~267) faz:
+   ```ts
+   const playlistId = client.playlist_id ?? "bbbbbbbb-0001-0001-0001-000000000001"
+   ```
+   Como `client.playlist_id` nunca vem preenchido (rota acima não busca essa coluna), **todo cliente, sempre, cai no fallback fixo**. Resultado: todos os clientes que usam o Scheduler Editor hoje leem e escrevem na mesma playlist compartilhada (`playlist_items`/`schedule_rules` com `playlist_id = 'bbbbbbbb-0001-0001-0001-000000000001'`) — mistura de conteúdo entre clientes, na tabela que decide o que toca em qual tela.
+
+**Achado relacionado, mesma investigação**: `/api/studio/auth` **não tem autenticação real** — só verifica se o `code` existe como cliente ativo (`WHERE code = $1 AND active = true`). Sem senha, sem OTP, sem sessão. Saber o código de um cliente já dá acesso total ao editor Studio dele. Mais fraco que o fluxo `/dashboard/local/[code]` (que usa OTP via WhatsApp, `CLIENT_SESSION_COOKIE`).
+
+### Resolvido em 2026-08-28 (parcial)
+- ✅ Varredura completa de tabelas acessadas via `NEXT_PUBLIC_SUPABASE_ANON_KEY` — achou 6 tabelas expostas (`playlist_items`, `schedule_rules`, `playback_logs`, `digital_certifications`, `evidences`, `financial_invoices`).
+- ✅ 4 delas (`financial_invoices`, `digital_certifications` ×2 usos, `evidences`) trocadas de `supabase` (anon) pra `supabaseServer` (service_role) — commit `e5e5e12`, em produção.
+- ✅ Escrita de `playlist_items`/`schedule_rules` movida do `SchedulerEditor.tsx` (client-side, chave anon) pra `app/api/studio/schedule-rule/route.ts` (server-side), com checagem de posse (`playlist_item.playlist_id` precisa bater com `studio_clients.playlist_id` do `code` informado) — commit `6587852`, em produção. **Isso não corrige o bug do playlist_id compartilhado nem a falta de autenticação** — só impede escrita direta via chave anônima sem passar pela checagem de posse.
+
+### Ainda pendente (crítico)
+1. **Corrigir `/api/studio/auth` pra selecionar `playlist_id`** — correção pequena e isolada (adicionar a coluna no `SELECT`), mas precisa de decisão sobre o que fazer com clientes que **não têm** `playlist_id` próprio hoje (criar um novo? migrar dado da playlist compartilhada, se houver algo real lá?).
+2. **Investigar se a playlist compartilhada (`bbbbbbbb-0001-0001-0001-000000000001`) tem dado real de algum cliente específico** — antes de qualquer correção, vale conferir quem gravou o quê ali, pra não perder configuração de agendamento de ninguém na migração.
+3. **Autenticação real pro fluxo Studio** — hoje é só o `code`, igual ao "achado" do middleware do `/dashboard/local/[code]` que corrigimos antes, mas aqui nunca existiu proteção nenhuma pra remover (não é regressão, é lacuna original). Considerar reaproveitar o mesmo sistema de OTP via WhatsApp já usado em `/dashboard/local/[code]`.
 
 ## Arquitetura (resumo)
 
