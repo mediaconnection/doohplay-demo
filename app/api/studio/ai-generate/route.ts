@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       if (aiLimit !== -1) {
         const usageRes = await pool.query(
           `SELECT COUNT(*)::int AS count FROM ai_generation_log
-           WHERE client_code = $1 AND created_at >= date_trunc('month', NOW())`,
+           WHERE client_code = $1 AND feature = 'creative' AND created_at >= date_trunc('month', NOW())`,
           [upperCode]
         )
         const used = usageRes.rows[0]?.count ?? 0
@@ -249,7 +249,7 @@ Responda com este JSON exato:
     // Fase 17: registra o uso — só depois que a geração deu certo de
     // verdade, pra não gastar cota do cliente em tentativa que falhou.
     if (upperCode) {
-      pool.query(`INSERT INTO ai_generation_log (client_code) VALUES ($1)`, [upperCode])
+      pool.query(`INSERT INTO ai_generation_log (client_code, feature) VALUES ($1, 'creative')`, [upperCode])
         .catch((err: unknown) => console.warn("[ai-generate] Falha ao logar uso (não bloqueia a resposta):", err))
     }
 

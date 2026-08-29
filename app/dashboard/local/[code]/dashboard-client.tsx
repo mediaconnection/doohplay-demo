@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 import DtvReadyBadge from "@/components/ui/DtvReadyBadge"
+import AIAssistantPanel from "@/components/AIAssistantPanel"
 
 // Azul/verde alinhados a paleta de marca usada no resto do site (landing,
 // planos, trust-center, /install) - mesmo ajuste ja feito em /install.
@@ -37,6 +38,7 @@ const C = {
 
 const NAV = [
   { id: "dashboard", label: "Dashboard",     icon: "⊞",  desc: "Visão geral da sua tela e ganhos" },
+  { id: "assistente",label: "Assistente IA", icon: "✨", desc: "Insights e chat sobre sua conta" },
   { id: "tv",        label: "Minha TV",      icon: "📺", desc: "Veja em tempo real o que está passando" },
   { id: "conteudo",  label: "Conteúdo",      icon: "🖼", desc: "Suas fotos e vídeos — envie aqui" },
   { id: "anuncios",  label: "Anúncios",      icon: "📢", desc: "Anúncios pagos de outras empresas na sua tela" },
@@ -2428,6 +2430,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
 
   const tabContent: Record<string, React.ReactNode> = {
     dashboard:  <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} dtvReady={dtvReady} />,
+    assistente: <AIAssistantPanel code={client.code} onNavigate={onNav} />,
     tv:         <TabTV client={client} player={player} playlist={playlist} online={online} checking={checking} />,
     conteudo:   <TabConteudo client={client} playlist={playlist} onAddPromo={onAddPromo} onRefresh={onRefresh} />,
     anuncios:   <TabAnuncios stats={stats} payments={payments} code={client.code} onAddPromo={onAddPromo} />,
@@ -2440,7 +2443,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   }
 
   const tabLabel: Record<string, string> = {
-    dashboard: "Dashboard", tv: "Minha TV", conteudo: "Conteúdo",
+    dashboard: "Dashboard", assistente: "Assistente IA", tv: "Minha TV", conteudo: "Conteúdo",
     anuncios: "Anúncios", ganhos: "Ganhos", relatorios: "Relatórios",
     playlist: "Playlist", clube: "Clube de Telas", clientes: "Meus Clientes", config: "Configurações",
   }

@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
     if (aiLimit !== -1) {
       const usageRes = await pool.query(
         `SELECT COUNT(*)::int AS count FROM ai_generation_log
-         WHERE client_code = $1 AND created_at >= date_trunc('month', NOW())`,
+         WHERE client_code = $1 AND feature = 'creative' AND created_at >= date_trunc('month', NOW())`,
         [upperCodeForQuota]
       )
       const used = usageRes.rows[0]?.count ?? 0
@@ -417,7 +417,7 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
 
     // Fase 17: registra o uso na cota — só depois que deu tudo certo
     // (copy gerado, imagem renderizada, salvo na playlist).
-    pool.query(`INSERT INTO ai_generation_log (client_code) VALUES ($1)`, [upperCodeForQuota])
+    pool.query(`INSERT INTO ai_generation_log (client_code, feature) VALUES ($1, 'creative')`, [upperCodeForQuota])
       .catch((err: unknown) => console.warn("[generate-creative] Falha ao logar uso (não bloqueia a resposta):", err))
 
     return NextResponse.json({

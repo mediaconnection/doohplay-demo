@@ -55,6 +55,20 @@ export const PLAN_AI_GENERATION_LIMITS: Record<PlanKey, number> = {
 }
 export const DEFAULT_AI_GENERATION_LIMIT = 10 // fallback sem plano identificado
 
+// Cota de mensagens do Assistente IA (chat, app/dashboard/local/[code])
+// por mês, por plano. Fase 18 (29/08/2026) — separada de
+// PLAN_AI_GENERATION_LIMITS porque 1 mensagem de chat é uma unidade de
+// custo bem menor que 1 geração de criativo completa (headline+subline+
+// cta+imagem); usar o mesmo contador comeria a cota de criativo do
+// cliente só de ele conversar com o assistente. Ver sql/phase18_ai_assistant_chat.sql
+// (coluna `feature` em ai_generation_log separa as duas contagens).
+export const PLAN_AI_CHAT_LIMITS: Record<PlanKey, number> = {
+  starter: 30,
+  pro: 100,
+  business: -1,
+}
+export const DEFAULT_AI_CHAT_LIMIT = 30 // fallback sem plano identificado
+
 // Limite de QUANTIDADE total de mídias (imagens + vídeos somados) por
 // plano. -1 = ilimitado. Consolidado aqui em 20/07/2026 — antes vivia
 // só dentro de app/api/studio/upload/route.ts, desorganizado (pendência

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       ),
       pool.query(
         `SELECT COUNT(*)::int AS count FROM ai_generation_log
-         WHERE client_code = $1 AND created_at >= date_trunc('month', NOW())`,
+         WHERE client_code = $1 AND feature = 'creative' AND created_at >= date_trunc('month', NOW())`,
         [code]
       ).catch(() => ({ rows: [{ count: 0 }] })),
       // Fase 32 (20/07/2026): mesma contagem usada em
