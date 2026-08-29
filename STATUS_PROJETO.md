@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-08-27_
+_Última atualização: 2026-08-29_
 
 ## Visão geral
 
@@ -139,6 +139,34 @@ Investigação adicional feita **antes** de qualquer mudança: a tabela `players
 
 ### Pendência que fica em aberto
 Autenticação real pro dashboard interno (`/dashboard`) — hoje ele roda inteiramente com a chave anônima do navegador, sem sessão. As 3 funções corrigidas deixam de vazar dado de outros tenants, mas também deixam de mostrar qualquer dado nesses 3 widgets até existir sessão autenticada de verdade nesse painel.
+
+## ✅ Assistente IA (AIAssistant) portado do Figma Make — em produção (2026-08-29)
+
+Referência: protótipo em Figma Make (`https://www.figma.com/make/OcDF3c06993PmtipjqzDWL/DOOHPLAY`), 4 componentes candidatos a "agente de IA" analisados nesta sessão: `AIAssistant.tsx`, `AICopilot.tsx`, `AICreativeLab.tsx`, `AIRevenueCenter.tsx`. Todos os 4, no protótipo, eram 100% mockados — respostas de dicionário local por palavra-chave, sem chamada de IA real, apesar do "Powered by Gemini" na UI.
+
+### 1) `AIAssistant` — portado e funcionando de verdade
+
+Nova aba "Assistente IA" em `app/dashboard/local/[code]` (mesmo dashboard do BARBE332), commit `77091cf`:
+
+- **Aba Insights** (`GET /api/client/assistant/insights`): 5 cards candidatos, todos vindos de SQL determinístico sobre dado real — ganhos vs mês anterior (`client_payouts`), assinatura em atraso (`financial_subscriptions.status = 'OVERDUE'`), cota de IA quase no limite (`ai_generation_log`), exibições abaixo da média da rede (`display_events`), tela offline (`players.last_ping`). Sem IA nenhuma nessa aba — e sem número inventado: card só aparece se houver dado real por trás. Testado em produção com cliente de teste (`TESTEIA01`, criado e removido depois, sem tocar BARBE332): retornou corretamente só o card de "tela offline" (único dado real aplicável a um cliente sem player vinculado).
+- **Aba Chat** (`POST /api/client/assistant/message`): IA de verdade via Anthropic (mesmo padrão server-side de `ai-generate`), autenticado pela sessão real de cliente (`doohplay_client_session`). Testado em produção com sessão real (login via OTP inserido diretamente em `otp_tokens` pra teste, depois removido) — respondeu corretamente.
+- Cota de chat separada da cota de geração de criativo: coluna `feature` nova em `ai_generation_log` (migração `sql/phase18_ai_assistant_chat.sql`, aplicada em produção), `PLAN_AI_CHAT_LIMITS` em `lib/asaas.ts` (30/100/ilimitado por plano) — sem isso, conversar com o assistente consumiria a cota de criativos do Studio.
+
+### 2) Achado e resolvido — crédito da Anthropic esgotado (bloqueava feature já existente)
+
+Antes de implementar o chat, testamos `/api/studio/ai-generate` (feature já existente, usada pela aba "IA" do Studio) contra produção e encontramos: `ANTHROPIC_API_KEY` configurada e válida, mas a conta Anthropic **sem crédito** (`"Your credit balance is too low to access the Anthropic API"`, erro 400 real, confirmado via log do Render). Ou seja: **a geração de criativo por IA do Studio já estava quebrada em produção pra qualquer cliente real**, antes mesmo de existir o Assistente IA novo — achado não relacionado à tarefa original.
+
+Resolvido em 2026-08-29: `ANTHROPIC_API_KEY` recarregada/atualizada no Render + deploy manual. Confirmado por teste real em produção: `/api/studio/ai-generate` voltou a gerar copy + imagem com sucesso (200 OK), e o chat do Assistente IA novo funcionou de ponta a ponta na primeira tentativa.
+
+### 3) Outros 3 candidatos do Figma Make — pendentes
+
+- **`AICreativeLab`** (gerador de criativo multi-conceito/multi-formato): **parcialmente coberto** — já existe `app/api/studio/ai-generate` (Studio, 1 geração por vez: headline/subline/cta + imagem) e `app/api/client/generate-creative`, mas nenhum dos dois replica o fluxo completo do protótipo (3 conceitos simultâneos em 3 formatos de tela + variações de copy). Não portado nesta sessão.
+- **`AIRevenueCenter`** (dashboard de oportunidades de receita, previsão financeira, anunciantes recomendados): **não portado**. Boa parte dos dados mockados lá (propostas de anunciante nomeadas, metas de receita) não tem tabela real hoje — mesmo achado que já limitou os insights do `AIAssistant` (ver acima).
+- **`AICopilot`** ("Gemini DOOH Copilot", chat genérico de planejamento de mídia/budget/CPM regional): **não portado**. Persona é de agência/anunciante em escala de rede (budgets de R$50k+, multi-tela), não do dono de uma tela só — não é o público real do produto hoje. Avaliar se faz sentido portar quando/se existir um perfil de agência real no produto.
+
+### 4) Nota — subagentes do Claude Code (`.claude/agents/`) não reconhecidos
+
+Existem 3 subagentes definidos em `.claude/agents/` (`arquiteto-agent`, `codigo-agent`, `docs-produto-agent`), criados em 2026-08-16, nunca invocados desde então (confirmado via `git log` e varredura por referência no resto do repo). Tentativa explícita de invocar `arquiteto-agent` via Agent tool nesta sessão (2026-08-28) **falhou** — a instalação atual do Claude Code não reconhece esses subagentes de projeto (`"Agent type 'arquiteto-agent' not found"`), mesmo com o arquivo presente e bem formado. Tentativa de reiniciar a sessão pra forçar um re-scan não foi possível (Claude não consegue reiniciar o próprio processo). **Pendência**: investigar depois se é limitação de versão do Claude Code, configuração faltando, ou formato incorreto — sem isso, os 3 subagentes seguem sendo configuração morta.
 
 ## Arquitetura (resumo)
 
