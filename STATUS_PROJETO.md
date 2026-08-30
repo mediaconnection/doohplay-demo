@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-08-29_
+_Última atualização: 2026-08-30_
 
 ## Visão geral
 
@@ -160,13 +160,33 @@ Resolvido em 2026-08-29: `ANTHROPIC_API_KEY` recarregada/atualizada no Render + 
 
 ### 3) Outros 3 candidatos do Figma Make — pendentes
 
-- **`AICreativeLab`** (gerador de criativo multi-conceito/multi-formato): **parcialmente coberto** — já existe `app/api/studio/ai-generate` (Studio, 1 geração por vez: headline/subline/cta + imagem) e `app/api/client/generate-creative`, mas nenhum dos dois replica o fluxo completo do protótipo (3 conceitos simultâneos em 3 formatos de tela + variações de copy). Não portado nesta sessão.
+- **`AICreativeLab`** (gerador de criativo multi-conceito/multi-formato): ✅ **portado em 2026-08-30** — ver seção dedicada abaixo. `app/api/client/generate-creative` (fluxo Puppeteer/template do dashboard normal, usado pelo modal "Enviar conteúdo") não foi alterado, continua fora do escopo dessa mudança.
 - **`AIRevenueCenter`** (dashboard de oportunidades de receita, previsão financeira, anunciantes recomendados): **não portado**. Boa parte dos dados mockados lá (propostas de anunciante nomeadas, metas de receita) não tem tabela real hoje — mesmo achado que já limitou os insights do `AIAssistant` (ver acima).
 - **`AICopilot`** ("Gemini DOOH Copilot", chat genérico de planejamento de mídia/budget/CPM regional): **não portado**. Persona é de agência/anunciante em escala de rede (budgets de R$50k+, multi-tela), não do dono de uma tela só — não é o público real do produto hoje. Avaliar se faz sentido portar quando/se existir um perfil de agência real no produto.
 
 ### 4) Nota — subagentes do Claude Code (`.claude/agents/`) não reconhecidos
 
 Existem 3 subagentes definidos em `.claude/agents/` (`arquiteto-agent`, `codigo-agent`, `docs-produto-agent`), criados em 2026-08-16, nunca invocados desde então (confirmado via `git log` e varredura por referência no resto do repo). Tentativa explícita de invocar `arquiteto-agent` via Agent tool nesta sessão (2026-08-28) **falhou** — a instalação atual do Claude Code não reconhece esses subagentes de projeto (`"Agent type 'arquiteto-agent' not found"`), mesmo com o arquivo presente e bem formado. Tentativa de reiniciar a sessão pra forçar um re-scan não foi possível (Claude não consegue reiniciar o próprio processo). **Pendência**: investigar depois se é limitação de versão do Claude Code, configuração faltando, ou formato incorreto — sem isso, os 3 subagentes seguem sendo configuração morta.
+
+## ✅ AI Creative Lab (AICreativeLab) portado do Figma Make — em produção (2026-08-30)
+
+Fecha a pendência registrada na seção anterior (item 3, 2026-08-29): `POST /api/studio/ai-generate` evoluiu de "1 geração por vez" pra 3 conceitos simultâneos (bold/minimal/vibrant), cada um com copy (headline/subline/cta) + imagem própria — como o protótipo `AICreativeLab.tsx` do Figma Make propunha, mas sem replicar o 9x de custo que uma leitura ingênua do protótipo sugeriria (ver decisões abaixo). Commit `dcdb7aa`.
+
+**Decisões do plano aprovado antes de implementar:**
+- 1 imagem por conceito, não por formato — os 3 formatos (16:9/9:16/1:1) são só crop/aspect-ratio do mesmo preview no frontend. Confirmado lendo o próprio `AICreativeLab.tsx` do Figma: trocar de formato lá também não gera nada novo, só redimensiona o mesmo card. Mantém o custo em ~3x o de antes, não 9x.
+- Cota: cada conceito consome 1 linha de `ai_generation_log` (3 por clique) — `PLAN_AI_GENERATION_LIMITS` (10/40/ilimitado) não mudou de valor, só passou a valer em "conceitos" em vez de "cliques", preservando o teto de custo em $ que já existia. Clique inteiro é negado se sobrar menos de 3 na cota do mês (sem geração parcial).
+- Geração de imagem roda em background: `generateBackgroundImagesBatch` (já existia em `lib/imageGeneration.ts`, nunca tinha chamador) agora processa os 3 prompts em sequência; `POST /api/studio/ai-generate` devolve um `jobId` na hora, e o novo `GET /api/studio/ai-generate/status` faz polling de progresso real (`generating_copy` → `generating_image` 1/3, 2/3, 3/3 → `done`).
+
+**Achado corrigido antes do deploy**: a primeira versão guardava o progresso do job em Redis (`lib/redis.ts`), a mesma instância (Upstash) usada por `lib/queue/workers/alertWorker.ts` — que está com rate-limit desde 2026-07-24 (ver seção acima sobre o pipeline de prova parado). Testado na prática: com esse Redis inacessível, `setJobStatus` não falha rápido, **trava pra sempre** (`maxRetriesPerRequest: null` no cliente compartilhado, retry infinito). Corrigido pra um `Map` em memória (`lib/aiCreativeJobs.ts`) — seguro hoje porque `doohplay-demo` roda numa instância só (`numInstances: 1`, confirmado via API do Render); precisa voltar a ser um store compartilhado se o serviço escalar horizontalmente.
+
+**Testado em produção de ponta a ponta (2026-08-30, cliente de teste `TESTEIA01`, sem tocar `BARBE332`)**:
+- Deploy: commit `dcdb7aa` → Render `live` em ~3min (build → pre-deploy → update).
+- `POST /api/studio/ai-generate` → `200 { ok: true, jobId }`, sem travar.
+- Polling em `GET .../ai-generate/status`: `generating_copy` → `generating_image` (2/3) → (3/3) → `done`, ~28s no total.
+- Resultado: 3 conceitos completos (bold/minimal/vibrant), headline/subline/cta distintos por estilo, `image_url` de cada um verificado direto no R2 (`media.doohplay.com.br`, HTTP 200, `image/jpeg` real, 692KB–1,07MB).
+- Cota: `GET /api/client/plan-usage/TESTEIA01` foi de 1 → 4 usos (3 gravados nesse clique), confirmando 1 linha por conceito.
+
+Aba "IA" do Studio (`app/studio/[code]/page.tsx`) reescrita: grid de 3 cards de conceito (clicável, aplica no form/preview), seletor de formato, barra de progresso real via polling.
 
 ## Arquitetura (resumo)
 
