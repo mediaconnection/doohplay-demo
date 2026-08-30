@@ -3,7 +3,8 @@ export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
-
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth-options"
 
 export const runtime = "nodejs"
 
@@ -42,7 +43,12 @@ function formatOfflineTime(lastSeen: string | Date | null, now: number) {
 }
 
 export async function GET() {
-    const { pool } = await import("@/lib/db")
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+
+  const { pool } = await import("@/lib/db")
 
   try {
     const result = await pool.query(

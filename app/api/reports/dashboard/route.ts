@@ -8,11 +8,18 @@ import crypto from "crypto"
 import React from "react"
 import { renderToStream } from "@react-pdf/renderer"
 import QRCode from "qrcode"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth-options"
 
 import DashboardReport from "../../../../reports/DashboardReport"
 import { streamToBuffer } from "../../../../lib/pdfToBuffer"
 
 export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return Response.json({ error: "unauthorized" }, { status: 401 })
+  }
+
   try {
     const start = "2026-01-01"
     const end = "2026-01-31"

@@ -224,6 +224,29 @@ Evolui a página órfã `app/dashboard/local/[code]/ai-revenue/page.tsx` (existi
 
 Também adiciona a entrada "Receita com IA" no `NAV` de `app/dashboard/local/[code]/dashboard-client.tsx` (fechando a órfandade da rota) e faz `onNav` navegar de verdade pra essa rota em vez de tratar como aba interna do dashboard.
 
+## 🔧 Autenticação do /dashboard interno — implementado, aguardando aprovação pra commit (2026-08-30)
+
+Fecha a pendência registrada na seção "Correção — RLS/RPC do dashboard interno" (2026-08-27): `/dashboard` (painel interno de operação — Kpis, ExecutionsChart, CampaignsChart, PlayersChart, WatchdogCard, SlaChart) rodava sem nenhuma autenticação, e duas rotas vazavam dado real pra qualquer um sem credencial (`GET /api/events/offline`, `GET /api/reports/dashboard`).
+
+Reaproveitada a infraestrutura já existente pro `/admin` — tabela `admin_users` (`super_admin`/`operador`), NextAuth `CredentialsProvider` (`lib/auth-options.ts`), tela `/admin/login`:
+
+- `middleware.ts`: `/dashboard/:path*` entrou no matcher; `authorized()` exige sessão NextAuth pra `/dashboard/*`, com exceção explícita pra `/dashboard/local/*` (sessão própria de cliente, `CLIENT_SESSION_COOKIE` — preservada de propósito pra não repetir o bug de 2026-08-27 que bloqueou esse fluxo).
+- Checagem de sessão (`getServerSession(authOptions)`, mesmo padrão de `app/api/admin/stats`) adicionada em: `/api/events/offline`, `/api/reports/dashboard`, `/api/events/players/check-offline` (achado extra — mutação acionada pelo botão "Forçar verificação" do Watchdog, também estava aberta), e as 4 rotas de SLA (`sla-daily`, `sla-history`, `sla-real-history`, `sla-real-monthly`).
+- `WatchdogCard.tsx` corrigido (bug pré-existente, não relacionado a auth): chamava `/api/players/status` e `/api/players/sla-real-daily`, nenhuma das duas existia (404 sempre, `Promise.all` falhava, card sempre mostrava erro fixo). Criada `app/api/players/status/route.ts` (conta online/offline/total direto de `public.players` via `pg.Pool`, autenticada) e trocado `sla-real-daily` por `sla-daily` (lendo `summary.averageSla`).
+- Nível de acesso: qualquer usuário ativo de `admin_users` (`super_admin` ou `operador`) — dashboard é dado operacional, não financeiro, mesma régua já usada em `app/api/admin/stats/route.ts` (só a seção de Assinaturas é restrita a `super_admin`).
+- Login: reaproveita `/admin/login` (já é `pages.signIn` global do NextAuth) — sem tela nova.
+
+`tsc --noEmit` limpo nos 10 arquivos tocados (86 erros pré-existentes no repo, todos fora do escopo desta mudança, nenhum nos arquivos tocados). **Ainda não commitado** — implementado e revisado nesta sessão, aguardando aprovação explícita do usuário antes do commit.
+
+### Pendência separada, descoberta durante essa investigação: os 4 widgets via `supabase.rpc(...)` continuam quebrados, mesmo com operador logado
+
+`Kpis.tsx`, `ExecutionsChart.tsx`, `CampaignsChart.tsx`, `PlayersChart.tsx` chamam `supabase.rpc("dashboard_kpis"/"dashboard_executions_over_time"/"dashboard_executions_by_campaign"/"dashboard_executions_by_player", ...)` direto do browser com a chave anônima do Supabase. Confirmado ao vivo no banco (`mdlbajgnntjwhycouzit`) que isso **não é resolvido** pela autenticação NextAuth implementada acima, por dois motivos independentes:
+
+1. **RLS bloqueia a chave anon permanentemente**: `play_logs_certified` tem RLS habilitado e **zero policies** (`select * from pg_policies where tablename='play_logs_certified'` retorna vazio) — RLS ligado sem nenhuma policy pública é deny-all pra qualquer role que não seja o dono da tabela/`service_role`. A sessão NextAuth que agora protege `/dashboard` é um sistema totalmente separado da sessão do Supabase (`auth.uid()`) — logar no `/admin/login` não muda em nada o que a chave anon do browser consegue ler. Ou seja, esses 4 widgets ficam vazios pra sempre nesse desenho, com ou sem operador logado.
+2. **Mesmo corrigindo o RLS, `dashboard_kpis` não serviria pro Watchdog**: `active_players` no RPC é `COUNT(DISTINCT player_id) FROM play_logs_certified WHERE started_at BETWEEN start_date AND end_date` — ou seja, "players que tocaram algo no período", não "players online agora". São conceitos diferentes (um player pode ter tocado de manhã e estar offline agora; ou estar online sem ter tocado nada ainda). Por isso a rota `/api/players/status` (criada nesta sessão, item acima) foi mantida como fonte de online/offline do Watchdog em vez de tentar derivar de `dashboard_kpis` — decisão confirmada com o usuário.
+
+**Recomendação**: migrar essas 4 RPCs pra rotas server-side com `pg.Pool` privilegiado, no mesmo padrão de `/api/players/status` (que já contorna exatamente esse problema pra online/offline), em vez de tentar consertar via RLS/policy — evita reabrir uma tabela sensível (`play_logs_certified`, dado de auditoria/prova) pra leitura via chave anon, e reaproveita o padrão de autenticação já implementado.
+
 ## Arquitetura (resumo)
 
 - **Pipeline de prova (real)**: `runProofChainAggregator()` em `lib/proof/aggregator/proofChainAggregator.ts`, agendado a cada 5 min via `worker.ts` (serviço `doohplay-workers`) → assina eventos pendentes de `event_chain` → Merkle tree → `event_blocks` → ancora na Polygon → TSA → `certifications`. Ver achado acima sobre o pipeline morto (`evidence`/`buildBlock.ts`/`runProofPipeline.ts`) que não deve ser confundido com este.

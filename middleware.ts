@@ -69,7 +69,15 @@ export default withAuth(
         const { pathname } = req.nextUrl
         // Admin requer token NextAuth
         if (pathname.startsWith("/admin")) return !!token
-        // Dashboard e anunciante — sempre passa aqui, sessionMiddleware cuida
+        // /dashboard/local/[code] usa sessão própria de cliente
+        // (CLIENT_SESSION_COOKIE), verificada dentro do próprio Server
+        // Component — não pode exigir token NextAuth aqui, senão repete o
+        // bug de 2026-08-27 (bloqueava o cliente pra sempre).
+        if (pathname.startsWith("/dashboard/local")) return true
+        // Painel interno (/dashboard, exceto /dashboard/local) — mesma
+        // exigência de sessão NextAuth do /admin (operador ou super_admin).
+        if (pathname.startsWith("/dashboard")) return !!token
+        // Anunciante — sempre passa aqui, sessionMiddleware cuida
         return true
       },
     },
@@ -84,5 +92,6 @@ export const config = {
     "/admin/((?!login).*)",
     "/anunciante/:path*",
     "/agencia/:path*",
+    "/dashboard/:path*",
   ],
 }

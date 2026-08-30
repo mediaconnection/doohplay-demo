@@ -45,7 +45,7 @@ export default function WatchdogCard() {
       const [statusJson, offlineJson, slaJson] = await Promise.all([
         fetchJson("/api/players/status", signal),
         fetchJson("/api/events/offline", signal),
-        fetchJson("/api/players/sla-real-daily", signal)
+        fetchJson("/api/players/sla-daily", signal)
       ])
 
       if (!mountedRef.current || signal?.aborted) return
@@ -60,9 +60,10 @@ export default function WatchdogCard() {
 
       setOfflineList(Array.isArray(offlineJson.players) ? offlineJson.players : [])
 
+      const averageSla = slaJson?.summary?.averageSla
       setSla(
-        typeof slaJson.slaPercentage === "number" && Number.isFinite(slaJson.slaPercentage)
-          ? Number(slaJson.slaPercentage.toFixed(2))
+        typeof averageSla === "number" && Number.isFinite(averageSla)
+          ? Number(averageSla.toFixed(2))
           : null
       )
 
