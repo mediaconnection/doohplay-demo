@@ -10,9 +10,10 @@ export const runtime = "nodejs"
 
 type OfflinePlayer = {
   id: string | number
+  name: string | null
   last_seen: string | Date | null
-  version: string | null
-  ip_address: string | null
+  platform: string | null
+  device_type: string | null
 }
 
 function formatOfflineTime(lastSeen: string | Date | null, now: number) {
@@ -55,12 +56,13 @@ export async function GET() {
       `
       SELECT
         id,
-        last_seen,
-        version,
-        ip_address
+        name,
+        last_ping AS last_seen,
+        platform,
+        device_type
       FROM public.players
-      WHERE status = 'offline'
-      ORDER BY last_seen ASC NULLS FIRST
+      WHERE last_ping IS NULL OR last_ping <= NOW() - INTERVAL '5 minutes'
+      ORDER BY last_ping ASC NULLS FIRST
       `
     )
 
@@ -72,8 +74,9 @@ export async function GET() {
 
       return {
         id: player.id,
-        ip_address: player.ip_address ?? undefined,
-        version: player.version ?? undefined,
+        name: player.name ?? undefined,
+        ip_address: undefined,
+        version: player.platform ?? player.device_type ?? undefined,
         last_seen: player.last_seen,
         secondsOffline: offline.secondsOffline,
         offlineFormatted: offline.offlineFormatted

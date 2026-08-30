@@ -21,8 +21,8 @@ export async function GET() {
       `
       SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE status = 'online')::int AS online,
-        COUNT(*) FILTER (WHERE status = 'offline')::int AS offline
+        COUNT(*) FILTER (WHERE last_ping > NOW() - INTERVAL '5 minutes')::int AS online,
+        COUNT(*) FILTER (WHERE last_ping IS NULL OR last_ping <= NOW() - INTERVAL '5 minutes')::int AS offline
       FROM public.players
       `
     )

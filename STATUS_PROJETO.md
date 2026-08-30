@@ -224,7 +224,7 @@ Evolui a página órfã `app/dashboard/local/[code]/ai-revenue/page.tsx` (existi
 
 Também adiciona a entrada "Receita com IA" no `NAV` de `app/dashboard/local/[code]/dashboard-client.tsx` (fechando a órfandade da rota) e faz `onNav` navegar de verdade pra essa rota em vez de tratar como aba interna do dashboard.
 
-## 🔧 Autenticação do /dashboard interno — implementado, aguardando aprovação pra commit (2026-08-30)
+## ✅ Autenticação do /dashboard interno — em produção (2026-08-30)
 
 Fecha a pendência registrada na seção "Correção — RLS/RPC do dashboard interno" (2026-08-27): `/dashboard` (painel interno de operação — Kpis, ExecutionsChart, CampaignsChart, PlayersChart, WatchdogCard, SlaChart) rodava sem nenhuma autenticação, e duas rotas vazavam dado real pra qualquer um sem credencial (`GET /api/events/offline`, `GET /api/reports/dashboard`).
 
@@ -236,7 +236,20 @@ Reaproveitada a infraestrutura já existente pro `/admin` — tabela `admin_user
 - Nível de acesso: qualquer usuário ativo de `admin_users` (`super_admin` ou `operador`) — dashboard é dado operacional, não financeiro, mesma régua já usada em `app/api/admin/stats/route.ts` (só a seção de Assinaturas é restrita a `super_admin`).
 - Login: reaproveita `/admin/login` (já é `pages.signIn` global do NextAuth) — sem tela nova.
 
-`tsc --noEmit` limpo nos 10 arquivos tocados (86 erros pré-existentes no repo, todos fora do escopo desta mudança, nenhum nos arquivos tocados). **Ainda não commitado** — implementado e revisado nesta sessão, aguardando aprovação explícita do usuário antes do commit.
+`tsc --noEmit` limpo nos 10 arquivos tocados (86 erros pré-existentes no repo, todos fora do escopo desta mudança, nenhum nos arquivos tocados). Commit `1a251d4`, deploy `dep-daabosk9v7es73e8usug` confirmado `live` no serviço `doohplay-demo` (não confundir com `doohplay-workers`, serviço separado) — `curl https://doohplay.com.br/dashboard` sem sessão confirmado retornando `307 → /admin/login?callbackUrl=%2Fdashboard` em produção real.
+
+### Achado pós-deploy: rotas órfãs tinham nomes de coluna que nunca existiram (2026-08-30)
+
+Depois do deploy, com um operador logado de verdade, o `WatchdogCard` continuou mostrando "Falha ao carregar dados do Watchdog" — não por causa de cookie/sessão (confirmado: `WatchdogCard.tsx` usa `fetch()` sem `credentials` customizado, e o padrão do browser pra same-origin já envia cookie; a prova definitiva é que os logs do Render mostravam **500**, não 401 — se o cookie não tivesse chegado, a checagem de sessão teria barrado antes com 401). A causa real, vista direto nos logs de aplicação do Render (`doohplay-demo`): as rotas nunca tinham sido exercitadas de verdade (eram order, chamadas só depois do fix do Watchdog nesta sessão) e usavam nomes de coluna que **nunca existiram** no schema real:
+
+- `app/api/players/status/route.ts` (rota nova desta sessão) e `app/api/events/offline/route.ts` (pré-existente, órfã) — ambas filtravam por `players.status`, `players.ip_address`, `players.version`. Nenhuma dessas colunas existe em `public.players` (schema real confirmado via Supabase: `id, name, location, device_type, screen_orientation, resolution_width, resolution_height, is_active, auth_token, created_at, description, player_code, last_ping, paired, paired_at, platform, tenant_id, device_fingerprint, latitude, longitude`). Corrigido pra usar `last_ping > NOW() - INTERVAL '5 minutes'` como critério de online/offline — mesmo padrão já usado (e funcionando) no AI Revenue Center (`app/dashboard/local/[code]/ai-revenue/page.tsx`) — e `platform`/`device_type`/`name` no lugar de `version`/`ip_address` (que não têm equivalente real na tabela).
+- `app/api/players/sla-daily/route.ts`, `sla-real-monthly/route.ts` e `lib/sla.ts` (compartilhado por `sla-history`/`sla-real-history`, todas pré-existentes, só ganharam checagem de auth nesta sessão) — filtravam `event_chain.device_id`, coluna que também nunca existiu (`event_chain` real: `id, event_id, event_type, source_table, source_id, occurred_at, payload, ...` — é o ledger do motor de prova, ver `docs/api-contract.md`/CLAUDE.md). Corrigido pra `source_table = 'players' AND source_id::text = $1`.
+
+As 3 queries corrigidas foram validadas rodando direto no Postgres de produção (Supabase, só leitura) antes do commit — todas executam sem erro contra dado real.
+
+### Pendência separada: SLA-por-heartbeat não tem dado real pra `players` (2026-08-30)
+
+A correção acima para de quebrar com 500, mas não resolve a métrica em si: `event_chain` tem só **3 linhas** no total com `event_type = 'PLAYER_HEARTBEAT'`, e as 3 têm `source_table = 'screens'` — nenhuma referencia `players`. Ou seja, `sla-daily`/`sla-real-monthly`/`sla-history`/`sla-real-history` vão rodar sem erro mas devolver `0%`/sem dado pra praticamente qualquer player, porque a fonte de heartbeat que essas rotas foram desenhadas pra ler nunca foi alimentada pra esse schema — não é regressão desta sessão, é lacuna original (rotas escritas mas nunca conectadas a um pipeline real de heartbeat de `players`). Sinal de "online agora" (via `last_ping`, corrigido acima) funciona normalmente; só o histórico/SLA acumulado por heartbeat é que fica sem dado real até existir um pipeline que grave heartbeats de `players` em `event_chain` (ou até a métrica ser recalculada a partir de outra fonte, ex. amostragem periódica de `last_ping`).
 
 ### Pendência separada, descoberta durante essa investigação: os 4 widgets via `supabase.rpc(...)` continuam quebrados, mesmo com operador logado
 

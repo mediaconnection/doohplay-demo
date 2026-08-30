@@ -89,7 +89,8 @@ export async function GET() {
         `
         SELECT created_at
         FROM public.event_chain
-        WHERE device_id::text = $1
+        WHERE source_table = 'players'
+          AND source_id::text = $1
           AND event_type = 'PLAYER_HEARTBEAT'
           AND created_at >= $2
         ORDER BY created_at ASC

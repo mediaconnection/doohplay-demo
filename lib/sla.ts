@@ -58,7 +58,7 @@ export async function computeSlaHistory(days = 7): Promise<SlaHistoryPoint[]> {
     for (const player of players) {
       const heartbeatRes = await pool.query(
         `SELECT created_at FROM public.event_chain
-         WHERE device_id::text = $1 AND event_type = 'PLAYER_HEARTBEAT'
+         WHERE source_table = 'players' AND source_id::text = $1 AND event_type = 'PLAYER_HEARTBEAT'
            AND created_at >= $2 AND created_at < $3
          ORDER BY created_at ASC`,
         [player.id, dayStart, dayEnd]
