@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 import DtvReadyBadge from "@/components/ui/DtvReadyBadge"
 import AIAssistantPanel from "@/components/AIAssistantPanel"
@@ -43,6 +44,7 @@ const NAV = [
   { id: "conteudo",  label: "Conteúdo",      icon: "🖼", desc: "Suas fotos e vídeos — envie aqui" },
   { id: "anuncios",  label: "Anúncios",      icon: "📢", desc: "Anúncios pagos de outras empresas na sua tela" },
   { id: "ganhos",    label: "Ganhos",        icon: "💵", desc: "Quanto você já recebeu e vai receber" },
+  { id: "ai-revenue",label: "Receita com IA",icon: "💡", desc: "Oportunidades e previsão de receita" },
   { id: "relatorios",label: "Relatórios",    icon: "📊", desc: "Números de exibição e desempenho" },
   { id: "playlist",  label: "Playlist",      icon: "▶️", desc: "Ordem e duração de cada conteúdo na tela" },
   { id: "clube",     label: "Clube de Telas",icon: "🤝", desc: "Troque conteúdo com outros estabelecimentos do bairro" },
@@ -2422,7 +2424,14 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     return () => window.removeEventListener("resize", check)
   }, [])
 
-  const onNav = useCallback((t: string) => { setTab(t); setDrawerOpen(false) }, [])
+  const router = useRouter()
+  // Fase 46 (30/08/2026): "ai-revenue" não é uma aba interna (tabContent
+  // não tem entrada pra ela) — é uma rota separada própria, mesmo padrão
+  // do Studio. Intercepta aqui em vez de tratar como as outras abas.
+  const onNav = useCallback((t: string) => {
+    if (t === "ai-revenue") { router.push(`/dashboard/local/${client.code}/ai-revenue`); return }
+    setTab(t); setDrawerOpen(false)
+  }, [router, client.code])
   const onAddPromo = useCallback(() => setShowModal(true), [])
   const onRefresh = useCallback(() => { window.location.reload() }, [])
   const { online, lastSeen, checking } = usePlayerStatus(client.player_id, player?.online ?? false)
@@ -2515,7 +2524,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
         </div>
         <nav style={{ flex: 1, padding: "8px 0" }}>
           {NAV.map(item => (
-            <button key={item.id} title={item.desc} onClick={() => setTab(item.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: sideOpen ? "9px 16px" : "9px 0", justifyContent: sideOpen ? "flex-start" : "center", background: tab === item.id ? C.blueLt : "none", border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`, color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 13 }}>
+            <button key={item.id} title={item.desc} onClick={() => onNav(item.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: sideOpen ? "9px 16px" : "9px 0", justifyContent: sideOpen ? "flex-start" : "center", background: tab === item.id ? C.blueLt : "none", border: "none", cursor: "pointer", borderLeft: `3px solid ${tab === item.id ? C.blue : "transparent"}`, color: tab === item.id ? C.blue : C.text2, fontWeight: tab === item.id ? 600 : 400, fontSize: 13 }}>
               <span style={{ fontSize: 16 }}>{item.icon}</span>
               {sideOpen && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
             </button>

@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { cpmEstimateLabel } from "@/lib/cpmEstimate"
 
 const SURF   = "#0F1629"
 const BORDER = "rgba(255,255,255,0.07)"
@@ -23,12 +24,9 @@ function segmentIcon(seg: string): string {
 
 // CPM ilustrativo por faixa de volume - referencia pra conversa
 // comercial, nao e preco fechado (por isso o rotulo "CPM (estimado)").
-function cpmEstimate(plays30d: number): string {
-  if (plays30d > 500) return "R$ 8,00"
-  if (plays30d > 200) return "R$ 12,00"
-  if (plays30d > 50)  return "R$ 15,00"
-  return "R$ 18,00"
-}
+// Extraído em 30/08/2026 pra lib/cpmEstimate.ts, compartilhado com o AI
+// Revenue Center - so importa o nome local pra nao mudar o resto do arquivo.
+const cpmEstimate = cpmEstimateLabel
 
 // Baseado na contagem real de exibicoes dos ultimos 30 dias (plays_30d),
 // sem extrapolar total historico. Telas sem exibicao recente retornam
