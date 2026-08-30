@@ -105,13 +105,21 @@ export async function generateBackgroundImage(
  * do Canal DOOHPLAY). Continua mesmo se uma falhar, registrando o erro
  * por item — mesmo princípio de "erro nunca silencioso" documentado nas
  * boas práticas do projeto.
+ *
+ * `onItemStart` (opcional) é chamado antes de cada item começar a gerar —
+ * usado pelo AI Creative Lab (app/api/studio/ai-generate) pra atualizar o
+ * progresso do job ("gerando conceito 2 de 3") sem duplicar o loop
+ * sequencial aqui.
  */
 export async function generateBackgroundImagesBatch(
-  items: { id: string; prompt: string }[]
+  items: { id: string; prompt: string }[],
+  onItemStart?: (index: number, item: { id: string; prompt: string }) => void | Promise<void>
 ): Promise<{ id: string; result: GeneratedImage | null; error?: string }[]> {
   const results: { id: string; result: GeneratedImage | null; error?: string }[] = []
 
-  for (const item of items) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (onItemStart) await onItemStart(i, item)
     try {
       const result = await generateBackgroundImage(item.prompt)
       results.push({ id: item.id, result })

@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PlanKey } from "@/lib/asaas"
-import { generateBackgroundImage } from "@/lib/imageGeneration"
+import { generateBackgroundImagesBatch } from "@/lib/imageGeneration"
+import { setJobStatus, type AiCreativeConcept } from "@/lib/aiCreativeJobs"
+import crypto from "crypto"
 
 export const dynamic = "force-dynamic"
+
+// Quantos conceitos o AI Creative Lab gera por clique. Fixo em 3 (headline+
+// subhead+cta+imagem cada) — ver plano de evolução registrado em
+// 30/08/2026: cada conceito consome 1 linha de ai_generation_log, então a
+// cota (PLAN_AI_GENERATION_LIMITS) continua valendo o mesmo teto de custo
+// em $ de antes, só que expresso em "conceitos" em vez de "cliques".
+const CONCEPTS_PER_GENERATION = 3
 
 const r2 = new S3Client({
   region: "auto",
@@ -99,10 +108,34 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ suggestions })
 }
 
+// Fase 45 (30/08/2026): evolução de "1 geração por vez" pra "3 conceitos
+// simultâneos" (headline+subline+cta+imagem cada, estilos bold/minimal/
+// vibrant, inspirado no AI Creative Lab do Figma Make). Decisões
+// registradas no plano aprovado com o fundador em 30/08/2026:
+//
+// - 1 imagem por conceito (não por formato) — os 3 formatos (16:9/9:16/1:1)
+//   são só crop/aspect-ratio do mesmo preview no frontend, igual ao próprio
+//   Figma faz (trocar de formato lá não gera nada novo). Isso mantém o
+//   custo em ~3x o de antes, não 9x.
+// - Cota: cada conceito consome 1 linha de ai_generation_log (3 por
+//   clique) — PLAN_AI_GENERATION_LIMITS (10/40/-1) fica igual, só passa a
+//   valer em "conceitos" em vez de "cliques", preservando o teto de custo
+//   em $ que já existia.
+// - Clique inteiro é negado se sobrar menos de CONCEPTS_PER_GENERATION na
+//   cota do mês — não faz geração parcial (2 de 3), pra não confundir o
+//   dono da loja com um resultado incompleto.
+// - Geração de imagem é sequencial (generateBackgroundImagesBatch já fazia
+//   isso, pra não estourar rate limit do Gemini) e pode levar até ~90s no
+//   pior caso — por isso essa rota não espera a geração terminar: só
+//   valida a cota, dispara o job em background (fire-and-forget, processo
+//   Node do Render continua rodando depois da resposta) e devolve um
+//   jobId. O frontend faz polling em GET .../ai-generate/status?jobId=...
+//   pra mostrar "gerando conceito 2 de 3" em vez de uma barra de progresso
+//   falsa (que é o que o protótipo do Figma fazia).
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { code, prompt, business_name, business_type, client_color } = body
+    const { code, prompt, business_name, business_type } = body
 
     if (!prompt?.trim()) {
       return NextResponse.json({ error: "Prompt obrigatório" }, { status: 400 })
@@ -114,6 +147,7 @@ export async function POST(request: NextRequest) {
     const pool = getPool()
     const upperCode = String(code ?? "").toUpperCase()
     let aiLimit = DEFAULT_AI_GENERATION_LIMIT
+    let used = 0
     if (upperCode) {
       try {
         const subRes = await pool.query(
@@ -134,136 +168,192 @@ export async function POST(request: NextRequest) {
            WHERE client_code = $1 AND feature = 'creative' AND created_at >= date_trunc('month', NOW())`,
           [upperCode]
         )
-        const used = usageRes.rows[0]?.count ?? 0
-        if (used >= aiLimit) {
+        used = usageRes.rows[0]?.count ?? 0
+        if (aiLimit - used < CONCEPTS_PER_GENERATION) {
           return NextResponse.json({
-            error: `Limite de ${aiLimit} gerações de IA este mês atingido pro seu plano. Fala com o suporte pra fazer upgrade.`,
+            error: `Restam ${Math.max(aiLimit - used, 0)} gerações na sua cota mensal — cada clique gera ${CONCEPTS_PER_GENERATION} conceitos. Fala com o suporte pra fazer upgrade.`,
             quotaExceeded: true,
             limit: aiLimit,
             used,
+            needed: CONCEPTS_PER_GENERATION,
           }, { status: 429 })
         }
       }
     }
 
-    // Call Claude API to generate ad copy
-    // FIX (12/07/2026): "claude-sonnet-4-20250514" foi retirado pela
-    // Anthropic em 15/06/2026 — toda chamada com esse model string falhava
-    // com "Claude API error: 400". Atualizado para o modelo ativo atual.
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: 600,
-        // FIX (12/07/2026): no Sonnet 5, adaptive thinking vem ligado por
-        // padrão e o thinking conta dentro do max_tokens (pensamento +
-        // resposta somados) — com max_tokens baixo (era 400) a API rejeita
-        // com 400 antes de gerar. Essa rota só gera um JSON curto de
-        // copywriting, não precisa de raciocínio estendido, então desligamos
-        // o thinking explicitamente em vez de só aumentar o max_tokens.
-        thinking: { type: "disabled" },
-        system: `Você é um especialista em copywriting para publicidade DOOH (Digital Out-of-Home) em telas de estabelecimentos comerciais brasileiros.
-Crie textos curtos, impactantes e diretos para anúncios que aparecem em TVs em locais físicos.
-Responda APENAS com JSON válido, sem markdown, sem explicações.`,
-        messages: [{
-          role: "user",
-          content: `Crie um anúncio para: ${business_name} (${business_type})
-Pedido: ${prompt}
+    const jobId = crypto.randomUUID()
+    // Escrito e aguardado antes de devolver o jobId — evita corrida onde o
+    // frontend já dá poll no status antes da chave existir no Redis.
+    await setJobStatus(jobId, { status: "generating_copy" })
 
-Responda com este JSON exato:
-{
-  "headline": "texto principal impactante (máx 4 palavras)",
-  "subline": "complemento ou detalhe (máx 8 palavras)",
-  "cta": "chamada para ação (máx 3 palavras)",
-  "image_prompt": "descrição em inglês para gerar imagem de fundo (estilo fotográfico, sem texto, máx 20 palavras)"
-}`
-        }]
+    runConceptGeneration({ jobId, pool, upperCode, prompt, business_name, business_type })
+      .catch((err: any) => {
+        console.error("[ai-generate] job de geração falhou:", err)
+        setJobStatus(jobId, { status: "error", error: err.message ?? "Erro desconhecido" })
+          .catch(() => {})
       })
-    })
 
-    if (!claudeRes.ok) {
-      const errText = await claudeRes.text().catch(() => "")
-      console.error("Claude API error:", claudeRes.status, errText)
-      return NextResponse.json(
-        { error: `Erro ao gerar anúncio (Claude API ${claudeRes.status})` },
-        { status: 502 }
-      )
-    }
-
-    const claudeData = await claudeRes.json()
-    const textContent = claudeData.content?.[0]?.text ?? ""
-
-    let adCopy: { headline: string; subline: string; cta: string; image_prompt: string }
-    try {
-      const clean = textContent.replace(/```json|```/g, "").trim()
-      adCopy = JSON.parse(clean)
-    } catch {
-      console.error("Falha ao parsear resposta da IA:", textContent)
-      return NextResponse.json({ error: "Erro ao processar resposta da IA" }, { status: 500 })
-    }
-
-    // FIX (12/07/2026): removido o bloco antigo que chamava a tool
-    // "computer_20241022" (controle de tela/computador) achando que isso
-    // gerava imagem — nunca gerou nada, sempre falhava e o erro era
-    // engolido em silêncio (`catch { imageUrl = null }`), mascarando que
-    // essa funcionalidade nunca existiu de verdade.
-    //
-    // IMPLEMENTADO (20/07/2026): geração de imagem real via
-    // lib/imageGeneration.ts (Gemini 3.1 Flash Image), motivada pelo
-    // feedback direto de clientes prospectados ("IA de geração de
-    // conteúdo é fraca pra quem não tem habilidade com IA") — sem imagem
-    // de fundo real, o dono ficava só com o layout de gradiente genérico.
-    //
-    // Decisão consciente: melhor esforço, igual ao padrão de
-    // appendToProofChain — se a geração de imagem falhar (ex: sem
-    // GEMINI_API_KEY configurada, ou API fora do ar), a rota NÃO falha
-    // inteira; o copy (headline/subline/cta) já foi gerado com sucesso e
-    // continua sendo devolvido, só sem imagem de fundo (mesmo
-    // comportamento de antes). Nunca vale perder um copy bom por causa de
-    // uma imagem que falhou.
-    //
-    // Decisão de cota, registrada pra revisitar: a geração de imagem usa
-    // a MESMA cota de PLAN_AI_GENERATION_LIMITS do copy (uma "geração" =
-    // texto + imagem juntos), não uma cota separada — mais simples de
-    // implementar agora; se o custo de imagem (~$0,05-0,07, bem maior que
-    // o de texto) se mostrar desproporcional na prática, vale criar uma
-    // cota própria pra imagem no futuro.
-    let imageUrl: string | null = null
-    try {
-      const { buffer, mimeType } = await generateBackgroundImage(adCopy.image_prompt)
-      const ext = mimeType.split("/")[1] || "png"
-      const key = `studio/${upperCode || "sem-codigo"}/ai_bg_${Date.now()}.${ext}`
-      await r2.send(new PutObjectCommand({
-        Bucket: BUCKET, Key: key, Body: buffer, ContentType: mimeType,
-      }))
-      imageUrl = `${PUBLIC_URL}/${key}`
-    } catch (imgErr: any) {
-      console.warn("[ai-generate] Falha ao gerar imagem por IA (seguindo só com o copy):", imgErr.message)
-    }
-
-    // Fase 17: registra o uso — só depois que a geração deu certo de
-    // verdade, pra não gastar cota do cliente em tentativa que falhou.
-    if (upperCode) {
-      pool.query(`INSERT INTO ai_generation_log (client_code, feature) VALUES ($1, 'creative')`, [upperCode])
-        .catch((err: unknown) => console.warn("[ai-generate] Falha ao logar uso (não bloqueia a resposta):", err))
-    }
-
-    return NextResponse.json({
-      ok: true,
-      headline: adCopy.headline,
-      subline: adCopy.subline,
-      cta: adCopy.cta,
-      image_prompt: adCopy.image_prompt,
-      image_url: imageUrl,
-    })
+    return NextResponse.json({ ok: true, jobId })
 
   } catch (err: any) {
     console.error("AI generate error:", err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
+}
+
+type RawConcept = {
+  style: "bold" | "minimal" | "vibrant"
+  headline: string
+  subline: string
+  cta: string
+  image_prompt: string
+}
+
+async function runConceptGeneration(params: {
+  jobId: string
+  pool: ReturnType<typeof getPool>
+  upperCode: string
+  prompt: string
+  business_name: string
+  business_type: string
+}) {
+  const { jobId, pool, upperCode, prompt, business_name, business_type } = params
+
+  // ── Etapa 1: Claude gera os 3 conceitos numa única chamada ──────────
+  // Uma chamada só (não 3) — o custo de texto é irrelevante frente ao de
+  // imagem, então não faz sentido triplicar também as chamadas de copy.
+  const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-5",
+      max_tokens: 1200,
+      // Mesmo motivo do fix de 12/07/2026: thinking conta dentro do
+      // max_tokens no Sonnet 5, e essa rota só gera JSON curto — não
+      // precisa de raciocínio estendido.
+      thinking: { type: "disabled" },
+      system: `Você é um especialista em copywriting para publicidade DOOH (Digital Out-of-Home) em telas de estabelecimentos comerciais brasileiros.
+Crie textos curtos, impactantes e diretos para anúncios que aparecem em TVs em locais físicos.
+Responda APENAS com JSON válido, sem markdown, sem explicações.`,
+      messages: [{
+        role: "user",
+        content: `Crie EXATAMENTE 3 conceitos DIFERENTES de anúncio para: ${business_name} (${business_type})
+Pedido: ${prompt}
+
+Cada conceito deve ter um estilo visual e tom distinto:
+- "bold": impactante, contraste alto, urgência
+- "minimal": sofisticado, clean, poucas palavras
+- "vibrant": colorido, energético, divertido
+
+Responda com este JSON exato (array com exatamente 3 itens, um por estilo):
+[
+  {
+    "style": "bold",
+    "headline": "texto principal impactante (máx 4 palavras)",
+    "subline": "complemento ou detalhe (máx 8 palavras)",
+    "cta": "chamada para ação (máx 3 palavras)",
+    "image_prompt": "descrição em inglês para gerar imagem de fundo (estilo fotográfico, sem texto, dramático/alto contraste, máx 20 palavras)"
+  },
+  {
+    "style": "minimal",
+    "headline": "...",
+    "subline": "...",
+    "cta": "...",
+    "image_prompt": "descrição em inglês, estilo fotográfico clean e minimalista, sem texto, máx 20 palavras"
+  },
+  {
+    "style": "vibrant",
+    "headline": "...",
+    "subline": "...",
+    "cta": "...",
+    "image_prompt": "descrição em inglês, estilo fotográfico colorido e vibrante, sem texto, máx 20 palavras"
+  }
+]`
+      }]
+    })
+  })
+
+  if (!claudeRes.ok) {
+    const errText = await claudeRes.text().catch(() => "")
+    console.error("Claude API error:", claudeRes.status, errText)
+    throw new Error(`Erro ao gerar anúncio (Claude API ${claudeRes.status})`)
+  }
+
+  const claudeData = await claudeRes.json()
+  const textContent = claudeData.content?.[0]?.text ?? ""
+
+  let rawConcepts: RawConcept[]
+  try {
+    const clean = textContent.replace(/```json|```/g, "").trim()
+    const parsed = JSON.parse(clean)
+    if (!Array.isArray(parsed) || parsed.length !== CONCEPTS_PER_GENERATION) {
+      throw new Error(`Esperado array de ${CONCEPTS_PER_GENERATION} conceitos, recebido: ${Array.isArray(parsed) ? parsed.length : typeof parsed}`)
+    }
+    rawConcepts = parsed
+  } catch (err: any) {
+    console.error("Falha ao parsear resposta da IA:", textContent)
+    throw new Error("Erro ao processar resposta da IA")
+  }
+
+  // Fase 17/45: registra o uso assim que o copy dos 3 conceitos é válido —
+  // mesma filosofia de sempre (nunca perder a cota de um copy bom por causa
+  // de uma imagem que falhar depois). A checagem de cota (aiLimit - used <
+  // CONCEPTS_PER_GENERATION) já garantiu que cabem os 3 antes de chegar aqui.
+  if (upperCode) {
+    pool.query(
+      `INSERT INTO ai_generation_log (client_code, feature)
+       SELECT $1, 'creative' FROM generate_series(1, $2)`,
+      [upperCode, CONCEPTS_PER_GENERATION]
+    ).catch((err: unknown) => console.warn("[ai-generate] Falha ao logar uso (não bloqueia o job):", err))
+  }
+
+  // ── Etapa 2: gera as 3 imagens em sequência, atualizando o progresso ──
+  const imageResults = await generateBackgroundImagesBatch(
+    rawConcepts.map((c, i) => ({ id: `concept-${i + 1}`, prompt: c.image_prompt })),
+    async (index) => {
+      await setJobStatus(jobId, { status: "generating_image", step: index + 1, total: CONCEPTS_PER_GENERATION })
+    }
+  )
+
+  const concepts: AiCreativeConcept[] = await Promise.all(
+    rawConcepts.map(async (raw, i) => {
+      const imgResult = imageResults[i]
+      let image_url: string | null = null
+      let image_error: string | undefined
+
+      if (imgResult?.result) {
+        try {
+          const { buffer, mimeType } = imgResult.result
+          const ext = mimeType.split("/")[1] || "png"
+          const key = `studio/${upperCode || "sem-codigo"}/ai_bg_${Date.now()}_${i + 1}.${ext}`
+          await r2.send(new PutObjectCommand({
+            Bucket: BUCKET, Key: key, Body: buffer, ContentType: mimeType,
+          }))
+          image_url = `${PUBLIC_URL}/${key}`
+        } catch (uploadErr: any) {
+          console.warn(`[ai-generate] Falha ao subir imagem do conceito ${i + 1} pro R2:`, uploadErr.message)
+          image_error = uploadErr.message
+        }
+      } else if (imgResult?.error) {
+        console.warn(`[ai-generate] Falha ao gerar imagem do conceito ${i + 1} (seguindo só com o copy):`, imgResult.error)
+        image_error = imgResult.error
+      }
+
+      return {
+        id: `concept-${i + 1}`,
+        style: raw.style,
+        headline: raw.headline,
+        subline: raw.subline,
+        cta: raw.cta,
+        image_url,
+        ...(image_error ? { image_error } : {}),
+      }
+    })
+  )
+
+  await setJobStatus(jobId, { status: "done", concepts })
 }

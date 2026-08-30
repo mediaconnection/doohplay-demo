@@ -26,17 +26,27 @@ type Client = {
 type Template = StudioTemplate
 const TEMPLATES = STUDIO_TEMPLATES
 
-function AdPreview({ tpl, client, form, imageUrl }: {
+// Fase 45 (30/08/2026): `format` controla o aspect-ratio do preview (16:9/
+// 9:16/1:1) — usado pela aba IA pra mostrar os 3 conceitos nos 3 formatos
+// de tela sem gerar imagem nova por formato (o crop/aspect é só visual,
+// mesma imagem de fundo do conceito nos 3). Opcional e default "landscape"
+// pra não quebrar o uso já existente no Editor (que nunca passa format).
+type AiFormat = "landscape" | "portrait" | "square"
+const AI_FORMAT_LABELS: Record<AiFormat, string> = { landscape: "16:9", portrait: "9:16", square: "1:1" }
+
+function AdPreview({ tpl, client, form, imageUrl, format = "landscape" }: {
   tpl: Template
   client: Client
   form: { headline: string; subline: string; cta: string; phone: string }
   imageUrl?: string | null
+  format?: AiFormat
 }) {
   const isLight = tpl.bg.startsWith("#f")
   const textColor = isLight ? "#1a1a1a" : "#ffffff"
   const mutedColor = isLight ? "#00000060" : "#ffffff70"
+  const aspectRatio = format === "portrait" ? "9/16" : format === "square" ? "1/1" : "16/9"
   return (
-    <div style={{ width: "100%", aspectRatio: "16/9", background: tpl.bg, borderRadius: 12, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", boxSizing: "border-box" }}>
+    <div style={{ width: "100%", aspectRatio, background: tpl.bg, borderRadius: 12, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", boxSizing: "border-box" }}>
       {imageUrl && <img src={imageUrl} alt="bg" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }} />}
       <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 70% 70% at 80% 20%, ${tpl.accent}15 0%, transparent 70%)` }} />
       {!imageUrl && <div style={{ fontSize: 48, marginBottom: 16, position: "relative" }}>{tpl.emoji}</div>}
@@ -48,6 +58,19 @@ function AdPreview({ tpl, client, form, imageUrl }: {
       <div style={{ position: "absolute", bottom: 12, left: 12, fontSize: 8, color: `${tpl.accent}60`, letterSpacing: "0.1em", textTransform: "uppercase" }}>DOOHPLAY</div>
     </div>
   )
+}
+
+// Fase 45 (30/08/2026): espelha AiCreativeConcept de lib/aiCreativeJobs.ts —
+// duplicado aqui (não importado) porque esse arquivo é client component e
+// o outro tem import de ioredis (server-only).
+type AiConcept = {
+  id: string
+  style: "bold" | "minimal" | "vibrant"
+  headline: string
+  subline: string
+  cta: string
+  image_url: string | null
+  image_error?: string
 }
 
 type Tab = "editor" | "ai" | "playlist" | "scheduler"
@@ -83,10 +106,17 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [savingDates, setSavingDates] = useState(false)
   const [aiPrompt, setAiPrompt] = useState("")
   const [aiGenerating, setAiGenerating] = useState(false)
-  const [aiResult, setAiResult] = useState<{ headline: string; subline: string; cta: string; image_url: string | null } | null>(null)
+  // Fase 45 (30/08/2026): 1 objeto vira 3 conceitos (bold/minimal/vibrant),
+  // cada um com sua própria imagem — ver plano aprovado em 30/08/2026.
+  const [aiConcepts, setAiConcepts] = useState<AiConcept[]>([])
+  const [aiSelectedConcept, setAiSelectedConcept] = useState(0)
+  const [aiFormat, setAiFormat] = useState<AiFormat>("landscape")
+  const [aiProgress, setAiProgress] = useState<{ stage: "copy" | "image"; step?: number; total?: number } | null>(null)
   const [aiError, setAiError] = useState("")
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
   const [aiQuota, setAiQuota] = useState<{ used: number; limit: number; unlimited?: boolean } | null>(null)
+  const aiPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (aiPollRef.current) clearTimeout(aiPollRef.current) }, [])
 
   useEffect(() => { if (activeTab === "playlist") loadPlaylist() }, [activeTab, client])
 
@@ -241,14 +271,64 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
     } catch {} finally { setSavingDates(false) }
   }
 
+  // Fase 45 (30/08/2026): POST /api/studio/ai-generate agora só dispara o
+  // job (3 conceitos, geração de imagem sequencial no backend) e devolve
+  // um jobId — a geração real pode levar até ~90s, então fazemos polling
+  // simples em vez de esperar a resposta do POST travada.
+  const AI_POLL_INTERVAL_MS = 1500
+  const AI_MAX_POLL_ATTEMPTS = 80 // ~2min de teto de segurança
+
+  const pollAiJob = (jobId: string, attempt = 0) => {
+    fetch(`/api/studio/ai-generate/status?jobId=${jobId}`)
+      .then(async res => {
+        if (res.status === 404) return { status: "not_found" as const }
+        return res.json()
+      })
+      .then(data => {
+        if (data.status === "generating_copy") {
+          setAiProgress({ stage: "copy" })
+        } else if (data.status === "generating_image") {
+          setAiProgress({ stage: "image", step: data.step, total: data.total })
+        } else if (data.status === "done") {
+          setAiConcepts(data.concepts ?? [])
+          setAiSelectedConcept(0)
+          const first = data.concepts?.[0]
+          if (first) { setForm(f => ({ ...f, headline: first.headline, subline: first.subline, cta: first.cta })); setImageUrl(first.image_url ?? null) }
+          setAiGenerating(false); setAiProgress(null)
+          fetch(`/api/client/plan-usage/${code}`).then(r => r.json()).then(d => { if (d.aiGenerations) setAiQuota(d.aiGenerations) }).catch(() => {})
+          return
+        } else if (data.status === "error") {
+          setAiError(data.error ?? "Erro ao gerar conteúdo"); setAiGenerating(false); setAiProgress(null)
+          return
+        }
+        if (attempt >= AI_MAX_POLL_ATTEMPTS) { setAiError("A geração demorou demais. Tente novamente."); setAiGenerating(false); setAiProgress(null); return }
+        aiPollRef.current = setTimeout(() => pollAiJob(jobId, attempt + 1), AI_POLL_INTERVAL_MS)
+      })
+      .catch(() => {
+        if (attempt >= AI_MAX_POLL_ATTEMPTS) { setAiError("Erro de conexão"); setAiGenerating(false); setAiProgress(null); return }
+        aiPollRef.current = setTimeout(() => pollAiJob(jobId, attempt + 1), AI_POLL_INTERVAL_MS)
+      })
+  }
+
   const handleAiGenerate = async () => {
-    if (!aiPrompt.trim() || !client) return; setAiGenerating(true); setAiError(""); setAiResult(null)
+    if (!aiPrompt.trim() || !client) return
+    setAiGenerating(true); setAiError(""); setAiConcepts([]); setAiProgress({ stage: "copy" })
     try {
-      const res = await fetch("/api/studio/ai-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, prompt: aiPrompt, business_name: client.name, business_type: client.business_type, client_color: clientAccent }) })
+      const res = await fetch("/api/studio/ai-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, prompt: aiPrompt, business_name: client.name, business_type: client.business_type }) })
       const data = await res.json()
-      if (data.ok) { setAiResult(data); setForm(f => ({ ...f, headline: data.headline, subline: data.subline, cta: data.cta })); if (data.image_url) setImageUrl(data.image_url); fetch(`/api/client/plan-usage/${code}`).then(r => r.json()).then(d => { if (d.aiGenerations) setAiQuota(d.aiGenerations) }).catch(() => {}) }
-      else setAiError(data.error ?? "Erro ao gerar conteúdo")
-    } catch { setAiError("Erro de conexão") } finally { setAiGenerating(false) }
+      if (data.ok && data.jobId) pollAiJob(data.jobId)
+      else { setAiError(data.error ?? "Erro ao gerar conteúdo"); setAiGenerating(false); setAiProgress(null) }
+    } catch { setAiError("Erro de conexão"); setAiGenerating(false); setAiProgress(null) }
+  }
+
+  // Aplica um dos 3 conceitos gerados no form/preview do Editor — chamado
+  // ao clicar num card do grid de conceitos (aba IA).
+  const applyAiConcept = (index: number) => {
+    const c = aiConcepts[index]
+    if (!c) return
+    setAiSelectedConcept(index)
+    setForm(f => ({ ...f, headline: c.headline, subline: c.subline, cta: c.cta }))
+    setImageUrl(c.image_url ?? null)
   }
 
   if (loading) return (
@@ -402,23 +482,41 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
       )}
 
       {/* ── IA ── */}
+      {/* Fase 45 (30/08/2026): "1 geração por vez" virou "3 conceitos
+          simultâneos" (bold/minimal/vibrant), inspirado no AI Creative Lab
+          do Figma Make. Formato (16:9/9:16/1:1) só troca o aspect-ratio do
+          preview — não gera imagem nova por formato (mesma imagem do
+          conceito nos 3), mantendo o custo em ~3x, não 9x. Progresso real
+          via polling em /api/studio/ai-generate/status, porque a geração
+          das 3 imagens é sequencial no backend e pode levar dezenas de
+          segundos — nada de barra de progresso falsa como no protótipo. */}
       {activeTab === "ai" && (
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem", display: "grid", gridTemplateColumns: "1fr 380px", gap: "1.5rem" }}>
           <div>
             <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #0284C7, #7C3AED)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✨</div>
-                <div><div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Gerador de anúncios com IA</div><div style={{ fontSize: 12, color: "#9ca3af" }}>Descreva o anúncio e a IA cria o texto</div></div>
+                <div><div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Gerador de anúncios com IA</div><div style={{ fontSize: 12, color: "#9ca3af" }}>Descreva o anúncio e a IA cria 3 conceitos diferentes</div></div>
               </div>
               {aiQuota && !aiQuota.unlimited && (
-                <div style={{ fontSize: 11, color: aiQuota.used >= aiQuota.limit ? "#ef4444" : "#9ca3af", marginBottom: 10 }}>
-                  {aiQuota.used}/{aiQuota.limit} gerações usadas este mês
+                <div style={{ fontSize: 11, color: aiQuota.limit - aiQuota.used < 3 ? "#ef4444" : "#9ca3af", marginBottom: 10 }}>
+                  {aiQuota.used}/{aiQuota.limit} gerações usadas este mês · cada clique gera 3 conceitos
                 </div>
               )}
               <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} placeholder="Ex: promoção de corte + barba para sexta-feira com 20% de desconto" rows={3} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", resize: "none", boxSizing: "border-box", lineHeight: 1.5, marginBottom: 10, fontFamily: "system-ui, sans-serif" }} />
               <button onClick={handleAiGenerate} disabled={aiGenerating || !aiPrompt.trim()} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: aiGenerating || !aiPrompt.trim() ? "#f3f4f6" : "linear-gradient(135deg, #0284C7, #7C3AED)", color: aiGenerating || !aiPrompt.trim() ? "#9ca3af" : "#fff", fontSize: 14, fontWeight: 600, cursor: aiGenerating || !aiPrompt.trim() ? "not-allowed" : "pointer" }}>
-                {aiGenerating ? "✨ Gerando..." : "✨ Gerar anúncio com IA"}
+                {aiGenerating ? "✨ Gerando..." : "✨ Gerar 3 conceitos com IA"}
               </button>
+              {aiGenerating && aiProgress && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+                    {aiProgress.stage === "copy" ? "Criando os 3 conceitos..." : `Gerando imagem ${aiProgress.step} de ${aiProgress.total}...`}
+                  </div>
+                  <div style={{ width: "100%", height: 5, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: aiProgress.stage === "copy" ? "12%" : `${((aiProgress.step ?? 0) / (aiProgress.total ?? 3)) * 100}%`, background: "linear-gradient(90deg, #0284C7, #7C3AED)", borderRadius: 4, transition: "width 0.3s" }} />
+                  </div>
+                </div>
+              )}
               {aiError && <div style={{ marginTop: 8, fontSize: 12, color: "#ef4444" }}>{aiError}</div>}
             </div>
             {aiSuggestions.length > 0 && (
@@ -429,23 +527,38 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                 </div>
               </div>
             )}
-            {aiResult && (
+            {aiConcepts.length > 0 && (
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem" }}>
-                <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Conteúdo gerado</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-                  {[{ label: "Headline", value: aiResult.headline }, { label: "Subline", value: aiResult.subline }, { label: "CTA", value: aiResult.cta }].map(f => (<div key={f.label} style={{ background: "#f9fafb", borderRadius: 8, padding: "10px 12px" }}><div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{f.label}</div><div style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{f.value}</div></div>))}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>3 conceitos gerados</div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {(["landscape", "portrait", "square"] as AiFormat[]).map(f => (
+                      <button key={f} onClick={() => setAiFormat(f)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${aiFormat === f ? BRAND : "#e5e7eb"}`, background: aiFormat === f ? BRAND_LIGHT : "transparent", color: aiFormat === f ? BRAND_DARK : "#9ca3af", cursor: "pointer", fontSize: 11 }}>{AI_FORMAT_LABELS[f]}</button>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px" }}>✓ Campos preenchidos automaticamente no Editor</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  {aiConcepts.map((c, i) => (
+                    <div key={c.id} onClick={() => applyAiConcept(i)} style={{ cursor: "pointer", opacity: aiSelectedConcept === i ? 1 : 0.65, transform: aiSelectedConcept === i ? "scale(1.02)" : "scale(1)", transition: "all 0.15s" }}>
+                      <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={{ headline: c.headline, subline: c.subline, cta: c.cta, phone: "" }} imageUrl={c.image_url} format={aiFormat} />
+                      <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, fontWeight: aiSelectedConcept === i ? 700 : 400, color: aiSelectedConcept === i ? BRAND_DARK : "#9ca3af", textTransform: "capitalize" }}>{c.style}</span>
+                        {aiSelectedConcept === i && <span style={{ fontSize: 10, color: BRAND }}>● Selecionado</span>}
+                      </div>
+                      {!c.image_url && c.image_error && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Imagem indisponível — só o texto</div>}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
           <div style={{ position: "sticky", top: "1rem" }}>
             <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
-              <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Preview ao vivo</div>
-              <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={{ headline: aiResult?.headline || form.headline, subline: aiResult?.subline || form.subline, cta: aiResult?.cta || form.cta, phone: form.phone }} imageUrl={aiResult?.image_url || imageUrl} />
+              <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Preview ao vivo — {AI_FORMAT_LABELS[aiFormat]}</div>
+              <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={{ headline: aiConcepts[aiSelectedConcept]?.headline || form.headline, subline: aiConcepts[aiSelectedConcept]?.subline || form.subline, cta: aiConcepts[aiSelectedConcept]?.cta || form.cta, phone: form.phone }} imageUrl={aiConcepts[aiSelectedConcept]?.image_url ?? imageUrl} format={aiFormat} />
             </div>
-            {aiResult && (<button onClick={() => { setActiveTab("editor"); handlePublish() }} style={{ width: "100%", background: BRAND, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>Publicar na tela</button>)}
-            {!aiResult && (<div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.5rem", textAlign: "center" }}><div style={{ fontSize: 32, marginBottom: 8 }}>✨</div><div style={{ fontSize: 13, color: "#9ca3af", lineHeight: 1.5 }}>Descreva o anúncio ao lado e a IA vai gerar o texto automaticamente.</div></div>)}
+            {aiConcepts.length > 0 && (<button onClick={() => { setActiveTab("editor"); handlePublish() }} style={{ width: "100%", background: BRAND, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>Publicar conceito selecionado</button>)}
+            {aiConcepts.length === 0 && (<div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.5rem", textAlign: "center" }}><div style={{ fontSize: 32, marginBottom: 8 }}>✨</div><div style={{ fontSize: 13, color: "#9ca3af", lineHeight: 1.5 }}>Descreva o anúncio ao lado e a IA vai gerar 3 conceitos diferentes automaticamente.</div></div>)}
           </div>
         </div>
       )}
