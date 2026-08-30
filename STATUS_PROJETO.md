@@ -162,7 +162,12 @@ Resolvido em 2026-08-29: `ANTHROPIC_API_KEY` recarregada/atualizada no Render + 
 
 - **`AICreativeLab`** (gerador de criativo multi-conceito/multi-formato): ✅ **portado em 2026-08-30** — ver seção dedicada abaixo. `app/api/client/generate-creative` (fluxo Puppeteer/template do dashboard normal, usado pelo modal "Enviar conteúdo") não foi alterado, continua fora do escopo dessa mudança.
 - **`AIRevenueCenter`** (dashboard de oportunidades de receita, previsão financeira, anunciantes recomendados): **não portado**. Boa parte dos dados mockados lá (propostas de anunciante nomeadas, metas de receita) não tem tabela real hoje — mesmo achado que já limitou os insights do `AIAssistant` (ver acima).
-- **`AICopilot`** ("Gemini DOOH Copilot", chat genérico de planejamento de mídia/budget/CPM regional): **não portado**. Persona é de agência/anunciante em escala de rede (budgets de R$50k+, multi-tela), não do dono de uma tela só — não é o público real do produto hoje. Avaliar se faz sentido portar quando/se existir um perfil de agência real no produto.
+- **`AICopilot`** ("Gemini DOOH Copilot", chat genérico de planejamento de mídia/budget/CPM regional): **não portado — decisão estratégica (2026-08-30), não técnica.** Investigação dedicada (2026-08-30) confirmou que, diferente do `AICreativeLab` e do `AIRevenueCenter` (que só precisavam de dado real por trás de cards já existentes), esse protótipo pressupõe um **perfil de usuário que não existe hoje em nenhum dos dois lados**:
+  - Lado vendedor (operador de múltiplas telas): `app/agencia/[code]` + `app/api/agency/[code]` é código real e funcional — agrega MRR, exibições e status online/offline de vários `studio_clients` sob uma agência — mas tem só **1 fixture de demonstração** no banco (`agencies.code = 'AGDEMO1'`, ligada a `BARBE332`), nenhuma agência paga de verdade.
+  - Lado comprador (anunciante com orçamento de mídia): tabela `Advertiser` tem **0 linhas** — nenhum anunciante cadastrado no produto hoje.
+  - Mesmo que `/agencia` ganhasse clientes reais amanhã, ele resolve um problema diferente do que o `AICopilot` propõe: monitoramento de frota de telas (status/MRR/exibições), não planejamento de mídia com CPM/orçamento por região e formato.
+
+  Recomendação: revisitar só quando/se existir demanda real de agência ou anunciante pagante no produto — não é um caso de "falta ligar no dado real", é um caso de "o público-alvo ainda não existe".
 
 ### 4) Nota — subagentes do Claude Code (`.claude/agents/`) não reconhecidos
 
