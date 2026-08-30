@@ -169,9 +169,15 @@ Resolvido em 2026-08-29: `ANTHROPIC_API_KEY` recarregada/atualizada no Render + 
 
   Recomendação: revisitar só quando/se existir demanda real de agência ou anunciante pagante no produto — não é um caso de "falta ligar no dado real", é um caso de "o público-alvo ainda não existe".
 
-### 4) Nota — subagentes do Claude Code (`.claude/agents/`) não reconhecidos
+### 4) Nota — subagentes do Claude Code (`.claude/agents/`) — RESOLVIDO (2026-08-30)
 
-Existem 3 subagentes definidos em `.claude/agents/` (`arquiteto-agent`, `codigo-agent`, `docs-produto-agent`), criados em 2026-08-16, nunca invocados desde então (confirmado via `git log` e varredura por referência no resto do repo). Tentativa explícita de invocar `arquiteto-agent` via Agent tool nesta sessão (2026-08-28) **falhou** — a instalação atual do Claude Code não reconhece esses subagentes de projeto (`"Agent type 'arquiteto-agent' not found"`), mesmo com o arquivo presente e bem formado. Tentativa de reiniciar a sessão pra forçar um re-scan não foi possível (Claude não consegue reiniciar o próprio processo). **Pendência**: investigar depois se é limitação de versão do Claude Code, configuração faltando, ou formato incorreto — sem isso, os 3 subagentes seguem sendo configuração morta.
+Existem 3 subagentes definidos em `.claude/agents/` (`arquiteto-agent`, `codigo-agent`, `docs-produto-agent`), criados em 2026-08-16. Em 2026-08-28, uma tentativa de invocar `arquiteto-agent` via Agent tool falhou (`"Agent type 'arquiteto-agent' not found"`), levantando suspeita de bug de versão/formato do Claude Code.
+
+**Causa raiz identificada em 2026-08-30**: a falha de 28/08 não era bug de formato nem de versão — a sessão do Claude Code estava rodando na pasta errada (home do usuário, não a raiz do projeto), então o scanner de `.claude/agents/` nunca chegou a olhar o diretório correto do repo.
+
+**Teste de confirmação (2026-08-30)**: rodado `claude --debug` a partir da pasta correta do projeto. Log de debug da sessão confirma o watcher armado sobre `...doohplay-demo\.claude\agents` e nenhum `[WARN]`/`[ERROR]` relacionado a agentes. Os 3 agentes foram invocados com prompts de sanidade (somente leitura) e todos responderam corretamente, identificando papel, respeitando a separação `app/`×`src/` e reportando as tools esperadas (`arquiteto-agent`: Read/Grep/Glob; `codigo-agent`: Read/Edit/Write/Bash/Grep/Glob; `docs-produto-agent`: Read/Write/Grep/Glob).
+
+**Pendência fechada.** Os 3 subagentes de projeto funcionam normalmente, desde que o Claude Code seja iniciado a partir da raiz do repo.
 
 ## ✅ AI Creative Lab (AICreativeLab) portado do Figma Make — em produção (2026-08-30)
 
