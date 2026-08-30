@@ -161,7 +161,7 @@ Resolvido em 2026-08-29: `ANTHROPIC_API_KEY` recarregada/atualizada no Render + 
 ### 3) Outros 3 candidatos do Figma Make — pendentes
 
 - **`AICreativeLab`** (gerador de criativo multi-conceito/multi-formato): ✅ **portado em 2026-08-30** — ver seção dedicada abaixo. `app/api/client/generate-creative` (fluxo Puppeteer/template do dashboard normal, usado pelo modal "Enviar conteúdo") não foi alterado, continua fora do escopo dessa mudança.
-- **`AIRevenueCenter`** (dashboard de oportunidades de receita, previsão financeira, anunciantes recomendados): **não portado**. Boa parte dos dados mockados lá (propostas de anunciante nomeadas, metas de receita) não tem tabela real hoje — mesmo achado que já limitou os insights do `AIAssistant` (ver acima).
+- **`AIRevenueCenter`** (dashboard de oportunidades de receita, previsão financeira, anunciantes recomendados): ✅ **portado em 2026-08-30** — ver seção dedicada abaixo.
 - **`AICopilot`** ("Gemini DOOH Copilot", chat genérico de planejamento de mídia/budget/CPM regional): **não portado — decisão estratégica (2026-08-30), não técnica.** Investigação dedicada (2026-08-30) confirmou que, diferente do `AICreativeLab` e do `AIRevenueCenter` (que só precisavam de dado real por trás de cards já existentes), esse protótipo pressupõe um **perfil de usuário que não existe hoje em nenhum dos dois lados**:
   - Lado vendedor (operador de múltiplas telas): `app/agencia/[code]` + `app/api/agency/[code]` é código real e funcional — agrega MRR, exibições e status online/offline de vários `studio_clients` sob uma agência — mas tem só **1 fixture de demonstração** no banco (`agencies.code = 'AGDEMO1'`, ligada a `BARBE332`), nenhuma agência paga de verdade.
   - Lado comprador (anunciante com orçamento de mídia): tabela `Advertiser` tem **0 linhas** — nenhum anunciante cadastrado no produto hoje.
@@ -192,6 +192,30 @@ Fecha a pendência registrada na seção anterior (item 3, 2026-08-29): `POST /a
 - Cota: `GET /api/client/plan-usage/TESTEIA01` foi de 1 → 4 usos (3 gravados nesse clique), confirmando 1 linha por conceito.
 
 Aba "IA" do Studio (`app/studio/[code]/page.tsx`) reescrita: grid de 3 cards de conceito (clicável, aplica no form/preview), seletor de formato, barra de progresso real via polling.
+
+## ✅ AI Revenue Center (AIRevenueCenter) portado do Figma Make — em produção (2026-08-30)
+
+Evolui a página órfã `app/dashboard/local/[code]/ai-revenue/page.tsx` (existia desde antes, mas sem nenhum link apontando pra ela em lugar nenhum do app) pra estrutura de 4 abas do protótipo (Visão Geral, Oportunidades, Anunciantes Recomendados, Previsão Financeira). Commit `501503c`.
+
+**Regra seguida em toda aba, sem exceção**: todo bloco que mistura ou é 100% número ilustrativo carrega badge `⭐ Simulação` + frase explícita; todo bloco com dado real carrega `● Dado real da sua tela`, sem badge. Nunca os dois misturados no mesmo card — cards que teriam parte real e parte fictícia (ex: "Receita Perdida" do protótipo) foram separados em blocos visuais distintos.
+
+**5 queries SQL novas** (`app/dashboard/local/[code]/ai-revenue/page.tsx`), alimentando os únicos itens do protótipo com dado real disponível hoje:
+1. Histórico de repasses por mês (`client_payouts`, últimos 6 meses) — Visão Geral + eixo real da Previsão Financeira.
+2. Downtime real do mês (`alerts` WHERE `type = 'PLAYER_OFFLINE'`, soma de `resolved_at - created_at`) — componente real da Visão Geral.
+3. Exibições reais por dia da semana (`display_events`, últimos 30 dias) — aba Oportunidades.
+4. Contagem de anunciantes com campanha ativa (`COUNT(DISTINCT "advertiserCode") FROM "Campaign" WHERE status = 'active'`) — abertura da aba Anunciantes Recomendados.
+5. Status online/offline atual (`players.last_ping`) — Visão Geral.
+
+`lib/cpmEstimate.ts` (novo) extrai o cálculo de CPM por faixa de volume de `app/marketplace/filters.tsx` (antes duplicado ali e em `page.tsx`, esse segundo morto/nunca chamado) — usado pra estimar receita real de um anunciante adicional a partir do volume real de exibições da tela, dentro dos cards ilustrativos de categoria da aba Anunciantes.
+
+**Achado relevante pra decisões futuras de agência/anunciante** (o mesmo que fechou a investigação do `AICopilot`, ver acima): a query 4 rodou contra dado real de produção e retornou **0 anunciantes com campanha ativa na rede** — confirma que não só a tabela `Advertiser` está vazia (0 linhas), como também não existe hoje nenhuma `Campaign` ativa vinculada a um anunciante de verdade. A aba Anunciantes Recomendados mostra esse `0` real, sem maquiar.
+
+**Testado em produção (2026-08-30)**:
+- `TESTEIA01` → HTTP 404, esperado e não é bug: esse código nunca existiu em `studio_clients` (só é usado em `ai_generation_log`/`financial_subscriptions` pros testes do AI Creative Lab) — a página exige um registro em `studio_clients` pra renderizar.
+- `BARBE332` → HTTP 200. Confirmado por `curl` + consulta direta no Postgres (Supabase): bloco real mostrou `Exibições (30 dias): 4.203` (bate exato com `display_events`), `Repasse deste mês: "Nenhum repasse solicitado ainda"` (real — `client_payouts` tem 0 linhas pra `BARBE332` e pra `LEMEL186`, os únicos 2 clientes reais hoje), `Status da tela: 🔴 Offline` (reflete `last_ping` real no momento do teste) com `0h offline este mês` (real — nenhum alerta `PLAYER_OFFLINE` logado esse mês, sinal diferente do status ao vivo). Zero erros de aplicação nos logs do Render desde o deploy.
+- **Limitação do teste**: só a aba "Visão Geral" foi confirmada via HTTP fetch, porque é a única que já vem renderizada no HTML inicial (as outras 3 trocam de conteúdo client-side, via estado local em `ai-revenue-client.tsx`). As abas Oportunidades, Anunciantes Recomendados e Previsão Financeira **não foram confirmadas visualmente** — a extensão do Chrome não estava conectada nesta sessão. Ficou validado só por revisão de código + ausência de erro de servidor nos logs. Vale uma confirmação visual manual antes de considerar essas 3 abas 100% verificadas.
+
+Também adiciona a entrada "Receita com IA" no `NAV` de `app/dashboard/local/[code]/dashboard-client.tsx` (fechando a órfandade da rota) e faz `onNav` navegar de verdade pra essa rota em vez de tratar como aba interna do dashboard.
 
 ## Arquitetura (resumo)
 
