@@ -6,7 +6,7 @@ import { pool } from "@/lib/db"
 import { buildProofGraph } from "./buildProofGraph"
 import type { ProofCertificate } from "@/lib/proof/types/ProofCertificate"
 
-import { signPkcs7 } from "@/lib/crypto/signPkcs7"
+import { pkcs7Sign } from "@/lib/crypto/pkcs7Signer"
 import { timestampRFC3161 } from "@/lib/crypto/tsaRFC3161"
 
 export type SubjectType = "impression" | "campaign" | "audience"
@@ -149,7 +149,7 @@ export async function generateProofCertificate(
     console.warn("PROOF_CERTIFICATE_QR_FAILED", error)
   }
 
-  const pkcs7 = normalizePkcs7Result(await signPkcs7())
+  const pkcs7 = normalizePkcs7Result(pkcs7Sign(certificateHash))
 
   assert(pkcs7.signature, "PKCS7_SIGNING_FAILED")
 
