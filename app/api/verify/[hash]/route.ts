@@ -1,7 +1,7 @@
 ﻿import { randomUUID } from "crypto"
-import { Pool } from "pg"
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
+import { pool } from "@/lib/db"
 import { buildProofCacheKey, getCachedProof, setCachedProof } from "@/lib/proof/cache/proofCache"
 import { runProofEngine } from "@/lib/proof/engine"
 import { buildExplanation } from "@/lib/proof/explanation"
@@ -159,14 +159,11 @@ function buildLinks(req: NextRequest, hash: string, meta?: ProofMeta) {
 
 /* =========================
    INLINE RESOLUTION
-   (sem depender de lib/proof/adapters/supabase — webpack não inclui Proxy lazy-loaded)
+   (Supabase admin client inline aqui — sem depender de
+   lib/proof/adapters/supabase, webpack não inclui Proxy lazy-loaded daquele
+   módulo. O pool de Postgres usa o cliente oficial compartilhado de
+   @/lib/db, importado no topo do arquivo.)
 ========================= */
-
-let _pool: Pool | null = null
-function getPool(): Pool {
-  if (!_pool) _pool = new Pool({ connectionString: process.env.DATABASE_URL })
-  return _pool
-}
 
 function getSupabaseAdmin() {
   return createClient(
@@ -178,7 +175,6 @@ function getSupabaseAdmin() {
 
 async function resolveFromEventChain(hash: string): Promise<ProofInput | null> {
   try {
-    const pool = getPool()
     const result = await pool.query(
       `SELECT e.event_id::text, e.event_hash, b.merkle_root, b.tx_hash
        FROM public.event_chain e
@@ -197,7 +193,6 @@ async function resolveFromEventChain(hash: string): Promise<ProofInput | null> {
 
 async function resolveFromEventBlocks(hash: string): Promise<ProofInput | null> {
   try {
-    const pool = getPool()
     const result = await pool.query(
       `SELECT id::text FROM public.event_blocks
        WHERE lower(replace(coalesce(block_hash,''), '0x', '')) = $1
