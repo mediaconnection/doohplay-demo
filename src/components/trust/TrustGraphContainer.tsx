@@ -1,5 +1,20 @@
 // @ts-nocheck
 "use client"
+/**
+ * @deprecated Este componente é inalcançável em runtime.
+ *
+ * next.config.ts define alias de webpack explícito:
+ *   "@/components/trust": path.resolve(__dirname, "components/trust")
+ * Ou seja, @/components/trust/... sempre resolve para components/trust/
+ * (raiz), nunca para este arquivo em src/components/trust/, mesmo tendo
+ * o mesmo nome — inclusive o import abaixo, "@/components/trust/TrustGraph",
+ * que também cai na versão da raiz, não no irmão local nesta pasta. Achado
+ * do levantamento de 2026-08-30 pra Etapa 2 do
+ * DOOHPLAY_Plano_Separacao_Fronts.docx.
+ *
+ * Não editar nem estender aqui. Se precisar mexer no Trust Graph de
+ * verdade, é em components/trust/ (raiz).
+ */
 
 import { useMemo } from "react"
 import TrustGraph from "@/components/trust/TrustGraph"

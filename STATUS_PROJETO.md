@@ -260,6 +260,29 @@ A correção acima para de quebrar com 500, mas não resolve a métrica em si: `
 
 **Recomendação**: migrar essas 4 RPCs pra rotas server-side com `pg.Pool` privilegiado, no mesmo padrão de `/api/players/status` (que já contorna exatamente esse problema pra online/offline), em vez de tentar consertar via RLS/policy — evita reabrir uma tabela sensível (`play_logs_certified`, dado de auditoria/prova) pra leitura via chave anon, e reaproveita o padrão de autenticação já implementado.
 
+## 📋 Levantamento — Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` (2026-08-30)
+
+A Etapa 2 ("Separação Lógica", 3–6 semanas) do plano propõe 4 itens: (1) extrair o motor de prova pra um package interno (`packages/proof-engine`), (2) produto comercial consumir a prova só via API interna bem definida, (3) unificar o acesso ao banco de dados (eliminar a convivência desorganizada de `pg.Pool` + Supabase + Prisma), (4) criar testes de contrato entre os dois fronts. Levantamento do estado atual feito nesta sessão, sem implementar nada — cada achado abaixo é insumo pra decidir como atacar a etapa depois.
+
+### Achado 1 — árvore duplicada e morta: `src/lib/proof/` + `src/components/proof|trust/`
+
+Existem árvores paralelas com os **mesmos nomes de arquivo** do motor de prova vivo em `lib/proof/` (raiz) e dos componentes vivos em `components/proof/`/`components/trust/` (raiz), mas **inalcançáveis em runtime**: `next.config.ts` define alias de webpack explícito (`"@/lib": path.resolve(__dirname, "lib")`, `"@/components/proof"` e `"@/components/trust"` apontando pra raiz) que sobrescreve, em runtime, a resolução mais genérica e ambígua que o `tsconfig.json` sozinho sugeriria (`"@/*": ["./*", "./src/*"]`). Nenhuma das 12 rotas de `app/api/**` que usam o motor de prova, nem o `worker.ts`, importam essas versões de `src/` — todo import de `@/lib/proof/...` ou `@/components/proof|trust/...` cai sempre na raiz.
+
+**Marcado nesta sessão** (mesmo padrão `@deprecated` já usado em `lib/proof/ledger/buildBlock.ts`/`lib/proof/scheduler/runProofPipeline.ts`, achado de 2026-08-26): comentário `@deprecated` no topo de `src/components/proof/{ProofStatus,ProofTimeline}.tsx` e `src/components/trust/{TrustGraph,TrustGraphCanvas,TrustGraphContainer,TrustGraphSidebar,TrustGraphToolbar,TrustGraphViewport}.tsx` (8 arquivos); `README.md` em `src/lib/proof/` e `src/lib/proof/validators/` (12 arquivos cobertos, README em vez de comentário por arquivo dado o volume). Só documentação — nenhuma lógica mudou, nenhum arquivo removido.
+
+### Achado 2 — "unificar acesso a banco" é maior do que o CLAUDE.md documenta
+
+O CLAUDE.md descreve 3 clientes de banco (`pg.Pool` via `lib/db.ts`, Supabase JS, Prisma só pro model `PdfCertification`). O levantamento real encontrou bem mais pontos de instanciação independentes:
+
+- **2 `pg.Pool`**: o oficial em `lib/db.ts` (`src/lib/db.ts` é só um re-export de 2 linhas dele, não duplica) + um segundo, paralelo, criado inline em `app/api/verify/[hash]/route.ts:167` (`if (!_pool) _pool = new Pool({ connectionString: process.env.DATABASE_URL })`), sem reusar `lib/db.ts`.
+- **2 `PrismaClient`**: `lib/prisma.ts` (raiz) e `src/lib/prisma.ts` — dois clients pro mesmo schema, não um só como o CLAUDE.md sugere.
+- **~15+ instanciações de client Supabase**, sem um factory único reusado: 7 módulos "singleton" redundantes entre raiz e `src/` (`lib/supabase.ts`, `lib/supabaseAdmin.ts`, `lib/supabaseServer.ts`, `src/lib/supabase.ts`, `src/lib/supabaseServer.ts`, `supabase/client.ts`, `src/supabase/client.ts`), mais `lib/proof/adapters/supabase.ts` (instancia o próprio client ali dentro), mais 9 rotas de API com client inline (`app/api/documents/[entity_type]/[entity_id]/pdf`, `app/api/invoices/[invoice_id]/signed-pdf`, `app/api/reports/revoke`, `app/api/events/display`, `app/api/proof/export`, `app/api/proof/audit`, `app/api/proof/verify-chain`, `app/api/proof/merkle/batch`, `app/admin/reports/page.tsx`), mais 3 scripts standalone (`scripts/anchorMerkleRoot.ts`, `scripts/generateDailyMerkle.ts`, `scripts/generate-proof-events.ts`).
+- **Nota de correção**: `lib/proof/adapters/supabase.ts` instancia um client com a chave `SUPABASE_SERVICE_ROLE_KEY` direto no arquivo (`process.env.SUPABASE_SERVICE_ROLE_KEY!`) — é a chave privilegiada (bypassa RLS), lida de variável de ambiente, **não é um valor hardcoded no código**. O achado real não é vazamento de segredo, é a instanciação ad-hoc: mais um ponto que abre sessão com a chave mais poderosa do banco, fora de qualquer client factory compartilhado, sem checagem centralizada de quem usa esse client pra quê.
+
+### Status: Etapa 2 inteira fica como pendência maior, sem sub-tarefa fechada além da marcação de código morto
+
+Esta sessão resolveu só o Achado 1 (marcação da árvore morta). Os outros 3 itens da Etapa 2 — extrair `packages/proof-engine`, criar API interna real entre os fronts, unificar de fato os ~19+ pontos de acesso a banco em poucos clients oficiais, e testes de contrato — **não foram iniciados**. Ficam para sessões futuras, provavelmente quebrados em sub-partes menores dado o volume (a extração de package sozinha mexe em ~70 arquivos de `lib/proof/`; a unificação de banco mexe em ~19 pontos de instanciação espalhados por `app/`, `lib/`, `src/lib/`, `scripts/`).
+
 ## Arquitetura (resumo)
 
 - **Pipeline de prova (real)**: `runProofChainAggregator()` em `lib/proof/aggregator/proofChainAggregator.ts`, agendado a cada 5 min via `worker.ts` (serviço `doohplay-workers`) → assina eventos pendentes de `event_chain` → Merkle tree → `event_blocks` → ancora na Polygon → TSA → `certifications`. Ver achado acima sobre o pipeline morto (`evidence`/`buildBlock.ts`/`runProofPipeline.ts`) que não deve ser confundido com este.
@@ -273,3 +296,4 @@ A correção acima para de quebrar com 500, mas não resolve a métrica em si: `
 - Decidir sobre os arquivos `.docx` e templates de PR não rastreados (commitar ou descartar).
 - Resolver a exposição do certificado A1 (ver seção de segurança acima).
 - Nenhum teste automatizado existe no projeto atualmente (`CLAUDE.md`: "There are no automated tests in this codebase").
+- Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — extrair `packages/proof-engine`, API interna entre fronts, unificar ~19+ pontos de acesso a banco, testes de contrato (ver seção acima; só a marcação de código morto foi feita nesta sessão).

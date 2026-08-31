@@ -1,5 +1,18 @@
 // @ts-nocheck
 // src/components/proof/ProofTimeline.tsx
+/**
+ * @deprecated Este componente é inalcançável em runtime.
+ *
+ * next.config.ts define alias de webpack explícito:
+ *   "@/components/proof": path.resolve(__dirname, "components/proof")
+ * Ou seja, @/components/proof/... sempre resolve para components/proof/
+ * (raiz), nunca para este arquivo em src/components/proof/, mesmo tendo
+ * o mesmo nome. Achado do levantamento de 2026-08-30 pra Etapa 2 do
+ * DOOHPLAY_Plano_Separacao_Fronts.docx.
+ *
+ * Não editar nem estender aqui. Se precisar mexer no componente de prova
+ * de verdade, é em components/proof/ (raiz).
+ */
 
 interface EvidenceItem {
   id: string;
