@@ -47,7 +47,7 @@ There are no automated tests in this codebase.
 
 ### Path Aliases
 
-`@/*` resolves to **both** `./src/*` and `./` (repo root). When a module exists in both locations, prefer `src/`. The `@/components/*` alias resolves to `./components/*` and `./src/components/*`.
+`tsconfig.json` declares `@/*` as resolving to **both** `./src/*` and `./` (repo root), which is what TypeScript/editors use for type-checking — but at **runtime**, `next.config.ts` defines an explicit webpack alias that overrides this per namespace, so the "prefer `src/`" rule does not hold uniformly. Confirmed mappings: `@/lib` always resolves to root `./lib` (never `src/lib`); `@/services` and `@/components` (generic) resolve to `src/services`/`src/components`; but `@/components/block`, `@/components/explorer`, `@/components/ledger`, `@/components/merkle`, `@/components/netwok`, `@/components/network`, `@/components/proof`, `@/components/trust`, `@/components/ui` each resolve to their root `./components/*` counterpart, not `src/components/*`. When a module exists in both locations under one of these namespaces, check `next.config.ts`'s `config.resolve.alias` for the actual runtime target before assuming which file is live — do not rely on the tsconfig rule alone (this caused a real bug: `src/lib/prisma.ts` was undocumented dead code shadowed by root `lib/prisma.ts`, removed 2026-08-31).
 
 ### Database Layer
 
@@ -57,7 +57,7 @@ Three database clients coexist:
 |--------|--------|-----|
 | `pg.Pool` | `@/lib/db` (root `lib/db.ts`) | Direct SQL queries to PostgreSQL — used by most API routes |
 | Supabase JS | `lib/supabase/client.ts` or `src/lib/supabase.ts` | Auth and realtime |
-| Prisma | `src/lib/prisma.ts` | Only the `PdfCertification` model (schema: `prisma/schema.prisma`) |
+| Prisma | `@/lib/prisma` (root `lib/prisma.ts`) | Only the `PdfCertification` model (schema: `prisma/schema.prisma`) |
 
 Primary tables (raw PostgreSQL, not in Prisma schema): `event_chain`, `event_blocks`, `impressions`, `play_logs_certified`, `campaigns`, `block_anchors`.
 
