@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import PeriodFilter from "./components/PeriodFilter";
 import Kpis from "./components/Kpis";
@@ -17,6 +17,7 @@ import { getPeriodRange } from "./utils/period";
 ========================= */
 
 type Period = "today" | "7d" | "30d";
+type PeriodRangeValue = { start: string; end: string };
 
 /* =========================
    SAFE WRAPPER
@@ -44,26 +45,33 @@ export default function DashboardPage() {
 
   /* =========================
      DERIVED STATE
+     (new Date() só pode rodar no cliente, depois do mount — se
+     calculado direto no corpo do componente, servidor e cliente
+     produzem timestamps diferentes e quebram a hidratação. `range`
+     começa em null nos dois lados, determinístico, e só é populado
+     via useEffect.)
   ========================= */
 
-  let start = "";
-  let end = "";
+  const [range, setRange] = useState<PeriodRangeValue | null>(null);
 
-  try {
-    const range = getPeriodRange(period);
-    start = range.start;
-    end = range.end;
-  } catch (err) {
-    console.error("PERIOD_RANGE_ERROR:", err);
-  }
+  useEffect(() => {
+    try {
+      setRange(getPeriodRange(period));
+    } catch (err) {
+      console.error("PERIOD_RANGE_ERROR:", err);
+      setRange(null);
+    }
+  }, [period]);
 
-  if (!start || !end) {
+  if (!range) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-400">
         Carregando período...
       </div>
     );
   }
+
+  const { start, end } = range;
 
   /* =========================
      SAFE URL
