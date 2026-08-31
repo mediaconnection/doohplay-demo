@@ -311,6 +311,37 @@ O CLAUDE.md descreve 3 clientes de banco (`pg.Pool` via `lib/db.ts`, Supabase JS
 
 Esta sessão resolveu só o Achado 1 (marcação da árvore morta). Os outros 3 itens da Etapa 2 — extrair `packages/proof-engine`, criar API interna real entre os fronts, unificar de fato os ~19+ pontos de acesso a banco em poucos clients oficiais, e testes de contrato — **não foram iniciados**. Ficam para sessões futuras, provavelmente quebrados em sub-partes menores dado o volume (a extração de package sozinha mexe em ~70 arquivos de `lib/proof/`; a unificação de banco mexe em ~19 pontos de instanciação espalhados por `app/`, `lib/`, `src/lib/`, `scripts/`).
 
+## ✅ Migração dos 4 widgets do dashboard concluída e confirmada com dado real (2026-08-31)
+
+Fecha o ciclo aberto na seção "❌ Hipótese do Redis derrubada" (2026-08-31, acima): as 4 funções SQL (`dashboard_kpis`, `dashboard_executions_over_time`, `dashboard_executions_by_campaign`, `dashboard_executions_by_player`) foram reescritas via `apply_migration` no Supabase (`CREATE OR REPLACE FUNCTION`, mesma assinatura e nome — nenhum código das rotas `app/api/dashboard/*` precisou mudar) trocando `FROM play_logs_certified` → `FROM display_events`, `started_at` → `played_at`, `duration_seconds` → `duration`, e adicionando `WHERE player_id IS NOT NULL` (exclui as ~3 linhas legadas de `app/api/events/display/route.ts`, rota diferente que grava `duration` fixo em 10 sem `player_id`).
+
+**Testado direto no banco com os últimos 30 dias reais, antes de qualquer commit**: `dashboard_kpis` → `{total_executions: 56973, active_players: 2, total_seconds: 634665, active_campaigns: 0}`; `dashboard_executions_over_time` → série horária real e plausível; `dashboard_executions_by_player` → (depois do Gap 2 corrigido, ver abaixo) `LeMelo Café & Confeitaria: 52.770` e `Barbearia Zimermam: 4.203` — dado real, nomeado, pela primeira vez desde que o dashboard interno existe.
+
+### Gap 2 corrigido: `players.name` nunca era escrito em nenhum ponto do fluxo de pareamento
+
+Rastreado o ciclo de vida completo do player: nem `app/api/player/activate/route.ts` (criação) nem `app/api/admin/players/link/route.ts` (pareamento) jamais escreviam `players.name` — campo puro NULL desde sempre, não regressão. `app/api/admin/players/link/route.ts` já buscava `studio_clients.name` na mesma query que resolve o `code` (usado só na resposta JSON) — reaproveitado, sem custo de query extra:
+
+```ts
+await pool.query(
+  `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1, name = $2 WHERE id = $3`,
+  [clientCode, client.rows[0].name, player_id]
+)
+```
+
+Rodado o backfill pros players já pareados antes desse fix (`apply_migration`, `backfill_players_name_from_studio_clients`):
+```sql
+UPDATE players p SET name = sc.name
+FROM studio_clients sc
+WHERE sc.code = p.player_code AND p.paired = true AND p.name IS NULL;
+```
+Confirmado: **4 de 5 players pareados passaram a ter nome** (o 5º tem `player_code` que não bate com nenhum `studio_clients.code` — pareamento órfão, fora de escopo deste fix). Os 2 players ativos (que geram execuções reais) agora mostram `"Barbearia Zimermam"` (`BARBE332`) e `"LeMelo Café & Confeitaria"` (`LEMEL186`) em vez de `NULL`.
+
+### Gap 1 — pendência definitiva: `campaign_id` não é recuperável retroativamente
+
+Investigação exaustiva (ver achados anteriores): `app/api/player/event/route.ts` nunca recebe nem escreve `campaign_id` no `INSERT INTO display_events`, mesmo a coluna existindo na tabela. Metade do volume de eventos vem de `institutional_media` (sem `campaign_id` por design — conteúdo institucional, não campanha paga, não é bug). A outra metade referencia `media_id`s que **não batem com nenhuma linha em nenhuma das ~130 tabelas do schema `public` com coluna `id uuid`** (busca exaustiva via bloco PL/pgSQL, testado contra todas de uma vez) — e `display_events` não tem nenhuma foreign key declarada em `media_id` (nem em `player_id`/`campaign_id`) que indique um destino pretendido. Não há como derivar `campaign_id` desses IDs com o dado disponível hoje.
+
+**Fica como pendência definitiva, não como "investigar mais depois"**: só é resolvível dali pra frente, mudando o contrato de `POST /api/player/event` (`docs/api-contract.md`) pra o player (web + Android nativo) passar `campaign_id` explicitamente no payload do evento — exige coordenação com a frente Android, não é fix só de backend. `dashboard_executions_by_campaign` continua retornando `[]` até essa mudança de contrato acontecer.
+
 ## Arquitetura (resumo)
 
 - **Pipeline de prova (real)**: `runProofChainAggregator()` em `lib/proof/aggregator/proofChainAggregator.ts`, agendado a cada 5 min via `worker.ts` (serviço `doohplay-workers`) → assina eventos pendentes de `event_chain` → Merkle tree → `event_blocks` → ancora na Polygon → TSA → `certifications`. Ver achado acima sobre o pipeline morto (`evidence`/`buildBlock.ts`/`runProofPipeline.ts`) que não deve ser confundido com este.

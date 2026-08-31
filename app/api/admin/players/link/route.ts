@@ -77,9 +77,15 @@ export async function POST(req: NextRequest) {
       [player_id]
     )
 
+    // name = studio_clients.name (não device_type) — é o dado útil pra
+    // identificar a tela em relatórios/dashboard ("Barbearia Zimermam" em
+    // vez de "Amlogic T600" ou um genérico "Minha Tela"). Já buscado acima
+    // na mesma query que resolve o code, sem custo extra. Roda de novo a
+    // cada re-pareamento, então acompanha automaticamente se o cliente for
+    // renomeado.
     await pool.query(
-      `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1 WHERE id = $2`,
-      [clientCode, player_id]
+      `UPDATE players SET paired = true, paired_at = NOW(), player_code = $1, name = $2 WHERE id = $3`,
+      [clientCode, client.rows[0].name, player_id]
     )
     await pool.query(
       `UPDATE studio_clients SET player_id = $1 WHERE code = $2`,
