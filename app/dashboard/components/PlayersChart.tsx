@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-
-const supabase = createClient();
 import {
   BarChart,
   Bar,
@@ -32,21 +29,23 @@ export default function PlayersChart({ startDate, endDate }: Props) {
     setLoading(true);
 
     async function load() {
-      const { data, error } = await supabase.rpc(
-        "dashboard_executions_by_player",
-        {
-          start_date: startDate,
-          end_date: endDate,
-        }
-      );
+      try {
+        const res = await fetch(
+          `/api/dashboard/executions-by-player?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+          { cache: "no-store" }
+        );
 
-      if (!mounted) return;
+        if (!res.ok) throw new Error(`/api/dashboard/executions-by-player failed with ${res.status}`);
 
-      if (error) {
+        const data = await res.json();
+
+        if (!mounted) return;
+
+        setData(Array.isArray(data) ? (data as Row[]) : []);
+      } catch (error) {
+        if (!mounted) return;
         console.error("Erro ao carregar players:", error);
         setData([]);
-      } else if (Array.isArray(data)) {
-        setData(data as Row[]);
       }
 
       setLoading(false);

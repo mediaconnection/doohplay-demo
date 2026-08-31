@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-
-const supabase = createClient();
 import KpiCard from "./KpiCard";
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
@@ -40,12 +37,14 @@ export default function Kpis({ startDate, endDate }: Props) {
     try {
       setError(null);
 
-      const { data, error } = await supabase.rpc("dashboard_kpis", {
-        start_date: startDate,
-        end_date: endDate,
-      });
+      const res = await fetch(
+        `/api/dashboard/kpis?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+        { cache: "no-store" }
+      );
 
-      if (error) throw error;
+      if (!res.ok) throw new Error(`/api/dashboard/kpis failed with ${res.status}`);
+
+      const data = await res.json();
 
       if (Array.isArray(data) && data.length > 0) {
         setData(data[0] as KpisData);

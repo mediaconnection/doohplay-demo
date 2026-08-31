@@ -12,10 +12,7 @@ import {
   YAxis
 } from "recharts"
 
-import { createClient } from "../../../lib/supabase/client"
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh"
-
-const supabase = createClient()
 
 type Row = {
   period: string
@@ -74,15 +71,14 @@ export default function ExecutionsChart({ startDate, endDate }: Props) {
         if (!silent) setLoading(true)
         setError(null)
 
-        const { data: rows, error: rpcError } = await supabase.rpc(
-          "dashboard_executions_over_time",
-          {
-            start_date: startDate,
-            end_date: endDate
-          }
+        const res = await fetch(
+          `/api/dashboard/executions-over-time?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+          { cache: "no-store" }
         )
 
-        if (rpcError) throw rpcError
+        if (!res.ok) throw new Error(`/api/dashboard/executions-over-time failed with ${res.status}`)
+
+        const rows = await res.json()
 
         setData(Array.isArray(rows) ? (rows as Row[]) : [])
       } catch (err) {
