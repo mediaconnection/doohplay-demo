@@ -9,6 +9,7 @@ import CampaignsChart from "./components/CampaignsChart";
 import PlayersChart from "./components/PlayersChart";
 import WatchdogCard from "./components/WatchdogCard";
 import SlaChart from "./components/SlaChart";
+import ControlRoomGrid from "./components/ControlRoomGrid";
 
 import { getPeriodRange } from "./utils/period";
 
@@ -116,6 +117,19 @@ export default function DashboardPage() {
 
         </div>
       </div>
+
+      {/* ===== CENTRAL DE CONTROLE ===== */}
+      <section className="space-y-6">
+
+        <h2 className="text-lg font-semibold text-gray-400 uppercase tracking-wider">
+          Central de Controle
+        </h2>
+
+        <SafeBlock>
+          <ControlRoomGrid />
+        </SafeBlock>
+
+      </section>
 
       {/* ===== SEÇÃO OPERACIONAL ===== */}
       <section className="space-y-6">
