@@ -342,6 +342,38 @@ Investigação exaustiva (ver achados anteriores): `app/api/player/event/route.t
 
 **Fica como pendência definitiva, não como "investigar mais depois"**: só é resolvível dali pra frente, mudando o contrato de `POST /api/player/event` (`docs/api-contract.md`) pra o player (web + Android nativo) passar `campaign_id` explicitamente no payload do evento — exige coordenação com a frente Android, não é fix só de backend. `dashboard_executions_by_campaign` continua retornando `[]` até essa mudança de contrato acontecer.
 
+## 🔴 CRÍTICO — `POST /api/reports/verify` quebrado em produção hoje: tabela `PdfCertification` não existe (2026-08-31)
+
+**Diferente das outras pendências desta seção (que são arquiteturais/de organização de código), esta é uma funcionalidade comercial real quebrada em produção agora, pra qualquer usuário que tentar usar.**
+
+Achado durante a limpeza da duplicata `services/pdf/pdfCertification.ts` (ver seção abaixo): ao tentar validar `getPdfCertificationByHash` com dado real antes de documentar a remoção como segura, descobri que a tabela `PdfCertification` (o model Prisma usado por essa função) **não existe no banco de produção**:
+
+```sql
+select table_name from information_schema.tables where table_schema='public' and lower(table_name) = 'pdfcertification';
+-- []
+select table_name from information_schema.tables where table_schema='public' and lower(table_name) = '_prisma_migrations';
+-- []
+```
+
+**Não existe nem a tabela `_prisma_migrations`** — ou seja, o Prisma **nunca rodou uma migration real** contra esse banco (o mesmo banco que `pg.Pool`/`display_events`/`event_chain`/etc. usam a sessão inteira — confirmado repetidamente com dado real, não é um banco diferente). As únicas tabelas de certificação que existem de fato são `digital_certifications`, `certifications`, `v_proof_certifications` — schema diferente (snake_case), usado por outros caminhos de código (`lib/proof/adapters/db.ts`, `lib/proof/adapters/supabase.ts`), não relacionado ao model Prisma `PdfCertification`.
+
+**Impacto real**: `POST /api/reports/verify` (`app/api/reports/verify/route.ts`) — endpoint que recebe upload de PDF, recalcula o hash SHA-256 e busca a certificação registrada pra validar a assinatura — **sempre falha** pra qualquer PDF real. `db.pdfCertification.findUnique(...)` lança erro de "tabela não existe", cai no `catch` da rota, e devolve `{ error: "Erro interno na verificação" }` com `500`. `storePdfCertification` (função irmã, sem nenhum chamador no repo hoje) também falharia do mesmo jeito se algum dia for usada.
+
+**Não é causado nem relacionado à limpeza de duplicata desta sessão** — o arquivo vivo (`src/services/pdf/pdfCertification.ts`) não foi tocado, só sua cópia morta e inalcançável foi removida. O bug é anterior, só foi descoberto agora ao tentar testar com dado real.
+
+**Fica registrado como pendência crítica separada, não resolvida nesta sessão**: precisa decidir se roda a migration do Prisma (`npx prisma db push` ou `migrate deploy`) pra criar a tabela de verdade, ou se abandona esse caminho e reescreve `getPdfCertificationByHash`/`storePdfCertification` pra usar uma das tabelas de certificação que já existem e têm dado real (`digital_certifications`/`certifications`) — decisão de produto, não só técnica, já que envolve escolher qual schema de certificação é o "de verdade" daqui pra frente.
+
+## ✅ Etapa 2 — sub-parte 1 concluída: consolidação de `pg.Pool` e `PrismaClient` duplicados (2026-08-31)
+
+Primeira sub-parte da unificação de acesso a banco (`DOOHPLAY_Plano_Separacao_Fronts.docx`, Etapa 2, item 3), planejada por `arquiteto-agent` e executada nesta sessão. Supabase (~15 instanciações) fica deliberadamente fora de escopo — sub-parte futura separada.
+
+- **`pg.Pool`**: `app/api/verify/[hash]/route.ts` tinha um `new Pool(...)` inline, sem nenhum timeout configurado, duplicando `lib/db.ts` (o oficial, com `connectionTimeoutMillis`/`query_timeout`/`statement_timeout`/`idleTimeoutMillis`). Trocado pelo `pool` compartilhado de `@/lib/db` — zero mudança de lógica de query, só a origem da conexão (a rota já engolia qualquer erro de query num `try/catch` com fallback via Supabase). Testado com hash real de produção antes e depois do deploy — resposta idêntica (`event_id` e `merkle_root` resolvidos corretamente pela camada `merkle` do motor de prova).
+- **`PrismaClient`**: `src/lib/prisma.ts` e `lib/prisma.ts` (raiz) eram idênticos byte a byte. Confirmado que o alias de webpack explícito em `next.config.ts` (`"@/lib": path.resolve(__dirname, "lib")`) sempre resolve `@/lib/prisma` pra raiz — `src/lib/prisma.ts` tinha **zero consumidor real**, era código morto não documentado. Removido. `CLAUDE.md` corrigido (tabela de Database Layer + seção Path Aliases, que tinha a regra "prefer `src/`" invertida pro caso de `@/lib`).
+- **Achado colateral resolvido também**: `services/pdf/pdfCertification.ts` (raiz) vs `src/services/pdf/pdfCertification.ts` — mesmo padrão, também idênticos byte a byte, mas desta vez na **direção oposta**: `@/services` aponta pra `src/services` no `next.config.ts`, então é a cópia da **raiz** que era morta (zero consumidor; o único consumidor real, `app/api/reports/verify/route.ts`, importa via `@/services/pdf/pdfCertification`, que resolve pra `src/`). Removida. `tsc --noEmit` limpo nos dois casos, nenhum consumidor oculto surgiu.
+- **Lição registrada no `CLAUDE.md`**: os dois casos resolvem em direções opostas (`@/lib` → raiz vence; `@/services` → `src/` vence) — nunca assumir qual lado está vivo sem checar `next.config.ts` primeiro.
+
+Próximos passos desta etapa (não iniciados): extrair `packages/proof-engine`, criar API interna real entre os fronts, sub-parte 2 da unificação de banco (~15 instanciações Supabase), testes de contrato.
+
 ## Arquitetura (resumo)
 
 - **Pipeline de prova (real)**: `runProofChainAggregator()` em `lib/proof/aggregator/proofChainAggregator.ts`, agendado a cada 5 min via `worker.ts` (serviço `doohplay-workers`) → assina eventos pendentes de `event_chain` → Merkle tree → `event_blocks` → ancora na Polygon → TSA → `certifications`. Ver achado acima sobre o pipeline morto (`evidence`/`buildBlock.ts`/`runProofPipeline.ts`) que não deve ser confundido com este.
@@ -352,6 +384,7 @@ Investigação exaustiva (ver achados anteriores): `app/api/player/event/route.t
 
 ## Próximos passos em aberto
 
+- 🔴 **CRÍTICO**: `POST /api/reports/verify` quebrado em produção — tabela `PdfCertification` não existe, Prisma nunca rodou migration nesse banco (ver seção acima). Funcionalidade comercial real, não arquitetural.
 - Decidir sobre os arquivos `.docx` e templates de PR não rastreados (commitar ou descartar).
 - Resolver a exposição do certificado A1 (ver seção de segurança acima).
 - Nenhum teste automatizado existe no projeto atualmente (`CLAUDE.md`: "There are no automated tests in this codebase").
