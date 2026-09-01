@@ -83,6 +83,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [activeTab, setActiveTab] = useState<Tab>("editor")
   const [selectedTpl, setSelectedTpl] = useState<Template | null>(null)
   const [form, setForm] = useState({ headline: "", subline: "", cta: "", phone: "", duration: "15" })
+  const [previewZoom, setPreviewZoom] = useState(100)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
@@ -408,8 +409,19 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           {/* Coluna 2 — Canvas + personalização */}
           <div>
             <div style={{ marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Preview ao vivo</div>
-              <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>Preview ao vivo</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => setPreviewZoom(z => Math.max(50, z - 10))} disabled={previewZoom <= 50} aria-label="Diminuir zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom <= 50 ? "#d1d5db" : "#6b7280", cursor: previewZoom <= 50 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>−</button>
+                  <div style={{ fontSize: 11, color: "#9ca3af", width: 34, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{previewZoom}%</div>
+                  <button onClick={() => setPreviewZoom(z => Math.min(150, z + 10))} disabled={previewZoom >= 150} aria-label="Aumentar zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom >= 150 ? "#d1d5db" : "#6b7280", cursor: previewZoom >= 150 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
+                </div>
+              </div>
+              <div style={{ overflow: "auto", borderRadius: 12 }}>
+                <div style={{ width: `${previewZoom}%`, margin: previewZoom <= 100 ? "0 auto" : undefined }}>
+                  <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
+                </div>
+              </div>
             </div>
             <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", marginBottom: "1rem" }}>
               <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Imagem de fundo (opcional)</div>
