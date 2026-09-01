@@ -19,7 +19,7 @@ type Totals = {
   impressions_today: number
   estimated_revenue_today: number
   avg_cpm: number
-  proofs_registered: number
+  proofs_registered_today: number
   proofs_last_updated_at: string | null
 }
 
@@ -103,8 +103,8 @@ export default function ControlRoomGrid() {
         <KpiCard title="Receita Estimada Hoje" value={formatCurrency(totals.estimated_revenue_today)} />
         <KpiCard title="CPM Médio" value={formatCurrency(totals.avg_cpm)} />
         <KpiCard
-          title="Proofs Registrados"
-          value={totals.proofs_registered.toLocaleString("pt-BR")}
+          title="Proofs Registrados Hoje"
+          value={totals.proofs_registered_today.toLocaleString("pt-BR")}
           warning={
             proofsStale && totals.proofs_last_updated_at
               ? `Dado desde ${formatDateTime(totals.proofs_last_updated_at)} — pipeline de prova pode estar parado`

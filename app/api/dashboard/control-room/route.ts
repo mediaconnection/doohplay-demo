@@ -61,8 +61,26 @@ export async function GET() {
       `
     )
 
+    // Contagem filtrada por event_chain.occurred_at (quando o evento
+    // aconteceu), não certifications.created_at (quando foi certificado) —
+    // achado em produção: o pipeline processa backlog em lote, então
+    // "certificações criadas hoje" não corresponde a "eventos de hoje"
+    // (11.980 certificações criadas em 27/08 certificavam eventos de
+    // 26/08). Filtrar pelo evento original torna o número comparável com
+    // impressions_today. O aviso de dado parado (proofs_last_updated_at)
+    // continua vindo de certifications.created_at — propositalmente
+    // diferente, mede se o pipeline está rodando, não se houve evento hoje.
     const proofsResult = await pool.query(
-      `SELECT COUNT(*)::int AS proofs_registered, MAX(created_at) AS proofs_last_updated_at FROM certifications`
+      `
+      SELECT COUNT(*)::int AS proofs_registered_today
+      FROM certifications c
+      JOIN event_chain e ON e.event_hash = c.content_hash
+      WHERE e.occurred_at >= date_trunc('day', now())
+      `
+    )
+
+    const proofsLastUpdatedResult = await pool.query(
+      `SELECT MAX(created_at) AS proofs_last_updated_at FROM certifications`
     )
 
     const screens = (screensResult.rows as ScreenQueryRow[]).map((row) => {
@@ -91,7 +109,8 @@ export async function GET() {
         ? Number(((estimatedRevenueTodayTotal / impressionsTodayTotal) * 1000).toFixed(2))
         : 0
 
-    const proofsRow = proofsResult.rows[0] ?? { proofs_registered: 0, proofs_last_updated_at: null }
+    const proofsRow = proofsResult.rows[0] ?? { proofs_registered_today: 0 }
+    const proofsLastUpdatedRow = proofsLastUpdatedResult.rows[0] ?? { proofs_last_updated_at: null }
 
     return NextResponse.json(
       {
@@ -100,8 +119,8 @@ export async function GET() {
           impressions_today: impressionsTodayTotal,
           estimated_revenue_today: estimatedRevenueTodayTotal,
           avg_cpm: avgCpm,
-          proofs_registered: Number(proofsRow.proofs_registered ?? 0),
-          proofs_last_updated_at: proofsRow.proofs_last_updated_at,
+          proofs_registered_today: Number(proofsRow.proofs_registered_today ?? 0),
+          proofs_last_updated_at: proofsLastUpdatedRow.proofs_last_updated_at,
         },
         generated_at: new Date().toISOString(),
       },

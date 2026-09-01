@@ -374,6 +374,16 @@ Primeira sub-parte da unificação de acesso a banco (`DOOHPLAY_Plano_Separacao_
 
 Próximos passos desta etapa (não iniciados): extrair `packages/proof-engine`, criar API interna real entre os fronts, sub-parte 2 da unificação de banco (~15 instanciações Supabase), testes de contrato.
 
+## ⚠️ Achado — dado sintético de teste misturado no histórico de `display_events`/`proof_chain` (2026-08-31)
+
+Descoberto ao investigar por que "Proofs Registrados" aparecia maior que "Execuções" no novo widget de Central de Controle (achado separado, ver seção acima sobre o pipeline processar backlog em lote — não é a causa desta contaminação, são dois achados distintos surgidos na mesma investigação).
+
+`scripts/generate-proof-events.ts` é um script standalone que gera dado **100% sintético** — `campaign_id`, `player_id`, `location_id` todos via `crypto.randomUUID()`, sem relação com nenhum registro real — e insere direto em `display_events` e `proof_chain` (não em `event_chain`/`certifications`, tabelas diferentes). Confirmado que rodou pelo menos uma vez, em **10-11/03/2026**:
+- `proof_chain`: 1.003 linhas, todas datadas de `2026-03-10 15:14` a `2026-03-11 15:34` — bate com `generateEvents(1000)` chamado no fim do script.
+- `display_events`: **5.593 linhas** com `player_id` que não corresponde a nenhum registro real em `players` (confirmado via `LEFT JOIN players` retornando `NULL`), datadas de `2026-03-10` a `2026-07-21`.
+
+**Não afeta os números atuais**: todas as 5.593 linhas órfãs são anteriores à janela de 30 dias usada pelos widgets do dashboard e da Central de Controle (confirmado: zero delas caem nos últimos 30 dias) — não contaminam nenhum KPI mostrado hoje. Mas ficam misturadas no total histórico/all-time de `display_events` (578.408 linhas totais, ~1% são esse dado sintético) — vale saber que existe antes de usar qualquer métrica all-time dessa tabela no futuro, e considerar limpar essas 5.593 linhas (e as 1.003 de `proof_chain`) numa sessão futura, já que não representam nenhum evento real.
+
 ## Arquitetura (resumo)
 
 - **Pipeline de prova (real)**: `runProofChainAggregator()` em `lib/proof/aggregator/proofChainAggregator.ts`, agendado a cada 5 min via `worker.ts` (serviço `doohplay-workers`) → assina eventos pendentes de `event_chain` → Merkle tree → `event_blocks` → ancora na Polygon → TSA → `certifications`. Ver achado acima sobre o pipeline morto (`evidence`/`buildBlock.ts`/`runProofPipeline.ts`) que não deve ser confundido com este.
