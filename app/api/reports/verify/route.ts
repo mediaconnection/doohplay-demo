@@ -27,7 +27,21 @@ export async function POST(request: Request) {
     const pdfHash = generatePdfHash(pdfBuffer);
 
     // 3️⃣ Buscar certificação registrada
-    const certification = await getPdfCertificationByHash(pdfHash);
+    // A tabela PdfCertification (Prisma) não existe em produção hoje —
+    // nenhuma migration real rodou contra o banco (ver STATUS_PROJETO.md,
+    // achado de 2026-08-31). Isolado num try/catch próprio pra devolver
+    // um sinal honesto de "verificação indisponível" (503) em vez de
+    // deixar o catch genérico abaixo confundir isso com "PDF inválido".
+    let certification
+    try {
+      certification = await getPdfCertificationByHash(pdfHash);
+    } catch (dbError) {
+      console.error("Erro ao consultar certificação de PDF (tabela PdfCertification ausente em produção):", dbError);
+      return Response.json(
+        { valid: false, available: false, reason: "Verificação de PDF indisponível no momento" },
+        { status: 503 }
+      );
+    }
 
     if (!certification) {
       return Response.json({
