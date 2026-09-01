@@ -85,6 +85,9 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [form, setForm] = useState({ headline: "", subline: "", cta: "", phone: "", duration: "15" })
   const [previewZoom, setPreviewZoom] = useState(100)
   const [fullscreenPreview, setFullscreenPreview] = useState(false)
+  const [backdrop, setBackdrop] = useState(0)
+  const [backdropMenuOpen, setBackdropMenuOpen] = useState(false)
+  const backdropMenuRef = useRef<HTMLDivElement>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
@@ -128,6 +131,13 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [fullscreenPreview])
+
+  useEffect(() => {
+    if (!backdropMenuOpen) return
+    const onClick = (e: MouseEvent) => { if (backdropMenuRef.current && !backdropMenuRef.current.contains(e.target as Node)) setBackdropMenuOpen(false) }
+    window.addEventListener("mousedown", onClick)
+    return () => window.removeEventListener("mousedown", onClick)
+  }, [backdropMenuOpen])
 
   useEffect(() => {
     if (!client) return
@@ -354,6 +364,17 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const BRAND_DARK = "#0369A1"
   const clientAccent = client.primary_color.startsWith("#") ? client.primary_color : `#${client.primary_color}`
   const playlistId = client.playlist_id ?? "bbbbbbbb-0001-0001-0001-000000000001"
+  // Etapa 3 do reskin visual: cenario do preview, so CSS (cor/gradiente),
+  // sem foto de ambiente nenhuma -- diferente do TVScreenDesigner.tsx do
+  // Figma, que usa fotos de banco de imagem (Restaurante/Shopping/etc) que
+  // o DOOHPLAY nao possui e que sugeririam saber onde a tela esta instalada
+  // fisicamente, o que o produto nao sabe hoje.
+  const BACKDROPS = [
+    { label: "Escuro", emoji: "🌑", css: "#05060E" },
+    { label: "Marca", emoji: "🎨", css: `linear-gradient(135deg, ${clientAccent}30, #05060E 70%)` },
+    { label: "Template", emoji: "🖼", css: `radial-gradient(ellipse at 50% 30%, ${selectedTpl.accent}30 0%, transparent 65%), #05060E` },
+    { label: "Grade", emoji: "🎬", css: `radial-gradient(ellipse at 50% 20%, ${clientAccent}20 0%, transparent 60%), linear-gradient(180deg, #0A0C18, #05060E)` },
+  ]
 
   return (
     <main style={{ minHeight: "100vh", background: "#f3f4f6", color: "#111", fontFamily: "system-ui, sans-serif" }}>
@@ -438,9 +459,22 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   <button onClick={() => setPreviewZoom(z => Math.min(150, z + 10))} disabled={previewZoom >= 150} aria-label="Aumentar zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom >= 150 ? "#d1d5db" : "#6b7280", cursor: previewZoom >= 150 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
                   <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
                   <button onClick={() => setFullscreenPreview(true)} aria-label="Ver em tela cheia" title="Tela cheia" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>⤢</button>
+                  <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
+                  <div ref={backdropMenuRef} style={{ position: "relative" }}>
+                    <button onClick={() => setBackdropMenuOpen(o => !o)} aria-label="Cenário do preview" title="Cenário do preview" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{BACKDROPS[backdrop].emoji}</button>
+                    {backdropMenuOpen && (
+                      <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 10, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 120 }}>
+                        {BACKDROPS.map((b, i) => (
+                          <button key={b.label} onClick={() => { setBackdrop(i); setBackdropMenuOpen(false) }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: i === backdrop ? "#f0f9ff" : "transparent", border: "none", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "#374151", cursor: "pointer" }}>
+                            <span>{b.emoji}</span>{b.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div style={{ overflow: "auto", borderRadius: 12 }}>
+              <div style={{ overflow: "auto", borderRadius: 12, padding: "1.5rem", background: BACKDROPS[backdrop].css, transition: "background 0.3s" }}>
                 <div style={{ width: `${previewZoom}%`, margin: previewZoom <= 100 ? "0 auto" : undefined }}>
                   <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
                 </div>
