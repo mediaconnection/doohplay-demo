@@ -6,7 +6,6 @@ export const revalidate = 0
 export async function POST(request: Request) {
     const { generatePdfHash } = await import("@/services/pdf/generatePdfHash")
     const { verifySignature } = await import("@/services/pdf/verifySignature.node")
-    const { getPdfCertificationByHash } = await import("@/services/pdf/pdfCertification")
 
   try {
     const formData = await request.formData();
@@ -29,11 +28,19 @@ export async function POST(request: Request) {
     // 3️⃣ Buscar certificação registrada
     // A tabela PdfCertification (Prisma) não existe em produção hoje —
     // nenhuma migration real rodou contra o banco (ver STATUS_PROJETO.md,
-    // achado de 2026-08-31). Isolado num try/catch próprio pra devolver
-    // um sinal honesto de "verificação indisponível" (503) em vez de
-    // deixar o catch genérico abaixo confundir isso com "PDF inválido".
+    // achado de 2026-08-31). O import também precisa estar aqui dentro:
+    // "@/services/pdf/pdfCertification" importa "@/lib/prisma", e em
+    // produção o client Prisma nunca inicializou de verdade ("did not
+    // initialize yet"), então o import em si já lança — se ficasse fora
+    // do try (como estava antes), nem esse catch nem o genérico abaixo
+    // pegavam, e a rota estourava um 500 vazio de infraestrutura antes
+    // de qualquer JSON de erro ser montado (confirmado via curl real
+    // contra produção). Isolado pra devolver um sinal honesto de
+    // "verificação indisponível" (503) em vez de confundir isso com
+    // "PDF inválido".
     let certification
     try {
+      const { getPdfCertificationByHash } = await import("@/services/pdf/pdfCertification")
       certification = await getPdfCertificationByHash(pdfHash);
     } catch (dbError) {
       console.error("Erro ao consultar certificação de PDF (tabela PdfCertification ausente em produção):", dbError);
