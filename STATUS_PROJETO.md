@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-08-30_
+_Última atualização: 2026-08-31_
 
 ## Visão geral
 
@@ -383,6 +383,16 @@ Descoberto ao investigar por que "Proofs Registrados" aparecia maior que "Execu�
 - `display_events`: **5.593 linhas** com `player_id` que não corresponde a nenhum registro real em `players` (confirmado via `LEFT JOIN players` retornando `NULL`), datadas de `2026-03-10` a `2026-07-21`.
 
 **Não afeta os números atuais**: todas as 5.593 linhas órfãs são anteriores à janela de 30 dias usada pelos widgets do dashboard e da Central de Controle (confirmado: zero delas caem nos últimos 30 dias) — não contaminam nenhum KPI mostrado hoje. Mas ficam misturadas no total histórico/all-time de `display_events` (578.408 linhas totais, ~1% são esse dado sintético) — vale saber que existe antes de usar qualquer métrica all-time dessa tabela no futuro, e considerar limpar essas 5.593 linhas (e as 1.003 de `proof_chain`) numa sessão futura, já que não representam nenhum evento real.
+
+## 📋 Decisão registrada — editor de canvas livre (ferramentas do TVScreenDesigner) NÃO iniciado, por escolha consciente (2026-08-31)
+
+Durante o planejamento de trazer o visual/chrome do protótipo `TVScreenDesigner.tsx` (Figma Make, "TV Studio") pro Studio real (`app/studio/[code]/page.tsx`), veio à tona a paleta de ferramentas flutuante do protótipo (Select/Hand/Text/Shape/Image) — no Figma ela é só um seletor visual sem lógica de edição por trás, mas sugere um editor de canvas livre (arrastar/redimensionar/empilhar elementos individuais numa composição). Registrando aqui, como decisão consciente, que isso **não está iniciado e não faz parte de nenhum plano em andamento**, porque não é um port visual pequeno — é uma feature nova do zero, com pré-requisitos reais:
+
+1. **Motor de composição por camadas** — novo, do zero. Hoje o editor real não tem noção de "camadas": cada anúncio é uma peça única renderizada por `AdPreview` a partir de um template fixo + campos de formulário (`headline`/`subline`/`cta`/`phone`/imagem de fundo). Não existe um modelo de dado de elementos independentes (texto, forma, imagem) posicionáveis livremente.
+2. **Schema novo no banco** — pra salvar/carregar composições arbitrárias (posição, tamanho, z-index, estilo por elemento), algo que não existe em nenhuma tabela hoje (`studio_clients`, `client_screens` etc. não têm esse formato).
+3. **Mudança no player** — tanto o player web quanto o **app Android nativo** (fora deste repositório, front separado) precisariam aprender a renderizar composições arbitrárias em vez de só os templates fixos que conhecem hoje. Isso exigiria mudança de contrato (ver `docs/api-contract.md`) e coordenação direta com a frente Android — o mesmo tipo de risco de divergência que já causou o incidente de 25/06/2026 (categorias erradas e vazamento de conteúdo entre clientes) quando um front mexeu em algo compartilhado sem coordenar com o outro.
+
+**Escopo estimado**: várias semanas, não um port de UI. **Decisão**: não fazer agora. No lugar, a iniciativa em andamento é o reskin visual "honesto" do Studio real — trazer cores/ícones/espaçamento estilo NOC do protótipo para os elementos que **já são reais** (zoom do preview, galeria de templates, cor de marca do cliente, abas existentes), sem adicionar nenhum dado fictício (sem contador de audiência, receita ao vivo ou ticker de hashes — todos `Math.random()`/`setInterval` no protótipo, todos excluídos deliberadamente) e sem prometer capacidade de edição livre que o produto não tem. Se o editor de canvas livre for retomado no futuro, precisa de uma decisão e planejamento próprios, não uma continuação informal deste reskin.
 
 ## Arquitetura (resumo)
 
