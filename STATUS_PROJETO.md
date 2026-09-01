@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-08-31_
+_Última atualização: 2026-09-01_
 
 ## Visão geral
 
@@ -342,7 +342,7 @@ Investigação exaustiva (ver achados anteriores): `app/api/player/event/route.t
 
 **Fica como pendência definitiva, não como "investigar mais depois"**: só é resolvível dali pra frente, mudando o contrato de `POST /api/player/event` (`docs/api-contract.md`) pra o player (web + Android nativo) passar `campaign_id` explicitamente no payload do evento — exige coordenação com a frente Android, não é fix só de backend. `dashboard_executions_by_campaign` continua retornando `[]` até essa mudança de contrato acontecer.
 
-## 🔴 CRÍTICO — `POST /api/reports/verify` quebrado em produção hoje: tabela `PdfCertification` não existe (2026-08-31)
+## ⚠️→✅ `POST /api/reports/verify` — fix mínimo aplicado (2026-09-01); funcionalidade real de certificação de PDF continua pendente
 
 **Diferente das outras pendências desta seção (que são arquiteturais/de organização de código), esta é uma funcionalidade comercial real quebrada em produção agora, pra qualquer usuário que tentar usar.**
 
@@ -362,6 +362,18 @@ select table_name from information_schema.tables where table_schema='public' and
 **Não é causado nem relacionado à limpeza de duplicata desta sessão** — o arquivo vivo (`src/services/pdf/pdfCertification.ts`) não foi tocado, só sua cópia morta e inalcançável foi removida. O bug é anterior, só foi descoberto agora ao tentar testar com dado real.
 
 **Fica registrado como pendência crítica separada, não resolvida nesta sessão**: precisa decidir se roda a migration do Prisma (`npx prisma db push` ou `migrate deploy`) pra criar a tabela de verdade, ou se abandona esse caminho e reescreve `getPdfCertificationByHash`/`storePdfCertification` pra usar uma das tabelas de certificação que já existem e têm dado real (`digital_certifications`/`certifications`) — decisão de produto, não só técnica, já que envolve escolher qual schema de certificação é o "de verdade" daqui pra frente.
+
+### ✅ Atualização (2026-09-01) — fix mínimo aplicado e testado em produção
+
+**O que foi feito**: `app/api/reports/verify/route.ts` agora isola a consulta de certificação (`getPdfCertificationByHash`) num `try/catch` próprio. Durante a implementação, achado adicional: o `import("@/services/pdf/pdfCertification")` estava **fora** do `try` da rota — e como esse módulo importa `@/lib/prisma`, e o client Prisma nunca inicializou de verdade em produção (`Error: @prisma/client did not initialize yet`), o próprio `import` já lançava a exceção, antes de qualquer `try/catch` (nem o novo, nem o genérico que já existia) rodar. Isso fazia a rota estourar um **500 vazio de infraestrutura** (sem corpo JSON nenhum), pior do que o `{error: "Erro interno na verificação"}` originalmente documentado acima. Corrigido movendo o import pra dentro do novo `try/catch`.
+
+**Testado direto contra produção** (`curl` em `https://doohplay.com.br/api/reports/verify`, commits `2dd1f64` e `7630d98`, ambos deployados e confirmados `live`):
+- Upload de arquivo real → antes: `500` vazio. Agora: `503` com `{"valid":false,"available":false,"reason":"Verificação de PDF indisponível no momento"}`.
+- `POST` vazio (sem `Content-Type` multipart válido) → `500` com `{"error":"Erro interno na verificação"}` — esse é o `catch` genérico já existente, não relacionado a este fix; a rota responde rápido, sem travar/timeout.
+
+**Isso NÃO restaura a funcionalidade real de certificação de PDF.** É só um fix de honestidade de erro: parou de devolver um 500 vazio/opaco e passou a devolver um sinal claro de "verificação indisponível". Investigação mais funda (feita antes deste fix, ver conversa da sessão) mostrou que mesmo apontando a rota pra `digital_certifications` ou `certifications` não adiantaria — nenhuma das duas tem dado real de certificação de PDF hoje: `digital_certifications` é escrita por código de demonstração/scaffold com valores placeholder literais (`signed_hash: "SIGNATURE_PENDING"`), e a função que substituiria isso pela assinatura real (`finalizeCertification`) tem zero chamadores; `certifications` é escrita pelo pipeline real (`proofChainAggregator.ts`), mas só pra hash de evento/impressão, não de PDF. `POST /api/reports/generate` (que gera o PDF) também nunca persiste a certificação — a única tentativa de gravação usa um model Prisma `pericial_logs` que **não existe** no `prisma/schema.prisma`.
+
+**Pendência real, registrada como próximo passo se a funcionalidade for retomada** ("opção 1" que não foi escolhida agora): rodar a migration Prisma pra criar `PdfCertification` de verdade (schema já pronto — `pdfHash`/`signature`/`algorithm`/`createdAt`, e `storePdfCertification`/`getPdfCertificationByHash` já escritos corretamente) **e** conectar a chamada que falta em `app/api/reports/generate/route.ts` pra assinar (RSA, chave já existe em `keys/private.pem`) e gravar a certificação depois de gerar o PDF. Sem isso, o endpoint de verificação continua honesto, mas nunca vai encontrar uma certificação de verdade pra nenhum PDF.
 
 ## ✅ Etapa 2 — sub-parte 1 concluída: consolidação de `pg.Pool` e `PrismaClient` duplicados (2026-08-31)
 
