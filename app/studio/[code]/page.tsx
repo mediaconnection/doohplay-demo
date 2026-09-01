@@ -84,6 +84,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [selectedTpl, setSelectedTpl] = useState<Template | null>(null)
   const [form, setForm] = useState({ headline: "", subline: "", cta: "", phone: "", duration: "15" })
   const [previewZoom, setPreviewZoom] = useState(100)
+  const [fullscreenPreview, setFullscreenPreview] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
@@ -120,6 +121,13 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   useEffect(() => () => { if (aiPollRef.current) clearTimeout(aiPollRef.current) }, [])
 
   useEffect(() => { if (activeTab === "playlist") loadPlaylist() }, [activeTab, client])
+
+  useEffect(() => {
+    if (!fullscreenPreview) return
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreenPreview(false) }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [fullscreenPreview])
 
   useEffect(() => {
     if (!client) return
@@ -350,6 +358,19 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   return (
     <main style={{ minHeight: "100vh", background: "#f3f4f6", color: "#111", fontFamily: "system-ui, sans-serif" }}>
 
+      {/* Etapa 2 do reskin visual (mesmo AdPreview real, sem herdar o
+          previewZoom do painel pequeno — fullscreen mostra "do jeito que
+          vai aparecer na tela real", não uma lupa de detalhe). */}
+      {fullscreenPreview && (
+        <div onClick={() => setFullscreenPreview(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(5,6,14,0.96)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
+          <button onClick={() => setFullscreenPreview(false)} aria-label="Fechar tela cheia" style={{ position: "absolute", top: 20, right: 20, width: 36, height: 36, borderRadius: 10, border: "1px solid #232844", background: "#0A0C18", color: "#ECF0FF", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <div style={{ position: "absolute", top: 20, left: 20, fontSize: 11, fontFamily: "monospace", color: "#4A5280" }}>ESC para fechar</div>
+          <div onClick={e => e.stopPropagation()} style={{ width: "min(90vw, 1100px)", boxShadow: "0 40px 120px rgba(0,0,0,0.6)", borderRadius: 16, overflow: "hidden" }}>
+            <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
+          </div>
+        </div>
+      )}
+
       <header style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 10, color: BRAND, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>DOOHPLAY Studio</div>
@@ -415,6 +436,8 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   <button onClick={() => setPreviewZoom(z => Math.max(50, z - 10))} disabled={previewZoom <= 50} aria-label="Diminuir zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom <= 50 ? "#d1d5db" : "#6b7280", cursor: previewZoom <= 50 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>−</button>
                   <div style={{ fontSize: 11, color: "#9ca3af", width: 34, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{previewZoom}%</div>
                   <button onClick={() => setPreviewZoom(z => Math.min(150, z + 10))} disabled={previewZoom >= 150} aria-label="Aumentar zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom >= 150 ? "#d1d5db" : "#6b7280", cursor: previewZoom >= 150 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
+                  <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
+                  <button onClick={() => setFullscreenPreview(true)} aria-label="Ver em tela cheia" title="Tela cheia" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>⤢</button>
                 </div>
               </div>
               <div style={{ overflow: "auto", borderRadius: 12 }}>
