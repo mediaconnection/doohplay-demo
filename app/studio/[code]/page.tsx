@@ -430,6 +430,32 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           inclui Layers/Transição/Tipografia por camada — não são recursos
           reais do editor atual, só existem no protótipo. */}
       {activeTab === "editor" && (
+        <>
+        {/* Etapa 4 do reskin visual: toolbar consolidada acima das 3
+            colunas (zoom/preview/cenário juntos num único lugar, como no
+            toolbar do TVScreenDesigner.tsx), em vez de espalhados dentro
+            da Coluna 2. Mesmos botões/handlers de antes, só reposicionados
+            — nenhum controle novo. */}
+        <div style={{ maxWidth: 1360, margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, height: 48, borderBottom: "1px solid #e5e7eb" }}>
+          <button onClick={() => setPreviewZoom(z => Math.max(50, z - 10))} disabled={previewZoom <= 50} aria-label="Diminuir zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom <= 50 ? "#d1d5db" : "#6b7280", cursor: previewZoom <= 50 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>−</button>
+          <div style={{ fontSize: 11, color: "#9ca3af", width: 34, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{previewZoom}%</div>
+          <button onClick={() => setPreviewZoom(z => Math.min(150, z + 10))} disabled={previewZoom >= 150} aria-label="Aumentar zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom >= 150 ? "#d1d5db" : "#6b7280", cursor: previewZoom >= 150 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
+          <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
+          <button onClick={() => setFullscreenPreview(true)} aria-label="Ver em tela cheia" title="Tela cheia" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>⤢</button>
+          <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
+          <div ref={backdropMenuRef} style={{ position: "relative" }}>
+            <button onClick={() => setBackdropMenuOpen(o => !o)} aria-label="Cenário do preview" title="Cenário do preview" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{BACKDROPS[backdrop].emoji}</button>
+            {backdropMenuOpen && (
+              <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 10, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 120 }}>
+                {BACKDROPS.map((b, i) => (
+                  <button key={b.label} onClick={() => { setBackdrop(i); setBackdropMenuOpen(false) }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: i === backdrop ? "#f0f9ff" : "transparent", border: "none", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "#374151", cursor: "pointer" }}>
+                    <span>{b.emoji}</span>{b.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <div style={{ maxWidth: 1360, margin: "0 auto", padding: "1.5rem", display: "grid", gridTemplateColumns: "240px 1fr 340px", gap: "1.25rem", alignItems: "start" }}>
 
           {/* Coluna 1 — Galeria de templates */}
@@ -451,29 +477,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           {/* Coluna 2 — Canvas + personalização */}
           <div>
             <div style={{ marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>Preview ao vivo</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <button onClick={() => setPreviewZoom(z => Math.max(50, z - 10))} disabled={previewZoom <= 50} aria-label="Diminuir zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom <= 50 ? "#d1d5db" : "#6b7280", cursor: previewZoom <= 50 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>−</button>
-                  <div style={{ fontSize: 11, color: "#9ca3af", width: 34, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{previewZoom}%</div>
-                  <button onClick={() => setPreviewZoom(z => Math.min(150, z + 10))} disabled={previewZoom >= 150} aria-label="Aumentar zoom" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: previewZoom >= 150 ? "#d1d5db" : "#6b7280", cursor: previewZoom >= 150 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
-                  <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
-                  <button onClick={() => setFullscreenPreview(true)} aria-label="Ver em tela cheia" title="Tela cheia" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>⤢</button>
-                  <div style={{ width: 1, height: 14, background: "#e5e7eb", margin: "0 2px" }} />
-                  <div ref={backdropMenuRef} style={{ position: "relative" }}>
-                    <button onClick={() => setBackdropMenuOpen(o => !o)} aria-label="Cenário do preview" title="Cenário do preview" style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{BACKDROPS[backdrop].emoji}</button>
-                    {backdropMenuOpen && (
-                      <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 10, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 120 }}>
-                        {BACKDROPS.map((b, i) => (
-                          <button key={b.label} onClick={() => { setBackdrop(i); setBackdropMenuOpen(false) }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: i === backdrop ? "#f0f9ff" : "transparent", border: "none", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "#374151", cursor: "pointer" }}>
-                            <span>{b.emoji}</span>{b.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Preview ao vivo</div>
               <div style={{ overflow: "auto", borderRadius: 12, padding: "1.5rem", background: BACKDROPS[backdrop].css, transition: "background 0.3s" }}>
                 <div style={{ width: `${previewZoom}%`, margin: previewZoom <= 100 ? "0 auto" : undefined }}>
                   <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
@@ -548,6 +552,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* ── IA ── */}
