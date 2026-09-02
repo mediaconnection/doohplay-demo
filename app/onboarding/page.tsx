@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { BUSINESS_TYPES } from "@/lib/businessTypes"
 
 const BG      = "#0B1020"
 const SURFACE = "#111827"
@@ -58,13 +59,6 @@ const PLANS = [
     features: ["Até 5 telas ativas", "Tudo do Pro", "Painel do cliente dedicado", "Relatórios semanais", "Suporte dedicado"],
     adSpace: "50%", highlight: false,
   },
-]
-
-const BUSINESS_TYPES = [
-  "Academia", "Automotivo", "Bar", "Barbearia", "Cafeteria",
-  "Casa & Serviços", "Clínica", "Condomínio", "Farmácia",
-  "Lanchonete", "Loja de Roupas", "Padaria", "Pet shop",
-  "Restaurante", "Salão de beleza", "Outro",
 ]
 
 const STEPS = [

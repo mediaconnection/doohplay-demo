@@ -1,7 +1,10 @@
 // app/cadastro/route.ts
+import { BUSINESS_TYPES } from "@/lib/businessTypes"
+
 export const dynamic = "force-dynamic"
 
 export function GET() {
+  const businessTypeOptions = BUSINESS_TYPES.map(t => `<option>${t}</option>`).join("\n          ")
   const html = String.raw`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -146,22 +149,7 @@ input::placeholder { color:#475569; }
         <label>Tipo de negócio *</label>
         <select id="business_type">
           <option value="">Selecione...</option>
-          <option>Academia</option>
-          <option>Automotivo</option>
-          <option>Bar</option>
-          <option>Barbearia</option>
-          <option>Casa & Serviços</option>
-          <option>Clínica</option>
-          <option>Condomínio</option>
-          <option>Farmácia</option>
-          <option>Lanchonete</option>
-          <option>Loja de Roupas</option>
-          <option>Mercado</option>
-          <option>Padaria</option>
-          <option>Petshop</option>
-          <option>Restaurante</option>
-          <option>Salão de Beleza</option>
-          <option>Outro</option>
+          ${businessTypeOptions}
         </select>
       </div>
       <div class="field">
