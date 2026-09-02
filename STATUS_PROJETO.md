@@ -378,6 +378,29 @@ select table_name from information_schema.tables where table_schema='public' and
 
 **Pendência real, registrada como próximo passo se a funcionalidade for retomada** ("opção 1" que não foi escolhida agora): rodar a migration Prisma pra criar `PdfCertification` de verdade (schema já pronto — `pdfHash`/`signature`/`algorithm`/`createdAt`, e `storePdfCertification`/`getPdfCertificationByHash` já escritos corretamente) **e** conectar a chamada que falta em `app/api/reports/generate/route.ts` pra assinar (RSA, chave já existe em `keys/private.pem`) e gravar a certificação depois de gerar o PDF. Sem isso, o endpoint de verificação continua honesto, mas nunca vai encontrar uma certificação de verdade pra nenhum PDF.
 
+### ✅ Atualização (2026-09-02) — Opção 1 completa: migration rodada, leitura restaurada; geração real de PDF continua bloqueada por bug de terceiros
+
+**Feito e confirmado em produção, com prova técnica (não só ausência de erro):**
+
+1. **Tabela `PdfCertification` criada** via `CREATE TABLE IF NOT EXISTS` (mesmo SQL do `prisma/migrations/20260517000000_init_pdf_certification/migration.sql`, aplicado direto no Postgres de produção). Confirmado depois via `information_schema.columns`/`pg_indexes`: as 12 colunas e os 2 índices (`_pkey`, `_pdfHash_key` único) existem exatamente como o schema Prisma espera.
+2. **Causa raiz separada encontrada e corrigida**: mesmo com a tabela criada, `/api/reports/verify` continuava devolvendo `503` — o Prisma Client nunca inicializava de verdade em produção (`Error: @prisma/client did not initialize yet`, confirmado nos logs do Render). Causa: o `buildCommand` do serviço no Render nunca rodava `prisma generate` (só o `postinstall`, que cuidava só do Puppeteer). Corrigido em duas partes: (a) `postinstall` passou a rodar `prisma generate && npx puppeteer browsers install chrome`; (b) `prisma` (o CLI) precisou ser movido de `devDependencies` pra `dependencies` — confirmado que o `npm install` desse ambiente do Render não instala `devDependencies` (um primeiro deploy com `prisma` só em `devDependencies` falhou com `sh: 1: prisma: not found`).
+3. **Confirmado, com teste real de assinatura**: `signCanonicalPayloadWithPfx()`/certificado A1 (ver seção acima) segue funcionando; separadamente, `verifySignature.node.ts` tinha um bug real de formato — assinava o hash decodificado de hex (`Buffer.from(hash, "hex")`) mas verificava a string UTF-8 direto (sem decodificar) — corrigido pra decodificar hex antes de verificar, batendo com `signHash()`.
+4. **`app/api/reports/generate/route.ts` agora assina e persiste a certificação** (`signHash` + `storePdfCertification`) depois de gerar o PDF, com um campo `certified` explícito na resposta (best-effort, não derruba a geração se a assinatura/persistência falhar) — antes disso, o hash era calculado mas nunca assinado nem gravado em lugar nenhum.
+5. **Resultado confirmado em produção**: `POST /api/reports/verify` com upload de arquivo real → `200 {"valid":false,"reason":"PDF não certificado ou hash desconhecido"}` (antes: `503`). O caminho de leitura (tabela + Prisma Client + query real) funciona de ponta a ponta.
+
+**Bloqueio novo, real, e não resolvido — fora do escopo original desta tarefa:**
+
+`POST /api/reports/generate` (a rota que gera o PDF em si) **nunca funcionou pra nenhum payload real nesta rota, nem antes de qualquer mudança de hoje** — primeira vez que foi testada com dado real nesta investigação. Sempre falha com `Minified React error #31` ("Objects are not valid as a React child") vindo de dentro do reconciler do `@react-pdf/renderer` (`node_modules/@react-pdf/reconciler/lib/reconciler-23.js`), ao renderizar `reports/DashboardReport.tsx`. **Quatro hipóteses testadas e descartadas, cada uma com teste real, não suposição:**
+
+1. `react-is` em major diferente do `react`/`react-dom` (19.x vs 18.x) — corrigido e deployado (`044cf0d`, mantido no código por ser correto por si só), erro idêntico persistiu.
+2. Cache de build do Render restaurando `node_modules` antigo — deploy com `clearCache: true`, erro idêntico persistiu.
+3. `@react-pdf/renderer` sendo empacotado pelo webpack do Next em vez de tratado como pacote externo — testado localmente adicionando a `serverExternalPackages`, erro idêntico persistiu, revertido (nunca commitado).
+4. Runtime automático de JSX incompatível com o reconciler — `DashboardReport.tsx` reescrito localmente sem nenhum JSX (só `React.createElement` puro), erro idêntico persistiu, revertido (nunca commitado).
+
+Stack trace real (capturado localmente, servidor dev) confirma que `element.type`/`props` do componente externo estão corretos — o erro acontece dentro do work-loop interno do reconciler, sugerindo uma incompatibilidade mais profunda entre a versão instalada (`@react-pdf/renderer` 4.5.1 / `@react-pdf/reconciler` 2.0.0) e este ambiente, possivelmente um bug da própria biblioteca. **Decisão explícita**: não investigar mais por hoje. Próxima hipótese não testada, se retomado: downgrade do `@react-pdf/renderer` pra uma versão mais antiga conhecida como estável.
+
+**Efeito prático**: como nenhum PDF real é gerado, nenhuma certificação real é criada ainda, e o teste ponta a ponta completo (gerar → assinar → verificar com sucesso) continua bloqueado — mas por um bug de biblioteca de terceiros na geração do PDF, não por nada relacionado a `PdfCertification`/Prisma/certificado A1, que já estão confirmados funcionando.
+
 ## ✅ Etapa 2 — sub-parte 1 concluída: consolidação de `pg.Pool` e `PrismaClient` duplicados (2026-08-31)
 
 Primeira sub-parte da unificação de acesso a banco (`DOOHPLAY_Plano_Separacao_Fronts.docx`, Etapa 2, item 3), planejada por `arquiteto-agent` e executada nesta sessão. Supabase (~15 instanciações) fica deliberadamente fora de escopo — sub-parte futura separada.
@@ -439,8 +462,8 @@ Investigação ampla pedida porque um heartbeat parado (LEMEL186 sem `last_ping`
 
 ## Próximos passos em aberto
 
-- 🔴 **CRÍTICO**: `POST /api/reports/verify` quebrado em produção — tabela `PdfCertification` não existe, Prisma nunca rodou migration nesse banco (ver seção acima). Funcionalidade comercial real, não arquitetural.
+- 🟡 `POST /api/reports/verify` — Opção 1 completa aplicada (tabela criada, Prisma Client corrigido, assinatura/verificação corrigidas, ver seção acima): o caminho de leitura funciona de ponta a ponta em produção (`200`, não mais `503`). Mas `POST /api/reports/generate` (geração do PDF) está bloqueada por um bug de terceiros em `@react-pdf/renderer`/`@react-pdf/reconciler`, não relacionado a `PdfCertification` — 4 hipóteses testadas e descartadas (ver seção acima). Sem PDF real gerado, nenhuma certificação real é criada ainda. Próximo passo, se retomado: testar downgrade de `@react-pdf/renderer`.
 - Decidir sobre os arquivos `.docx` e templates de PR não rastreados (commitar ou descartar).
-- Resolver a exposição do certificado A1 (ver seção de segurança acima).
+- ✅ ~~Resolver a exposição do certificado A1~~ — resolvido (ver seção de segurança acima: novo certificado instalado e validado ponta a ponta em 2026-09-02).
 - Nenhum teste automatizado existe no projeto atualmente (`CLAUDE.md`: "There are no automated tests in this codebase").
 - Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — extrair `packages/proof-engine`, API interna entre fronts, unificar ~19+ pontos de acesso a banco, testes de contrato (ver seção acima; só a marcação de código morto foi feita nesta sessão).
