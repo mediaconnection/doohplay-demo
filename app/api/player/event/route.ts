@@ -29,8 +29,17 @@ export const dynamic = "force-dynamic"
 // registrado aqui pra não confundir as duas de novo no futuro.
 async function appendToProofChain(pool: any, payload: Record<string, any>) {
   try {
+    // Achado (2026-09-02): `event_chain` é particionada por data, mas
+    // nenhuma partição foi criada desde 04/2026 -- todo evento recente cai
+    // na partição "default" (87k+ linhas). `ORDER BY id DESC` não tem
+    // índice em `id`, forçando varredura sequencial completa a cada evento
+    // (confirmado: até 84s presa, sob concorrência derrubava até queries
+    // não relacionadas por esgotar o pool de conexões). `created_at` tem
+    // índice (`idx_event_chain_created_at`) e é monotonicamente
+    // equivalente a `id` pra achar a linha mais recente -- troca resolve
+    // sem precisar de índice novo nem mexer no particionamento.
     const prevRes = await pool.query(
-      `SELECT event_hash FROM event_chain ORDER BY id DESC LIMIT 1`
+      `SELECT event_hash FROM event_chain ORDER BY created_at DESC LIMIT 1`
     )
     const prevHash: string | null = prevRes.rows[0]?.event_hash ?? null
 
