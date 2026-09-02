@@ -52,9 +52,12 @@ DOOHPLAY é uma plataforma de transparência e auditoria para publicidade DOOH (
 
 - ✅ **Novo certificado A1 emitido em 2026-08-25** (substituindo o revogado).
 
+- ✅ **Novo certificado A1 instalado e validado ponta a ponta em produção (2026-09-02).** `CERT_PFX_PATH`/`CERT_PFX_PASSWORD` confirmados configurados no Render (`/etc/secrets/certificado-a1.pfx`, 12.657 bytes) e uma assinatura de teste real via `signCanonicalPayloadWithPfx()` (`lib/crypto/signature/adapters/pfxSigner.ts`) rodou com sucesso — RSA-SHA256, certificado válido até 03/02/2027 (não é mais o antigo revogado). Validação feita por uma rota de diagnóstico temporária (`app/api/admin/diagnostico-pfx/route.ts`, nunca expôs senha/chave privada/PEM completo), removida logo em seguida (commit `f0d07fe`) por não ser parte do produto.
+
+- ✅ **Aviso a colaboradores sobre hashes reescritos: confirmado como desnecessário.** Fundador solo, sem colaborador com clone antigo do repositório pendente de re-clonar.
+
 ### Ainda pendente
-1. Instalar o novo certificado A1 no pipeline de assinatura (`keys/`, variáveis de ambiente relevantes) e validar uma assinatura de teste ponta a ponta.
-2. Avisar qualquer colaborador com clone do repositório: os hashes de commit de `master`, `feature/dtv-ready-mvp` e `figma-ui` mudaram todos — precisam re-clonar ou rodar `git reset --hard origin/<branch>` (nunca `git pull` normal, vai gerar conflito gigante). Rascunho de aviso disponível no histórico da sessão de 2026-08-24.
+Nenhum item em aberto nesta seção.
 
 ## ⚠️ Achado — pipeline de prova via `evidence`/`buildBlock.ts` nunca foi usado em produção (2026-08-26)
 
