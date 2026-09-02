@@ -74,7 +74,12 @@ export default function Kpis({ startDate, endDate }: Props) {
      AUTO REFRESH 🔥
   ========================= */
 
-  useAutoRefresh(fetchKpis, 10000);
+  // Achado 2026-09-02: dashboard_kpis() era o maior consumidor de work_mem
+  // em disco (~3.1GB de temp files acumulados, instância com work_mem de
+  // só ~2MB) -- COUNT(DISTINCT) sobre display_events estourando a cada
+  // chamada. 10s era agressivo pra um resumo agregado; 30s reduz a
+  // frequência em 3x sem mudança perceptível (KPIs "de relance").
+  useAutoRefresh(fetchKpis, 30000);
 
   /* =========================
      UI STATES
