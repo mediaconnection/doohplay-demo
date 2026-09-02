@@ -200,7 +200,13 @@ export default function OnboardingPage() {
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: ${BG}; }
         ::-webkit-scrollbar-thumb { background: ${MUTED}; border-radius: 3px; }
+        .plan-card { transition: all .15s, box-shadow .15s; }
+        .plan-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.35); }
       `}</style>
+
+      <div style={{ height: 4, background: BORDER }}>
+        <div style={{ height: "100%", width: `${((step + 1) / STEPS.length) * 100}%`, background: BLUE, transition: "width .25s ease" }} />
+      </div>
 
       <header style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -269,11 +275,11 @@ export default function OnboardingPage() {
             <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Escolha seu plano</div>
             <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Todos incluem 7 dias grátis e certificado ICP-Brasil</div>
             {PLANS.map(plan => (
-              <div key={plan.id} onClick={() => update("plan", plan.id)} style={{
+              <div key={plan.id} className="plan-card" onClick={() => update("plan", plan.id)} style={{
                 border: `2px solid ${form.plan === plan.id ? plan.color : BORDER}`,
                 borderRadius: 14, padding: "1.25rem", marginBottom: 12, cursor: "pointer",
                 background: form.plan === plan.id ? plan.color + "12" : SURFACE,
-                position: "relative", transition: "all .15s",
+                position: "relative",
               }}>
                 {plan.highlight && (
                   <div style={{ position: "absolute", top: -11, right: 16, background: AMBER, color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>MAIS POPULAR</div>
@@ -387,7 +393,17 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 24 }}>
+          {STEPS.map((_, i) => (
+            <div key={i} style={{
+              width: i === step ? 18 : 6, height: 6, borderRadius: 3,
+              background: i <= step ? BLUE : BORDER,
+              transition: "all .2s",
+            }} />
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
           {step > 0 && (
             <button onClick={back} style={{ flex: 1, padding: "13px", borderRadius: 10, border: `1px solid ${BORDER}`, background: "transparent", fontSize: 14, fontWeight: 600, color: TEXT2, cursor: "pointer" }}>
               ← Voltar
