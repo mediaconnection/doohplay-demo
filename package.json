@@ -66,6 +66,7 @@
     "pg": "^8.17.2",
     "pkijs": "^3.4.0",
     "postcss": "^8.5.6",
+    "prisma": "^5.22.0",
     "puppeteer": "^24.39.1",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
@@ -84,7 +85,6 @@
   "devDependencies": {
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
-    "prisma": "^5.22.0",
     "tsx": "^4.21.0"
   }
 }
