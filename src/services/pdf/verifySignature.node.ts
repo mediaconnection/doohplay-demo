@@ -14,7 +14,7 @@ export function verifySignature(
   signature: string
 ): boolean {
   const verify = crypto.createVerify("RSA-SHA256");
-  verify.update(hash);
+  verify.update(Buffer.from(hash, "hex"));
   verify.end();
 
   return verify.verify(publicKey, signature, "base64");

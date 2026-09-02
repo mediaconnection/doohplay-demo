@@ -76,11 +76,37 @@ export async function POST(req: NextRequest) {
     const pdfHash = crypto.createHash("sha256").update(pdfBuffer).digest("hex")
     const qrCode = await QRCode.toDataURL(pdfHash)
 
+    // Assina o hash e persiste a certificacao real (PdfCertification/Prisma),
+    // consumida depois por POST /api/reports/verify. Best-effort: falha de
+    // assinatura/persistencia nao derruba a geracao do PDF em si -- o
+    // chamador sabe pelo campo "certified" se a certificacao ficou
+    // registrada de verdade, em vez de assumir silenciosamente.
+    let certified = false
+    try {
+      const { signHash } = await import("@/services/pdf/pdfSigner")
+      const { storePdfCertification } = await import("@/services/pdf/pdfCertification")
+
+      const signature = signHash(pdfHash)
+
+      await storePdfCertification({
+        pdfHash,
+        signature,
+        algorithm: "RSA-SHA256",
+        ipAddress: getClientIp(req),
+        userAgent: req.headers.get("user-agent") || "unknown"
+      })
+
+      certified = true
+    } catch (certError) {
+      console.error("Erro ao assinar/persistir certificacao do PDF:", certError)
+    }
+
     const responsePayload = {
       success: true,
       payloadHash,
       pdfHash,
       qrCode,
+      certified,
       generatedAt: now
     }
 
