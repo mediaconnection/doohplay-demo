@@ -38,6 +38,22 @@ export async function PATCH(
       [client_code.toUpperCase(), id, screen_id ?? null]
     )
 
+    // Sincroniza com a fundação unificada (placements_v2) — best-effort,
+    // mesmo padrão já usado em app/api/client/playlist/[code]/route.ts PATCH
+    // (que sincroniza position/active/agendamento pro mesmo source_id, mas
+    // nunca incluiu screen_id). Achado 2026-09-02: essa rota nunca
+    // sincronizava screen_id pra placements_v2, então o player (que lê
+    // SEMPRE de placements_v2, não de playlist_schedule) nunca via a
+    // atribuição de tela — toda mídia aparecia em toda tela do cliente,
+    // mesmo configurada como conteúdo de uma tela específica. Sem sintoma
+    // visível até hoje porque BARBE332/LEMEL186 têm só 1 tela cada.
+    await pool.query(
+      `UPDATE placements_v2
+       SET screen_id = $1
+       WHERE source_table = 'playlist_schedule' AND source_id = $2`,
+      [screen_id ?? null, `${client_code.toUpperCase()}:${id}`]
+    ).catch((e: any) => console.error("[unifiedSync] screen assignment sync failed:", e))
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error("[client/media/screen PATCH]", err)
