@@ -6,6 +6,7 @@ import { updateClientRiskStats } from "@/lib/domain/risk/fraudIntelligence"
 import { checkAlerts } from "@/lib/observability/alerts"
 import { increment, observe } from "@/lib/observability/metrics"
 import { log } from "@/lib/observability/logger"
+import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 /* =========================
    TYPES
@@ -183,6 +184,10 @@ export function getRiskWorker(): Worker {
     _riskWorker.on("error", (err) => {
       console.error("WORKER_ERROR:", err)
     })
+
+    // risk-queue tem trafego real (app/api/events/route.ts) -- teto mais
+    // curto que as filas sem produtor, pra nao acumular backlog demais.
+    attachRateLimitCircuitBreaker(_riskWorker, { label: "riskWorker", maxDelayMs: 2 * 60_000 })
   }
 
   return _riskWorker

@@ -1,6 +1,7 @@
 import { Worker, type Job } from "bullmq"
 import { getRedis } from "@/lib/redis"
 import { writeEvent } from "@/lib/ledger/writeEvent"
+import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 type EventJobData = {
   payload: Record<string, unknown>
@@ -32,6 +33,10 @@ export function getEventWorker(): Worker {
     _eventWorker.on("completed", (job) => {
       console.log(`[eventWorker] 🎉 Job done: ${job.id}`)
     })
+
+    // event-queue não tem nenhum produtor real hoje (achado 2026-09-03) --
+    // teto alto, pausar mais tempo aqui não afeta nada em produção.
+    attachRateLimitCircuitBreaker(_eventWorker, { label: "eventWorker", maxDelayMs: 10 * 60_000 })
   }
 
   return _eventWorker

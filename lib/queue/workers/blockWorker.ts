@@ -4,6 +4,7 @@ import { shouldSendAlerts } from "@/lib/domain/alerts/shouldSendAlert"
 import { saveAlerts } from "@/lib/domain/alerts/saveAlerts"
 import { sendSlackAlert } from "@/lib/integrations/slack/sendAlert"
 import { formatAlertMessage } from "@/lib/domain/alerts/formatAlertMessage"
+import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 type JobData = {
   campaignId: string
@@ -48,6 +49,10 @@ export function getAlertWorker(): Worker {
     _alertWorker.on("completed", (job) => {
       console.log("🎉 Job done:", job.id)
     })
+
+    // Fila "alerts" não tem nenhum produtor real hoje (achado 2026-09-03,
+    // enqueueAlert() sem chamador fora de script de teste) -- teto alto.
+    attachRateLimitCircuitBreaker(_alertWorker, { label: "alertWorker(blockWorker)", maxDelayMs: 10 * 60_000 })
   }
 
   return _alertWorker

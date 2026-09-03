@@ -7,6 +7,7 @@ import { getSigner } from "@/lib/domain/proof/getSigner"
 import { getActiveKey } from "@/lib/domain/proof/keyRegistry"
 import { increment, observe } from "@/lib/observability/metrics"
 import { log } from "@/lib/observability/logger"
+import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 type ProofJobData = {
   input: Record<string, unknown>
@@ -174,6 +175,10 @@ export function getProofWorker(): Worker {
     _proofWorker.on("error", (err) => {
       console.error("PROOF_WORKER_ERROR:", err)
     })
+
+    // proof-queue e alimentada por app/api/verify/[hash]/route.ts (portal
+    // publico de verificacao) -- teto mais curto, mesma logica do risk-queue.
+    attachRateLimitCircuitBreaker(_proofWorker, { label: "proofWorker", maxDelayMs: 2 * 60_000 })
   }
 
   return _proofWorker

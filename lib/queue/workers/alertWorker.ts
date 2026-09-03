@@ -1,6 +1,7 @@
 import { Queue, Worker } from "bullmq"
 import { getRedis } from "@/lib/redis"
 import { runProofChainAggregator } from "@/lib/proof/aggregator/proofChainAggregator"
+import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 const QUEUE_NAME = "proofchain-aggregator"
 const REPEAT_EVERY_MS = 5 * 60 * 1000 // 5 minutes
@@ -45,6 +46,10 @@ export function getAggregatorWorker(): Worker {
         concurrency: 1,
       }
     )
+
+    // proofchain-aggregator so tem o proprio agendamento interno (5 em 5
+    // min) como produtor -- processo em lote/eventual, tolera teto alto.
+    attachRateLimitCircuitBreaker(_aggregatorWorker, { label: "aggregatorWorker", maxDelayMs: 10 * 60_000 })
   }
   return _aggregatorWorker
 }
