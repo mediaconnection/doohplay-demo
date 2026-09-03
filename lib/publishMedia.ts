@@ -207,6 +207,59 @@ export async function renderImageAndUpload(params: {
   return `${PUBLIC_URL}/${key}`
 }
 
+// Achado em produção em 03/09/2026, testando a publicação real dos
+// templates guiados: BARBE332 (cliente real pagante) e LEMEL186 também não
+// têm NENHUMA linha em "Campaign" -- ou seja, publishToRealPlaylist() abaixo
+// falhava ("Nenhuma campanha ativa encontrada") pra qualquer cliente sem
+// Campaign pré-existente, incluindo o cliente real. Não é bug dos templates
+// guiados -- afeta igualmente o Editor clássico e a aba IA, que também
+// publicam por aqui. app/api/client/generate-creative/route.ts já resolvia
+// isso com uma ensureCampaign() própria (auto-cria Advertiser + Campaign se
+// não existir) -- essa rota não foi tocada (já testada, funcionando em
+// produção). Reimplementada aqui, self-contained (só pool + code, busca o
+// nome do cliente sozinha em studio_clients), pra não acoplar
+// publishMedia.ts a nenhum dado específico da rota de generate-creative.
+// pool: any -- mesmo padrão do ensureCampaign original em generate-creative/
+// route.ts, que evita de propósito o erro pré-existente "Cannot use
+// namespace 'Pool' as a type" (baseline conhecida deste repo, ver
+// publishToRealPlaylist logo abaixo -- não é algo pra corrigir aqui).
+export async function ensureCampaign(pool: any, code: string): Promise<string> {
+  const clientRes = await pool.query(
+    `SELECT name FROM studio_clients WHERE code = $1 LIMIT 1`,
+    [code]
+  )
+  const clientName = clientRes.rows[0]?.name ?? code
+
+  // DO NOTHING (não COALESCE/UPDATE como no generate-creative original) --
+  // aqui nunca temos telefone/email reais pra oferecer, então não há nada
+  // pra atualizar num Advertiser já existente; um conflito só confirma que
+  // ele já existe.
+  await pool.query(
+    `INSERT INTO "Advertiser" (id, code, name, email, phone, "createdAt")
+     VALUES (gen_random_uuid()::text, $1, $2, '', '', NOW())
+     ON CONFLICT (code) DO NOTHING`,
+    [code, clientName]
+  )
+
+  const { rows } = await pool.query(
+    `SELECT id FROM "Campaign"
+     WHERE "advertiserCode" = $1 AND name = 'Promoções da Loja'
+     LIMIT 1`,
+    [code]
+  )
+  if (rows.length > 0) return rows[0].id
+
+  const { rows: newRows } = await pool.query(
+    `INSERT INTO "Campaign"
+       (id, "advertiserCode", name, status, "startDate", "endDate", budget, impressions, "createdAt")
+     VALUES (gen_random_uuid()::text, $1, 'Promoções da Loja', 'active',
+             NOW(), NOW() + INTERVAL '1 year', 0, 0, NOW())
+     RETURNING id`,
+    [code]
+  )
+  return newRows[0].id
+}
+
 // Publica de verdade no sistema real que o player lê (mesmo pipeline de
 // generate-creative/route.ts): Campaign -> CampaignMedia -> playlist_schedule
 // -> sync pra fundação unificada (campaigns_v2/creative_assets_v2/placements_v2).
@@ -220,14 +273,7 @@ export async function publishToRealPlaylist(pool: Pool, params: {
   const { code, name, url, type, duration } = params
   const upperCode = code.toUpperCase()
 
-  const campaignRes = await pool.query(
-    `SELECT id FROM "Campaign" WHERE "advertiserCode" = $1 AND status = 'active' LIMIT 1`,
-    [upperCode]
-  )
-  if (!campaignRes.rows[0]) {
-    throw new Error("Nenhuma campanha ativa encontrada pra este cliente")
-  }
-  const campaignId = campaignRes.rows[0].id
+  const campaignId = await ensureCampaign(pool, upperCode)
 
   const mediaRes = await pool.query(
     `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
