@@ -12,7 +12,7 @@ import SchedulerEditor from "@/components/SchedulerEditor"
 import { getTemplatesForBusinessType, type StudioTemplate } from "@/lib/studioTemplates"
 // Fase 46 (03/09/2026): Etapa 2 do plano de templates guiados — galeria +
 // formulário. Ainda não conectado a prévia/geração real (Etapas 3 e 4).
-import { GUIDED_TEMPLATES, getGuidedTemplate, validateGuidedValues, type GuidedTemplateId } from "@/lib/guidedTemplates"
+import { GUIDED_TEMPLATES, getGuidedTemplate, validateGuidedValues, buildGuidedPreviewCopy, type GuidedTemplateId } from "@/lib/guidedTemplates"
 
 type Client = {
   id: string
@@ -624,8 +624,15 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                   })}
                 </div>
                 {missing.length === 0 ? (
-                  <div style={{ marginTop: 20, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "#166534" }}>
-                    ✓ Tudo certo! A prévia grátis (sem consumir sua cota de IA) chega na próxima etapa.
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Prévia grátis — direto do que você digitou, sem IA, não consome sua cota</div>
+                    <div style={{ maxWidth: 420 }}>
+                      <AdPreview
+                        tpl={getTemplatesForBusinessType(client.business_type)[0]}
+                        client={{ ...client, primary_color: clientAccent.replace("#", "") }}
+                        form={{ ...buildGuidedPreviewCopy(tpl.id, guidedValues), phone: form.phone }}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div style={{ marginTop: 20, fontSize: 11, color: "#9ca3af" }}>Preencha os campos obrigatórios (*) pra continuar.</div>

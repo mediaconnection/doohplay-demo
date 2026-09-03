@@ -151,6 +151,65 @@ export function validateGuidedValues(templateId: string, values: Record<string, 
     .map(f => f.id)
 }
 
+export type GuidedPreviewCopy = { headline: string; subline: string; cta: string }
+
+// Fase 46 (03/09/2026), Etapa 3: deriva headline/subline/cta DIRETO dos
+// valores digitados, sem chamar Claude/Gemini — usado pela prévia grátis,
+// que não pode consumir a cota de IA (requisito explícito do plano). Texto
+// literal, formatado só o suficiente pra caber no layout do AdPreview/
+// buildHtml (mesmo formato de app/api/client/generate-creative e da aba
+// IA). A geração real (Etapa 4) usa buildGuidedPrompt (abaixo) pra
+// enriquecer via IA — este aqui é deliberadamente mais simples.
+export function buildGuidedPreviewCopy(templateId: string, values: Record<string, string>): GuidedPreviewCopy {
+  const v = (id: string) => values[id]?.trim() || ""
+
+  switch (templateId as GuidedTemplateId) {
+    case "promocao":
+      return {
+        headline: v("desconto") || v("produto"),
+        subline: [v("produto"), v("validade")].filter(Boolean).join(" — "),
+        cta: v("condicao") || "Aproveite agora",
+      }
+    case "produto_novo":
+      return {
+        headline: v("nome"),
+        subline: [v("beneficio"), v("preco")].filter(Boolean).join(" — "),
+        cta: "Conheça agora",
+      }
+    case "horario": {
+      const tipo = v("tipo_aviso")
+      const tipoLabel = getGuidedTemplate("horario")?.fields
+        .find(f => f.id === "tipo_aviso")?.options
+        ?.find(o => o.value === tipo)?.label ?? tipo
+      return {
+        headline: tipoLabel,
+        subline: [v("periodo"), tipo === "especial" ? v("detalhe") : ""].filter(Boolean).join(" — "),
+        cta: "Fique atento",
+      }
+    }
+    case "evento":
+      return {
+        headline: v("evento"),
+        subline: [v("data"), v("acao")].filter(Boolean).join(" — "),
+        cta: "Não perca",
+      }
+    case "depoimento":
+      return {
+        headline: v("depoimento") ? `"${v("depoimento")}"` : "",
+        subline: [v("autor"), v("destaque")].filter(Boolean).join(" · "),
+        cta: "Confira",
+      }
+    case "institucional":
+      return {
+        headline: v("mensagem"),
+        subline: v("subtitulo"),
+        cta: "Venha nos conhecer",
+      }
+    default:
+      return { headline: "", subline: "", cta: "" }
+  }
+}
+
 // Monta o prompt em português a partir dos campos preenchidos — mesmo
 // formato que o campo `prompt` livre já aceita hoje em
 // app/api/studio/ai-generate/route.ts (que já recebe business_name e
