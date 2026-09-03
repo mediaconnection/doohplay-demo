@@ -68,11 +68,37 @@ export const STUDIO_TEMPLATES: Record<string, StudioTemplate[]> = {
   ],
 }
 
+// Fase 46 (03/09/2026): normaliza o business_type real (cadastrado em PT,
+// mesmas opções do dropdown de /cadastro) pra uma chave de STUDIO_TEMPLATES
+// (definidas em inglês). Sem isso, STUDIO_TEMPLATES[businessType] nunca
+// batia pra nenhum cliente real -- achado em produção em 03/09/2026:
+// Barbearia e Lanchonete, os 2 únicos clientes ativos, caíam sempre no
+// fallback .barber por acidente de idioma, não por decisão. Mesmo bug já
+// corrigido uma vez em app/api/studio/ai-generate (12/07/2026, ver
+// SUGGESTIONS) e não replicado aqui até agora.
+//
+// Cobertura: STUDIO_TEMPLATES tem 8 segmentos, o dropdown de /cadastro tem
+// 10 — não bate 1:1. Categorias sem template dedicado (Farmácia, Clínica,
+// Academia, Petshop, Salão de Beleza, Outro) caem em "barber" de propósito,
+// documentado aqui — mesmo resultado visual de hoje, mas agora é decisão
+// explícita e testável, não bug por acidente de idioma.
+const BUSINESS_TYPE_TO_SEGMENT: Record<string, string> = {
+  "barbearia":  "barber",
+  "lanchonete": "food",
+  "restaurante":"food",
+  "mercado":    "supermarket",
+}
+
+export function mapBusinessTypeToTemplateSegment(businessType: string | null | undefined): string {
+  const normalized = (businessType || "").trim().toLowerCase()
+  return BUSINESS_TYPE_TO_SEGMENT[normalized] ?? "barber"
+}
+
 // Mesma regra de fallback que já existia no editor (TEMPLATES[businessType]
 // ?? TEMPLATES.barber) — extraída aqui pra backend e frontend nunca
 // divergirem sobre qual lista vale pra cada business_type.
 export function getTemplatesForBusinessType(businessType: string | null | undefined): StudioTemplate[] {
-  return STUDIO_TEMPLATES[businessType || ""] ?? STUDIO_TEMPLATES.barber
+  return STUDIO_TEMPLATES[mapBusinessTypeToTemplateSegment(businessType)] ?? STUDIO_TEMPLATES.barber
 }
 
 // Usado pela rota de publicação: dado o business_type do cliente e o id

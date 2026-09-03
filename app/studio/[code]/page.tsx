@@ -9,7 +9,7 @@ import SchedulerEditor from "@/components/SchedulerEditor"
 // publicação (app/api/studio/publish/route.ts) importa a MESMA lista, em
 // vez de recalcular cor fixa por segmento e ignorar qual template foi
 // escolhido.
-import { STUDIO_TEMPLATES, type StudioTemplate } from "@/lib/studioTemplates"
+import { getTemplatesForBusinessType, type StudioTemplate } from "@/lib/studioTemplates"
 
 type Client = {
   id: string
@@ -24,7 +24,6 @@ type Client = {
 }
 
 type Template = StudioTemplate
-const TEMPLATES = STUDIO_TEMPLATES
 
 // Fase 45 (30/08/2026): `format` controla o aspect-ratio do preview (16:9/
 // 9:16/1:1) — usado pela aba IA pra mostrar os 3 conceitos nos 3 formatos
@@ -151,7 +150,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
     fetch(`/api/studio/auth?code=${code}`).then(r => r.json()).then(d => {
       if (!d.ok) { router.push("/studio"); return }
       setClient(d.client)
-      const templates = TEMPLATES[d.client.business_type] ?? TEMPLATES.barber
+      const templates = getTemplatesForBusinessType(d.client.business_type)
       setSelectedTpl(templates[0])
       setForm(f => ({ ...f, phone: d.client.phone ?? "" }))
     }).catch(() => router.push("/studio")).finally(() => setLoading(false))
@@ -358,7 +357,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
 
   if (!client || !selectedTpl) return null
 
-  const templates = TEMPLATES[client.business_type] ?? TEMPLATES.barber
+  const templates = getTemplatesForBusinessType(client.business_type)
   const BRAND = "#0284C7"
   const BRAND_LIGHT = "#F0F9FF"
   const BRAND_DARK = "#0369A1"
