@@ -62,7 +62,32 @@ export async function POST(req: NextRequest) {
       type: parsed.data.type
     })
 
-    await enqueueEventProcessing(event.id, traceId)
+    // Pendência registrada em 2026-09-03 (investigação do circuit-breaker do
+    // Upstash): antes disso, uma falha aqui (ex: rate-limit do Upstash) caía
+    // no catch genérico abaixo e devolvia 500 cru -- inclusive quando o
+    // evento já tinha sido ingerido com sucesso na linha acima. Isolado num
+    // try/catch próprio pra devolver 503 + Retry-After, mesmo padrão já
+    // aplicado em app/api/verify/[hash]/route.ts (503, Retry-After no header
+    // E refletido na mensagem visível, não só no header HTTP).
+    try {
+      await enqueueEventProcessing(event.id, traceId)
+    } catch (queueError) {
+      console.error("EVENT_ENQUEUE_ERROR:", {
+        traceId,
+        eventId: event.id,
+        message: getErrorMessage(queueError)
+      })
+
+      return NextResponse.json(
+        {
+          error: "EVENT_QUEUE_UNAVAILABLE",
+          event_id: event.id,
+          traceId,
+          message: "Evento recebido, mas o processamento está temporariamente indisponível. Tente novamente em cerca de 30 segundos."
+        },
+        { status: 503, headers: { "Retry-After": "30" } }
+      )
+    }
 
     return NextResponse.json(
       {
