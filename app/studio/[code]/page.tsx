@@ -10,6 +10,9 @@ import SchedulerEditor from "@/components/SchedulerEditor"
 // vez de recalcular cor fixa por segmento e ignorar qual template foi
 // escolhido.
 import { getTemplatesForBusinessType, type StudioTemplate } from "@/lib/studioTemplates"
+// Fase 46 (03/09/2026): Etapa 2 do plano de templates guiados — galeria +
+// formulário. Ainda não conectado a prévia/geração real (Etapas 3 e 4).
+import { GUIDED_TEMPLATES, getGuidedTemplate, validateGuidedValues, type GuidedTemplateId } from "@/lib/guidedTemplates"
 
 type Client = {
   id: string
@@ -72,7 +75,7 @@ type AiConcept = {
   image_error?: string
 }
 
-type Tab = "editor" | "ai" | "playlist" | "scheduler"
+type Tab = "editor" | "guided" | "ai" | "playlist" | "scheduler"
 
 export default function StudioEditorPage({ params }: { params: { code: string } }) {
   const code = params.code.toUpperCase()
@@ -96,6 +99,9 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   const [published, setPublished] = useState(false)
   const [publishedItems, setPublishedItems] = useState<{ title: string; time: string }[]>([])
   const [mediaTab, setMediaTab] = useState<"template" | "youtube" | "video" | "live">("template")
+  // Fase 46 (03/09/2026), Etapa 2: galeria + formulário de templates guiados.
+  const [guidedTemplateId, setGuidedTemplateId] = useState<GuidedTemplateId | null>(null)
+  const [guidedValues, setGuidedValues] = useState<Record<string, string>>({})
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [videoUploading, setVideoUploading] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
@@ -408,6 +414,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
       <div style={{ borderBottom: "1px solid #e5e7eb", background: "#fff", padding: "0 1.5rem", display: "flex", gap: 0 }}>
         {([
           { key: "editor", label: "✏️  Editor de anúncios" },
+          { key: "guided", label: "🧭  Guiado" },
           { key: "ai", label: "✨  IA" },
           { key: "playlist", label: "📋  Playlist" },
           { key: "scheduler", label: "🕐  Grade de programação" },
@@ -552,6 +559,81 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           </div>
         </div>
         </>
+      )}
+
+      {/* ── GUIADO ── */}
+      {/* Fase 46 (03/09/2026), Etapa 2 do plano de templates guiados: galeria
+          dos 6 objetivos + formulário com os campos daquele objetivo. Só
+          coleta e valida os campos aqui — prévia grátis (sem consumir cota
+          de IA) e geração real via /api/studio/ai-generate ficam pras
+          Etapas 3 e 4, cada uma com sua própria aprovação. */}
+      {activeTab === "guided" && (
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "1.5rem" }}>
+          {!guidedTemplateId ? (
+            <>
+              <div style={{ marginBottom: "1.25rem" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>O que você quer anunciar?</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Escolha um objetivo — a IA monta o anúncio pra você a partir de algumas informações rápidas.</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                {GUIDED_TEMPLATES.map(tpl => (
+                  <button key={tpl.id} onClick={() => { setGuidedTemplateId(tpl.id); setGuidedValues({}) }} style={{ textAlign: "left", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.25rem", cursor: "pointer" }}>
+                    <div style={{ fontSize: 28, marginBottom: 10 }}>{tpl.emoji}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 4 }}>{tpl.name}</div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.4 }}>{tpl.description}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (() => {
+            const tpl = getGuidedTemplate(guidedTemplateId)
+            if (!tpl) return null
+            const missing = validateGuidedValues(tpl.id, guidedValues)
+            return (
+              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "1.5rem" }}>
+                <button onClick={() => setGuidedTemplateId(null)} style={{ background: "none", border: "none", color: "#9ca3af", fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 14 }}>← Escolher outro objetivo</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                  <div style={{ fontSize: 24 }}>{tpl.emoji}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{tpl.name}</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  {tpl.fields.map(field => {
+                    // Campo condicional (só o "Detalhe do horário" hoje):
+                    // fica escondido até a condição bater, em vez de
+                    // aparecer desabilitado — decisão de UI, não da spec
+                    // (que só define a obrigatoriedade condicional, não a
+                    // visibilidade).
+                    const conditionMet = field.requiredIf ? guidedValues[field.requiredIf.fieldId]?.trim() === field.requiredIf.equals : true
+                    if (field.requiredIf && !conditionMet) return null
+                    const isRequiredNow = field.requiredIf ? conditionMet : field.required
+                    return (
+                      <div key={field.id}>
+                        <label style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 4 }}>
+                          {field.label}{isRequiredNow && <span style={{ color: "#ef4444" }}> *</span>}
+                        </label>
+                        {field.type === "select" ? (
+                          <select value={guidedValues[field.id] ?? ""} onChange={e => setGuidedValues(v => ({ ...v, [field.id]: e.target.value }))} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }}>
+                            <option value="">Selecione...</option>
+                            {field.options?.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                          </select>
+                        ) : (
+                          <input value={guidedValues[field.id] ?? ""} onChange={e => setGuidedValues(v => ({ ...v, [field.id]: e.target.value }))} placeholder={field.placeholder} maxLength={field.maxLength} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {missing.length === 0 ? (
+                  <div style={{ marginTop: 20, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "#166534" }}>
+                    ✓ Tudo certo! A prévia grátis (sem consumir sua cota de IA) chega na próxima etapa.
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 20, fontSize: 11, color: "#9ca3af" }}>Preencha os campos obrigatórios (*) pra continuar.</div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
       )}
 
       {/* ── IA ── */}
