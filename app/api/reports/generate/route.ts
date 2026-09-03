@@ -3,12 +3,18 @@ export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import crypto from "crypto"
-import React from "react"
 import { NextRequest, NextResponse } from "next/server"
-import { renderToBuffer } from "@react-pdf/renderer"
 import QRCode from "qrcode"
 
-import DashboardReport from "@/reports/DashboardReport"
+// Fase 47 (03/09/2026): @react-pdf/renderer (React.createElement(DashboardReport,
+// body) + renderToBuffer) trocado por HTML + Puppeteer -- confirmado que
+// @react-pdf/renderer quebra ("Minified React error #31") dentro deste
+// servidor Next.js 15 independente de versão (4.5.1/4.9.0/3.4.5 testadas,
+// todas falham; fora do processo Next, todas funcionam). Só a geração do
+// buffer do PDF mudou -- hash/QR/assinatura/persistência abaixo continuam
+// idênticos, operando sobre o buffer resultante como sempre.
+import { buildDashboardReportHtml, type DashboardReportParams } from "@/reports/buildDashboardReportHtml"
+import { renderReportPdfBuffer } from "@/reports/renderReportPdfBuffer"
 import {
   getIdempotentResponse,
   storeIdempotentResponse
@@ -68,10 +74,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const ReportComponent = DashboardReport as React.ComponentType<JsonRecord>
-    const reportElement = React.createElement(ReportComponent, body)
-
-    const pdfBuffer = await renderToBuffer(reportElement)
+    const html = buildDashboardReportHtml(body as unknown as DashboardReportParams)
+    const pdfBuffer = await renderReportPdfBuffer(html)
 
     const pdfHash = crypto.createHash("sha256").update(pdfBuffer).digest("hex")
     const qrCode = await QRCode.toDataURL(pdfHash)
