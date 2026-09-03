@@ -1,6 +1,6 @@
 # STATUS_PROJETO.md — DOOHPLAY (doohplay-demo)
 
-_Última atualização: 2026-09-01_
+_Última atualização: 2026-09-03_
 
 ## Visão geral
 
@@ -524,6 +524,24 @@ Continuação da investigação do rate-limit do Upstash (ver achado do Build Fi
 **Achado à parte, sobre o processo de deploy**: um clique em "Manual Deploy → Deploy latest commit" no painel do Render não registrou nenhum deploy novo (confirmado esperando ~10 minutos, checando `list_deploys` e logs repetidamente — nada mudou). Disparar o mesmo deploy via API (`trigger_deploy` do MCP) funcionou imediatamente. Causa não identificada (possível glitch de UI do painel) — vale ter em mente que o botão do painel nem sempre é confiável; a API é o fallback que funcionou.
 
 **Não resolvido, propositalmente fora de escopo**: falhas do lado *produtor* — rotas de `app/` (processo `doohplay-demo`, separado do worker) que fazem `await queue.add(...)` antes de responder. Achado específico: `app/api/verify/[hash]/route.ts` devolve `500` cru pro usuário público se essa chamada falhar por rate-limit — deveria degradar com mais graça (ex: "verificação temporariamente indisponível"). Registrado como próxima investigação, pedida explicitamente pelo usuário.
+
+## ✅ Templates guiados no Studio — implementado e validado em produção, com 2 bugs pré-existentes achados e corrigidos no caminho (2026-09-03)
+
+Prioridade real de negócio mais antiga do backlog: geração livre por texto no Studio era difícil demais pra dono de loja não-familiarizado com IA (feedback direto de prospect). Implementado em 4 etapas, cada uma commitada, deployada e validada separadamente antes da próxima — plano completo aprovado antes de codar, incluindo investigação prévia obrigatória de por que os 3 templates visuais existentes não renderizavam diferente entre si (achado: já tinha sido corrigido na Fase 44, 21/08/2026 — pendência do backlog estava desatualizada) e de como `app/api/studio/ai-generate`/`lib/imageGeneration.ts` recebem input hoje (achado: só texto livre, sem estrutura de campos escondida — pipeline de geração real reaproveitável sem mudança).
+
+**Etapa 0 — fix de pré-requisito**: `STUDIO_TEMPLATES` (`lib/studioTemplates.ts`) é indexado por chaves em inglês (`barber`/`food`/...), mas o `business_type` real salvo em `studio_clients` é em português (`"Barbearia"`/`"Lanchonete"`/...) — mesma classe de bug de idioma já corrigida uma vez em `app/api/studio/ai-generate` (12/07/2026), não replicada aqui. Confirmado em produção: os 2 únicos clientes ativos (`BARBE332`, `LEMEL186`) caíam sempre no fallback `.barber` por acidente, não por decisão — o cliente `Lanchonete` via/publicava templates de barbearia. Corrigido com `mapBusinessTypeToTemplateSegment()`, mapeamento explícito e documentado (cobertura parcial: `STUDIO_TEMPLATES` tem 8 segmentos, o dropdown de `/cadastro` tem 10 — categorias sem template dedicado caem em `barber` de propósito, não por bug).
+
+**Etapas 1-4**: dados dos 6 templates guiados por objetivo (`lib/guidedTemplates.ts` — Promoção/Desconto, Produto/Serviço Novo, Horário/Feriado, Evento/Data Comemorativa, Depoimento/Prova Social, Institucional Simples; só Horário/Feriado tem campo de seleção fixa + obrigatoriedade condicional, os outros 5 são texto livre) → galeria + formulário na aba nova "Guiado" do Studio → prévia grátis (`buildGuidedPreviewCopy`, função pura sem `fetch`, garantindo por construção que não consome cota de IA) → geração real reaproveitando 100% do pipeline existente (`/api/studio/ai-generate`, mesmo grid de 3 conceitos, mesmo polling, mesma cota em `ai_generation_log` — só troca a origem do prompt via `buildGuidedPrompt`) → publicação via `handlePublish` já existente.
+
+**Validado em produção com evidência real em cada etapa** (Puppeteer, já que a extensão Chrome não estava conectada nesta sessão): campo condicional "Detalhe do horário" confirmado aparecendo só com "Horário especial" selecionado (screenshot + checagem de DOM); prévia grátis confirmada com zero requisições de rede disparadas; geração real confirmada com cota real de `LEMEL186` indo de 0→3 em `ai_generation_log`, 3 imagens reais geradas.
+
+### Achado sério no caminho, fora do escopo original: `publishToRealPlaylist` não tinha auto-criação de `Campaign`
+
+Testando a publicação real (último passo do fluxo), a publicação falhou pra `LEMEL186` com `"Nenhuma campanha ativa encontrada pra este cliente"`. Investigação mostrou que **isso não é bug dos templates guiados** — `BARBE332`, o cliente real pagante, também tem **zero linhas em `"Campaign"`**, então qualquer publicação pelo Studio (Editor clássico, aba IA, ou os novos templates guiados) estava quebrada em produção pra ambos os clientes reais, hoje. Causa raiz: `app/api/client/generate-creative/route.ts` (rota separada, usada pelo modal "Enviar conteúdo" do dashboard) já tinha uma função `ensureCampaign()` que auto-cria `Advertiser`+`Campaign` se não existir — mas `lib/publishMedia.ts` (`publishToRealPlaylist`, usada por `app/api/studio/publish/route.ts`, ou seja todo o Studio) nunca teve essa lógica, só fazia `SELECT` e lançava erro. Mesmo padrão de "duas implementações divergentes" já visto várias vezes nesta sessão (`PdfCertification`, `signHash`, `buildHtml`).
+
+**Corrigido** (não em `generate-creative/route.ts`, que não foi tocado — já testado, funcionando em produção): `ensureCampaign()` reimplementada em `lib/publishMedia.ts`, self-contained (só `pool`+`code`, busca o nome do cliente sozinha em `studio_clients`), chamada por `publishToRealPlaylist()` no lugar do `SELECT`-que-falha antigo.
+
+**Testado em produção, ponta a ponta, com os dois clientes reais**: `LEMEL186` e `BARBE332` — ambos publicaram com sucesso depois do fix (`Campaign` "Promoções da Loja" auto-criada, `CampaignMedia` real inserida, URL real no R2). **Conteúdo de teste removido imediatamente da tela real da Barbearia Zimermam** depois da confirmação — apagado nas 4 tabelas que compõem o caminho real de exibição (`CampaignMedia`, `playlist_schedule`, e a fundação unificada `creative_assets_v2`/`placements_v2`, que é o que o player provavelmente lê de fato), confirmado por `COUNT(*) = 0` nas 4 depois da limpeza. A `Campaign` "Promoções da Loja" em si foi mantida — é infraestrutura legítima criada pelo fix, não conteúdo de teste, útil pra publicações futuras reais.
 
 ## Próximos passos em aberto
 
