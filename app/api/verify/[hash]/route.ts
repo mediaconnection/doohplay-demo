@@ -427,7 +427,22 @@ export async function GET(req: NextRequest, context: { params: Promise<VerifyHas
       await Promise.all(resolvedCandidates.map(c => enqueueProof(c.input)))
     } catch (error) {
       console.error("VERIFY_HASH_QUEUE_ERROR", { requestId, hash, error: error instanceof Error ? error.message : error })
-      return errorResponse("QUEUE_FAILED", 500, rl, requestId, { hash, hash_0x: formatHash0x(hash) })
+      // Achado 2026-09-03: antes devolvia 500 cru (QUEUE_FAILED) pro usuário
+      // público quando o enfileiramento falhava (ex: rate-limit do Upstash)
+      // -- expunha erro interno em vez de degradar com honestidade. 503 +
+      // mensagem clara, mesmo padrão já usado no fix do PdfCertification.
+      return errorResponse(
+        "VERIFICATION_TEMPORARILY_UNAVAILABLE",
+        503,
+        rl,
+        requestId,
+        {
+          hash,
+          hash_0x: formatHash0x(hash),
+          message: "A verificação está temporariamente indisponível. Tente novamente em cerca de 30 segundos.",
+        },
+        { "Retry-After": "30" }
+      )
     }
 
     return jsonResponse({
