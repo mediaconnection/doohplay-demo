@@ -12,7 +12,7 @@ import SchedulerEditor from "@/components/SchedulerEditor"
 import { getTemplatesForBusinessType, type StudioTemplate } from "@/lib/studioTemplates"
 // Fase 46 (03/09/2026): Etapa 2 do plano de templates guiados — galeria +
 // formulário. Ainda não conectado a prévia/geração real (Etapas 3 e 4).
-import { GUIDED_TEMPLATES, getGuidedTemplate, validateGuidedValues, buildGuidedPreviewCopy, type GuidedTemplateId } from "@/lib/guidedTemplates"
+import { GUIDED_TEMPLATES, getGuidedTemplate, validateGuidedValues, buildGuidedPreviewCopy, buildGuidedPrompt, type GuidedTemplateId } from "@/lib/guidedTemplates"
 
 type Client = {
   id: string
@@ -334,11 +334,17 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
       })
   }
 
-  const handleAiGenerate = async () => {
-    if (!aiPrompt.trim() || !client) return
+  // Fase 46 (03/09/2026), Etapa 4: aceita um prompt explícito (usado pelos
+  // templates guiados, via buildGuidedPrompt) em vez de depender só do
+  // state aiPrompt (que ficaria obsoleto se setado e lido na mesma função
+  // síncrona, por causa do batching do React). A aba IA de texto livre
+  // continua chamando sem argumento, usando aiPrompt normalmente.
+  const handleAiGenerate = async (promptOverride?: string) => {
+    const promptToUse = (promptOverride ?? aiPrompt).trim()
+    if (!promptToUse || !client) return
     setAiGenerating(true); setAiError(""); setAiConcepts([]); setAiProgress({ stage: "copy" })
     try {
-      const res = await fetch("/api/studio/ai-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, prompt: aiPrompt, business_name: client.name, business_type: client.business_type }) })
+      const res = await fetch("/api/studio/ai-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, prompt: promptToUse, business_name: client.name, business_type: client.business_type }) })
       const data = await res.json()
       if (data.ok && data.jobId) pollAiJob(data.jobId)
       else { setAiError(data.error ?? "Erro ao gerar conteúdo"); setAiGenerating(false); setAiProgress(null) }
@@ -626,12 +632,31 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                 {missing.length === 0 ? (
                   <div style={{ marginTop: 20 }}>
                     <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Prévia grátis — direto do que você digitou, sem IA, não consome sua cota</div>
-                    <div style={{ maxWidth: 420 }}>
+                    <div style={{ maxWidth: 420, marginBottom: 16 }}>
                       <AdPreview
                         tpl={getTemplatesForBusinessType(client.business_type)[0]}
                         client={{ ...client, primary_color: clientAccent.replace("#", "") }}
                         form={{ ...buildGuidedPreviewCopy(tpl.id, guidedValues), phone: form.phone }}
                       />
+                    </div>
+                    {/* Fase 46 (03/09/2026), Etapa 4: reaproveita o mesmo
+                        /api/studio/ai-generate e o mesmo grid de 3 conceitos
+                        da aba IA -- só troca a origem do prompt (campos
+                        guiados via buildGuidedPrompt, em vez de texto livre).
+                        Leva pra aba IA pra reusar 100% da UI de polling/
+                        seleção de conceito/publicação que já existe lá. */}
+                    {aiQuota && !aiQuota.unlimited && (
+                      <div style={{ fontSize: 11, color: aiQuota.limit - aiQuota.used < 3 ? "#ef4444" : "#9ca3af", marginBottom: 8 }}>
+                        {aiQuota.used}/{aiQuota.limit} gerações usadas este mês · cada clique gera 3 conceitos
+                      </div>
+                    )}
+                    <div style={{ maxWidth: 420 }}>
+                      <button
+                        onClick={() => { setActiveTab("ai"); handleAiGenerate(buildGuidedPrompt(tpl.id, guidedValues)) }}
+                        style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #0284C7, #7C3AED)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        ✨ Gerar anúncio com IA (consome sua cota)
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -666,7 +691,7 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
                 </div>
               )}
               <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} placeholder="Ex: promoção de corte + barba para sexta-feira com 20% de desconto" rows={3} style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none", resize: "none", boxSizing: "border-box", lineHeight: 1.5, marginBottom: 10, fontFamily: "system-ui, sans-serif" }} />
-              <button onClick={handleAiGenerate} disabled={aiGenerating || !aiPrompt.trim()} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: aiGenerating || !aiPrompt.trim() ? "#f3f4f6" : "linear-gradient(135deg, #0284C7, #7C3AED)", color: aiGenerating || !aiPrompt.trim() ? "#9ca3af" : "#fff", fontSize: 14, fontWeight: 600, cursor: aiGenerating || !aiPrompt.trim() ? "not-allowed" : "pointer" }}>
+              <button onClick={() => handleAiGenerate()} disabled={aiGenerating || !aiPrompt.trim()} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: aiGenerating || !aiPrompt.trim() ? "#f3f4f6" : "linear-gradient(135deg, #0284C7, #7C3AED)", color: aiGenerating || !aiPrompt.trim() ? "#9ca3af" : "#fff", fontSize: 14, fontWeight: 600, cursor: aiGenerating || !aiPrompt.trim() ? "not-allowed" : "pointer" }}>
                 {aiGenerating ? "✨ Gerando..." : "✨ Gerar 3 conceitos com IA"}
               </button>
               {aiGenerating && aiProgress && (
