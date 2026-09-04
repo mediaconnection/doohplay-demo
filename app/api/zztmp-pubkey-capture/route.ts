@@ -62,6 +62,24 @@ export async function GET() {
     const privKeyObj = crypto.createPrivateKey(priv)
     const pubKeyObj = crypto.createPublicKey(privKeyObj)
 
+    // Teste 5: assina usando o KeyObject ja parseado (em vez da string PEM
+    // crua) -- e verifica contra ele mesmo. Se isso funcionar mas o teste
+    // 2 (string crua) nao, o bug e em como .sign() trata string vs KeyObject.
+    const signViaKeyObj = crypto.createSign("RSA-SHA256")
+    signViaKeyObj.update(Buffer.from(testHash, "hex"))
+    signViaKeyObj.end()
+    const signatureViaKeyObj = signViaKeyObj.sign(privKeyObj, "base64")
+    const verifyViaKeyObj = crypto.createVerify("RSA-SHA256")
+    verifyViaKeyObj.update(Buffer.from(testHash, "hex"))
+    verifyViaKeyObj.end()
+    const isValidViaKeyObj = verifyViaKeyObj.verify(pubKeyObj, signatureViaKeyObj, "base64")
+
+    // Teste 6: usa crypto.sign/crypto.verify (API one-shot, nao a classe
+    // streaming Sign/Verify) -- se isso funcionar mas os outros nao, o bug
+    // e especifico das classes Sign/Verify streaming pra esta chave.
+    const oneShotSig = crypto.sign("RSA-SHA256", Buffer.from(testHash, "hex"), priv)
+    const isValidOneShot = crypto.verify("RSA-SHA256", Buffer.from(testHash, "hex"), fileContent, oneShotSig)
+
     const bigintSafe = (obj: unknown) => JSON.parse(JSON.stringify(obj, (_k, v) => typeof v === "bigint" ? v.toString() : v))
 
     return NextResponse.json({
@@ -76,6 +94,8 @@ export async function GET() {
       privKeyDetails: bigintSafe(privKeyObj.asymmetricKeyDetails),
       pubKeyType: pubKeyObj.asymmetricKeyType,
       pubKeyDetails: bigintSafe(pubKeyObj.asymmetricKeyDetails),
+      isValidViaKeyObj,
+      isValidOneShot,
     })
   } catch (error) {
     return NextResponse.json(
