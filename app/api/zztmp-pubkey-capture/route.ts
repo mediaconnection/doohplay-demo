@@ -59,6 +59,9 @@ export async function GET() {
     verifyEphemeral.end()
     const isValidEphemeral = verifyEphemeral.verify(ephemeralPub, ephemeralSignature, "base64")
 
+    const privKeyObj = crypto.createPrivateKey(priv)
+    const pubKeyObj = crypto.createPublicKey(privKeyObj)
+
     return NextResponse.json({
       testHash,
       signatureLength: signature.length,
@@ -67,6 +70,10 @@ export async function GET() {
       isValidViaFileReadHere,
       fileContentBytes: fileContent.length,
       isValidEphemeral,
+      privKeyType: privKeyObj.asymmetricKeyType,
+      privKeyDetails: privKeyObj.asymmetricKeyDetails,
+      pubKeyType: pubKeyObj.asymmetricKeyType,
+      pubKeyDetails: pubKeyObj.asymmetricKeyDetails,
     })
   } catch (error) {
     return NextResponse.json(
