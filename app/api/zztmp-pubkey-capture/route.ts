@@ -62,6 +62,8 @@ export async function GET() {
     const privKeyObj = crypto.createPrivateKey(priv)
     const pubKeyObj = crypto.createPublicKey(privKeyObj)
 
+    const bigintSafe = (obj: unknown) => JSON.parse(JSON.stringify(obj, (_k, v) => typeof v === "bigint" ? v.toString() : v))
+
     return NextResponse.json({
       testHash,
       signatureLength: signature.length,
@@ -71,9 +73,9 @@ export async function GET() {
       fileContentBytes: fileContent.length,
       isValidEphemeral,
       privKeyType: privKeyObj.asymmetricKeyType,
-      privKeyDetails: privKeyObj.asymmetricKeyDetails,
+      privKeyDetails: bigintSafe(privKeyObj.asymmetricKeyDetails),
       pubKeyType: pubKeyObj.asymmetricKeyType,
-      pubKeyDetails: pubKeyObj.asymmetricKeyDetails,
+      pubKeyDetails: bigintSafe(pubKeyObj.asymmetricKeyDetails),
     })
   } catch (error) {
     return NextResponse.json(
