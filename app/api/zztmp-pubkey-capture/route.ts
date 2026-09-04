@@ -41,6 +41,24 @@ export async function GET() {
     verify3.end()
     const isValidViaFileReadHere = verify3.verify(fileContent, signature, "base64")
 
+    // Teste 4: sanity check do ambiente -- par de chaves efêmero, gerado
+    // agora, sem NENHUMA relação com PRIVATE_PEM/keys/public.pem. Se isso
+    // também falhar, o problema é do Node/OpenSSL deste ambiente, não da
+    // chave configurada.
+    const { publicKey: ephemeralPub, privateKey: ephemeralPriv } = crypto.generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: "spki", format: "pem" },
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    })
+    const signEphemeral = crypto.createSign("RSA-SHA256")
+    signEphemeral.update(Buffer.from(testHash, "hex"))
+    signEphemeral.end()
+    const ephemeralSignature = signEphemeral.sign(ephemeralPriv, "base64")
+    const verifyEphemeral = crypto.createVerify("RSA-SHA256")
+    verifyEphemeral.update(Buffer.from(testHash, "hex"))
+    verifyEphemeral.end()
+    const isValidEphemeral = verifyEphemeral.verify(ephemeralPub, ephemeralSignature, "base64")
+
     return NextResponse.json({
       testHash,
       signatureLength: signature.length,
@@ -48,6 +66,7 @@ export async function GET() {
       isValidViaFreshKey,
       isValidViaFileReadHere,
       fileContentBytes: fileContent.length,
+      isValidEphemeral,
     })
   } catch (error) {
     return NextResponse.json(
