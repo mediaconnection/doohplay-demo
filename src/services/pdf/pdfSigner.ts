@@ -47,8 +47,19 @@ export function signHash(hash: string): string {
     throw new Error("Chave privada não encontrada em PRIVATE_PEM, keys/private.pem ou /etc/secrets/private.pem")
   }
 
+  // Achado em produção em 03/09/2026 (investigação exaustiva, ver
+  // STATUS_PROJETO.md): sign.sign(privateKey, "base64") passando a chave
+  // como STRING PEM crua produz assinatura que falha na verificação neste
+  // ambiente -- confirmado isolando cada variável (par de chaves correto,
+  // sem banco, sem leitura de arquivo, ambiente Node/OpenSSL saudável via
+  // par efêmero). Só passou a funcionar pré-parseando a chave com
+  // crypto.createPrivateKey() antes de assinar -- KeyObject em vez de
+  // string resolve algo na forma como esta chave específica é interpretada
+  // pela classe Sign, mesmo sendo uma chave RSA-2048 comum sem nada
+  // incomum (asymmetricKeyType "rsa", não "rsa-pss").
+  const privateKeyObj = crypto.createPrivateKey(privateKey)
   const sign = crypto.createSign("RSA-SHA256")
   sign.update(Buffer.from(hash, "hex"))
   sign.end()
-  return sign.sign(privateKey, "base64")
+  return sign.sign(privateKeyObj, "base64")
 }
