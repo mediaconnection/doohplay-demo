@@ -619,8 +619,21 @@ Fecha a pendência registrada acima ("Pendência real, mais funda do que parecia
 
 **Nota pra investigações futuras neste mesmo padrão**: as duas cópias duplicadas de código (`services/pdf/` raiz vs `src/services/pdf/`) já eram um padrão conhecido nesta sessão (`PdfCertification`, `buildHtml`, `generateReportPdf.ts`, etc.) — mas esta foi a primeira vez que uma cópia teoricamente "morta" (inalcançável pelo alias documentado) se mostrou capaz de afetar o comportamento real em produção. Vale desconfiar dessas duplicatas mesmo quando o alias parece descartá-las, e testar com evidência real em vez de confiar só na leitura do `next.config.ts`.
 
+## 🔴 Achado crítico — instância Evolution API (WhatsApp) desconectada, bloqueia entrega real de OTP (2026-09-05)
+
+Durante a investigação do erro "Erro de conexão" no login de cliente via OTP (`LEMEL186`), checado o estado da instância Evolution API self-hosted (VPS Hostinger) via `GET /instance/connectionState/{instance}` (rota de diagnóstico temporária, leitura pura, zero mensagem disparada, apikey nunca exposta — deployada e removida na mesma investigação).
+
+**Resultado, confirmado em `2026-09-05T02:00Z` (aprox.)**: `{"instance":{"instanceName":"doohplay","state":"close"}}` — **sessão desconectada**.
+
+**Impacto real**: nenhum código OTP está sendo entregue de verdade via WhatsApp agora, pra **nenhum cliente**, não só `LEMEL186`. `POST /api/client/auth/request-otp` continua respondendo `200` normalmente (o envio é fire-and-forget, não bloqueia a resposta HTTP) — ou seja, a tela do cliente avança pro passo "digite o código" mesmo sem nenhuma mensagem real chegar no WhatsApp. Login de cliente via OTP está efetivamente quebrado em produção até a instância ser reconectada.
+
+**Não explica, sozinho, a mensagem "Erro de conexão"** — essa vem do `catch()` do `fetch()` no navegador (client-side), e a rota real responde `200` de qualquer forma, com ou sem WhatsApp conectado. As duas causas são independentes; a origem exata da mensagem "Erro de conexão" nesta ocorrência específica continua sem explicação definitiva (mesma categoria de causa client-side/rede já investigada duas vezes antes nesta sessão).
+
+**Ação necessária, fora do alcance deste agente**: reconectar a instância via QR code no painel da VPS (Hostinger) — requer acesso de gestão à instância Evolution API que este agente não tem, só leitura de status via API.
+
 ## Próximos passos em aberto
 
+- 🔴 **Ação necessária do fundador, urgente**: instância Evolution API (`doohplay`) desconectada (`state: "close"`, confirmado 2026-09-05) — reconectar via QR code no painel da VPS Hostinger. Login de cliente via OTP não entrega mensagem real pra ninguém até isso ser feito. Fora do alcance deste agente (sem acesso de gestão à instância). Ver seção acima.
 - ✅ ~~`app/api/verify/[hash]/route.ts` devolvendo 500 cru quando o enqueue falha~~ — resolvido (2026-09-03). Rota só usa fila como último recurso (tenta cache, depois motor de prova síncrono em processo, só cai em `enqueueProof()` se as duas falharem) — mas quando isso falhava (ex: rate-limit do Upstash), devolvia `500 QUEUE_FAILED` cru pro usuário público. Corrigido pra `503 VERIFICATION_TEMPORARILY_UNAVAILABLE`, com mensagem legível (`"...tente novamente em cerca de 30 segundos"`, refletindo o `Retry-After` também no texto visível, não só no header) — mesmo padrão de honestidade já usado no fix do `PdfCertification`.
 - 🟡 **Pendência separada, mesmo padrão, tarefa própria**: `app/api/events/route.ts` tem um catch genérico único que não distingue falha de `enqueueEventProcessing()` (enfileiramento pra `risk-queue`) de outras falhas — também devolve `500` cru hoje. Não implementado agora, propositalmente, pra não misturar escopo com o fix da rota `/verify` acima.
 - 🟡 **Decisão de infraestrutura pendente (Upstash)**: causa raiz do martelamento contínuo corrigida (circuit-breaker, ver achado acima) — reduz drasticamente o volume de comandos, mas não é garantia de que o Upstash nunca mais vai rate-limitar sob carga real. Duas opções seguem em aberto, sem decisão: (a) consolidar as 14 conexões Redis distintas do código num cliente só; (b) upgrade do plano Upstash. Decisão do usuário, com ainda menos urgência agora que a causa do martelamento foi corrigida.
