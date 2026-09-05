@@ -13,10 +13,16 @@ const RESEND_COOLDOWN_SECONDS = 60
 // Resposta sempre genérica, exista ou não o código/telefone — evita que
 // alguém use esta rota pra descobrir quais códigos de cliente são válidos
 // ou têm telefone cadastrado (enumeration).
-const GENERIC_OK = NextResponse.json({
-  ok: true,
-  message: "Se o código existir e tiver WhatsApp cadastrado, enviamos um código de acesso.",
-})
+// Precisa ser uma função (novo Response a cada chamada), não uma constante de
+// módulo: o corpo de um Response é um stream de leitura única, e este processo
+// Node fica de pé entre requisições — um objeto reaproveitado devolve corpo
+// vazio em toda chamada após a primeira.
+function genericOk() {
+  return NextResponse.json({
+    ok: true,
+    message: "Se o código existir e tiver WhatsApp cadastrado, enviamos um código de acesso.",
+  })
+}
 
 export async function POST(req: NextRequest) {
   const pool = getPool()
@@ -30,7 +36,7 @@ export async function POST(req: NextRequest) {
       [clientCode]
     )
     const client = clientRes.rows[0]
-    if (!client?.phone) return GENERIC_OK
+    if (!client?.phone) return genericOk()
 
     // Cooldown: não manda outro código se já mandou um há menos de 60s —
     // evita spam de WhatsApp (custo + irritação) por clique repetido.
@@ -40,7 +46,7 @@ export async function POST(req: NextRequest) {
     )
     const last = lastRes.rows[0]
     if (last && Date.now() - new Date(last.created_at).getTime() < RESEND_COOLDOWN_SECONDS * 1000) {
-      return GENERIC_OK
+      return genericOk()
     }
 
     const otp = randomInt(100000, 999999).toString()
@@ -63,7 +69,7 @@ export async function POST(req: NextRequest) {
       `Válido por ${OTP_TTL_MINUTES} minutos. Não compartilhe com ninguém.`
     ).catch(err => console.error("[client/auth/request-otp] falha no envio de WhatsApp:", err))
 
-    return GENERIC_OK
+    return genericOk()
   } catch (err) {
     console.error("[client/auth/request-otp]", err)
     return NextResponse.json({ error: "Erro interno" }, { status: 500 })
