@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { generateConsolidatedReport } from "@/services/reports/generateConsolidatedReport";
 import { getHashableReport } from "@/lib/getHashableReport";
 import { sha256FromObject } from "@/lib/hash";

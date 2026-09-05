@@ -10,7 +10,9 @@
     "worker": "tsx --env-file=.env.local worker.ts",
     "worker:prod": "node --env-file=.env.local dist/worker.js",
     "lint": "eslint .",
-    "test": "tsx --test app/player/dtv/*.test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:native": "tsx --test app/player/dtv/*.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
@@ -85,6 +87,8 @@
   "devDependencies": {
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
   }
 }
