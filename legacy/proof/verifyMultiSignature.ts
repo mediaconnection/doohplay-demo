@@ -1,4 +1,4 @@
-import { verifySignature } from "./signature"
+import { verifySignature } from "../../packages/proof-engine/legacy/proof/signature"
 
 type Input = {
   message: string

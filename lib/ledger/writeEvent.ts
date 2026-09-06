@@ -1,3 +1,3 @@
 // @ts-nocheck
-export { writeEvent } from "../../legacy/ledger/writeEvent"
+export { writeEvent } from "../../packages/proof-engine/legacy/ledger/writeEvent"
 

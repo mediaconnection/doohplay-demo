@@ -1,7 +1,7 @@
 // /lib/domain/proof/verifyAll.ts
 
 import { verifyMerkleProof } from "./verifyProof"
-import { verifySignature } from "./signature"
+import { verifySignature } from "../../packages/proof-engine/legacy/proof/signature"
 
 /* =========================
    TYPES
