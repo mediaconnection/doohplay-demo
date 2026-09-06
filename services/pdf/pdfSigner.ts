@@ -7,9 +7,12 @@ import path from "path"
  * Retorna assinatura em base64
  */
 export function signHash(hash: string): string {
-  // Achado em 03/09/2026 (STATUS_PROJETO.md): esta é uma cópia duplicada de
-  // src/services/pdf/pdfSigner.ts, inalcançável via o alias @/services/pdf/...
-  // (resolve pra src/services/pdf/ conforme next.config.ts) -- mas mantida
+  // Achado em 03/09/2026 (STATUS_PROJETO.md): esta é uma cópia duplicada da
+  // versão oficial, agora em packages/proof-engine/services/pdf/pdfSigner.ts
+  // (movida de src/services/pdf/ na Fase 7 da extração, 2026-09-06),
+  // inalcançável via o alias @/services/pdf/... (resolvia pra src/services/pdf/
+  // conforme next.config.ts, agora @proof-engine/services/pdf/... resolve pro
+  // pacote) -- mas mantida
   // sincronizada com a mesma lógica por segurança, pra eliminar qualquer
   // ambiguidade sobre qual cópia está de fato em uso. Versão antiga aqui
   // nem verificava PRIVATE_PEM, só /etc/secrets/private.pem e

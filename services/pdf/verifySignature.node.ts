@@ -7,10 +7,12 @@ const publicKeyPath = path.resolve(
   "keys/public.pem"
 );
 
-// Achado em 03/09/2026 (STATUS_PROJETO.md): esta é uma cópia duplicada de
-// src/services/pdf/verifySignature.node.ts, inalcançável via o alias
-// @/services/pdf/... (resolve pra src/services/pdf/ conforme
-// next.config.ts) -- mas corrigida aqui também por segurança, pra eliminar
+// Achado em 03/09/2026 (STATUS_PROJETO.md): esta é uma cópia duplicada da
+// versão oficial, agora em packages/proof-engine/services/pdf/verifySignature.node.ts
+// (movida de src/services/pdf/ na Fase 7 da extração, 2026-09-06),
+// inalcançável via o alias @/services/pdf/... (resolvia pra src/services/pdf/
+// conforme next.config.ts, agora @proof-engine/services/pdf/... resolve pro
+// pacote) -- mas corrigida aqui também por segurança, pra eliminar
 // qualquer ambiguidade sobre qual cópia está de fato em uso. Dois bugs
 // que a versão em src/ já não tinha: (1) verify.update(hash) sem decodificar
 // hex -- teria que ser Buffer.from(hash, "hex"), igual ao que signHash()

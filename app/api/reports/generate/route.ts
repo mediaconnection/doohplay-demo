@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
     // registrada de verdade, em vez de assumir silenciosamente.
     let certified = false
     try {
-      const { signHash } = await import("@/services/pdf/pdfSigner")
-      const { storePdfCertification } = await import("@/services/pdf/pdfCertification")
+      const { signHash } = await import("@proof-engine/services/pdf/pdfSigner")
+      const { storePdfCertification } = await import("@proof-engine/services/pdf/pdfCertification")
 
       const signature = signHash(pdfHash)
 

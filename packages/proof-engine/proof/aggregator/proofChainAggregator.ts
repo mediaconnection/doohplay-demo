@@ -2,7 +2,7 @@
 import crypto from "crypto"
 import { db, pool } from "@/lib/db"
 import { getUnanchoredEvents } from "@/lib/ledger/getUnanchoredEvents"
-import { signHash } from "@/services/pdf/pdfSigner"
+import { signHash } from "@proof-engine/services/pdf/pdfSigner"
 import { anchorMerkleRoot } from "@proof-engine/blockchain/anchor"
 import { createTsaToken } from "@/lib/tsa/createTsaToken"
 

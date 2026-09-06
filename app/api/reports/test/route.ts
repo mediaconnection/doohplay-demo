@@ -17,7 +17,7 @@ function toArrayBuffer(bytes: Uint8Array | ArrayBuffer): ArrayBuffer {
 }
 
 export async function GET() {
-    const { generateCertifiedReportPdf } = await import("@/services/pdf/generateCertifiedReportPdf")
+    const { generateCertifiedReportPdf } = await import("@proof-engine/services/pdf/generateCertifiedReportPdf")
 
   try {
     const pdf = await generateCertifiedReportPdf()
