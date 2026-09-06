@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { randomUUID, createHash } from "crypto"
+import { appendEventToLedger } from "@/lib/domain/ledger/appendEvent"
 
 export const dynamic = "force-dynamic"
 
@@ -13,47 +14,19 @@ export const dynamic = "force-dynamic"
 // mantém a gravação em display_events exatamente como estava, e agora TAMBÉM
 // grava em event_chain.
 //
-// CORREÇÃO (20/07/2026): o INSERT usava a coluna `prev_hash`, que não
-// existe na tabela real — confirmado via information_schema.columns que
-// o nome de verdade é `previous_event_hash` (mesma coluna que as rotas de
-// auditoria/verificação de cadeia, `lib/domain/ledger/verifyChain.ts` e
-// `app/api/audit/event/[hash]/route.ts`, já leem com sucesso há tempos:
-// `e.previous_event_hash AS prev_hash`). O comentário original desta
-// função presumia que `prev_hash` batia com o schema real — não batia.
-// Causa raiz: `sql/create_core_tables.sql` usa `CREATE TABLE IF NOT
-// EXISTS`, e a tabela `event_chain` real já existia (criada fora do Git,
-// pelo sistema de prova original) com um schema bem mais rico — inclui
-// inclusive uma segunda coluna parecida, `previous_hash`, que NÃO é a
-// usada pela lógica real de verificação de cadeia (confirmado pelos 3
-// pontos de leitura acima, todos usando `previous_event_hash`). Fica
-// registrado aqui pra não confundir as duas de novo no futuro.
-async function appendToProofChain(pool: any, payload: Record<string, any>) {
+// Etapa 2 da separação de fronts (2026-09-06): esta rota reimplementava a
+// gravação em event_chain localmente (própria fórmula de hash), duplicando
+// lib/domain/ledger/appendEvent.ts::appendEventToLedger — a mesma classe de
+// risco do incidente de 25/06/2026 (lógica duplicada divergindo em
+// silêncio), só que desta vez dentro do próprio ledger de prova. Trocado
+// pra reusar a função canônica, já usada por lib/adserver/registerImpression.ts.
+// Seguro trocar a fórmula de hash no meio da cadeia: lib/domain/ledger/
+// verifyChain.ts só segue ponteiros (previous_event_hash), nunca recalcula
+// hash a partir do payload.
+async function appendToProofChain(payload: Record<string, any>) {
   try {
-    // Achado (2026-09-02): `event_chain` é particionada por data, mas
-    // nenhuma partição foi criada desde 04/2026 -- todo evento recente cai
-    // na partição "default" (87k+ linhas). `ORDER BY id DESC` não tem
-    // índice em `id`, forçando varredura sequencial completa a cada evento
-    // (confirmado: até 84s presa, sob concorrência derrubava até queries
-    // não relacionadas por esgotar o pool de conexões). `created_at` tem
-    // índice (`idx_event_chain_created_at`) e é monotonicamente
-    // equivalente a `id` pra achar a linha mais recente -- troca resolve
-    // sem precisar de índice novo nem mexer no particionamento.
-    const prevRes = await pool.query(
-      `SELECT event_hash FROM event_chain ORDER BY created_at DESC LIMIT 1`
-    )
-    const prevHash: string | null = prevRes.rows[0]?.event_hash ?? null
-
-    const eventId = randomUUID()
-    const enriched = { ...payload, event_id: eventId, prev_hash: prevHash }
-    const eventHash = createHash("sha256")
-      .update(JSON.stringify(enriched))
-      .digest("hex")
-
-    await pool.query(
-      `INSERT INTO event_chain (event_id, event_hash, previous_event_hash, payload, created_at)
-       VALUES ($1::uuid, $2, $3, $4::jsonb, NOW())`,
-      [eventId, eventHash, prevHash, JSON.stringify(enriched)]
-    )
+    const payloadHash = createHash("sha256").update(JSON.stringify(payload)).digest("hex")
+    await appendEventToLedger({ event_id: randomUUID(), hash: payloadHash, payload })
   } catch (err) {
     // Melhor esforço — nunca deve derrubar a gravação real de display_events,
     // que é o que a tela e o repasse de anúncio dependem de verdade hoje.
@@ -97,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     // Alimenta o pipeline ProofChain com o mesmo evento — melhor esforço,
     // nunca bloqueia a resposta nem derruba a gravação acima.
-    await appendToProofChain(pool, {
+    await appendToProofChain({
       display_event_id: id,
       player_id: rows[0].player_id,
       screen_code: screen_code.toUpperCase(),
