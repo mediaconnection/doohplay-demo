@@ -41,6 +41,9 @@ const nextConfig: NextConfig = {
       "@/supabase": path.resolve(__dirname, "supabase"),
       "@/types": path.resolve(__dirname, "types"),
       "@/workers": path.resolve(__dirname, "workers"),
+      // Extração incremental do motor de prova (Etapa 2, DOOHPLAY_Plano_Separacao_Fronts.docx).
+      // Alias único, sem fallback duplo -- manter em sincronia com tsconfig.json e vitest.config.ts.
+      "@proof-engine": path.resolve(__dirname, "packages/proof-engine"),
       "@": path.resolve(__dirname, "."),
     }
     if (dev) {

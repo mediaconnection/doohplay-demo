@@ -31,6 +31,7 @@ export default defineConfig({
       "@/supabase": path.resolve(__dirname, "supabase"),
       "@/types": path.resolve(__dirname, "types"),
       "@/workers": path.resolve(__dirname, "workers"),
+      "@proof-engine": path.resolve(__dirname, "packages/proof-engine"),
       "@": path.resolve(__dirname, "."),
     },
   },
