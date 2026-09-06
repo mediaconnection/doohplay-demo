@@ -651,6 +651,20 @@ Continuação direta da investigação acima. Reproduzido de forma determinísti
 
 **Nota**: este fix resolve a mensagem de erro genérica na tela. Não resolve, sozinho, a entrega real do código via WhatsApp — isso depende da instância Evolution API estar conectada (ver achado crítico acima, ainda pendente, ação do fundador).
 
+## ✅ Falso alarme investigado a fundo — suspeita de regressão no login de `LEMEL186` (2026-09-05/06)
+
+Depois do fix acima, o fundador reportou `LEMEL186` continuando inacessível tanto por WhatsApp quanto por email, levantando a hipótese de que a correção do dia teria causado uma regressão nova. Investigado com evidência real antes de reverter qualquer coisa (pedido explícito do fundador: não empilhar mudança em cima de sistema supostamente quebrado sem confirmar primeiro).
+
+**Achado 1 — `/login` (email/WhatsApp) é um fluxo totalmente separado do `/dashboard/local/[code]`.** Usa `app/api/auth/otp/send` e `app/api/auth/otp/verify` (tabela `otp_tokens`), código completamente diferente do `request-otp`/`verify-otp` que corrigimos (tabela `client_login_codes`). `git log` confirma que `otp/send`, `otp/verify`, `lib/client-session.ts` e a rota `verify-otp` do cliente não são tocados desde julho/2026 — nenhuma mudança de hoje encostou neles. `middleware.ts` (última mudança 30/08) já tem a exceção explícita pra `/dashboard/local` desde antes. **Não havia regressão possível vinda do trabalho de hoje**, porque o código desses arquivos é byte-a-byte o mesmo de antes.
+
+**Achado 2 — WhatsApp via `/login` falha de verdade, mas com causa já conhecida.** Testado ao vivo (`fetch` com headers de navegador real): `POST /api/auth/otp/send` com `method: "whatsapp"` devolve `500 {"error":"Falha ao enviar WhatsApp"}` — erro real e visível (essa rota usa `await sendWhatsApp(...)` bloqueante, diferente do fire-and-forget do `request-otp`), causado pela mesma instância Evolution API desconectada já documentada. Não é bug novo.
+
+**Achado 3 — email via `/login` funciona ponta a ponta.** Testado ao vivo, duas vezes: `send` → ler o código direto no banco (`otp_tokens`) → `verify` em poucos segundos → `200 {"ok":true,"redirect":"/dashboard/local/LEMEL186",...}`, com os dois cookies de sessão (`doohplay_session` e `doohplay_client_session`, HMAC válido) setados corretamente.
+
+**Causa real dos dois "código errado"/"não funcionou" relatados pelo fundador**: os primeiros dois códigos testados (`673989`, `647282`) já tinham expirado (TTL de 10 min, `otp/send/route.ts`) pelo tempo gasto na própria investigação (screenshots, perguntas, troca de mensagens) entre o envio e o teste — confirmado comparando `expires_at` com `NOW()` direto no banco. Um terceiro código (`766144`) foi confirmado **válido e aceito pela API** quando testado por este agente imediatamente após o envio — mas foi consumido nesse teste de confirmação, ficando indisponível pro fundador tentar de novo com o mesmo valor (comunicado explicitamente na hora). Um quarto código, gerado pelo fundador via "Reenviar código" (`211829`), foi usado com sucesso pelo fundador de verdade, confirmado no banco (`used: true`).
+
+**Conclusão**: zero regressão. `LEMEL186` está acessível por email via `/login` e por WhatsApp via `/dashboard/local/LEMEL186` (tela funciona; entrega real de WhatsApp em qualquer um dos dois caminhos depende da reconexão da instância Evolution API, pendência já registrada e sem mudança). Nenhuma reversão foi feita — teria reintroduzido o bug real do corpo vazio, sem resolver nada da confusão de timing que gerou este alarme.
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: instância Evolution API (`doohplay`) desconectada (`state: "close"`, confirmado 2026-09-05) — reconectar via QR code no painel da VPS Hostinger. Mesmo com o fix de "Erro de conexão" abaixo, nenhum código real chega no WhatsApp até isso ser feito. Fora do alcance deste agente (sem acesso de gestão à instância). Ver seção acima.
