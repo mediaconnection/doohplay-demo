@@ -12,24 +12,24 @@ import {
   isJsonRequest,
   isTooLarge,
   parseJsonBody
-} from "@/lib/domain/verification/http"
+} from "@proof-engine/domain/verification/http"
 
 import {
   isValidHash,
   normalizeInput
-} from "@/lib/domain/verification/validators"
+} from "@proof-engine/domain/verification/validators"
 
-import { withTimeout } from "@/lib/domain/verification/timeout"
-import { buildProofCacheKey } from "@/lib/domain/verification/cacheKey"
-import { ENGINE_TIMEOUT_MS } from "@/lib/domain/verification/constants"
-import { errorResponse } from "@/lib/domain/verification/errors"
+import { withTimeout } from "@proof-engine/domain/verification/timeout"
+import { buildProofCacheKey } from "@proof-engine/domain/verification/cacheKey"
+import { ENGINE_TIMEOUT_MS } from "@proof-engine/domain/verification/constants"
+import { errorResponse } from "@proof-engine/domain/verification/errors"
 import {
   cachedProofResponse,
   liveProofResponse,
   queuedProofResponse,
   type RateLimitResult
-} from "@/lib/domain/verification/proofResponse"
-import { logError, logWarn } from "@/lib/domain/verification/logger"
+} from "@proof-engine/domain/verification/proofResponse"
+import { logError, logWarn } from "@proof-engine/domain/verification/logger"
 
 export async function POST(req: NextRequest) {
   const requestId = createRequestId()

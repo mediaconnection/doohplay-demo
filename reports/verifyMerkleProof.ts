@@ -4,7 +4,7 @@ import {
   normalizeHash,
   isHex64,
   type MerkleProofItem
-} from "@/lib/domain/proof/merkleBatch"
+} from "@proof-engine/domain/proof/merkleBatch"
 
 export type ProofNode = MerkleProofItem
 

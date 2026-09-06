@@ -1,5 +1,5 @@
 import "leaflet"
-import type { NetworkMapItem } from "@/lib/domain/network-map/types"
+import type { NetworkMapItem } from "@proof-engine/domain/network-map/types"
 
 declare module "leaflet" {
   interface CircleMarkerOptions {

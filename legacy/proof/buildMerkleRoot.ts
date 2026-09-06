@@ -2,7 +2,7 @@ import {
   hashMerkleNode,
   normalizeHash,
   isHex64
-} from "@/lib/domain/proof/merkleBatch"
+} from "@proof-engine/domain/proof/merkleBatch"
 
 export function buildMerkleRoot(leaves: string[]): string {
 
