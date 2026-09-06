@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
-import { validateAnchoredMerkleRoot } from "@/lib/blockchain/validateAnchoredMerkleRoot"
+import { validateAnchoredMerkleRoot } from "@proof-engine/blockchain/validateAnchoredMerkleRoot"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

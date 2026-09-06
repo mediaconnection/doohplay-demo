@@ -39,7 +39,7 @@ function isValidHash(value: string): boolean {
 
 export async function POST(req: NextRequest) {
     const { pool } = await import("@/lib/db")
-    const { verifyAnchoredRoot } = await import("@/lib/blockchain/verifyAnchoredRoot")
+    const { verifyAnchoredRoot } = await import("@proof-engine/blockchain/verifyAnchoredRoot")
 
   try {
     const body = (await req.json()) as Body

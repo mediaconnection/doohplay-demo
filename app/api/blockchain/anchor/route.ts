@@ -118,7 +118,7 @@ async function saveAnchorResult(result: AnchorResult): Promise<void> {
 
 export async function POST(req: NextRequest) {
     const { pool } = await import("@/lib/db")
-    const { anchorMerkleRoot } = await import("@/lib/blockchain/anchor")
+    const { anchorMerkleRoot } = await import("@proof-engine/blockchain/anchor")
 
   try {
     if (!isAuthorized(req)) {

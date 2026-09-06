@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { validateTransaction } from "@/lib/blockchain/validateTx"
-import { decodeTransaction } from "@/lib/blockchain/decodeTx"
+import { validateTransaction } from "@proof-engine/blockchain/validateTx"
+import { decodeTransaction } from "@proof-engine/blockchain/decodeTx"
 
 import { setLayerCache } from "../cache/layerCache"
 import { keys } from "../cache/keys"

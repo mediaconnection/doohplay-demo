@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 import TrustGraphCanvas from "@/components/trust/TrustGraphCanvas"
 import TrustNetworkSummary from "@/components/network/TrustNetworkSummary"
-import { analyzeTrustNetwork } from "@/lib/trust-graph/analyzeTrustNetwork"
+import { analyzeTrustNetwork } from "@proof-engine/trust-graph/analyzeTrustNetwork"
 
 import type {
   GraphEdge,
   GraphNode,
   TrustGraphResponse
-} from "@/lib/trust-graph/types"
+} from "@proof-engine/trust-graph/types"
 
 type RouteSuccessResponse = { ok: true } & TrustGraphResponse
 

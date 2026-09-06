@@ -2,9 +2,9 @@
 
 import { useMemo } from "react"
 import TrustGraph from "@/components/trust/TrustGraph"
-import { analyzeTrustNetwork } from "@/lib/trust-graph/analyzeTrustNetwork"
-import type { GraphEdge, GraphNode } from "@/lib/trust-graph/types"
-import type { ForceEdge } from "@/lib/trust-graph/buildForceGraph"
+import { analyzeTrustNetwork } from "@proof-engine/trust-graph/analyzeTrustNetwork"
+import type { GraphEdge, GraphNode } from "@proof-engine/trust-graph/types"
+import type { ForceEdge } from "@proof-engine/trust-graph/buildForceGraph"
 
 type TrustGraphContainerProps = {
   nodes: GraphNode[]

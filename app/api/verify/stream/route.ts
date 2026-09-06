@@ -7,7 +7,7 @@ import { NextRequest } from "next/server"
 export const runtime = "nodejs"
 
 export async function GET(req: NextRequest) {
-    const { validateTransaction } = await import("@/lib/blockchain/validateTx")
+    const { validateTransaction } = await import("@proof-engine/blockchain/validateTx")
 
   const { searchParams } = new URL(req.url)
 

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import crypto from "crypto"
 
-import { anchorMerkleRoot } from "@/lib/blockchain/anchor"
+import { anchorMerkleRoot } from "@proof-engine/blockchain/anchor"
 import { pool } from "@/lib/db"
 
 type EventRow = {

@@ -10,7 +10,7 @@ import type {
   GraphNodeRef,
   NodeType,
   RiskLevel
-} from "@/lib/trust-graph/types"
+} from "@proof-engine/trust-graph/types"
 
 export const runtime = "nodejs"
 
@@ -147,7 +147,7 @@ function buildGraphEdges(rows: EdgeRow[]): GraphEdge[] {
 
 export async function GET(req: NextRequest) {
     const { pool } = await import("@/lib/db")
-    const { analyzeTrustNetwork } = await import("@/lib/trust-graph/analyzeTrustNetwork")
+    const { analyzeTrustNetwork } = await import("@proof-engine/trust-graph/analyzeTrustNetwork")
 
   try {
     const { searchParams } = new URL(req.url)

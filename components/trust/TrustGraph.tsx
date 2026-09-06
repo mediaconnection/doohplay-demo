@@ -12,11 +12,11 @@ import {
   buildForceGraph,
   type ForceEdge,
   type ForceNode
-} from "@/lib/trust-graph/buildForceGraph"
+} from "@proof-engine/trust-graph/buildForceGraph"
 import type {
   NodeAnalysis,
   TrustNetworkAnalysis
-} from "@/lib/trust-graph/analyzeTrustNetwork"
+} from "@proof-engine/trust-graph/analyzeTrustNetwork"
 
 type TrustGraphProps = {
   analysis: TrustNetworkAnalysis

@@ -8,7 +8,7 @@ function normalize(hash: string) {
 
 async function main() {
   const { pool } = await import("../lib/db")
-  const { anchorMerkleRoot } = await import("../lib/blockchain/anchorMerkleRoot")
+  const { anchorMerkleRoot } = await import("../packages/proof-engine/blockchain/anchorMerkleRoot")
 
   const blockHash = process.argv[2]
 

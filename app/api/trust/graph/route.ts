@@ -8,7 +8,7 @@ import type {
   TrustGraphResponse,
   TrustGraphRouteError,
   TrustGraphRouteSuccess
-} from "@/lib/trust-graph/types"
+} from "@proof-engine/trust-graph/types"
 
 export const runtime = "nodejs"
 
@@ -117,7 +117,7 @@ function buildErrorResponse(error: unknown): TrustGraphRouteError {
 }
 
 export async function GET(req: NextRequest) {
-    const { getTrustGraph } = await import("@/lib/trust-graph/service")
+    const { getTrustGraph } = await import("@proof-engine/trust-graph/service")
 
   try {
     const filters = buildFilters(req)
