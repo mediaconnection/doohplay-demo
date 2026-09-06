@@ -2,11 +2,11 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { pool } from "@/lib/db"
-import { buildProofCacheKey, getCachedProof, setCachedProof } from "@/lib/proof/cache/proofCache"
-import { runProofEngine } from "@/lib/proof/engine"
-import { buildExplanation } from "@/lib/proof/explanation"
-import { computeScore, getTrustLevel, getVerificationStatus } from "@/lib/proof/score"
-import { enqueueProof } from "@/lib/proof/queue/proofQueue"
+import { buildProofCacheKey, getCachedProof, setCachedProof } from "@proof-engine/proof/cache/proofCache"
+import { runProofEngine } from "@proof-engine/proof/engine"
+import { buildExplanation } from "@proof-engine/proof/explanation"
+import { computeScore, getTrustLevel, getVerificationStatus } from "@proof-engine/proof/score"
+import { enqueueProof } from "@proof-engine/proof/queue/proofQueue"
 
 import type {
   EntityType,
@@ -17,7 +17,7 @@ import type {
   ProofResultLike,
   TrustLevel,
   VerificationStatus
-} from "@/lib/proof/types"
+} from "@proof-engine/proof/types"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

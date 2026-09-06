@@ -7,7 +7,7 @@ import { signPdfWithA1 } from "@/services/signatures/signPdfWithA1";
 import { timestampPdfWithTSA } from "@/services/signatures/timestampPdfWithTSA";
 import { anchorProofPackage } from "@/services/proof/anchorProofPackage";
 
-import { buildManifest } from "@/lib/proof/buildManifest";
+import { buildManifest } from "@proof-engine/proof/buildManifest";
 import { createEvidence } from "@/services/evidences/createEvidence";
 import { finalizeManifestProof } from "@/services/proof/finalizeManifestProof";
 

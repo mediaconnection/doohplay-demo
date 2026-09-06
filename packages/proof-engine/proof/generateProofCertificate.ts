@@ -4,7 +4,7 @@ import QRCode from "qrcode"
 
 import { pool } from "@/lib/db"
 import { buildProofGraph } from "./buildProofGraph"
-import type { ProofCertificate } from "@/lib/proof/types/ProofCertificate"
+import type { ProofCertificate } from "@proof-engine/proof/types/ProofCertificate"
 
 import { pkcs7Sign } from "@/lib/crypto/pkcs7Signer"
 import { timestampRFC3161 } from "@/lib/crypto/tsaRFC3161"

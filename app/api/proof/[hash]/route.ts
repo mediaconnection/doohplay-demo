@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { getCachedProof } from "@/lib/proof/cache/proofCache"
+import { getCachedProof } from "@proof-engine/proof/cache/proofCache"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

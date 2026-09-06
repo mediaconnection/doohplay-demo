@@ -1,6 +1,6 @@
 // @ts-nocheck
 import QRCode from "qrcode"
-import { generateProof } from "@/lib/proof/generateProof"
+import { generateProof } from "@proof-engine/proof/generateProof"
 import { assinarComA1 } from "@/lib/crypto/assinarComA1"
 
 export async function generateImpressionReceipt(eventHash:string){

@@ -14,7 +14,7 @@ async function main() {
   // Dynamic imports: evaluated after dotenv.config(), so DATABASE_URL is already set
   const { pool } = await import("../lib/db")
   const { appendEventToLedger } = await import("../lib/domain/ledger/appendEvent")
-  const { runProofChainAggregator } = await import("../lib/proof/aggregator/proofChainAggregator")
+  const { runProofChainAggregator } = await import("../packages/proof-engine/proof/aggregator/proofChainAggregator")
 
   const eventId = crypto.randomUUID()
   const campaignId = crypto.randomUUID()

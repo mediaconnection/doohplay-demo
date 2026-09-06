@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { buildProofGraph } from "@/lib/proof/buildProofGraph"
+import { buildProofGraph } from "@proof-engine/proof/buildProofGraph"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

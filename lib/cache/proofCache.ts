@@ -3,5 +3,5 @@ export {
   getCachedProof,
   setCachedProof,
   buildProofCacheKey
-} from "@/lib/proof/cache/proofCache"
+} from "@proof-engine/proof/cache/proofCache"
 

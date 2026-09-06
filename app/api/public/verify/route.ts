@@ -83,8 +83,8 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 export async function POST(req: NextRequest) {
-    const { runProofEngine } = await import("@/lib/proof/engine")
-    const { computeScore, getScoreLabel } = await import("@/lib/proof/score")
+    const { runProofEngine } = await import("@proof-engine/proof/engine")
+    const { computeScore, getScoreLabel } = await import("@proof-engine/proof/score")
     const { rateLimit } = await import("@/lib/security/rateLimit")
     const { checkLimit } = await import("@/lib/api/checkLimit")
     const { trackUsage } = await import("@/lib/api/trackUsage")

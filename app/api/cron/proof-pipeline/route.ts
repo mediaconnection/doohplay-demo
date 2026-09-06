@@ -4,7 +4,7 @@ export const revalidate = 0
 
 
 export async function GET() {
-    const { runProofPipeline } = await import("@/lib/proof/scheduler/runProofPipeline")
+    const { runProofPipeline } = await import("@proof-engine/proof/scheduler/runProofPipeline")
 
 
   try {

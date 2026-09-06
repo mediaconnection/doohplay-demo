@@ -4,7 +4,7 @@ export const revalidate = 0
 
 
 export async function GET() {
-    const { autoBuildGraph } = await import("@/lib/proof/graph/autoBuildGraph")
+    const { autoBuildGraph } = await import("@proof-engine/proof/graph/autoBuildGraph")
 
 
   try {

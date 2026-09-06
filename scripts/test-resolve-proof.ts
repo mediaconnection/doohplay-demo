@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { resolveProofInputByHash } from "../lib/proof/adapters/supabase"
+import { resolveProofInputByHash } from "../packages/proof-engine/proof/adapters/supabase"
 
 function normalize(hash: string) {
   return hash.trim().toLowerCase().replace(/^0x/, "")

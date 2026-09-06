@@ -2,7 +2,7 @@
 import {
   verifyMerkleProofDetailed,
   type MerkleProofNode
-} from "@/lib/proof/merkle/verifyMerkleProof"
+} from "@proof-engine/proof/merkle/verifyMerkleProof"
 
 import { setLayerCache } from "../cache/layerCache"
 import { keys } from "../cache/keys"

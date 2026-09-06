@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { verifyMerkleProof } from "@/lib/proof/merkle/verifyMerkleProof"
+import { verifyMerkleProof } from "@proof-engine/proof/merkle/verifyMerkleProof"
 
 interface Proof {
   event_hash: string

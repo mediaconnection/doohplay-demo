@@ -115,7 +115,7 @@ async function main() {
 
   // ─── MODO REAL ──────────────────────────────────────────────────────────
   const { runProofChainAggregator } = await import(
-    "../lib/proof/aggregator/proofChainAggregator"
+    "../packages/proof-engine/proof/aggregator/proofChainAggregator"
   )
 
   let iteration = 0

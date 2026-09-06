@@ -19,7 +19,7 @@ type DashboardItem = {
 export async function GET() {
     const { pool } = await import("@/lib/db")
 
-    const { runProofEngine } = await import("@/lib/proof/engine")
+    const { runProofEngine } = await import("@proof-engine/proof/engine")
 
   try {
     /* =========================

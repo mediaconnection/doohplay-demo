@@ -9,7 +9,7 @@ import {
   type MerkleProofNode
 } from "@/lib/domain/proof/merkleProof"
 
-import { verifyMerkleProof } from "@/lib/proof/merkle/verifyMerkleProof"
+import { verifyMerkleProof } from "@proof-engine/proof/merkle/verifyMerkleProof"
 
 import { verifyBlockHash } from "@/lib/domain/proof/verifyBlock"
 import { verifySignature } from "@/lib/domain/proof/signature"

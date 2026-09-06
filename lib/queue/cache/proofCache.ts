@@ -5,5 +5,5 @@ export {
   hasCachedProof,
   buildProofCacheKey,
   type CachedProof,
-} from "../../proof/cache/proofCache"
+} from "../../../packages/proof-engine/proof/cache/proofCache"
 

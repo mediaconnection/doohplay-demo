@@ -21,7 +21,7 @@ function normalizeHash(value: unknown): string | null {
 export async function GET() {
     const { pool } = await import("@/lib/db")
 
-    const { buildMerkleRoot } = await import("@/lib/proof/merkle")
+    const { buildMerkleRoot } = await import("@proof-engine/proof/merkle")
 
   try {
     const res = await pool.query(

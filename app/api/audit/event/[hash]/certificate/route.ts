@@ -14,7 +14,7 @@ import { buildMerkleProof } from "@/lib/domain/proof/merkleProof"
 import {
   verifyMerkleProof,
   type MerkleProofItem
-} from "@/lib/proof/merkle/verifyMerkleProof"
+} from "@proof-engine/proof/merkle/verifyMerkleProof"
 import { verifyBlockHash } from "@/lib/domain/proof/verifyBlock"
 import { verifySignature } from "@/lib/domain/proof/signature"
 import { calculateTrustScore, getTrustLabel } from "@/lib/domain/trustScore"

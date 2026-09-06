@@ -5,8 +5,8 @@ const ROOT = process.cwd()
 
 const REPLACEMENTS: Array<[string, string]> = [
   ['@/lib/merkle', '@/lib/merkle'],
-  ['@/lib/proof/cache/proofCache', '@/lib/proof/cache/proofCache'],
-  ['@/lib/proof/cache/proofCache', '@/lib/proof/cache/proofCache'],
+  ['@proof-engine/proof/cache/proofCache', '@proof-engine/proof/cache/proofCache'],
+  ['@proof-engine/proof/cache/proofCache', '@proof-engine/proof/cache/proofCache'],
   ['@/core/audit/eventChainRepository', '@/core/audit/eventChainRepository'],
 ]
 
@@ -135,7 +135,7 @@ export {
   getCachedProof,
   setCachedProof,
   buildProofCacheKey
-} from "@/lib/proof/cache/proofCache"
+} from "@proof-engine/proof/cache/proofCache"
 `.trimStart()
 )
 

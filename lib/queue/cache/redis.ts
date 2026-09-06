@@ -1,3 +1,3 @@
 // @ts-nocheck
-export { redis } from "../../proof/cache/redis"
+export { redis } from "../../../packages/proof-engine/proof/cache/redis"
 

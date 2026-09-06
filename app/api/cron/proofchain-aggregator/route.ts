@@ -6,7 +6,7 @@ export const revalidate = 0
 export const runtime = "nodejs"
 
 export async function GET() {
-    const { runProofChainAggregator } = await import("@/lib/proof/aggregator/proofChainAggregator")
+    const { runProofChainAggregator } = await import("@proof-engine/proof/aggregator/proofChainAggregator")
 
   try {
     const result = await runProofChainAggregator()

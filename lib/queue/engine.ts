@@ -1,4 +1,4 @@
 // @ts-nocheck
-export { runProofEngine } from "../proof/engine"
-export { default } from "../proof/engine"
+export { runProofEngine } from "../../packages/proof-engine/proof/engine"
+export { default } from "../../packages/proof-engine/proof/engine"
 

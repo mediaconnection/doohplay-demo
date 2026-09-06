@@ -73,12 +73,12 @@ BullMQ queue `event-queue` processes `write-event` jobs. The separate worker pro
 
 ### Cryptographic Proof Pipeline
 
-The core trust mechanism runs as a cron job at `GET /api/cron/proof-pipeline` → `lib/proof/scheduler/runProofPipeline.ts`:
+The core trust mechanism runs as a cron job at `GET /api/cron/proof-pipeline` → `packages/proof-engine/proof/scheduler/runProofPipeline.ts`:
 
 1. **Append event** (`lib/domain/ledger/appendEvent.ts`) — each impression is hashed with the previous event hash (blockchain-style chain) and stored in `event_chain`. `appendEventToLedger` is the only sanctioned entry point for writing to `event_chain` — never `INSERT INTO event_chain` inline in a route or reimplement the hash-chain locally. `app/api/player/event/route.ts` used to do exactly that (its own hash formula, diverging from the canonical one) until it was fixed on 2026-09-06 to reuse `appendEventToLedger`, the same pattern `lib/adserver/registerImpression.ts` already followed.
 2. **Build block** — groups pending events, computes Merkle root
 3. **Generate certificates** — RSA-signs each impression's proof; stored in `PdfCertification` (Prisma)
-4. **Anchor** (`lib/proof/anchor/createAnchor.ts`) — sends the Merkle root to the `DOOHPLAYAnchor` smart contract on Polygon
+4. **Anchor** (`packages/proof-engine/proof/anchor/createAnchor.ts`) — sends the Merkle root to the `DOOHPLAYAnchor` smart contract on Polygon
 
 RSA signing: private key at `keys/private.pem` (not versioned). Public key is versioned. The signer in `src/services/pdf/pdfSigner.ts` uses Node's `crypto.createSign("RSA-SHA256")`.
 

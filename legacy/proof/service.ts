@@ -1,4 +1,4 @@
-import { getCachedProof } from "@/lib/proof/cache/proofCache"
+import { getCachedProof } from "@proof-engine/proof/cache/proofCache"
 import { verifySignature } from "./signature"
 
 export type VerifyResult = {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { calculateReputationScore } from "@/lib/proof/reputation/calculateReputationScore"
+import { calculateReputationScore } from "@proof-engine/proof/reputation/calculateReputationScore"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

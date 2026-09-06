@@ -15,7 +15,7 @@
 import {
   evaluateProofStatus,
   ProofLayerResult,
-} from "@/lib/proof/evaluateProofStatus";
+} from "@proof-engine/proof/evaluateProofStatus";
 
 interface Evidence {
   id: string;
@@ -45,7 +45,7 @@ const STATUS_ICON: Record<string, string> = {
 };
 
 export function ProofStatus({ evidences }: ProofStatusProps) {
-  const results = evaluateProofStatus(evidences as import("@/lib/proof/evaluateProofStatus").EvidenceLike[]);
+  const results = evaluateProofStatus(evidences as import("@proof-engine/proof/evaluateProofStatus").EvidenceLike[]);
 
   return (
     <section style={{ marginTop: 32 }}>

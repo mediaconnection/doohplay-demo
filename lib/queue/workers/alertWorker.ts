@@ -1,6 +1,6 @@
 import { Queue, Worker } from "bullmq"
 import { getRedis } from "@/lib/redis"
-import { runProofChainAggregator } from "@/lib/proof/aggregator/proofChainAggregator"
+import { runProofChainAggregator } from "@proof-engine/proof/aggregator/proofChainAggregator"
 import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 const QUEUE_NAME = "proofchain-aggregator"

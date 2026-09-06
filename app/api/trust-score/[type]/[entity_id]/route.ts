@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { calculateTrustScore } from "@/lib/proof/trust/calculateTrustScore"
+import { calculateTrustScore } from "@proof-engine/proof/trust/calculateTrustScore"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

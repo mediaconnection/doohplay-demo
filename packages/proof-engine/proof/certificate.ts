@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server"
 
-import { runProofEngine } from "@/lib/proof/engine"
-import { computeScore, getScoreLabel } from "@/lib/proof/score"
+import { runProofEngine } from "@proof-engine/proof/engine"
+import { computeScore, getScoreLabel } from "@proof-engine/proof/score"
 
 type EngineLayer = {
   name?: string

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
 import { verifyEventHash } from "@/lib/crypto/ledgerVerify"
-import { verifyMerkleProof } from "@/lib/proof/merkle/verifyMerkleProof"
+import { verifyMerkleProof } from "@proof-engine/proof/merkle/verifyMerkleProof"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { pool } from "@/lib/db"
-import { buildProofGraph } from "@/lib/proof/buildProofGraph"
+import { buildProofGraph } from "@proof-engine/proof/buildProofGraph"
 
 export async function createSettlement(
   impressionId: string,

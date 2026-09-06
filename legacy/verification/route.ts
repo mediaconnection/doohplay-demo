@@ -2,9 +2,9 @@ import { NextRequest } from "next/server"
 
 import { rateLimit } from "@/lib/security/rateLimit"
 
-import { getCachedProof } from "@/lib/proof/cache/proofCache"
-import { enqueueProof } from "@/lib/proof/queue/proofQueue"
-import { runProofEngine } from "@/lib/proof/engine"
+import { getCachedProof } from "@proof-engine/proof/cache/proofCache"
+import { enqueueProof } from "@proof-engine/proof/queue/proofQueue"
+import { runProofEngine } from "@proof-engine/proof/engine"
 
 import {
   createRequestId,

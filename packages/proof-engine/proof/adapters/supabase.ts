@@ -2,6 +2,12 @@
 import { pool } from "@/lib/db"
 import { createClient as _sbCreate } from "@supabase/supabase-js"
 
+// Dívida técnica aceita conscientemente na extração de packages/proof-engine
+// (Fase 3, 2026-09-06): este arquivo instancia seu próprio client Supabase
+// inline, em vez de usar um dos ~15 pontos de instanciação que ainda não
+// foram consolidados (Etapa 2, item 3, sub-parte 2 -- não feita ainda). O
+// pacote herda essa bagunça como está; decisão explícita do usuário de
+// extrair antes de consolidar Supabase. Ver packages/proof-engine/README.md.
 const supabaseAdmin = _sbCreate(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
