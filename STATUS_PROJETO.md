@@ -665,7 +665,17 @@ Depois do fix acima, o fundador reportou `LEMEL186` continuando inacessível tan
 
 **Conclusão**: zero regressão. `LEMEL186` está acessível por email via `/login` e por WhatsApp via `/dashboard/local/LEMEL186` (tela funciona; entrega real de WhatsApp em qualquer um dos dois caminhos depende da reconexão da instância Evolution API, pendência já registrada e sem mudança). Nenhuma reversão foi feita — teria reintroduzido o bug real do corpo vazio, sem resolver nada da confusão de timing que gerou este alarme.
 
+## 🔴 Achado — `LEMEL186` sem nenhuma assinatura registrada, e sem cadastro completo pra criar uma (2026-09-06)
+
+Novo agente customizado `financeiro-agent` (adicionado hoje, ver `.claude/agents/financeiro-agent.md`) rodou seu primeiro snapshot real e achou, consultando `financial_subscriptions`/`client_subscriptions`/`financial_payments`/`campaign_payments`: **`LEMEL186` (ativo desde 17/07/2026, usando o Studio normalmente) não tem nenhuma linha de cobrança em lugar nenhum** — diferente de `BARBE332`, que tem assinatura `starter` (R$97, `status: ACTIVE`) batendo exatamente com `lib/asaas.ts`.
+
+O fundador confirmou no painel do Asaas que a assinatura nunca foi criada, e tentou criar agora — **bloqueado pelo Asaas por falta de CPF/CNPJ**. Confirmado direto no banco: `studio_clients.cpf_cnpj` é `NULL` pra `LEMEL186` (`app/api/admin/subscription/route.ts` cria o cliente no Asaas via `getOrCreateAsaasCustomer`, que precisa desse documento). Achado adicional no mesmo registro: `email` cadastrado é `teste@doohplay.com.br` (placeholder de teste, não o email real do cliente — foi o mesmo endereço usado nos testes de login desta sessão) e `person_type` está como `FISICA` (padrão do sistema), o que não bate com "LeMelo Café & Confeitaria" soando como pessoa jurídica — precisa confirmar CPF ou CNPJ antes de criar a assinatura, não presumir.
+
+**Não corrigido agora, por decisão do fundador** ("só registrar o achado e resolver depois") — nenhuma ação financeira foi tentada ou simulada. Ver pendência na lista abaixo.
+
 ## Próximos passos em aberto
+
+- 🔴 **Cadastro incompleto do `LEMEL186` bloqueia cobrança real**: `studio_clients.cpf_cnpj` é `NULL`, `email` é um placeholder de teste (`teste@doohplay.com.br`), `person_type` (`FISICA`) não confirmado contra a realidade do negócio (parece pessoa jurídica). Sem isso, `app/api/admin/subscription/route.ts` não consegue criar o cliente no Asaas. Ação: fundador precisa coletar CPF/CNPJ e email real do cliente antes de criar a assinatura (plano ainda não decidido). Ver achado acima.
 
 - 🔴 **Ação necessária do fundador, urgente**: instância Evolution API (`doohplay`) desconectada (`state: "close"`, confirmado 2026-09-05) — reconectar via QR code no painel da VPS Hostinger. Mesmo com o fix de "Erro de conexão" abaixo, nenhum código real chega no WhatsApp até isso ser feito. Fora do alcance deste agente (sem acesso de gestão à instância). Ver seção acima.
 - ✅ ~~"Erro de conexão" no login de cliente via OTP~~ — resolvido (2026-09-05). Causa raiz: `NextResponse.json(...)` reaproveitado como constante de módulo em `request-otp/route.ts`, corpo (stream de leitura única) vinha vazio a partir da 2ª chamada em diante no processo Node persistente do Render. Corrigido (commit `94a3434`), confirmado em produção com 5 chamadas reais seguidas devolvendo corpo completo. Ver seção acima.
