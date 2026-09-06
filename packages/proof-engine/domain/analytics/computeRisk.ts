@@ -1,7 +1,7 @@
 // @ts-nocheck
 // /lib/domain/analytics/computeRisk.ts
 
-import { RiskSchema, RiskInput } from "@/lib/domain/risk/schema"
+import { RiskSchema, RiskInput } from "@proof-engine/domain/risk/schema"
 
 /* =========================
    TYPES (INPUT RAW)

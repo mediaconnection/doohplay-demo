@@ -1,4 +1,4 @@
-import { verifyHash } from "@/lib/domain/proof/service"
+import { verifyHash } from "@proof-engine/domain/proof/service"
 
 export default async function EmbedPage({
   params,

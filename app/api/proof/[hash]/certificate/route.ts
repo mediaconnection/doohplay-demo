@@ -2,8 +2,8 @@ import fs from "fs"
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 
-import { generateCertificate } from "@/lib/domain/proof/generateCertificate"
-import { verifyHash } from "@/lib/domain/proof/service"
+import { generateCertificate } from "@proof-engine/domain/proof/generateCertificate"
+import { verifyHash } from "@proof-engine/domain/proof/service"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

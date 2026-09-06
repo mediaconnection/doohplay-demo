@@ -28,7 +28,7 @@ const ProofSchema = z.object({
 ========================= */
 
 export async function POST(req: NextRequest) {
-    const { verifyMerkleProof } = await import("@/lib/domain/proof/verifyProof")
+    const { verifyMerkleProof } = await import("@proof-engine/domain/proof/verifyProof")
 
   try {
     const body = await req.json().catch(() => null)

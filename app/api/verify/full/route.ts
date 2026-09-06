@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 export async function POST(req: NextRequest) {
     const { verifyAuditProof } = await import("@/lib/audit/verify")
 
-    const { verifyICP } = await import("@/lib/domain/proof/verifyICP")
+    const { verifyICP } = await import("@proof-engine/domain/proof/verifyICP")
 
   try {
     const body = await req.json()

@@ -5,7 +5,7 @@ export const revalidate = 0
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
-    const { verifyAll } = await import("@/lib/domain/proof/verifyAll")
+    const { verifyAll } = await import("@proof-engine/domain/proof/verifyAll")
 
   try {
     const body = await req.json()

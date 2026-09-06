@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { generateCampaignAudit } from "@/lib/audit/generateCampaignAudit"
-import { detectAlerts } from "@/lib/domain/alerts/detectAlerts"
+import { detectAlerts } from "@proof-engine/domain/alerts/detectAlerts"
 import { enqueueAlerts } from "@/lib/queue/enqueueAlert"
-import type { Alert } from "@/lib/domain/alerts/types"
+import type { Alert } from "@proof-engine/domain/alerts/types"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

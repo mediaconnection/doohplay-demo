@@ -5,7 +5,7 @@ export const revalidate = 0
 import { NextResponse } from "next/server"
 
 export async function GET() {
-    const { createBlock } = await import("@/lib/domain/block/createBlock")
+    const { createBlock } = await import("@proof-engine/domain/block/createBlock")
 
   try {
     const result = await createBlock()

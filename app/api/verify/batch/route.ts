@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   buildBatchMerkleProofs,
   verifyMerkleProof
-} from "@/lib/domain/proof/batchMerkle"
+} from "@proof-engine/domain/proof/batchMerkle"
 
 export const runtime = "nodejs"
 

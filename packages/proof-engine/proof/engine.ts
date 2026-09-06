@@ -11,7 +11,7 @@ import type {
 
 import { merkleLayer } from "./layers/merkle"
 import { blockchainLayer } from "./layers/blockchain"
-import { a1SignatureLayer } from "@/lib/domain/proof/layers/a1SignatureLayer"
+import { a1SignatureLayer } from "@proof-engine/domain/proof/layers/a1SignatureLayer"
 
 import { getCertification } from "./adapters/supabase"
 import { buildExplanation } from "./explanation"

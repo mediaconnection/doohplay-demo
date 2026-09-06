@@ -1,7 +1,7 @@
 // @ts-nocheck
 // lib/audit/proof.ts
 
-import { buildMerkleProof } from "@/lib/domain/proof/merkleProof"
+import { buildMerkleProof } from "@proof-engine/domain/proof/merkleProof"
 import { AuditProof, MerkleProofStep } from "./types"
 
 /**

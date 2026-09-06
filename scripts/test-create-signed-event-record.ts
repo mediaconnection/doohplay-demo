@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { createSignedEventRecord } from "../lib/domain/proof/createSignedEventRecord"
+import { createSignedEventRecord } from "../packages/proof-engine/domain/proof/createSignedEventRecord"
 
 function main() {
   const record = createSignedEventRecord({

@@ -53,7 +53,7 @@ function normalizePreviousEventHash(value?: string | null): string | null {
 export async function POST(req: NextRequest) {
     const { pool } = await import("@/lib/db")
 
-    const { createSignedEventRecord } = await import("@/lib/domain/proof/createSignedEventRecord")
+    const { createSignedEventRecord } = await import("@proof-engine/domain/proof/createSignedEventRecord")
 
   const client = await pool.connect()
 

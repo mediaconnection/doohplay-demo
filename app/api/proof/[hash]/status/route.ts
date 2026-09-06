@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { verifyHash } from "@/lib/domain/proof/service"
+import { verifyHash } from "@proof-engine/domain/proof/service"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

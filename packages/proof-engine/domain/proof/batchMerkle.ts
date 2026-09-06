@@ -1,5 +1,5 @@
 // @ts-nocheck
-export { verifyMerkleProof } from "../../../packages/proof-engine/proof/merkle/verifyMerkleProof"
+export { verifyMerkleProof } from "../../../../packages/proof-engine/proof/merkle/verifyMerkleProof"
 
 export type BatchMerkleProof = {
   leaf: string

@@ -19,7 +19,7 @@ const ReviewSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-    const { reviewBlockedClient } = await import("@/lib/domain/risk/unblock")
+    const { reviewBlockedClient } = await import("@proof-engine/domain/risk/unblock")
 
   try {
     const body = await req.json().catch(() => null)

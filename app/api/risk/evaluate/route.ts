@@ -7,8 +7,8 @@ import { z } from "zod"
 
 export async function POST(req: NextRequest) {
   // Imports dinâmicos — evitam execução durante o build
-  const { RiskSchema } = await import("@/lib/domain/risk/schema")
-  const { autoBlockClient } = await import("@/lib/domain/risk/engine")
+  const { RiskSchema } = await import("@proof-engine/domain/risk/schema")
+  const { autoBlockClient } = await import("@proof-engine/domain/risk/engine")
 
   // BodySchema definido aqui pois depende de RiskSchema (import dinâmico)
   const BodySchema = z.object({

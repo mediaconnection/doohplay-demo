@@ -5,7 +5,7 @@ export const revalidate = 0
 import { NextResponse } from "next/server"
 
 export async function POST() {
-    const { syncTrustGraphFromEventChain } = await import("@/lib/domain/trust-graph/syncFromEventChain")
+    const { syncTrustGraphFromEventChain } = await import("@proof-engine/domain/trust-graph/syncFromEventChain")
 
   try {
     const result = await syncTrustGraphFromEventChain(10000)

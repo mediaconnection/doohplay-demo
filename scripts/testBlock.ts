@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
 dotenv.config()
 
-import { createBlock } from "../lib/domain/block/createBlock"
+import { createBlock } from "../packages/proof-engine/domain/block/createBlock"
 
 const INTERVAL = Number(process.env.BLOCK_INTERVAL || 10000)
 

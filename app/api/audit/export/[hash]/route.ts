@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { pool } from "@/lib/db"
-import { buildMerkleProof } from "@/lib/domain/proof/merkleProof"
+import { buildMerkleProof } from "@proof-engine/domain/proof/merkleProof"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

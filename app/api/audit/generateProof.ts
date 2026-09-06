@@ -1,6 +1,6 @@
 import { pool } from "@/lib/db"
 import { verifyEventChain } from "@/lib/domain/ledger/verifyChain"
-import { buildMerkleRoot } from "@/lib/domain/proof/buildMerkleRoot"
+import { buildMerkleRoot } from "@proof-engine/domain/proof/buildMerkleRoot"
 
 type EventRow = {
   event_id: string | number | null

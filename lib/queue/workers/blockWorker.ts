@@ -1,9 +1,9 @@
 import { Worker, type Job } from "bullmq"
 import { getRedis } from "@/lib/redis"
-import { shouldSendAlerts } from "@/lib/domain/alerts/shouldSendAlert"
-import { saveAlerts } from "@/lib/domain/alerts/saveAlerts"
+import { shouldSendAlerts } from "@proof-engine/domain/alerts/shouldSendAlert"
+import { saveAlerts } from "@proof-engine/domain/alerts/saveAlerts"
 import { sendSlackAlert } from "@/lib/integrations/slack/sendAlert"
-import { formatAlertMessage } from "@/lib/domain/alerts/formatAlertMessage"
+import { formatAlertMessage } from "@proof-engine/domain/alerts/formatAlertMessage"
 import { attachRateLimitCircuitBreaker } from "@/lib/queue/rateLimitCircuitBreaker"
 
 type JobData = {

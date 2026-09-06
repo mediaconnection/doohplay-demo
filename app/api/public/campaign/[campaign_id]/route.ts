@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { generateCampaignAudit } from "@/lib/audit/generateCampaignAudit"
 import { hashReport, signReport } from "@/lib/crypto/reportProof"
-import { detectAlerts } from "@/lib/domain/alerts/detectAlerts"
+import { detectAlerts } from "@proof-engine/domain/alerts/detectAlerts"
 import { validateApiKey } from "@/lib/security/validateApiKey"
 
 export const runtime = "nodejs"

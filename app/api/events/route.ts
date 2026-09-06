@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const { increment } = await import("@/lib/observability/metrics")
     const { log } = await import("@/lib/observability/logger")
 
-    const { ingestEvent } = await import("@/lib/domain/event/ingestEvent")
+    const { ingestEvent } = await import("@proof-engine/domain/event/ingestEvent")
 
   const traceId = randomUUID()
 

@@ -2,12 +2,12 @@ import "dotenv/config"
 import { Client } from "pg"
 import { createHash, randomUUID } from "crypto"
 
-import { createSignedEventRecord } from "../lib/domain/proof/createSignedEventRecord"
+import { createSignedEventRecord } from "../packages/proof-engine/domain/proof/createSignedEventRecord"
 import {
   buildMerkleProof,
   buildMerkleRoot,
   normalizeHash
-} from "../lib/domain/proof/merkleBatch"
+} from "../packages/proof-engine/domain/proof/merkleBatch"
 
 type ProofNode = {
   position: "left" | "right"

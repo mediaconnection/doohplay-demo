@@ -22,7 +22,7 @@ type DbRow = {
 export async function GET() {
     const { pool } = await import("@/lib/db")
 
-    const { generateAlerts, summarizeAlerts } = await import("@/lib/domain/fraud/alerts")
+    const { generateAlerts, summarizeAlerts } = await import("@proof-engine/domain/fraud/alerts")
 
   try {
     const res = await pool.query(`

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { alertQueue } from "./alertQueue"
-import { Alert } from "@/lib/domain/alerts/types"
+import { Alert } from "@proof-engine/domain/alerts/types"
 
 export async function enqueueAlerts(
   campaignId: string,

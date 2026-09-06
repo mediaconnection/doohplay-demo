@@ -10,14 +10,14 @@ import {
 
 import { pool } from "@/lib/db"
 import { verifyEventChain } from "@/lib/domain/ledger/verifyChain"
-import { buildMerkleProof } from "@/lib/domain/proof/merkleProof"
+import { buildMerkleProof } from "@proof-engine/domain/proof/merkleProof"
 import {
   verifyMerkleProof,
   type MerkleProofItem
 } from "@proof-engine/proof/merkle/verifyMerkleProof"
-import { verifyBlockHash } from "@/lib/domain/proof/verifyBlock"
-import { verifySignature } from "@/lib/domain/proof/signature"
-import { calculateTrustScore, getTrustLabel } from "@/lib/domain/trustScore"
+import { verifyBlockHash } from "@proof-engine/domain/proof/verifyBlock"
+import { verifySignature } from "@proof-engine/domain/proof/signature"
+import { calculateTrustScore, getTrustLabel } from "@proof-engine/domain/trustScore"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

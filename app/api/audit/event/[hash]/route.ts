@@ -7,15 +7,15 @@ import { pool } from "@/lib/db"
 import {
   buildMerkleProof,
   type MerkleProofNode
-} from "@/lib/domain/proof/merkleProof"
+} from "@proof-engine/domain/proof/merkleProof"
 
 import { verifyMerkleProof } from "@proof-engine/proof/merkle/verifyMerkleProof"
 
-import { verifyBlockHash } from "@/lib/domain/proof/verifyBlock"
-import { verifySignature } from "@/lib/domain/proof/signature"
+import { verifyBlockHash } from "@proof-engine/domain/proof/verifyBlock"
+import { verifySignature } from "@proof-engine/domain/proof/signature"
 import { verifyEventChain } from "@/lib/domain/ledger/verifyChain"
-import { calculateTrustScore, getTrustLabel } from "@/lib/domain/trustScore"
-import { buildMerkleRoot } from "@/lib/domain/proof/buildMerkleRoot"
+import { calculateTrustScore, getTrustLabel } from "@proof-engine/domain/trustScore"
+import { buildMerkleRoot } from "@proof-engine/domain/proof/buildMerkleRoot"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

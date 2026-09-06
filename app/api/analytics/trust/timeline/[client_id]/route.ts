@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server"
 
 import { pool } from "@/lib/db"
-import { calculateRiskScore } from "@/lib/domain/analytics/riskScore"
-import { detectTrend } from "@/lib/domain/analytics/trend"
-import { fillMissingDays } from "@/lib/domain/analytics/fillTimeline"
-import { forecastLinear } from "@/lib/domain/analytics/forecast"
-import { generatePredictiveAlerts } from "@/lib/domain/analytics/predictiveAlerts"
+import { calculateRiskScore } from "@proof-engine/domain/analytics/riskScore"
+import { detectTrend } from "@proof-engine/domain/analytics/trend"
+import { fillMissingDays } from "@proof-engine/domain/analytics/fillTimeline"
+import { forecastLinear } from "@proof-engine/domain/analytics/forecast"
+import { generatePredictiveAlerts } from "@proof-engine/domain/analytics/predictiveAlerts"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
