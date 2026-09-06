@@ -9,7 +9,7 @@ import {
 } from "@react-pdf/renderer"
 
 import { pool } from "@/lib/db"
-import { verifyEventChain } from "@/lib/domain/ledger/verifyChain"
+import { verifyEventChain } from "@proof-engine/domain/ledger/verifyChain"
 import { buildMerkleProof } from "@proof-engine/domain/proof/merkleProof"
 import {
   verifyMerkleProof,

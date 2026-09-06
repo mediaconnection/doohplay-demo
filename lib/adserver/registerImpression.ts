@@ -1,6 +1,6 @@
 import crypto from "crypto"
 import { pool } from "@/lib/db"
-import { appendEventToLedger } from "@/lib/domain/ledger/appendEvent"
+import { appendEventToLedger } from "@proof-engine/domain/ledger/appendEvent"
 
 export type RegisterImpressionInput = {
   screenId: string

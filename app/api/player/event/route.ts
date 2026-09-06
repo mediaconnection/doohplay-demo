@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { randomUUID, createHash } from "crypto"
-import { appendEventToLedger } from "@/lib/domain/ledger/appendEvent"
+import { appendEventToLedger } from "@proof-engine/domain/ledger/appendEvent"
 
 export const dynamic = "force-dynamic"
 
@@ -16,11 +16,11 @@ export const dynamic = "force-dynamic"
 //
 // Etapa 2 da separação de fronts (2026-09-06): esta rota reimplementava a
 // gravação em event_chain localmente (própria fórmula de hash), duplicando
-// lib/domain/ledger/appendEvent.ts::appendEventToLedger — a mesma classe de
+// packages/proof-engine/domain/ledger/appendEvent.ts::appendEventToLedger — a mesma classe de
 // risco do incidente de 25/06/2026 (lógica duplicada divergindo em
 // silêncio), só que desta vez dentro do próprio ledger de prova. Trocado
 // pra reusar a função canônica, já usada por lib/adserver/registerImpression.ts.
-// Seguro trocar a fórmula de hash no meio da cadeia: lib/domain/ledger/
+// Seguro trocar a fórmula de hash no meio da cadeia: packages/proof-engine/domain/ledger/
 // verifyChain.ts só segue ponteiros (previous_event_hash), nunca recalcula
 // hash a partir do payload.
 async function appendToProofChain(payload: Record<string, any>) {

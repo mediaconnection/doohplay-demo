@@ -13,7 +13,7 @@ function sep(title: string) {
 async function main() {
   // Dynamic imports: evaluated after dotenv.config(), so DATABASE_URL is already set
   const { pool } = await import("../lib/db")
-  const { appendEventToLedger } = await import("../lib/domain/ledger/appendEvent")
+  const { appendEventToLedger } = await import("../packages/proof-engine/domain/ledger/appendEvent")
   const { runProofChainAggregator } = await import("../packages/proof-engine/proof/aggregator/proofChainAggregator")
 
   const eventId = crypto.randomUUID()

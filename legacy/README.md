@@ -33,6 +33,6 @@ código morto, mas valem nota pra quem for limpar depois):
   real (está fora de `app/`), é só um módulo comum morto.
 
 **Não editar/estender nada aqui além dos 3 arquivos vivos listados acima.**
-Se precisar de lógica nova de ledger/proof, use `lib/domain/ledger/` ou
-`lib/domain/proof/` (os caminhos vivos que já re-exportam os 3 arquivos
-desta pasta).
+Se precisar de lógica nova de ledger/proof, use `packages/proof-engine/domain/ledger/`
+ou `packages/proof-engine/domain/proof/` (os caminhos vivos que já
+re-exportam os 3 arquivos desta pasta).

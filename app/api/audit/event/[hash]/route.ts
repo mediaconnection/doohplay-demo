@@ -13,7 +13,7 @@ import { verifyMerkleProof } from "@proof-engine/proof/merkle/verifyMerkleProof"
 
 import { verifyBlockHash } from "@proof-engine/domain/proof/verifyBlock"
 import { verifySignature } from "@proof-engine/domain/proof/signature"
-import { verifyEventChain } from "@/lib/domain/ledger/verifyChain"
+import { verifyEventChain } from "@proof-engine/domain/ledger/verifyChain"
 import { calculateTrustScore, getTrustLabel } from "@proof-engine/domain/trustScore"
 import { buildMerkleRoot } from "@proof-engine/domain/proof/buildMerkleRoot"
 

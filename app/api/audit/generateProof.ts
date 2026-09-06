@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db"
-import { verifyEventChain } from "@/lib/domain/ledger/verifyChain"
+import { verifyEventChain } from "@proof-engine/domain/ledger/verifyChain"
 import { buildMerkleRoot } from "@proof-engine/domain/proof/buildMerkleRoot"
 
 type EventRow = {
