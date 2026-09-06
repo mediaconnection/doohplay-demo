@@ -673,8 +673,31 @@ O fundador confirmou no painel do Asaas que a assinatura nunca foi criada, e ten
 
 **Não corrigido agora, por decisão do fundador** ("só registrar o achado e resolver depois") — nenhuma ação financeira foi tentada ou simulada. Ver pendência na lista abaixo.
 
+## ✅ Etapa 2 — sub-parte concluída: `app/api/player/event/route.ts` unificado com `appendEventToLedger` (2026-09-06)
+
+Continuação da Etapa 2 (Separação Lógica) do `DOOHPLAY_Plano_Separacao_Fronts.docx` — sub-parte 1 (`pg.Pool`/`PrismaClient`) já fechada em 31/08. Planejado por `arquiteto-agent`, que investigou os 4 itens restantes da etapa e achou um caso concreto não documentado antes: **3 implementações independentes** do hash-chain gravando em tabelas de prova, quando deveria haver uma só — a canônica (`lib/domain/ledger/appendEvent.ts`, usada por `lib/adserver/registerImpression.ts`), uma reimplementação local em `app/api/player/event/route.ts` (fórmula de hash própria, divergente), e um terceiro caminho em `app/api/events/display/route.ts` gravando numa tabela diferente (`proof_chain`).
+
+**Confirmado com dado real antes de tocar em qualquer coisa**: `proof_chain` tem 1.003 linhas, mas a mais recente é de **11/03/2026** — 6 meses parada, tráfego morto. Esse terceiro caso fica deliberadamente fora de escopo (sem investigação de tráfego adicional necessária, já é evidência suficiente).
+
+**Corrigido**: `app/api/player/event/route.ts` — a rota real de proof-of-play chamada pelo player web e pelo **app Android nativo do `BARBE332`** a cada exibição — parou de reimplementar a gravação em `event_chain` localmente e passou a reusar `appendEventToLedger`, mesmo padrão já usado em `lib/adserver/registerImpression.ts`. Mesma classe de risco do incidente de 25/06/2026 (lógica duplicada divergindo em silêncio), desta vez dentro do próprio ledger de prova. `display_events` (o que decide tela/repasse) não foi tocado. Confirmado seguro trocar a fórmula de hash no meio da cadeia: `lib/domain/ledger/verifyChain.ts` só segue ponteiros (`previous_event_hash`), nunca recalcula hash a partir do payload. Regra documentada no `CLAUDE.md` pra não repetir.
+
+**Validação real ficou bloqueada por um achado separado** (ver seção seguinte) — os dois players reais estavam offline no momento do deploy, então não há tráfego novo ainda pra confirmar a mudança em produção. Endpoint testado diretamente (`curl`) e confirmado saudável, respondendo `200` normalmente.
+
+## 🔴 Achado — os dois players reais (`BARBE332` e `LEMEL186`) estão offline, por motivos independentes e do lado do dispositivo (2026-09-06)
+
+Achado ao tentar validar a mudança acima com tráfego real — nenhum evento novo estava chegando. Investigado com dado estruturado (`player_uptime_daily`, contagem diária real por `player_id`, não logs brutos ambíguos — uma primeira leitura de logs por IP levou a uma conclusão errada, corrigida antes de registrar aqui):
+
+- **`LEMEL186`**: pingava de forma consistente (~2.000-2.800 vezes/dia, ritmo de ~1 a cada 30s) nos dias 02, 03 e 04/09 — parou às **16:57:11 UTC de 04/09**, sem nenhum erro/timeout nas chamadas imediatamente anteriores (todas `200 OK`, 70-150ms). Offline há ~46h no momento do achado.
+- **`BARBE332`**: já pingava com uma frequência bem mais baixa que o normal mesmo antes de parar — só **188 vezes em todo o dia 02/09** (~1 a cada 7-8min, achado à parte que merece investigação própria — pode ser versão de app diferente, configuração de intervalo, ou conectividade instável no local). Parou às **02:07:37 UTC de 02/09** e não deixou nenhum registro nos 4 dias seguintes — offline há ~4,5 dias no momento do achado.
+
+**Backend confirmado saudável nos dois casos**: `/api/player/event` e `/api/player/heartbeat` testados diretamente agora, respondem `200` normalmente. Nenhum deploy do dia (nem de nenhum dia recente) coincide com nenhum dos dois horários de parada. Conclusão: são duas quedas físicas/de dispositivo independentes (rede, app travado, tela desligada), não um problema de servidor — fora do alcance de um fix de código. Não relacionado à mudança da Etapa 2 acima (que só troca a fórmula interna do hash, não altera nada que pudesse derrubar o player).
+
+**Impacto real**: nenhuma prova de exibição, dado de repasse ou métrica de audiência sendo registrada pra nenhum dos dois clientes reais neste momento.
+
 ## Próximos passos em aberto
 
+- 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
+- 🟡 **Investigação separada, não iniciada**: `BARBE332` já pingava com frequência anormalmente baixa (188/dia) mesmo antes de parar de vez — pode ser versão de app desatualizada ou config de intervalo de heartbeat diferente do `LEMEL186`. Ver achado acima.
 - 🔴 **Cadastro incompleto do `LEMEL186` bloqueia cobrança real**: `studio_clients.cpf_cnpj` é `NULL`, `email` é um placeholder de teste (`teste@doohplay.com.br`), `person_type` (`FISICA`) não confirmado contra a realidade do negócio (parece pessoa jurídica). Sem isso, `app/api/admin/subscription/route.ts` não consegue criar o cliente no Asaas. Ação: fundador precisa coletar CPF/CNPJ e email real do cliente antes de criar a assinatura (plano ainda não decidido). Ver achado acima.
 
 - 🔴 **Ação necessária do fundador, urgente**: instância Evolution API (`doohplay`) desconectada (`state: "close"`, confirmado 2026-09-05) — reconectar via QR code no painel da VPS Hostinger. Mesmo com o fix de "Erro de conexão" abaixo, nenhum código real chega no WhatsApp até isso ser feito. Fora do alcance deste agente (sem acesso de gestão à instância). Ver seção acima.
@@ -694,4 +717,4 @@ O fundador confirmou no painel do Asaas que a assinatura nunca foi criada, e ten
   - Rodada 1: 40 testes em 3 arquivos, focados nos bugs reais achados nesta sessão (`business_type`/`STUDIO_TEMPLATES`, campo condicional do Horário/Feriado, `buildDashboardReportHtml`).
   - Rodada 2 (commit `9a91da6`): +16 testes em 3 arquivos, incluindo a **primeira rota de API testada** — `app/api/client/auth/request-otp/route.test.ts` chama `POST()` duas vezes seguidas mockando o banco (`@/lib/db`) e o WhatsApp (`@/lib/whatsapp`), confirmando que o corpo vem legível nas duas chamadas — é um teste de regressão direto do bug do `GENERIC_OK` reaproveitado (ver seção acima); se o bug voltasse, esse teste quebraria. Mais `lib/cpmEstimate.test.ts` (limites de faixa, corte é `>` não `>=`) e `lib/hash.test.ts` (independência de ordem de chaves na canonicalização, propriedade que sustenta todo o pipeline de certificação).
   - **Total agora**: 55 testes em 7 arquivos, todos passando. **Cobertura ainda é parcial** — só funções puras + 1 rota de API; a maioria das rotas, componentes React e o resto do motor de prova continuam sem nenhum teste.
-- Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — extrair `packages/proof-engine`, API interna entre fronts, unificar ~19+ pontos de acesso a banco, testes de contrato (ver seção acima; só a marcação de código morto foi feita nesta sessão).
+- Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — restam: extrair `packages/proof-engine`, sub-parte 2 da unificação de Supabase (~15 pontos, precisa ser fatiada em `app/` vs `lib/`+`src/` — parte são rotas de billing, não motor de prova), testes de contrato (depende da unificação de `app/api/player/event` acima já feita). Ver seções acima.
