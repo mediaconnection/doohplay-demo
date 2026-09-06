@@ -447,6 +447,10 @@ Refeito o teste completo generate→verify depois do deploy do fix — **`valid:
 
 **Decisão pendente do usuário**: gerar um par de chaves novo e sincronizado (privada em `PRIVATE_PEM`, pública commitada em `keys/public.pem`) é provavelmente o caminho mais seguro daqui — tentar adivinhar/testar mais candidatas de chave não é produtivo sem uma fonte confiável de qual é a correta.
 
+### ❌ Correção (2026-09-04) — pendência acima superada, não é mais válida
+
+A conclusão logo acima ("não se sabe hoje qual chave privada... corresponde à pública versionada") também estava errada, mesma classe de falso alarme. Ver seção "✅ Resolvido de verdade — assinatura de PDF (`valid:false`), causa raiz real encontrada (2026-09-03/04)" mais abaixo: **o par de chaves sempre esteve correto** — o `keysMatch:false` era falso alarme do próprio método de comparação de hash (sensível a 1 byte de quebra de linha). A causa raiz real foi `crypto.createSign()/createVerify()` recebendo a chave como string PEM crua em vez de `KeyObject` pré-parseado (commit `4c2386c`) + uma cópia duplicada em `services/pdf/` com bug antigo (commit `d9e3b53`). Confirmado `valid:true` ponta a ponta em produção (commit/docs `d89a78e`). **Não existe nenhuma decisão pendente de gerar chave nova** — não gerar uma sem necessidade.
+
 ## ✅ Etapa 2 — sub-parte 1 concluída: consolidação de `pg.Pool` e `PrismaClient` duplicados (2026-08-31)
 
 Primeira sub-parte da unificação de acesso a banco (`DOOHPLAY_Plano_Separacao_Fronts.docx`, Etapa 2, item 3), planejada por `arquiteto-agent` e executada nesta sessão. Supabase (~15 instanciações) fica deliberadamente fora de escopo — sub-parte futura separada.
