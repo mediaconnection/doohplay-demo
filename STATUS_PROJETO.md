@@ -698,6 +698,34 @@ Achado ao tentar validar a mudança acima com tráfego real — nenhum evento no
 
 **Impacto real**: nenhuma prova de exibição, dado de repasse ou métrica de audiência sendo registrada pra nenhum dos dois clientes reais neste momento.
 
+## ✅ Etapa 2 (Separação Lógica) completa — `packages/proof-engine` extraído em 7 fases (2026-09-06)
+
+Fecha a Etapa 2 inteira do `DOOHPLAY_Plano_Separacao_Fronts.docx`. Planejada por `arquiteto-agent` (2 rodadas: recomendação de sequência + plano técnico detalhado por fase), executada por forks em background, cada fase revisada e testada (`tsc`/`vitest`/`next build`) antes de commit/deploy/validação real, seguindo o mesmo rigor usado no resto desta sessão.
+
+**Escopo real, corrigido durante a execução**: a estimativa original de "~70 arquivos" (só `lib/proof/`) estava incompleta — o motor de prova real inclui também `lib/domain/` (72 arquivos, exceto `ledger/`), `lib/blockchain/` (16), `lib/trust-graph/` (10), 3 arquivos vivos de `legacy/`, e `src/services/pdf/` (11) — total de ~192 arquivos movidos ao longo das 7 fases.
+
+**Fase 0** — código morto confirmado e marcado (não movido): `src/lib/trust-graph/`, `lib/alerts/engine/` + `src/lib/alerts/engine/` (o "Alert engine" documentado no `CLAUDE.md` nunca teve consumidor real — corrigido pra descrever o pipeline vivo, `lib/domain/alerts/*`), `src/lib/blockchain/verifyAnchor.ts`, e `legacy/` inteiro mapeado (3 vivos, 46 mortos). Bug real achado e corrigido: `lib/trust-graph/buildForceGraph.ts` tinha um `../../../` com um nível a mais.
+
+**Fase 1** — estrutura vazia + alias `@proof-engine` único (sem fallback duplo) em `next.config.ts`/`tsconfig.json`/`vitest.config.ts`, confirmado no-op.
+
+**Fase 2** — `lib/blockchain/` (16) + `lib/trust-graph/` (10) movidos, 14 consumidores atualizados (incluindo 4 imports dinâmicos e 1 relativo em script). Validado com `/api/trust/graph`/`/api/trust/network` reais em produção.
+
+**Fase 3** — `lib/proof/` (74) movido, ~34 consumidores atualizados. Achado crítico: 12 imports relativos que cruzavam a fronteira da árvore quebraram por causa da profundidade nova — só apareceu no `next build`, nunca no `tsc` (árvore inteira é `@ts-nocheck`). Corrigidos, `/api/audit/merkle-root` confirmado calculando merkle root real sobre 101.202 eventos depois do deploy.
+
+**Fase 4** — `lib/domain/` exceto `ledger/` (72) movido, ~30 consumidores. 18 imports relativos recalculados (arquivos que já tinham sido "corrigidos" na Fase 3 pra uma profundidade que mudou de novo). `/api/analytics/risk/clients` confirmado com dado real depois do deploy.
+
+**Correção separada, achado como bônus**: 5 arquivos em `legacy/`, `reports/`, `types/` que o grep da Fase 4 não cobriu (escopo não incluía essas pastas) ficaram com `@/lib/domain/...` quebrado desde o deploy da Fase 4 — sem efeito prático (2 código morto, 1 rota morta, 1 só usado por script fora do bundle). Corrigido em commit separado.
+
+**Fase 5** — os 3 únicos arquivos vivos de `legacy/` (`ledger/writeEvent.ts`, `proof/service.ts`, `proof/signature.ts`) movidos, 2 arquivos-ponte atualizados. Achado: 2 arquivos mortos com import relativo pra `./signature` que escapava do grep por alias, corrigidos.
+
+**Fase 6** (por último, de propósito) — `lib/domain/ledger/` (`appendEvent.ts`, `verifyChain.ts`) movido — é o caminho real de proof-of-play de `BARBE332`/`LEMEL186` via `app/api/player/event/route.ts` e `lib/adserver/registerImpression.ts`. Feita só depois dos dois players confirmados online de novo (ver achado acima — voltaram sozinhos algumas horas depois de detectados offline, sem intervenção). Zero mudança de lógica, confirmado byte a byte. **Validado com tráfego real, ao vivo, depois do deploy**: eventos novos de `BARBE332` e `LEMEL186` entrelaçados na mesma cadeia `event_chain`, `previous_event_hash` de cada linha batendo exatamente com o `event_hash` da anterior, cruzando entre os dois clientes sem quebra.
+
+**Fase 7** — `src/services/pdf/*` (11 arquivos, incluindo os 6 testes de regressão de assinatura desta sessão) movido. Zero mudança de lógica nos arquivos de assinatura/verificação (regra seguida à risca, dado o histórico do `valid:false` documentado acima) — cópia da raiz mantida sincronizada só no comentário, não na lógica. Teste funcional real (chave RSA efêmera, sign+verify) confirmado duas vezes. `POST /api/reports/generate` confirmado com `certified:true` real depois do deploy.
+
+**Padrão de risco recorrente em quase todas as fases, documentado pra referência futura**: imports relativos (`../x`) que cruzam a fronteira de uma árvore movida quebram silenciamente quando a profundidade muda — nunca aparecem no `tsc --noEmit` nesta parte do código (tudo `@ts-nocheck`), só no `next build` (resolução real do webpack). Toda fase desta extração passou a exigir `next build` como parte obrigatória da validação, não só `tsc`/`vitest`.
+
+**Não iniciado, fora desta extração**: sub-parte 2 da consolidação de Supabase (~15 pontos, decisão consciente do usuário de fazer a extração antes, aceitando a dívida técnica de alguns clients Supabase ad-hoc dentro do pacote novo) e testes de contrato formais entre os fronts (agora destravados, já que a fronteira de módulo existe de verdade).
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
@@ -721,4 +749,5 @@ Achado ao tentar validar a mudança acima com tráfego real — nenhum evento no
   - Rodada 1: 40 testes em 3 arquivos, focados nos bugs reais achados nesta sessão (`business_type`/`STUDIO_TEMPLATES`, campo condicional do Horário/Feriado, `buildDashboardReportHtml`).
   - Rodada 2 (commit `9a91da6`): +16 testes em 3 arquivos, incluindo a **primeira rota de API testada** — `app/api/client/auth/request-otp/route.test.ts` chama `POST()` duas vezes seguidas mockando o banco (`@/lib/db`) e o WhatsApp (`@/lib/whatsapp`), confirmando que o corpo vem legível nas duas chamadas — é um teste de regressão direto do bug do `GENERIC_OK` reaproveitado (ver seção acima); se o bug voltasse, esse teste quebraria. Mais `lib/cpmEstimate.test.ts` (limites de faixa, corte é `>` não `>=`) e `lib/hash.test.ts` (independência de ordem de chaves na canonicalização, propriedade que sustenta todo o pipeline de certificação).
   - **Total agora**: 55 testes em 7 arquivos, todos passando. **Cobertura ainda é parcial** — só funções puras + 1 rota de API; a maioria das rotas, componentes React e o resto do motor de prova continuam sem nenhum teste.
-- Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — restam: extrair `packages/proof-engine`, sub-parte 2 da unificação de Supabase (~15 pontos, precisa ser fatiada em `app/` vs `lib/`+`src/` — parte são rotas de billing, não motor de prova), testes de contrato (depende da unificação de `app/api/player/event` acima já feita). Ver seções acima.
+- ✅ ~~Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — extrair `packages/proof-engine`~~ — completa (2026-09-06), 7 fases, ~192 arquivos movidos, validadas com dado real de produção em cada etapa. Ver seção acima.
+- 🟡 **Restam da Etapa 2 (não iniciados)**: sub-parte 2 da unificação de Supabase (~15 pontos, precisa ser fatiada em `app/` vs `lib/`+`src/` — parte são rotas de billing, não motor de prova; a extração do proof-engine já ocorreu antes disso, por decisão consciente do usuário, herdando a dívida técnica); testes de contrato formais entre os fronts (agora destravados, já que a fronteira de módulo `@proof-engine` existe de verdade).
