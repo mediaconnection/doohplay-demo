@@ -99,8 +99,8 @@ PDF generation uses **`pdfkit/js/pdfkit.standalone`** (not the regular `pdfkit` 
 
 ### Trust Graph & Alerts
 
-- **Trust graph** (`src/lib/trust-graph/`) — analyzes relationships between screens, campaigns, advertisers, and operators to detect fraud clusters. Nodes score from 0–100; below 40 = `HIGH_RISK`.
-- **Alert engine** (`src/lib/alerts/engine/`) — policy-based pipeline: `evaluatePolicies` → `enrichAlert` → `computeRiskScore` → `persistAlert` → `auditAlert`. Policy definitions in `src/lib/alerts/policies/`.
+- **Trust graph** (`lib/trust-graph/`, root — not `src/lib/trust-graph/`, which is dead code, see below) — analyzes relationships between screens, campaigns, advertisers, and operators to detect fraud clusters. Nodes score from 0–100; below 40 = `HIGH_RISK`. `src/lib/trust-graph/` is a second, unreachable implementation with the same filenames (`@/lib/trust-graph/*` always resolves to root per `next.config.ts`'s webpack alias) — confirmed dead 2026-09-06, see `src/lib/trust-graph/README.md`.
+- **Alert engine, corrected 2026-09-06**: `lib/alerts/engine/` and `src/lib/alerts/engine/` (the `evaluatePolicies` → `enrichAlert` → `computeRiskScore` → `persistAlert` → `auditAlert` pipeline previously documented here) have **zero real consumers** anywhere in the codebase — confirmed dead, see their `README.md` files. The alert pipeline that actually runs in production is `lib/domain/alerts/*` (`detectAlerts.ts`, `shouldSendAlert.ts`, `saveAlerts.ts`, `formatAlertMessage.ts`), driven by `lib/queue/workers/blockWorker.ts` (BullMQ worker on the `alerts` queue): `shouldSendAlerts` → `saveAlerts` → `formatAlertMessage` → `sendSlackAlert` (`lib/integrations/slack/sendAlert.ts`). Jobs are enqueued via `lib/queue/enqueueAlert.ts`.
 
 ### Dashboard
 

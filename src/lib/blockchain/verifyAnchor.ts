@@ -1,4 +1,12 @@
 // @ts-nocheck
+// @deprecated — código morto, confirmado 2026-09-06 (Fase 0 da extração de
+// packages/proof-engine). `verifyAnchorOnChain` não tem nenhum consumidor
+// real neste repositório (grep exaustivo, zero import fora deste arquivo).
+// Achado colateral: a cópia em lib/blockchain/verifyAnchor.ts (raiz) também
+// não tem consumidor real — as duas parecem superadas por
+// lib/blockchain/validateAnchoredMerkleRoot.ts (via verifyAnchoredRoot),
+// que é o caminho de fato usado por app/api/verify/batch/route.ts. Não
+// remover, só documentado; decisão de limpar fica pra revisão do usuário.
 import { ethers } from "ethers"
 
 const ABI = [
