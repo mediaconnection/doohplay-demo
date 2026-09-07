@@ -771,7 +771,11 @@ Validação em 3 rodadas com hash real de produção, capturando baseline antes 
 
 **Fase 8 decidida** (2026-09-07): **manter `app/api/reports/revoke/route.ts` marcado `@deprecated`, não apagar** — mesmo padrão consistente usado em toda a extração do proof-engine e nesta consolidação (código morto confirmado é sempre documentado, nunca apagado). Já estava marcado desde a Fase 0-1; nenhuma ação adicional necessária. Decisão consciente de não quebrar o padrão só por este caso, dado que o arquivo já é seguro (zero efeito, zero risco) como está.
 
-**Resta, não iniciada**: Fase 9 (limpeza final dos 5 módulos mortos confirmados — `lib/supabaseAdmin.ts`, `src/lib/supabase.ts`, `src/lib/supabaseServer.ts`, `supabase/client.ts`, `src/supabase/client.ts` — só depois de um período de observação em produção sem erro, reconfirmando zero-import antes de cada delete).
+**Fase 9 concluída** (2026-09-07): **removidos os 5 módulos mortos confirmados** — `lib/supabaseAdmin.ts`, `src/lib/supabase.ts`, `src/lib/supabaseServer.ts`, `supabase/client.ts`, `src/supabase/client.ts`. Zero-import reconfirmado de novo (não só por memória da Fase 0-1) imediatamente antes do delete: grep fresco por `supabaseAdmin`, `supabaseServer`, `supabase/client` e pelo alias `@/supabase` — os 12/47 arquivos encontrados são todos consumidores reais do módulo oficial (`lib/supabaseServer.ts`) ou os próprios arquivos apagados, nenhum aponta pros mortos. `tsc` 47 (idêntico antes/depois, zero erro novo), `vitest` 73/73. `next build` local não roda até o fim (falha em "Collecting page data" por falta de `SUPABASE_SERVICE_ROLE_KEY` real em `.env.local`) — confirmado via `git stash`/`stash pop` que essa falha já existia **antes** da Fase 9, mesma limitação de ambiente local conhecida desde o início da sessão; validação de build real fica por conta do deploy do Render (env vars reais).
+
+**Achado colateral, pré-existente, não corrigido**: `app/api/verify/full-proof/route.ts` importa `getSupabaseServer` de `@/lib/supabaseServer`, mas esse módulo só exporta `getSupabaseAdmin`/`supabaseAdmin`/`supabaseServer` — a rota já está quebrada hoje (chamaria `undefined()` em runtime), sem relação com a Fase 9 ou com qualquer mudança desta sessão. Fora de escopo, registrado pra correção futura.
+
+**Sub-parte 2 da Etapa 2 (consolidação de clients Supabase): 9 de 9 fases concluídas.**
 
 ## Próximos passos em aberto
 
