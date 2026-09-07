@@ -847,6 +847,14 @@ Reexecutada a query completa (sem truncar) do `pg_stat_statements` pra checar ev
 
 **Resta, não decidido**: `playlist_items` (bloqueado, ver acima), política de RLS específica pra cada uma das 31 tabelas já protegidas, e o restante do Tier 3 (76 tabelas sem evidência de acesso, mas ainda com RLS desabilitado).
 
+**`playlist_items` decidido e corrigido (2026-09-07), com um achado colateral real no caminho**: fundador pediu pra desenhar a política em vez de deixar pendente. Antes de propor qualquer coisa, teste com `SET ROLE anon` revelou que **`schedule_rules` já tinha RLS ativado, sem nenhuma política** (não foi esta sessão que ativou) — `anon` via **0 linhas**, o que significa que a parte de "carregar agendamento já existente" do `SchedulerEditor.tsx` (mesmo componente, lê `schedule_rules` linha 73-77) **já estava quebrada em produção antes de qualquer mudança de hoje**. Corrigidas as duas juntas, já que são a mesma feature real:
+
+- Como o fluxo do Studio não usa sessão real do Supabase Auth (confirmado no próprio comentário de `app/api/studio/schedule-rule/route.ts`: "não existe sessão real no fluxo Studio ainda"), não dá pra restringir por `auth.uid()`. A escrita já tinha sido migrada pra essa rota server-side com checagem de posse (fix de 28/08/2026) — só faltava proteger a leitura direta.
+- Política aplicada nas duas tabelas: `CREATE POLICY ... FOR SELECT TO anon, authenticated USING (true)` — mantém a leitura pública (comportamento real de hoje, sem dado sensível em `playlist_items`/`schedule_rules`), **sem nenhuma política de `INSERT`/`UPDATE`/`DELETE`** — fecha o desvio real (antes dava pra escrever direto no Supabase pulando a checagem de posse da rota server-side).
+- Validado com prova real: `SET ROLE anon` — `playlist_items` 7/7 linhas visíveis (antes 7/7 com RLS desabilitado, comportamento preservado), `schedule_rules` **0 → 3/3 linhas visíveis (bug pré-existente corrigido)**. Teste de escrita direta: `UPDATE playlist_items SET schedule_type = 'hacked' WHERE true` como `anon` afetou **0 linhas** — confirmado sem corrupção (`SELECT ... WHERE schedule_type = 'hacked'` vazio).
+
+**Sub-parte do RLS do Tier 3 fechada**: `play_logs` e `playlist_items` (as 2 com evidência real de acesso) corrigidas. Resta o restante do Tier 3 (76 tabelas sem evidência de acesso confirmada) e política específica pras 31 tabelas do Tier 1+2 já protegidas sem política nenhuma (hoje: acesso zero total pra `anon`/`authenticated`).
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
