@@ -762,7 +762,14 @@ Validação em 3 rodadas com hash real de produção, capturando baseline antes 
 
 **Achado colateral em `export/route.ts`, fora de escopo, não corrigido**: a rota exige hash hex de 64 caracteres (`normalizeHash`/`isHex64`), mas `display_events.event_hash` no sistema real é **base64** (`Buffer.from(...).toString("base64")`, formato de `app/api/player/event/route.ts`) — ou seja, essa rota nunca encontra nenhum hash real hoje, **pré-existente, não relacionado a esta fase**. Testado com hash fake e com um hash real de `event_chain` (formato errado de propósito, pra confirmar que o client funciona): os dois retornaram `404 EVENT_NOT_FOUND` gracioso, confirmando que o wrapper cria o client corretamente — só não há dado real que bata com o formato esperado.
 
-**Restam, não iniciadas**: Fase 7 (`verify/[hash]/route.ts` propriamente dito — a mais arriscada, `BARBE332` tem 8.121 eventos reais nesse pipeline), Fase 8 (decisão sobre `reports/revoke` morta), Fase 9 (limpeza final). Ver plano completo do `arquiteto-agent` pra detalhe de cada fase.
+**Fase 7 concluída em 2 passos** (2026-09-06/07) — a mais sensível de toda a consolidação, `app/api/verify/[hash]/route.ts`, rota pública com `BARBE332` ativo (8.121 eventos reais).
+
+- **Passo 1**: removido o fallback perigoso `?? ""` de `getSupabaseAdmin()` (silenciosamente criava client com URL/chave vazias se faltassem env vars) por erro explícito — comportamento externo idêntico, os dois chamadores já tratavam qualquer exceção como resultado nulo.
+- **Passo 2**: migração completa do import pro client oficial (`lib/supabaseServer.ts`). O comentário histórico deste arquivo alertava sobre um bug de bundling do webpack com client Proxy-based de `adapters/supabase.ts` — a mesma preocupação já revalidada e não reproduzida na Fase 4. Achado adicional: este arquivo usava `SUPABASE_URL` (não `NEXT_PUBLIC_SUPABASE_URL` como o módulo oficial) — já confirmado idêntico em produção na Fase 2, seguro colapsar.
+
+**Validado com bateria completa dos 3 casos de teste da Fase 4, todos idênticos ao baseline**: hash certificado real sem parâmetros (`INVALID_SIGNATURE`/`MERKLE_FAIL`, mesma certificação), mesmo hash com `entity_id`/`entity_type` (idêntico), hash sem certificação (`PROOF_NOT_FOUND`, idêntico).
+
+**Restam, não iniciadas**: Fase 8 (decisão sobre `reports/revoke` morta — apagar ou manter documentado), Fase 9 (limpeza final dos 5 módulos mortos, só depois de período de observação). Ver plano completo do `arquiteto-agent` pra detalhe de cada fase.
 
 ## Próximos passos em aberto
 
