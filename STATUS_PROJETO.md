@@ -829,7 +829,19 @@ Advisory do Supabase MCP sinalizou 108 tabelas públicas sem Row Level Security,
 
 **Limitação honesta sobre timing**: `pg_stat_statements` confirma que a leitura de fato aconteceu (15 chamadas, 15 linhas retornadas — não erro/vazio), mas só agrega desde o último reset (24/12/2025), sem timestamp por chamada. O Log Explorer do Supabase (que tem timestamp) só retém histórico até 06/09/2026 — a exploração quase certamente aconteceu antes dessa janela, então não dá pra cravar data/hora/origem exata. **Confirmado: sem atividade contra essa tabela nas últimas ~36h** — não é um ataque em andamento agora.
 
-**Estado ao encerrar a sessão (2026-09-07)**: exposição real confirmada, mas conteúdo de baixo valor de exploração (sem PII, sem dado financeiro real, possivelmente nem produção de verdade). Fundador optou por não decidir agora se isso justifica tratamento de incidente formal — fica em aberto, sem urgência sinalizada. Tier 3 também fica pra decidir depois.
+**Estado ao encerrar a sessão (2026-09-07)**: exposição real confirmada, mas conteúdo de baixo valor de exploração (sem PII, sem dado financeiro real, possivelmente nem produção de verdade). Fundador optou por não decidir agora se isso justifica tratamento de incidente formal — fica em aberto, sem urgência sinalizada.
+
+## ✅ RLS — checagem de evidência real no Tier 3 + achado mais grave: funções `SECURITY DEFINER` bypassam RLS (2026-09-07)
+
+Reexecutada a query completa (sem truncar) do `pg_stat_statements` pra checar evidência real de acesso `anon` nas 79 tabelas restantes do Tier 3. Resultado: só **`play_logs`** (18 linhas reais em 4 variações de query) e **`playlist_items`** (15 linhas reais) têm acesso confirmado — nenhuma outra tabela do Tier 3 aparece. Fica pra decisão futura corrigi-las (junto com política pra Tier 3 em geral).
+
+**Lacuna do fix de ontem, corrigida**: `pdf_hashes` tinha 10 leituras reais confirmadas mas ficou fora dos 29 por engano — `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` aplicado agora, validado: `SET ROLE anon` foi de acesso real pra `0` linhas visíveis.
+
+**Achado mais grave que o de ontem, mas de baixo impacto real**: `fn_get_closure_pdf_data(uuid)` e `fn_get_closure_public_verification(uuid)` são `SECURITY DEFINER` — rodam com o privilégio de quem *criou* a função, então **RLS nas tabelas não as protege**. `anon` tinha `EXECUTE` nas duas e `fn_get_closure_pdf_data` foi chamada **201 vezes reais**, retornando dado financeiro (`gross_amount`/`net_amount`/`executions_count` por campanha) via join com `monthly_closures`+`financial_closure_signatures`+`vw_financial_snapshots_latest`. Gravidade real baixa pelo mesmo motivo de ontem: `monthly_closures`/`vw_financial_snapshots_latest` só têm 3 linhas cada, todas referenciando um `campaign_id` (`ddbaba00-...`) que **não existe** na tabela `campaigns` real, com valores redondos demais pra produção (R$2.000,00, R$1.000,00, exatamente 40.000 execuções) — mesmo padrão de dado de teste/desenvolvimento já identificado.
+
+**Correção aplicada**: `REVOKE EXECUTE` de `anon`+`authenticated` nas duas funções. **Achado de metodologia**: a 1ª tentativa de revogar (`REVOKE ... FROM anon, authenticated`) não bloqueou de verdade — `has_function_privilege` continuava `true` — porque as funções tinham `EXECUTE` concedido a `PUBLIC` por padrão do `CREATE FUNCTION`, e revogar de roles específicas não remove o que vem herdado de `PUBLIC`. Corrigido com `REVOKE EXECUTE ... FROM PUBLIC` explícito. Validado de ponta a ponta: `has_function_privilege` agora `false` pra `anon`/`authenticated`, `true` pra `postgres`/`service_role`; `SET ROLE anon` chamando a função real devolve `permission denied for function` (antes retornava dado real); chamada como `postgres` continua funcionando normalmente (app não afetado).
+
+**Resta, não decidido**: `play_logs`/`playlist_items` (únicas do Tier 3 com acesso real confirmado), política de RLS específica pra cada uma das 30 tabelas já protegidas, e o restante do Tier 3 (77 tabelas sem evidência de acesso, mas ainda com RLS desabilitado).
 
 ## Próximos passos em aberto
 
