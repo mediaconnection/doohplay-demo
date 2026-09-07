@@ -1,3 +1,8 @@
+// @deprecated — código morto, confirmado 2026-09-06 (consolidação de
+// clients Supabase, Etapa 2 sub-parte 2): inalcançável em runtime (o alias
+// @/lib do next.config.ts sempre resolve pra raiz, nunca pra src/lib), e
+// sem nenhum import relativo real. Módulos oficiais: lib/supabase.ts
+// (anon) e lib/supabaseServer.ts (service-role). Não editar/estender.
 import { createClient } from "@supabase/supabase-js"
 
 let _supabase: ReturnType<typeof createClient> | null = null

@@ -1,4 +1,10 @@
 // @ts-nocheck
+// @deprecated — código morto, confirmado 2026-09-06 (consolidação de
+// clients Supabase, Etapa 2 sub-parte 2): inalcançável em runtime (mesmo
+// motivo de src/lib/supabase.ts). Achado à parte: se algo aqui chegasse a
+// rodar, faz fallback silencioso pra SUPABASE_ANON_KEY quando falta a
+// service-role key -- viraria um client anon travestido de "server", sem
+// aviso nenhum. Módulo oficial: lib/supabaseServer.ts. Não editar/estender.
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 

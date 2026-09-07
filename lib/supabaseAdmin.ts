@@ -1,4 +1,10 @@
-﻿import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+﻿// @deprecated — código morto, confirmado 2026-09-06 (planejamento da
+// consolidação de clients Supabase, Etapa 2, sub-parte 2, item 3 do
+// DOOHPLAY_Plano_Separacao_Fronts.docx): zero import real deste módulo em
+// todo o repositório. O módulo oficial de client service-role é
+// lib/supabaseServer.ts (supabaseAdmin/supabaseServer), já usado por 12+
+// consumidores reais. Não editar/estender.
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 let _supabase: SupabaseClient | null = null
 export function getSupabase(): SupabaseClient {

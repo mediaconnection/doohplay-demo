@@ -698,9 +698,11 @@ Achado ao tentar validar a mudança acima com tráfego real — nenhum evento no
 
 **Impacto real**: nenhuma prova de exibição, dado de repasse ou métrica de audiência sendo registrada pra nenhum dos dois clientes reais neste momento.
 
-## ✅ Etapa 2 (Separação Lógica) completa — `packages/proof-engine` extraído em 7 fases (2026-09-06)
+## ✅ Etapa 2, item 1 completo — `packages/proof-engine` extraído em 7 fases (2026-09-06)
 
-Fecha a Etapa 2 inteira do `DOOHPLAY_Plano_Separacao_Fronts.docx`. Planejada por `arquiteto-agent` (2 rodadas: recomendação de sequência + plano técnico detalhado por fase), executada por forks em background, cada fase revisada e testada (`tsc`/`vitest`/`next build`) antes de commit/deploy/validação real, seguindo o mesmo rigor usado no resto desta sessão.
+**Correção**: o título original desta seção dizia "Etapa 2 completa" — impreciso. Só o item 1 (extrair o motor de prova) fechou aqui; os itens 3 (sub-parte 2 do Supabase, ver seção mais abaixo) e 4 (testes de contrato) continuavam pendentes, como aliás a própria lista de pendências logo abaixo já registrava corretamente na hora.
+
+Fecha o item 1 da Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx`. Planejada por `arquiteto-agent` (2 rodadas: recomendação de sequência + plano técnico detalhado por fase), executada por forks em background, cada fase revisada e testada (`tsc`/`vitest`/`next build`) antes de commit/deploy/validação real, seguindo o mesmo rigor usado no resto desta sessão.
 
 **Escopo real, corrigido durante a execução**: a estimativa original de "~70 arquivos" (só `lib/proof/`) estava incompleta — o motor de prova real inclui também `lib/domain/` (72 arquivos, exceto `ledger/`), `lib/blockchain/` (16), `lib/trust-graph/` (10), 3 arquivos vivos de `legacy/`, e `src/services/pdf/` (11) — total de ~192 arquivos movidos ao longo das 7 fases.
 
@@ -725,6 +727,25 @@ Fecha a Etapa 2 inteira do `DOOHPLAY_Plano_Separacao_Fronts.docx`. Planejada por
 **Padrão de risco recorrente em quase todas as fases, documentado pra referência futura**: imports relativos (`../x`) que cruzam a fronteira de uma árvore movida quebram silenciamente quando a profundidade muda — nunca aparecem no `tsc --noEmit` nesta parte do código (tudo `@ts-nocheck`), só no `next build` (resolução real do webpack). Toda fase desta extração passou a exigir `next build` como parte obrigatória da validação, não só `tsc`/`vitest`.
 
 **Não iniciado, fora desta extração**: sub-parte 2 da consolidação de Supabase (~15 pontos, decisão consciente do usuário de fazer a extração antes, aceitando a dívida técnica de alguns clients Supabase ad-hoc dentro do pacote novo) e testes de contrato formais entre os fronts (agora destravados, já que a fronteira de módulo existe de verdade).
+
+## 🟡 Etapa 2, item 3, sub-parte 2 — consolidação de clients Supabase (em andamento, 2026-09-06)
+
+Planejada por `arquiteto-agent`. Levantamento real corrigiu a estimativa antiga (~15) pra **22 pontos distintos** de instanciação de client Supabase — um deles (`packages/proof-engine/proof/adapters/supabase.ts`) escapava do grep literal de `createClient\(` por usar `import { createClient as _sbCreate }`; qualquer auditoria futura precisa checar também o binding local, não só o nome literal da função.
+
+**Categorizados em 3 grupos, por decisão explícita do usuário** (regra do `CLAUDE.md` sobre nunca mexer em `app/api/`/`app/admin/` do front comercial sem confirmação): **Grupo A** (`lib/`, `src/`, `scripts/`, `packages/proof-engine/` — 11 pontos, sem risco de front), **Grupo B** (fisicamente em `app/api/`, mas rotas de prova/auditoria — mesma categoria já aprovada nas Fases 2-6 da extração do proof-engine — 7 pontos), **Grupo C** (comercial de verdade — `app/api/invoices/...`, `app/api/documents/...`, `app/admin/reports/page.tsx`, `components/SchedulerEditor.tsx` do Studio — **deixado fora desta tarefa**, decisão explícita do usuário).
+
+**Achado importante de acoplamento cross-front**: os 2 módulos propostos como "oficiais" (`lib/supabase.ts` pra client anon, `lib/supabaseServer.ts` pra client service-role — ambos já existentes, nenhum criado do zero) **já são compartilhados hoje com rotas comerciais do Grupo C** (`app/api/studio/schedule-rule/route.ts`, `app/api/invoices/[invoice_id]/pdf/route.ts`). Ou seja: mudanças de comportamento (não de import externo) dentro desses 2 módulos afetam rotas comerciais reais mesmo sem editar um único arquivo em `app/`. Cada fase que tocar esses 2 módulos precisa testar manualmente essas 2 rotas comerciais, mesmo sem editá-las.
+
+**Achado — `app/api/reports/revoke/route.ts` confirmado morto dos dois lados**: o arquivo não exporta nenhum handler HTTP (`GET`/`POST`/etc.) — não é uma rota funcional, é só a definição de `getSupabaseServer()`/`supabaseServer`. O único chamador plausível seria o `<form action="/admin/reports/revoke?...">` em `app/admin/reports/page.tsx`, mas esse `action` aponta pra uma rota de **página** (`/admin/reports/revoke`), não pra esta rota de **API** (`/api/reports/revoke`) — e `/admin/reports/revoke` também não existe no repositório. Órfã dos dois lados. Decisão de apagar ou manter documentado como morto fica pendente, registrada abaixo — não é uma migração normal de client.
+
+**Fase 0-1 concluídas** (baixo risco, sem mudança de import/comportamento em ninguém):
+- Confirmado com dado real: `BARBE332` tem 8.121 eventos reais em `event_chain` — está ativamente no pipeline de prova, então `app/api/verify/[hash]/route.ts` (a fase mais arriscada, ainda não iniciada) precisa do cuidado que o plano já previa, não pode ser tratada como baixo risco.
+- Confirmado: `SUPABASE_URL` (não-pública) está configurada de verdade em produção (confirmação do usuário) — desbloqueia a fase de "blindar os módulos oficiais" quando chegar a vez.
+- 5 módulos "singleton" confirmados como código morto (mesmo método de sempre: grep de import real + checar `next.config.ts`, nunca presumir pelo nome) — marcados `@deprecated`, zero mudança de lógica: `lib/supabaseAdmin.ts`, `src/lib/supabase.ts`, `src/lib/supabaseServer.ts` (achado à parte: esse fazia fallback silencioso pra `SUPABASE_ANON_KEY` quando faltava a service-role key — viraria um client anon travestido de "server", sem aviso, se algum dia fosse alcançável), `supabase/client.ts`, `src/supabase/client.ts`. `app/api/reports/revoke/route.ts` também marcado `@deprecated` (rota morta, ver achado acima).
+- Módulos oficiais confirmados (já existentes, mais maduros e mais usados): `lib/supabase.ts` (anon) e `lib/supabaseServer.ts` (service-role, 12+ consumidores reais).
+- `tsc --noEmit` (47, baseline sem mudança) e `vitest` (73/73) confirmados sem regressão — nenhum import mudou ainda.
+
+**Restam, não iniciadas**: Fase 2 (blindar os módulos oficiais, agora desbloqueada) até Fase 9 (limpeza final dos módulos mortos, só depois de período de observação). Ver plano completo do `arquiteto-agent` pra detalhe de cada fase.
 
 ## Próximos passos em aberto
 
