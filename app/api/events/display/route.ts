@@ -2,8 +2,13 @@ export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
 
-import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+// Etapa 2, item 3, sub-parte 2, Fase 6 (2026-09-06): reusa o client
+// oficial de service-role em vez de instanciar o próprio. Esta rota na
+// verdade usa o padrão "lança erro" (try/catch -> 500), não "retorna
+// null" como o plano original categorizou -- tratada conforme o código
+// real, não a categorização.
+import { supabaseAdmin as supabase } from "@/lib/supabaseServer";
 
 function sha256(data: string) {
   return crypto.createHash("sha256").update(data).digest("hex");
@@ -28,11 +33,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // ------------------------------------------------
     // EVENT PAYLOAD

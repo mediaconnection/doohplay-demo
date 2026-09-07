@@ -5,7 +5,6 @@ export const revalidate = 0
 import path from "path"
 import * as fs from "fs"
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import PDFDocument from "pdfkit"
 import QRCode from "qrcode"
 
@@ -42,13 +41,19 @@ function normalizeHash(value: unknown): string | null {
   return /^[a-f0-9]{64}$/.test(normalized) ? normalized : null
 }
 
-function getSupabaseClient() {
-  const url = safeString(process.env.NEXT_PUBLIC_SUPABASE_URL)
-  const serviceRoleKey = safeString(process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-  if (!url || !serviceRoleKey) return null
-
-  return createClient(url, serviceRoleKey)
+// Etapa 2, item 3, sub-parte 2, Fase 6 (2026-09-06): reusa o client
+// oficial de service-role (lib/supabaseServer.ts) em vez de instanciar o
+// próprio -- mas esse módulo lança na carga (não retorna null como este
+// código fazia), então o import fica dentro do try/catch, dinâmico, pra
+// preservar o contrato de degradação graciosa que esta rota já tinha
+// (500 SUPABASE_ENV_MISSING em vez de crash cru).
+async function getSupabaseClient() {
+  try {
+    const { supabaseAdmin } = await import("@/lib/supabaseServer")
+    return supabaseAdmin
+  } catch {
+    return null
+  }
 }
 
 function getBaseUrl(): string {
@@ -166,7 +171,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "INVALID_HASH" }, { status: 400 })
     }
 
-    const supabase = getSupabaseClient()
+    const supabase = await getSupabaseClient()
 
     if (!supabase) {
       return NextResponse.json(
