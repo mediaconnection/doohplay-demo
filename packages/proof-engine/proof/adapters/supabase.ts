@@ -1,18 +1,18 @@
 // @ts-nocheck
 import { pool } from "@/lib/db"
-import { createClient as _sbCreate } from "@supabase/supabase-js"
 
-// Dívida técnica aceita conscientemente na extração de packages/proof-engine
-// (Fase 3, 2026-09-06): este arquivo instancia seu próprio client Supabase
-// inline, em vez de usar um dos ~15 pontos de instanciação que ainda não
-// foram consolidados (Etapa 2, item 3, sub-parte 2 -- não feita ainda). O
-// pacote herda essa bagunça como está; decisão explícita do usuário de
-// extrair antes de consolidar Supabase. Ver packages/proof-engine/README.md.
-const supabaseAdmin = _sbCreate(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-)
+// Etapa 2, item 3, sub-parte 2, Fase 4 (2026-09-06): passou a reusar o
+// client oficial de service-role (lib/supabaseServer.ts) em vez de
+// instanciar o próprio -- dívida técnica registrada na Fase 3 da extração
+// do proof-engine, agora paga. ATENÇÃO: app/api/verify/[hash]/route.ts tem
+// um client Supabase inline próprio com um comentário alertando que
+// "webpack não inclui Proxy lazy-loaded" de um import deste módulo -- mas
+// esse arquivo (adapters/supabase.ts) nunca usou Proxy, era instanciação
+// eager; lib/supabaseServer.ts USA Proxy lazy. Validado com next build real
+// e teste funcional com hash real de produção antes de fechar esta fase
+// (ver STATUS_PROJETO.md) -- não presumir que o bug antigo não se aplica
+// mais só porque o código aqui mudou.
+import { supabaseAdmin } from "@/lib/supabaseServer"
 
 import type {
   CertificationRecord,
