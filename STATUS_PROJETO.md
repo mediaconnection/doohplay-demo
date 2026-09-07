@@ -777,6 +777,33 @@ Validação em 3 rodadas com hash real de produção, capturando baseline antes 
 
 **Sub-parte 2 da Etapa 2 (consolidação de clients Supabase): 9 de 9 fases concluídas.**
 
+## 🟡 Clube de Telas — plano completo pronto, pausado por decisão de produto (2026-09-07)
+
+Planejado pelo `arquiteto-agent` a partir de `DOOHPLAY_Clube_de_Telas_Spec_v2.md` (fundador). Investigação real (não suposição) encontrou uma divergência importante: `network_partnerships`/`network_media`/`network_media_distribution` **já têm 6 rotas funcionando em produção**, mas com um modelo diferente do spec v2 — aceite é da **parceria inteira** (não por peça), e a aprovação de qualidade é feita pelo **admin da DOOHPLAY** (não pelo parceiro que vai exibir, como o spec exige). Implementar o spec não é "adicionar campos", é substituir o mecanismo de distribuição automática por um fluxo de pedido→aprovação por peça.
+
+**Fase 0 (bloqueador técnico) executada e descartada**: `client_locations` tem **100% de cobertura** (2/2 clientes ativos com coordenada real) — sem bloqueador de dado. Como as 3 tabelas envolvidas estão zeradas (`network_partnerships`, `network_media`, `network_media_distribution`, todas com 0 linhas), o principal risco do plano (distribuição automática legada "sumir" conteúdo de parceria já aceita) também não existe hoje.
+
+`CATEGORY_WEIGHTS.rede` (`app/player/page.tsx`, hoje 0%) já tem pipeline de dado real funcionando ponta a ponta — só falta decisão de peso. Sem PostGIS no projeto; Haversine em JS puro (`lib/geocoding.ts`) já implementado e suficiente pra essa escala.
+
+**Plano completo, em 7 fases (0 a 6), pronto pra execução**: migration aditiva (`media_id`, `credit_generated`, tabela de crédito de reciprocidade) → trocar aceite pra por-peça (fase de maior risco, desliga distribuição automática legada) → job de timeout 15 dias (WhatsApp) → job de expiração de peça 30 dias → limite de 30 recontado por parceiros distintos → reativar peso "Rede" (sugestão: 5%, tirado de `canal`/`institucional`).
+
+**Decisão do fundador (2026-09-07)**: **pausar, não implementar agora**. Só existem 2 clientes ativos em todo o sistema (`BARBE332`, `LEMEL186`) — um recurso de "raio de 5km, até 30 parceiros" não tem com quem formar parceria de verdade ainda. Retomar quando a base de clientes crescer o suficiente pra justificar substituir o mecanismo atual (que já funciona, ainda que com modelo diferente) por um novo. Plano fica registrado aqui, pronto pra retomar sem replanejar do zero.
+
+## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
+
+Planejado pelo `arquiteto-agent`, priorizando o caminho que já teve um bug real de divergência de hash (corrigido 06/09). 4 arquivos de teste novos, zero mudança em código de produção: `packages/proof-engine/domain/ledger/appendEvent.test.ts` (pina a fórmula canônica `sha256(previous_event_hash + hash)`, com e sem evento anterior), `packages/proof-engine/domain/ledger/__contracts__/onlyCanonicalWriterTouchesEventChain.test.ts` (varredura estática **do repositório inteiro** — não só `app/`/`lib/`/`packages/`, ver achado abaixo — procurando `INSERT INTO event_chain` fora de uma allowlist explícita), `lib/adserver/registerImpression.test.ts` e `app/api/player/event/route.test.ts` (fixam o payload gravado no ledger e o comportamento de melhor esforço). Documentação nova: `packages/proof-engine/domain/ledger/README.md`.
+
+**Validado simulando de propósito os 3 bugs reais que este teste deveria pegar** — cada um: vermelho confirmado → revertido via `git checkout`/delete → verde de novo, nada vazou pro commit: (1) fórmula de hash trocada em `appendEvent.ts` → `appendEvent.test.ts` vermelho; (2) `INSERT INTO event_chain` literal criado num arquivo temporário fora do escritor canônico → teste estático vermelho; (3) chamada a `appendEventToLedger` removida de `route.ts` → `route.test.ts` vermelho (call count 0). `tsc` 47 (idêntico, zero erro novo), `vitest` 73 → 81 (8 testes novos, zero regressão).
+
+**🔴 Achado real, não pedido, encontrado ao rodar o teste estático pela 1ª vez**: o escopo original do plano (`app`/`lib`/`packages/proof-engine`) escondia risco real fora dessas 3 árvores — ampliado pro repositório inteiro. Resultado: mais **2 implementações mortas adicionais** gravando (ou que gravariam) em `event_chain`, além da já conhecida (`legacy/ledger/writeEvent.ts`, achada pelo `arquiteto-agent` no planejamento):
+- `packages/proof-engine/proof/ledger/buildBlock.ts` — já `@deprecated` desde investigação de 2026-08-26 (lê de `evidence`, sem dado novo desde 01/06), sem importador algum.
+- `lib/alerts/engine/auditAlert.ts` + duplicata `src/lib/alerts/engine/auditAlert.ts` — já documentado como código morto em `lib/alerts/engine/README.md` (pipeline `evaluatePolicies→...→auditAlert` sem consumidor real).
+- **Novo, não documentado antes**: `services/proof.ts` (`appendToChain`) — **3ª fórmula/formato divergente** (`event_hash`/`previous_hash`/`payload`, sem `previous_event_hash`). Única chamadora é `workers/eventProcessor.ts::startWorker()` (usa `redis.xread` num Stream `events_stream`, mecanismo diferente do BullMQ do resto do projeto) — confirmado via grep que `startWorker()` **nunca é chamada** por `worker.ts` (entrypoint real de `npm run worker`) nem por nenhum outro arquivo. Código morto, inalcançável, mas não apagado (decisão humana, fora do escopo deste teste) — adicionado à allowlist do teste com comentário datado.
+
+Nenhum desses 4 mortos foi corrigido ou apagado — o valor do teste é tornar o risco **visível e travado**: se algum worker dormente for reativado sem corrigir a fórmula primeiro, o teste trava vermelho até decisão consciente.
+
+**Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx`: os 4 itens concluídos** (extração do proof-engine, consolidação Supabase, e agora testes de contrato — item 2, unificação de fundação de dados, já estava resolvido desde a Fase 1 original do projeto).
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
