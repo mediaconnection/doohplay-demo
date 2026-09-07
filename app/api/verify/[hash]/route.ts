@@ -1,7 +1,17 @@
 ﻿import { randomUUID } from "crypto"
-import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { pool } from "@/lib/db"
+// Etapa 2, item 3, sub-parte 2, Fase 7, passo 2 (2026-09-06): reusa o
+// client oficial de service-role em vez de instanciar o próprio. O
+// comentário histórico deste arquivo (ver abaixo) alertava sobre um bug
+// de bundling do webpack com o client Proxy-based de
+// lib/proof/adapters/supabase.ts (agora packages/proof-engine/proof/adapters/supabase.ts)
+// -- revalidado na Fase 4 desta mesma consolidação, com teste real de
+// produção (certificação completa, blockchain Polygon confirmada): bug
+// não reproduzido. lib/supabaseServer.ts usa NEXT_PUBLIC_SUPABASE_URL
+// (não SUPABASE_URL como este arquivo usava) -- confirmado na Fase 2 que
+// os dois valores são idênticos em produção, seguro colapsar.
+import { supabaseAdmin } from "@/lib/supabaseServer"
 import { buildProofCacheKey, getCachedProof, setCachedProof } from "@proof-engine/proof/cache/proofCache"
 import { runProofEngine } from "@proof-engine/proof/engine"
 import { buildExplanation } from "@proof-engine/proof/explanation"
@@ -159,27 +169,17 @@ function buildLinks(req: NextRequest, hash: string, meta?: ProofMeta) {
 
 /* =========================
    INLINE RESOLUTION
-   (Supabase admin client inline aqui — sem depender de
-   lib/proof/adapters/supabase, webpack não inclui Proxy lazy-loaded daquele
-   módulo. O pool de Postgres usa o cliente oficial compartilhado de
-   @/lib/db, importado no topo do arquivo.)
+   (Historicamente tinha um client Supabase inline aqui, por causa de um
+   bug de bundling do webpack com o client Proxy-based de
+   lib/proof/adapters/supabase.ts -- migrado na Fase 7 desta consolidação
+   pra reusar o client oficial (lib/supabaseServer.ts) depois de
+   revalidar que o bug não se reproduz (ver Fase 4). O pool de Postgres
+   usa o cliente oficial compartilhado de @/lib/db, importado no topo do
+   arquivo.)
 ========================= */
 
 function getSupabaseAdmin() {
-  // Etapa 2, item 3, sub-parte 2, Fase 7, passo 1 (2026-09-06): antes,
-  // `?? ""` deixava criar um client com URL/chave vazias silenciosamente
-  // se as env vars faltassem -- o erro só aparecia (e era engolido pelo
-  // try/catch dos dois chamadores) quando o client tentasse fazer uma
-  // query de verdade contra uma URL vazia. Falha explícita aqui, mais
-  // honesto (mesmo padrão já aplicado na Fase 2) -- comportamento externo
-  // não muda, os dois chamadores já tratam qualquer exceção como null.
-  const url = process.env.SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url) throw new Error("SUPABASE_URL não definida")
-  if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY não definida")
-  return createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-  })
+  return supabaseAdmin
 }
 
 async function resolveFromEventChain(hash: string): Promise<ProofInput | null> {
