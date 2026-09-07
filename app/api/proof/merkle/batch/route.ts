@@ -3,19 +3,19 @@ export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+// Etapa 2, item 3, sub-parte 2, Fase 5 (2026-09-06): reusa o client
+// oficial de service-role em vez de instanciar o próprio. Confirmado que
+// nenhum outro lugar depende do texto exato dos erros
+// NEXT_PUBLIC_SUPABASE_URL_NOT_CONFIGURED/SUPABASE_SERVICE_ROLE_KEY_NOT_CONFIGURED
+// antes de remover o getEnv() customizado pra essas duas variáveis --
+// lib/supabaseServer.ts já lança se faltarem, com mensagem diferente.
+import { supabaseAdmin as supabase } from "@/lib/supabaseServer"
 
 
 export const runtime = "nodejs"
 
 type ProofChainRow = {
   chain_hash: string | null
-}
-
-function getEnv(name: string): string {
-  const value = process.env[name]?.trim()
-  if (!value) throw new Error(`${name}_NOT_CONFIGURED`)
-  return value
 }
 
 function buildLedgerHash(previousHash: string | null, rootHash: string): string {
@@ -39,11 +39,6 @@ export async function POST() {
     const { buildMerkleRoot, normalizeHash, isHex64 } = await import("@/lib/merkle")
 
   try {
-    const supabase = createClient(
-      getEnv("NEXT_PUBLIC_SUPABASE_URL"),
-      getEnv("SUPABASE_SERVICE_ROLE_KEY")
-    )
-
     const { data, error } = await supabase
       .from("proof_chain")
       .select("chain_hash")
