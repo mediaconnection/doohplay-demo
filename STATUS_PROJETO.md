@@ -769,7 +769,9 @@ Validação em 3 rodadas com hash real de produção, capturando baseline antes 
 
 **Validado com bateria completa dos 3 casos de teste da Fase 4, todos idênticos ao baseline**: hash certificado real sem parâmetros (`INVALID_SIGNATURE`/`MERKLE_FAIL`, mesma certificação), mesmo hash com `entity_id`/`entity_type` (idêntico), hash sem certificação (`PROOF_NOT_FOUND`, idêntico).
 
-**Restam, não iniciadas**: Fase 8 (decisão sobre `reports/revoke` morta — apagar ou manter documentado), Fase 9 (limpeza final dos 5 módulos mortos, só depois de período de observação). Ver plano completo do `arquiteto-agent` pra detalhe de cada fase.
+**Fase 8 decidida** (2026-09-07): **manter `app/api/reports/revoke/route.ts` marcado `@deprecated`, não apagar** — mesmo padrão consistente usado em toda a extração do proof-engine e nesta consolidação (código morto confirmado é sempre documentado, nunca apagado). Já estava marcado desde a Fase 0-1; nenhuma ação adicional necessária. Decisão consciente de não quebrar o padrão só por este caso, dado que o arquivo já é seguro (zero efeito, zero risco) como está.
+
+**Resta, não iniciada**: Fase 9 (limpeza final dos 5 módulos mortos confirmados — `lib/supabaseAdmin.ts`, `src/lib/supabase.ts`, `src/lib/supabaseServer.ts`, `supabase/client.ts`, `src/supabase/client.ts` — só depois de um período de observação em produção sem erro, reconfirmando zero-import antes de cada delete).
 
 ## Próximos passos em aberto
 
