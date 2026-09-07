@@ -1,13 +1,12 @@
 import "dotenv/config"
-import { createClient } from "@supabase/supabase-js"
 import { generateMerkleRoot } from "../reports/generateMerkleRoot"
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 async function run() {
+  // Etapa 2, item 3, sub-parte 2 (2026-09-06): reusa o client oficial de
+  // service-role em vez de instanciar o próprio. Import dinâmico, mesmo
+  // motivo de anchorMerkleRoot.ts (evita depender de ordem de hoisting de
+  // imports estáticos em ESM/tsx).
+  const { supabaseAdmin: supabase } = await import("../lib/supabaseServer")
 
   const today = new Date()
   today.setHours(0,0,0,0)

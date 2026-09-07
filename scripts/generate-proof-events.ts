@@ -1,21 +1,7 @@
 import dotenv from "dotenv";
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
 
 dotenv.config({ path: ".env.local" });
-
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL not defined");
-}
-
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY not defined");
-}
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 function sha256(data: string) {
   return crypto
@@ -25,6 +11,13 @@ function sha256(data: string) {
 }
 
 async function generateEvents(total = 1000) {
+  // Etapa 2, item 3, sub-parte 2 (2026-09-06): reusa o client oficial de
+  // service-role em vez de instanciar o próprio. Import dinâmico, não
+  // estático: imports estáticos são "hoisted" em ESM e o módulo seria
+  // avaliado (e suas checagens de env var lançariam) antes do
+  // dotenv.config({ path: ".env.local" }) acima rodar de verdade -- mesmo
+  // padrão já usado em scripts/test-play-event.ts.
+  const { supabaseAdmin: supabase } = await import("../lib/supabaseServer");
 
   console.log(`Generating ${total} proof events...`);
 

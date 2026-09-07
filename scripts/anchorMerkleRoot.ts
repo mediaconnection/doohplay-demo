@@ -1,19 +1,12 @@
 import "dotenv/config"
-import { createClient } from "@supabase/supabase-js"
 import { ethers } from "ethers"
 
 /**
  * Validar variáveis de ambiente
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const RPC = process.env.BLOCKCHAIN_RPC
 const PRIVATE_KEY = process.env.BLOCKCHAIN_PRIVATE_KEY
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Supabase env vars não definidas")
-}
 
 if (!RPC) {
   throw new Error("BLOCKCHAIN_RPC não definido")
@@ -22,12 +15,6 @@ if (!RPC) {
 if (!PRIVATE_KEY) {
   throw new Error("BLOCKCHAIN_PRIVATE_KEY não definido")
 }
-
-/**
- * Clientes
- */
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const provider = new ethers.JsonRpcProvider(RPC)
 
@@ -40,6 +27,12 @@ const wallet = new ethers.Wallet(PRIVATE_KEY, provider)
 async function run() {
 
   try {
+    // Etapa 2, item 3, sub-parte 2 (2026-09-06): reusa o client oficial de
+    // service-role em vez de instanciar o próprio. Import dinâmico (não
+    // estático, não alias @/lib): garante que "import dotenv/config" já
+    // rodou antes de lib/supabaseServer.ts ler process.env, sem depender
+    // de sutileza de ordem de hoisting de imports estáticos em ESM/tsx.
+    const { supabaseAdmin: supabase } = await import("../lib/supabaseServer")
 
     console.log("Buscando último batch...")
 
