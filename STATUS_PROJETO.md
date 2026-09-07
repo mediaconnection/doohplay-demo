@@ -841,7 +841,11 @@ Reexecutada a query completa (sem truncar) do `pg_stat_statements` pra checar ev
 
 **Correção aplicada**: `REVOKE EXECUTE` de `anon`+`authenticated` nas duas funções. **Achado de metodologia**: a 1ª tentativa de revogar (`REVOKE ... FROM anon, authenticated`) não bloqueou de verdade — `has_function_privilege` continuava `true` — porque as funções tinham `EXECUTE` concedido a `PUBLIC` por padrão do `CREATE FUNCTION`, e revogar de roles específicas não remove o que vem herdado de `PUBLIC`. Corrigido com `REVOKE EXECUTE ... FROM PUBLIC` explícito. Validado de ponta a ponta: `has_function_privilege` agora `false` pra `anon`/`authenticated`, `true` pra `postgres`/`service_role`; `SET ROLE anon` chamando a função real devolve `permission denied for function` (antes retornava dado real); chamada como `postgres` continua funcionando normalmente (app não afetado).
 
-**Resta, não decidido**: `play_logs`/`playlist_items` (únicas do Tier 3 com acesso real confirmado), política de RLS específica pra cada uma das 30 tabelas já protegidas, e o restante do Tier 3 (77 tabelas sem evidência de acesso, mas ainda com RLS desabilitado).
+**`play_logs` corrigido, `playlist_items` bloqueado por dependência real** — antes de aplicar em qualquer uma, checagem de uso legítimo via anon key no código (mesmo rigor de sempre):
+- `play_logs`: as 6 referências no código são via `pg.Pool` (server-side, owner role) ou apontam pra uma tabela diferente (`play_logs_certified`, já protegida). Zero uso client-side com a chave anon. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` aplicado e validado (`SET ROLE anon`: 0 linhas visíveis).
+- `playlist_items`: **achado que bloqueou a correção automática** — `components/SchedulerEditor.tsx` (`"use client"`) cria seu próprio client Supabase com `NEXT_PUBLIC_SUPABASE_ANON_KEY` e lê/escreve `playlist_items`+`schedule_rules` **direto do navegador** — é o editor de agendamento real do Studio, em uso por cliente de verdade. Ativar RLS sem política aí quebraria essa funcionalidade em produção, diferente das outras 30 tabelas (nenhuma tinha uso legítimo confirmado via anon). **Decisão do fundador (2026-09-07): deixar como está por hoje** — não é correção de 1 linha, precisa de política real (ou migrar o `SchedulerEditor` pra rota server-side) antes de mexer.
+
+**Resta, não decidido**: `playlist_items` (bloqueado, ver acima), política de RLS específica pra cada uma das 31 tabelas já protegidas, e o restante do Tier 3 (76 tabelas sem evidência de acesso, mas ainda com RLS desabilitado).
 
 ## Próximos passos em aberto
 
