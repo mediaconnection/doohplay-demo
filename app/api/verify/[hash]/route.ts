@@ -166,11 +166,20 @@ function buildLinks(req: NextRequest, hash: string, meta?: ProofMeta) {
 ========================= */
 
 function getSupabaseAdmin() {
-  return createClient(
-    process.env.SUPABASE_URL ?? "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-  )
+  // Etapa 2, item 3, sub-parte 2, Fase 7, passo 1 (2026-09-06): antes,
+  // `?? ""` deixava criar um client com URL/chave vazias silenciosamente
+  // se as env vars faltassem -- o erro só aparecia (e era engolido pelo
+  // try/catch dos dois chamadores) quando o client tentasse fazer uma
+  // query de verdade contra uma URL vazia. Falha explícita aqui, mais
+  // honesto (mesmo padrão já aplicado na Fase 2) -- comportamento externo
+  // não muda, os dois chamadores já tratam qualquer exceção como null.
+  const url = process.env.SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url) throw new Error("SUPABASE_URL não definida")
+  if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY não definida")
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  })
 }
 
 async function resolveFromEventChain(hash: string): Promise<ProofInput | null> {
