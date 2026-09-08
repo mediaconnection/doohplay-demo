@@ -2051,11 +2051,13 @@ function TabPlaylist({ code }: { code: string }) {
 
 // ── Clube de Telas do Bairro ──────────────────────────────────────────────────
 function TabClubeDeTelas({ code }: { code: string }) {
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [accepted,    setAccepted]    = useState<any[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [responding,  setResponding]  = useState<string | null>(null)
-  const [error,       setError]       = useState<string | null>(null)
+  const [suggestions,   setSuggestions]   = useState<any[]>([])
+  const [accepted,      setAccepted]      = useState<any[]>([])
+  const [ownMedia,      setOwnMedia]      = useState<any[]>([])
+  const [loading,       setLoading]       = useState(true)
+  const [responding,    setResponding]    = useState<string | null>(null)
+  const [sendingPartner,setSendingPartner]= useState<string | null>(null)
+  const [error,         setError]         = useState<string | null>(null)
 
   const loadPartnerships = () => {
     setLoading(true)
@@ -2069,9 +2071,41 @@ function TabClubeDeTelas({ code }: { code: string }) {
       .finally(() => setLoading(false))
   }
 
+  const loadOwnMedia = () => {
+    fetch(`/api/client/network-media/${code}`)
+      .then(r => r.json())
+      .then(d => setOwnMedia((d.media ?? []).filter((m: any) => m.status === "approved")))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     loadPartnerships()
+    loadOwnMedia()
   }, [code])
+
+  // Manda uma peça já aprovada pra um parceiro (sugerido ou já aceito) — cria
+  // um pedido por-peça novo (status 'pending', media_id preenchido), que o
+  // parceiro-alvo precisa aprovar em .../respond antes de publicar.
+  const sendPiece = async (partnerCode: string, mediaId: string) => {
+    setSendingPartner(partnerCode)
+    setError(null)
+    try {
+      const res = await fetch(`/api/client/network-partnerships/${code}/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: mediaId, partner_code: partnerCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? "Erro ao enviar peça.")
+      } else {
+        loadPartnerships()
+      }
+    } catch {
+      setError("Erro de conexão ao enviar peça.")
+    }
+    setSendingPartner(null)
+  }
 
   const respond = async (partnershipId: string, decision: "accepted" | "rejected") => {
     setResponding(partnershipId)
@@ -2194,9 +2228,12 @@ function TabClubeDeTelas({ code }: { code: string }) {
                       Aguardando resposta do parceiro
                     </div>
                   ) : (
-                    <div style={{ fontSize: 12, color: C.text3, fontStyle: "italic", textAlign: "right" }}>
-                      Sugestão sem peça vinculada — nenhuma ação disponível por aqui
-                    </div>
+                    <SendPieceControl
+                      ownMedia={ownMedia}
+                      partnerCode={s.partner_code_resolved}
+                      sending={sendingPartner === s.partner_code_resolved}
+                      onSend={sendPiece}
+                    />
                   )}
                 </div>
               )
@@ -2234,6 +2271,12 @@ function TabClubeDeTelas({ code }: { code: string }) {
                 <div style={{ fontSize: 12, color: C.text3 }}>
                   Parceiro desde {formatDate(p.responded_at ?? p.created_at)}
                 </div>
+                <SendPieceControl
+                  ownMedia={ownMedia}
+                  partnerCode={p.partner_code_resolved}
+                  sending={sendingPartner === p.partner_code_resolved}
+                  onSend={sendPiece}
+                />
               </div>
             ))}
           </div>
@@ -2242,6 +2285,52 @@ function TabClubeDeTelas({ code }: { code: string }) {
 
       {/* Mídia destinada à rede de parceiros */}
       <NetworkMediaSection code={code} />
+    </div>
+  )
+}
+
+// ── Seletor de peça pra enviar a um parceiro (sugestão ou já aceito) ───────
+function SendPieceControl({
+  ownMedia,
+  partnerCode,
+  sending,
+  onSend,
+}: {
+  ownMedia: any[]
+  partnerCode: string
+  sending: boolean
+  onSend: (partnerCode: string, mediaId: string) => void
+}) {
+  const [mediaId, setMediaId] = useState("")
+
+  if (ownMedia.length === 0) {
+    return (
+      <div style={{ fontSize: 12, color: C.text3, fontStyle: "italic", textAlign: "right" }}>
+        Envie uma peça aprovada na seção "Mídia que você manda pra rede" abaixo pra poder enviar pra este parceiro
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
+      <select
+        value={mediaId}
+        onChange={e => setMediaId(e.target.value)}
+        disabled={sending}
+        style={{ fontSize: 13, padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.gray300}`, color: C.text, background: C.white }}
+      >
+        <option value="">Escolha uma peça…</option>
+        {ownMedia.map((m) => (
+          <option key={m.id} value={m.id}>{m.name}</option>
+        ))}
+      </select>
+      <button
+        onClick={() => mediaId && onSend(partnerCode, mediaId)}
+        disabled={sending || !mediaId}
+        style={{ background: sending || !mediaId ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: sending || !mediaId ? "not-allowed" : "pointer" }}
+      >
+        {sending ? "Enviando…" : "Enviar peça"}
+      </button>
     </div>
   )
 }
