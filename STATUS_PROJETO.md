@@ -870,6 +870,24 @@ Rodada num fork (contexto isolado, 499k tokens de trabalho) pra determinar prop�
 
 **33 tabelas protegidas agora** (31 anteriores + `financial_subscriptions` + `PdfCertification`).
 
+## Tier 3 restante (74 tabelas, `rowsecurity = false`) — dividido entre núcleo real vivo e resquício de feature morta (2026-09-07)
+
+Confirmado via `pg_tables` direto no banco (não confiar só na contagem anterior): **74 tabelas** ainda sem RLS. A pedido do fundador, separado em dois grupos — só o segundo é baixa prioridade de verdade; o primeiro é dado real vivo e continua pendência real, não descartada.
+
+**Grupo real/vivo — 34 tabelas, PENDÊNCIA REAL (não é baixa prioridade), decisão de política ainda em aberto**:
+- Ledger/blockchain do motor de prova real, coração do `proofChainAggregator`/`app/api/verify`/`app/api/proof/*`: `event_chain` (canônica) + suas 9 partições (`event_chain_2026_03/04/05/06/07/08/10/11/12`), `proof_chain` (1003 linhas, usado por `app/api/proof/{audit,export,merkle/batch,verify-chain}/route.ts` e `app/api/events/display/route.ts`), `event_blocks`, `ledger_anchors`, `ledger_blocks`, `ledger_checkpoints`, `daily_merkle_roots`, `merkle_batches`, `proof_certificates`, `proof_nodes`, `proof_edges`, `proof_merkle_batches`, `impression_ledger`, `raw_events`, `audit_daily_snapshots`, `evidence_batches`, `transparency_log`.
+- Infra geral viva: `api_usage`, `player_campaigns`, `impressions`, `trust_scores`, `reputation_scores`, `audience_events`, `audience_measurements`.
+- Reconfirmado antes de listar (não assumido pelo nome): `event_chain_old` **zero consumidor** (na verdade cai no grupo órfão abaixo, não neste), `executions` **zero consumidor real** (grep amplo só pegava a palavra genérica "executions" em contadores de outras tabelas, não a tabela em si — também vai pro grupo órfão), `settlements` **zero consumidor** (órfão também). `proof_chain` confirmado vivo por grep direto (6 arquivos reais).
+
+**Achado à parte, mesma classe de risco já documentada (não é órfão nem vivo pleno)**: `event_hash_registry` só tem 1 consumidor — `packages/proof-engine/legacy/ledger/writeEvent.ts`, o único escritor "vivo" de `legacy/ledger/` (dormente, sem produtor real desde 2026-09-03, já allowlistado no teste de contrato). Mesmo status do `event_chain` nesse arquivo: reachable mas dormente, não órfão morto de verdade.
+
+**Grupo órfão — 40 tabelas, BAIXA PRIORIDADE, sem ação agora** (decisão do fundador: não vale proteger tabela que ninguém usa enquanto o núcleo real vivo ainda não tem política decidida):
+- **Já mapeado como código morto confirmado nesta sessão**: `block_signatures`, `proof_frames`, `proof_ledger`, `proof_log_roots`, `proof_merkle_items`, `proof_tsa`, `event_registry` — mesma família de módulos de prova duplicados/mortos já catalogados.
+- **Feature de ad-server completa nunca lançada**: toda a família `campaign_*` (`campaign_assets`, `campaign_creatives`, `campaign_dayparts`, `campaign_delivery`, `campaign_frequency`, `campaign_logs`, `campaign_media`, `campaign_performance`, `campaign_rules`, `campaign_slots`, `campaign_target_screens`, `campaign_targets`) — schema com dayparting/frequency capping/geo-targeting, paralelo à tabela `campaigns` real, zero consumidor.
+- **Marketplace de mídia tokenizada nunca exposta**: `media_tokens`, `media_trades` (biblioteca escrita — `lib/tokenization/mintMediaToken.ts`, `lib/exchange/matchOrders.ts` — mas nenhuma rota chama).
+- **Outras features nunca conectadas**: `advertisers`, `advertiser_users`, `media_assets`, `media_files`, `network_content`, `player_heartbeat` (já confirmado quebrado/morto em achado anterior), `schedule`, `screen_inventory`, `screen_pricing`, `screen_stats`, `screens_audience`, `programmatic_bids`, `programmatic_campaigns`, `test_table`, `executions`, `settlements`, `event_chain_old`.
+- **Mesmo cluster de dado de teste financeiro já identificado**: `financial_closure_email_logs`, `financial_snapshot_approvals`.
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
