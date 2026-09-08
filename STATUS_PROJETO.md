@@ -811,7 +811,9 @@ Pra validar o resto do fluxo, inserido diretamente 1 pedido de teste (`status: p
 
 **🔴 Erro cometido, disclosurado na hora**: `notified: true` significa que a rota **mandou uma mensagem WhatsApp real pro telefone real do `BARBE332`** — não isolei esse efeito colateral antes de rodar o teste contra produção, apesar de já existir uma regra desta sessão pra nunca mandar WhatsApp de teste sem confirmação explícita. Focei em validar a lógica (timeout, atualização de status) e não tratei o envio de notificação como um efeito colateral que precisava de isolamento separado. Mensagem era genérica, sem dado sensível, mas ainda assim real e sem aviso prévio. **Registrado em memória** (`feedback_isolate_notification_side_effects_before_testing.md`) pra não repetir — daqui pra frente, qualquer teste de rota que toque `sendWhatsApp` (direto ou numa cadeia de chamadas) precisa isolar o contato de teste ou pedir confirmação antes, não só validar a lógica de negócio. Dado de teste limpo ao final (`network_media`, cascade limpou `network_partnerships`).
 
-**Restam, fases 4-6**: job de expiração de peça 30 dias, limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
+**Fase 4 (2026-09-08) — job de expiração de peça 30 dias**: `POST /api/cron/network-media-expire` (nova) — desativa `network_media_distribution` com `expires_at` vencido e `extended = false`. Sem efeito de notificação (só desliga `active`), risco bem menor que a Fase 3 depois do erro do WhatsApp. Novo Render Cron Job (`doohplay-network-media-expire`, `crn-dafvlffqj5pc738hkk80`, diário às 09:00 UTC), confirmado com o fundador antes de criar. `tsc` 47 (idêntico), `vitest` 81/81, `next build` confirma `Compiled successfully`.
+
+**Restam, fases 5-6**: limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
 
 ## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
 
