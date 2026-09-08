@@ -1012,3 +1012,11 @@ Fundador decidiu proteger o Grupo órfão também, em vez de deixar pendente. Re
   - **Total agora**: 55 testes em 7 arquivos, todos passando. **Cobertura ainda é parcial** — só funções puras + 1 rota de API; a maioria das rotas, componentes React e o resto do motor de prova continuam sem nenhum teste.
 - ✅ ~~Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` — extrair `packages/proof-engine`~~ — completa (2026-09-06), 7 fases, ~192 arquivos movidos, validadas com dado real de produção em cada etapa. Ver seção acima.
 - ✅ ~~Restam da Etapa 2~~ — **Etapa 2 do `DOOHPLAY_Plano_Separacao_Fronts.docx` inteira concluída** (2026-09-07): consolidação de clients Supabase (9/9 fases) e testes de contrato formais entre os fronts, ambos fechados. Ver seções dedicadas acima.
+
+## ✅ Falha própria corrigida — tabela nova do Clube de Telas ficou sem RLS (2026-09-08)
+
+Pedido do usuário foi "decide política do Tier 3 restante" — checado direto no banco antes de responder (não presumido): Tier 3 continuava em `0` tabelas sem RLS, como já fechado. Mas **`SELECT count(*) FROM pg_tables WHERE schemaname='public' AND rowsecurity = false` retornou `1`**, não `0`.
+
+Causa: `network_reciprocity_credits` — tabela **criada por mim mesmo hoje**, na Fase 1 da migration do Clube de Telas v2, **sem RLS habilitado**. Não é uma tabela antiga do Tier 3 (essas seguem todas zeradas) — é um lapso real na hora de escrever a migration, no mesmo dia em que o resto do trabalho girava em torno de segurança de RLS.
+
+Corrigido com o mesmo rigor de sempre: confirmado zero uso via Supabase JS/client anon (só `pg.Pool` em `app/api/client/network-partnerships/[code]/respond/route.ts`, server-side) antes de aplicar. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` sem política, validado: `SELECT count(*) ... rowsecurity = false` voltou a `0`.
