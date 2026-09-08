@@ -20,12 +20,23 @@ export async function sendWhatsApp(phone: string, message: string) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS)
   try {
-    await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+    const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
       body: JSON.stringify({ number: `55${phone.replace(/\D/g, "")}`, text: message }),
       signal: controller.signal,
     })
+
+    // Achado 2026-09-08: antes disso a função retornava true sempre que o
+    // fetch não lançava exceção -- mas uma instância desconectada responde
+    // com erro HTTP (não derruba a conexão), então uma mensagem que nunca
+    // saiu de verdade era reportada como enviada com sucesso.
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      console.error("[whatsapp] Evolution API respondeu erro:", res.status, body.slice(0, 500))
+      return false
+    }
+
     return true
   } catch (err) {
     console.error("[whatsapp] erro ao enviar:", err)
