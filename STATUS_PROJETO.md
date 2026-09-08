@@ -900,6 +900,14 @@ Validado com prova real, não só "rodou sem erro": `pg_tables` confirma `rowsec
 
 **Total: 67 tabelas protegidas** (66 anteriores + `event_hash_registry`). Resta só o Grupo órfão (40 tabelas, baixa prioridade, sem ação decidida) — RLS não é mais uma frente ativa por enquanto.
 
+## RLS — as 40 tabelas órfãs também corrigidas, achado de segurança fechado por completo (2026-09-07)
+
+Fundador decidiu proteger o Grupo órfão também, em vez de deixar pendente. Reconfirmado via `pg_tables` direto (não confiar na contagem anterior): exatamente as mesmas 40 tabelas já mapeadas como órfãs confirmadas, todas de propriedade do `postgres`. Como nenhuma tem consumidor real (confirmado na auditoria anterior), risco de aplicação é zero — `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` sem política nas 40: `advertiser_users`, `advertisers`, `block_signatures`, toda a família `campaign_*` (12 tabelas), `event_chain_old`, `event_registry`, `executions`, `financial_closure_email_logs`, `financial_snapshot_approvals`, `media_assets`, `media_files`, `media_tokens`, `media_trades`, `network_content`, `player_heartbeat`, `programmatic_bids`, `programmatic_campaigns`, `proof_frames`, `proof_ledger`, `proof_log_roots`, `proof_merkle_items`, `proof_tsa`, `schedule`, `screen_inventory`, `screen_pricing`, `screen_stats`, `screens_audience`, `settlements`, `test_table`.
+
+**Validado com prova real**: `SELECT count(*) FROM pg_tables WHERE schemaname='public' AND rowsecurity = false` → **`0`**. `SET ROLE anon` numa amostra (`campaign_media`) confirma `0` linhas visíveis.
+
+**Achado de segurança do RLS encerrado por completo: as 108 tabelas do schema `public` que estavam sem proteção agora têm RLS ativado.** Nenhuma política de acesso foi criada além das 2 exceções já tratadas (`playlist_items`/`schedule_rules`, leitura pública deliberada). Se qualquer uma dessas tabelas precisar de acesso real via `anon`/`authenticated` no futuro, alguém vai ter que desenhar a política conscientemente — não vai mais acontecer por omissão.
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
