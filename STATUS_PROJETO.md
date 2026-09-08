@@ -888,6 +888,18 @@ Confirmado via `pg_tables` direto no banco (não confiar só na contagem anterio
 - **Outras features nunca conectadas**: `advertisers`, `advertiser_users`, `media_assets`, `media_files`, `network_content`, `player_heartbeat` (já confirmado quebrado/morto em achado anterior), `schedule`, `screen_inventory`, `screen_pricing`, `screen_stats`, `screens_audience`, `programmatic_bids`, `programmatic_campaigns`, `test_table`, `executions`, `settlements`, `event_chain_old`.
 - **Mesmo cluster de dado de teste financeiro já identificado**: `financial_closure_email_logs`, `financial_snapshot_approvals`.
 
+## Núcleo real vivo — RLS ativado nas 33 tabelas, sem política (2026-09-07)
+
+Mesmo padrão de sempre: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` sem nenhuma política, seguro porque todo o acesso real (`pg.Pool`/`supabaseAdmin`) usa role `postgres`/`service_role`, que bypassam RLS. Confirmado antes de aplicar: as 33 são todas de propriedade do `postgres`; grep dedicado (não só a busca genérica anterior) confirmou zero `"use client"` com chave anon tocando qualquer uma das 33 — os únicos usos via Supabase JS encontrados (`proof_chain`, `evidence_batches`, `proof_merkle_batches`, em `app/api/proof/*`, `app/api/events/display`, `scripts/*`) são todos server-side com `supabaseAdmin`/`supabaseServer`, já confirmados nas Fases 4-6 da consolidação Supabase desta sessão.
+
+Tabelas: `event_chain` (canônica) + 9 partições (`event_chain_2026_03/04/05/06/07/08/10/11/12`), `proof_chain`, `event_blocks`, `ledger_anchors`, `ledger_blocks`, `ledger_checkpoints`, `daily_merkle_roots`, `merkle_batches`, `proof_certificates`, `proof_nodes`, `proof_edges`, `proof_merkle_batches`, `impression_ledger`, `raw_events`, `audit_daily_snapshots`, `evidence_batches`, `transparency_log`, `api_usage`, `player_campaigns`, `impressions`, `trust_scores`, `reputation_scores`, `audience_events`, `audience_measurements`.
+
+Validado com prova real, não só "rodou sem erro": `pg_tables` confirma `rowsecurity = true` nas 33; `SET ROLE anon` — `event_chain` (via tabela-mãe, agregando as 9 partições) e `proof_chain` foram de acesso real (1003 linhas em `proof_chain`) pra **0 linhas visíveis**; app real não afetado — `proof_chain` continua com as 1003 linhas pra `postgres`, `event_chain_2026_08` com as 56.967 linhas reais de produção.
+
+**`event_hash_registry` deliberadamente fora deste fix** — único consumidor é o `legacy/ledger/writeEvent.ts` dormente (mesmo status do `event_chain` nesse arquivo específico), fica registrado como pendência separada, mesma classe de risco do teste de contrato já documentado.
+
+**Total: 66 tabelas protegidas** (33 anteriores + estas 33). Restam as 40 órfãs confirmadas (baixa prioridade, sem ação) e `event_hash_registry` (pendência separada).
+
 ## Próximos passos em aberto
 
 - 🔴 **Ação necessária do fundador, urgente**: `BARBE332` e `LEMEL186` (os dois players reais) estão offline (~4,5 dias e ~46h respectivamente, confirmado 2026-09-06) — precisa checar fisicamente/remotamente cada dispositivo (energia, Wi-Fi, app travado). Backend confirmado saudável; fora do alcance deste agente. Ver achado acima.
