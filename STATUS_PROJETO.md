@@ -777,7 +777,7 @@ Validação em 3 rodadas com hash real de produção, capturando baseline antes 
 
 **Sub-parte 2 da Etapa 2 (consolidação de clients Supabase): 9 de 9 fases concluídas.**
 
-## 🟡 Clube de Telas — plano completo pronto, pausado por decisão de produto (2026-09-07)
+## 🟡 Clube de Telas v2 — implementação em andamento (retomado 2026-09-08)
 
 Planejado pelo `arquiteto-agent` a partir de `DOOHPLAY_Clube_de_Telas_Spec_v2.md` (fundador). Investigação real (não suposição) encontrou uma divergência importante: `network_partnerships`/`network_media`/`network_media_distribution` **já têm 6 rotas funcionando em produção**, mas com um modelo diferente do spec v2 — aceite é da **parceria inteira** (não por peça), e a aprovação de qualidade é feita pelo **admin da DOOHPLAY** (não pelo parceiro que vai exibir, como o spec exige). Implementar o spec não é "adicionar campos", é substituir o mecanismo de distribuição automática por um fluxo de pedido→aprovação por peça.
 
@@ -787,7 +787,13 @@ Planejado pelo `arquiteto-agent` a partir de `DOOHPLAY_Clube_de_Telas_Spec_v2.md
 
 **Plano completo, em 7 fases (0 a 6), pronto pra execução**: migration aditiva (`media_id`, `credit_generated`, tabela de crédito de reciprocidade) → trocar aceite pra por-peça (fase de maior risco, desliga distribuição automática legada) → job de timeout 15 dias (WhatsApp) → job de expiração de peça 30 dias → limite de 30 recontado por parceiros distintos → reativar peso "Rede" (sugestão: 5%, tirado de `canal`/`institucional`).
 
-**Decisão do fundador (2026-09-07)**: **pausar, não implementar agora**. Só existem 2 clientes ativos em todo o sistema (`BARBE332`, `LEMEL186`) — um recurso de "raio de 5km, até 30 parceiros" não tem com quem formar parceria de verdade ainda. Retomar quando a base de clientes crescer o suficiente pra justificar substituir o mecanismo atual (que já funciona, ainda que com modelo diferente) por um novo. Plano fica registrado aqui, pronto pra retomar sem replanejar do zero.
+**Decisão original (2026-09-07)**: pausar — só 2 clientes ativos, sem base pra justificar. **Revertida (2026-09-08)**: fundador decidiu implementar agora mesmo assim — vira argumento de venda ativo.
+
+**Pré-voo reconfirmado antes da Fase 1** (nada regrediu desde 07/09): `network_partnerships`/`network_media`/`network_media_distribution` ainda zeradas, `client_locations` ainda 100% de cobertura (2/2). Duas perguntas do `DOOHPLAY_Clube_de_Telas_Spec_v2.md` seção 4 que ainda estavam sem resposta, decididas antes de desenhar a migration e **confirmadas pelo fundador**: **crédito não expira** (contador perpétuo, schema mais simples). **Assimetria é aceitável, sem trava por ora** — mas explicitamente marcado pra **revisitar quando a base de clientes crescer**, não é uma decisão permanente esquecida: com só 2 clientes reais o risco de abuso é baixo hoje, mas o modelo pode precisar de um limite (ex: máximo de pedidos pendentes sem resposta por par) assim que a rede tiver volume real.
+
+**Fase 1 concluída (2026-09-08)**: migration aplicada e validada via `information_schema`/`pg_constraint` antes/depois. **Achado que mudou o plano original**: a constraint `unique_partnership UNIQUE (requester_code, partner_code)` existia no modelo binário antigo — no modelo por-peça, o mesmo par de clientes pode ter múltiplos pedidos ao longo do tempo (peças diferentes), então essa constraint precisava ser removida, não só "adicionar colunas". Migration final: `DROP CONSTRAINT unique_partnership`; `network_partnerships` ganha `media_id` (FK pra `network_media`) e `credit_generated`; `status` CHECK atualizado pra aceitar `expired_no_response`; `network_media_distribution` ganha `published_at`/`expires_at`/`extended` (validade é da distribuição, não da peça — mesma peça pode ter prazos diferentes por parceiro); nova tabela `network_reciprocity_credits` (contador `available_count` por par `owner_code`/`credit_with_code`, `UNIQUE`, sem coluna de expiração). Migration só aditiva + 1 drop de constraint — zero mutação de dado, as 3 tabelas seguem zeradas.
+
+**Restam, fases 2-6**: trocar mecanismo de aceite pra pedido→aprovação por peça (maior risco, desliga distribuição automática legada), job de timeout 15 dias, job de expiração de peça 30 dias, limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
 
 ## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
 
