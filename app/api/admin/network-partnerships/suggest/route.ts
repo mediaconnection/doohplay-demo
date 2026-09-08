@@ -150,14 +150,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 5. Cria as sugestões em lote
+    // 5. Cria as sugestões em lote. `ON CONFLICT DO NOTHING` sem lista de
+    // colunas de propósito — a constraint `unique_partnership
+    // (requester_code, partner_code)` foi removida na Fase 1 do Clube de
+    // Telas v2 (o modelo por-peça permite múltiplas linhas pro mesmo par),
+    // então `ON CONFLICT (requester_code, partner_code)` quebraria com
+    // "no unique or exclusion constraint matching". A correção real de
+    // duplicidade já é o filtro NOT EXISTS no passo 3 acima; esta cláusula
+    // é só defesa contra corrida entre duas chamadas concorrentes.
     const insertedSuggestions = [];
     for (const candidate of eligible) {
       const { rows } = await pool.query(
         `
         INSERT INTO network_partnerships (requester_code, partner_code, status, distance_km)
         VALUES ($1, $2, 'suggested', $3)
-        ON CONFLICT (requester_code, partner_code) DO NOTHING
+        ON CONFLICT DO NOTHING
         RETURNING id, requester_code, partner_code, distance_km
         `,
         [clientCode, candidate.code, candidate.distance_km.toFixed(2)]
