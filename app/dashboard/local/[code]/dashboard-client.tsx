@@ -2077,12 +2077,11 @@ function TabClubeDeTelas({ code }: { code: string }) {
     setResponding(partnershipId)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/network-partnerships/respond`, {
+      const res = await fetch(`/api/client/network-partnerships/${code}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           partnership_id: partnershipId,
-          responding_client_code: code,
           decision,
         }),
       })
@@ -2143,6 +2142,11 @@ function TabClubeDeTelas({ code }: { code: string }) {
               const age = daysSince(s.created_at)
               const remaining = PARTNERSHIP_TIMEOUT_DAYS - age
               const isPending = s.status === "pending"
+              // Só o parceiro-alvo (quem vai exibir a peça) pode aprovar/rejeitar
+              // via API — quem pediu (requester) só acompanha, senão o botão
+              // aparece mas sempre falha com 403.
+              const isTargetPartner = s.partner_code === code.toUpperCase()
+              const canRespond = isPending && isTargetPartner
               const statusBadge = isPending
                 ? { label: "Aguardando resposta", bg: C.amberLt, color: C.amber }
                 : { label: "Sugestão do sistema", bg: C.gray100, color: C.text2 }
@@ -2168,22 +2172,32 @@ function TabClubeDeTelas({ code }: { code: string }) {
                       </span>
                     )}
                   </div>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button
-                      onClick={() => respond(s.id, "rejected")}
-                      disabled={responding === s.id}
-                      style={{ background: C.white, color: C.text2, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
-                    >
-                      Recusar
-                    </button>
-                    <button
-                      onClick={() => respond(s.id, "accepted")}
-                      disabled={responding === s.id}
-                      style={{ background: responding === s.id ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
-                    >
-                      {responding === s.id ? "Aguarde…" : "Aceitar parceria"}
-                    </button>
-                  </div>
+                  {canRespond ? (
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => respond(s.id, "rejected")}
+                        disabled={responding === s.id}
+                        style={{ background: C.white, color: C.text2, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
+                      >
+                        Recusar
+                      </button>
+                      <button
+                        onClick={() => respond(s.id, "accepted")}
+                        disabled={responding === s.id}
+                        style={{ background: responding === s.id ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
+                      >
+                        {responding === s.id ? "Aguarde…" : "Aceitar parceria"}
+                      </button>
+                    </div>
+                  ) : isPending ? (
+                    <div style={{ fontSize: 12, color: C.text3, fontStyle: "italic", textAlign: "right" }}>
+                      Aguardando resposta do parceiro
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: C.text3, fontStyle: "italic", textAlign: "right" }}>
+                      Sugestão sem peça vinculada — nenhuma ação disponível por aqui
+                    </div>
+                  )}
                 </div>
               )
             })}
