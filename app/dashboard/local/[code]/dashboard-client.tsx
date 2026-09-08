@@ -2054,9 +2054,12 @@ function TabClubeDeTelas({ code }: { code: string }) {
   const [suggestions,   setSuggestions]   = useState<any[]>([])
   const [accepted,      setAccepted]      = useState<any[]>([])
   const [ownMedia,      setOwnMedia]      = useState<any[]>([])
+  const [candidates,    setCandidates]    = useState<any[]>([])
+  const [remainingSlots,setRemainingSlots]= useState<number | null>(null)
   const [loading,       setLoading]       = useState(true)
   const [responding,    setResponding]    = useState<string | null>(null)
   const [sendingPartner,setSendingPartner]= useState<string | null>(null)
+  const [sentMessage,   setSentMessage]   = useState<string | null>(null)
   const [error,         setError]         = useState<string | null>(null)
 
   const loadPartnerships = () => {
@@ -2078,17 +2081,30 @@ function TabClubeDeTelas({ code }: { code: string }) {
       .catch(() => {})
   }
 
+  const loadCandidates = () => {
+    fetch(`/api/client/network-partnerships/${code}/candidates`)
+      .then(r => r.json())
+      .then(d => {
+        setCandidates(d.candidates ?? [])
+        setRemainingSlots(typeof d.remaining_slots === "number" ? d.remaining_slots : null)
+      })
+      .catch(() => {})
+  }
+
   useEffect(() => {
     loadPartnerships()
     loadOwnMedia()
+    loadCandidates()
   }, [code])
 
-  // Manda uma peça já aprovada pra um parceiro (sugerido ou já aceito) — cria
-  // um pedido por-peça novo (status 'pending', media_id preenchido), que o
-  // parceiro-alvo precisa aprovar em .../respond antes de publicar.
+  // Manda uma peça já aprovada pra um parceiro (candidato novo, sugerido ou
+  // já aceito) — cria um pedido por-peça novo (status 'pending', media_id
+  // preenchido), que o parceiro-alvo precisa aprovar em .../respond antes
+  // de publicar.
   const sendPiece = async (partnerCode: string, mediaId: string) => {
     setSendingPartner(partnerCode)
     setError(null)
+    setSentMessage(null)
     try {
       const res = await fetch(`/api/client/network-partnerships/${code}/request`, {
         method: "POST",
@@ -2099,7 +2115,9 @@ function TabClubeDeTelas({ code }: { code: string }) {
       if (!res.ok) {
         setError(data.error ?? "Erro ao enviar peça.")
       } else {
+        setSentMessage("Pedido enviado — aguardando aprovação do parceiro.")
         loadPartnerships()
+        loadCandidates()
       }
     } catch {
       setError("Erro de conexão ao enviar peça.")
@@ -2159,6 +2177,49 @@ function TabClubeDeTelas({ code }: { code: string }) {
           {error}
         </div>
       )}
+
+      {sentMessage && (
+        <div style={{ background: C.greenLt, color: C.green, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+          {sentMessage}
+        </div>
+      )}
+
+      {/* Solicitar nova parceria */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, marginBottom: 10 }}>
+          Solicitar nova parceria {remainingSlots !== null && `(${candidates.length} disponíveis)`}
+        </div>
+
+        {remainingSlots === 0 ? (
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 24, textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Você já atingiu o limite de 30 parceiros aceitos.
+          </div>
+        ) : candidates.length === 0 ? (
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 24, textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Nenhum estabelecimento disponível dentro de 5km no momento.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {candidates.map((cand) => (
+              <div key={cand.code} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{cand.name}</div>
+                    <div style={{ fontSize: 12, color: C.text3 }}>{cand.business_type ?? "Categoria não informada"}</div>
+                  </div>
+                  {distanceBadge(cand.distance_km)}
+                </div>
+                <SendPieceControl
+                  ownMedia={ownMedia}
+                  partnerCode={cand.code}
+                  sending={sendingPartner === cand.code}
+                  onSend={sendPiece}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Sugestões pendentes */}
       <div style={{ marginBottom: 28 }}>
