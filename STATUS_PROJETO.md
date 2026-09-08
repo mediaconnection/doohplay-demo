@@ -842,7 +842,15 @@ Dado de teste da Fase 3 já foi limpo na hora (`network_media`, cascade limpou `
 
 **Fase 4 testada em produção real (2026-09-08), sem repetir o erro da Fase 3**: distribuição de teste inserida com `expires_at` já vencido, rota chamada via HTTP real com `x-cron-secret`. Resultado: `expired: 1`, `active` confirmado `false`. Zero efeito colateral de notificação nesta fase (por design). Dado de teste removido ao final, confirmado zerado.
 
-**Restam, fases 5-6**: limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
+**Fase 5 (2026-09-08) — limite de 30 recontado por parceiros distintos**: nova `lib/network/countActivePartners.ts` (função única, `countActivePartners`/`isAlreadyAcceptedPartner`), aplicada nos 3 lugares que já contavam parceiros de formas diferentes — `suggest/route.ts` (`COUNT(*)` simples), `admin/network-partnerships/respond/route.ts` (`UNION ALL` de duas subqueries), e o novo `client/network-partnerships/[code]/respond/route.ts` (não tinha checagem nenhuma antes). Motivo real de existir função única em vez de 3 queries: a `unique_partnership` removida na Fase 1 permite múltiplas linhas `accepted` pro mesmo par (uma por peça) — `COUNT(*)` superestima, `COUNT(DISTINCT other_code)` é o correto. Checagem acontece só na aprovação (momento em que a relação vira "aceita" de verdade), e só conta como nova relação se os dois lados ainda não eram parceiros aceitos entre si (uma 2ª peça pro mesmo parceiro não consome vaga nova).
+
+**Achado de tooling no caminho**: `import { Pool } from "pg"` (mesmo padrão de `lib/db.ts`) gerava `Cannot use namespace 'Pool' as a type` fora de `lib/db.ts` especificamente — `tsc` foi de 47 pra 49. Contornado tipando o parâmetro como `ReturnType<typeof getPool>` em vez de `Pool` direto; voltou pra 47.
+
+**Limitação de teste, declarada com honestidade**: o limiar exato de 30 não foi testado de ponta a ponta — as FKs de `network_partnerships` exigem `studio_clients.code` reais, e criar 30 clientes falsos só pra validar o limite seria desproporcional (só existem 2 clientes reais hoje). Validado o caso trivial: `countActivePartners('BARBE332')` retorna `0`, batendo com o estado real (zero parcerias aceitas). A lógica do limiar (`>= 30`) não foi exercitada com dado real.
+
+`tsc` 47 (após correção), `vitest` 81/81, `next build` confirma `Compiled successfully`.
+
+**Restam, fase 6**: reativar peso "Rede" no `CATEGORY_WEIGHTS` + propagação multi-tela.
 
 ## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
 

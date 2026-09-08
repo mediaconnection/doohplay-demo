@@ -17,10 +17,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
+import { countActivePartners, isAlreadyAcceptedPartner } from "@/lib/network/countActivePartners"
 
 export const dynamic = "force-dynamic"
 
 const DISTRIBUTION_VALIDITY_DAYS = 30
+const MAX_PARTNERS_PER_CLIENT = 30
 
 export async function POST(
   req: NextRequest,
@@ -81,6 +83,39 @@ export async function POST(
         { error: "Pedido sem peça associada — não é um pedido por-peça válido" },
         { status: 400 }
       )
+    }
+
+    // Fase 5 (2026-09-08): limite de 30 parceiros DISTINTOS, checado só na
+    // aprovação (é aqui que a relação vira "aceita" de verdade). Se os dois
+    // já são parceiros aceitos um do outro (peça anterior já aprovada),
+    // esta aprovação não cria relação nova — não conta de novo pro limite
+    // de nenhum dos dois lados.
+    if (decision === "accepted") {
+      const alreadyPartners = await isAlreadyAcceptedPartner(
+        pool,
+        partnership.requester_code,
+        upperCode
+      )
+
+      if (!alreadyPartners) {
+        const [requesterCount, partnerCount] = await Promise.all([
+          countActivePartners(pool, partnership.requester_code),
+          countActivePartners(pool, upperCode),
+        ])
+
+        if (requesterCount >= MAX_PARTNERS_PER_CLIENT) {
+          return NextResponse.json(
+            { error: `${partnership.requester_code} já atingiu o limite de ${MAX_PARTNERS_PER_CLIENT} parceiros aceitos` },
+            { status: 409 }
+          )
+        }
+        if (partnerCount >= MAX_PARTNERS_PER_CLIENT) {
+          return NextResponse.json(
+            { error: `Você já atingiu o limite de ${MAX_PARTNERS_PER_CLIENT} parceiros aceitos` },
+            { status: 409 }
+          )
+        }
+      }
     }
 
     const { rows: updatedRows } = await pool.query(

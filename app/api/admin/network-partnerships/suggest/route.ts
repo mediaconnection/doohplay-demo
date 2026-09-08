@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getPool } from "@/lib/db";
 import { calculateDistanceKm } from "@/lib/geocoding";
+import { countActivePartners } from "@/lib/network/countActivePartners";
 
 export const dynamic = "force-dynamic";
 
@@ -82,18 +83,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Checa quantos parceiros aceitos esse cliente já tem (limite de 30)
-    const { rows: acceptedCountRows } = await pool.query<{ count: string }>(
-      `
-      SELECT count(*)::text AS count
-      FROM network_partnerships
-      WHERE status = 'accepted'
-        AND (requester_code = $1 OR partner_code = $1)
-      `,
-      [clientCode]
-    );
-
-    const acceptedCount = parseInt(acceptedCountRows[0]?.count ?? "0", 10);
+    // 2. Checa quantos parceiros DISTINTOS esse cliente já tem (limite de
+    // 30) — Fase 5 (2026-09-08): função compartilhada com
+    // app/api/client/network-partnerships/[code]/respond/route.ts, conta
+    // parceiros distintos, não linhas (o modelo por-peça pode ter várias
+    // linhas `accepted` pro mesmo par).
+    const acceptedCount = await countActivePartners(pool, clientCode);
     const remainingSlots = MAX_PARTNERS_PER_CLIENT - acceptedCount;
 
     if (remainingSlots <= 0) {

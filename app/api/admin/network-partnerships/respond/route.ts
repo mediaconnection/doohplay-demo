@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getPool } from "@/lib/db";
+import { countActivePartners } from "@/lib/network/countActivePartners";
 
 export const dynamic = "force-dynamic";
 
@@ -88,41 +89,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Se a decisão for aceitar, valida o limite de 30 parceiros para AMBOS os lados
+    // 2. Se a decisão for aceitar, valida o limite de 30 parceiros
+    // DISTINTOS pra AMBOS os lados. Fase 5 (2026-09-08): trocado pra
+    // countActivePartners, a mesma função usada em suggest/route.ts e no
+    // novo endpoint de cliente — antes contava linhas (COUNT(*)), o que
+    // superestima desde que unique_partnership foi removida na Fase 1 (o
+    // mesmo par pode ter várias linhas 'accepted' ao longo do tempo, uma
+    // por peça, no modelo por-peça da Fase 2).
     if (decision === "accepted") {
-      const { rows: countRows } = await pool.query<{ code: string; count: string }>(
-        `
-        SELECT code, count(*)::text AS count
-        FROM (
-          SELECT $1::text AS code
-        ) base
-        LEFT JOIN network_partnerships np
-          ON np.status = 'accepted'
-          AND (np.requester_code = base.code OR np.partner_code = base.code)
-        GROUP BY code
+      const [requesterCount, partnerCount] = await Promise.all([
+        countActivePartners(pool, partnership.requester_code),
+        countActivePartners(pool, partnership.partner_code),
+      ]);
 
-        UNION ALL
+      const overLimitCode =
+        requesterCount >= MAX_PARTNERS_PER_CLIENT
+          ? partnership.requester_code
+          : partnerCount >= MAX_PARTNERS_PER_CLIENT
+          ? partnership.partner_code
+          : null;
 
-        SELECT code, count(*)::text AS count
-        FROM (
-          SELECT $2::text AS code
-        ) base
-        LEFT JOIN network_partnerships np
-          ON np.status = 'accepted'
-          AND (np.requester_code = base.code OR np.partner_code = base.code)
-        GROUP BY code
-        `,
-        [partnership.requester_code, partnership.partner_code]
-      );
-
-      const overLimit = countRows.find(
-        (row: { code: string; count: string }) => parseInt(row.count, 10) >= MAX_PARTNERS_PER_CLIENT
-      );
-
-      if (overLimit) {
+      if (overLimitCode) {
         return NextResponse.json(
           {
-            error: `Cliente ${overLimit.code} já atingiu o limite de ${MAX_PARTNERS_PER_CLIENT} parceiros aceitos. Não é possível aceitar esta parceria.`,
+            error: `Cliente ${overLimitCode} já atingiu o limite de ${MAX_PARTNERS_PER_CLIENT} parceiros aceitos. Não é possível aceitar esta parceria.`,
           },
           { status: 409 }
         );
