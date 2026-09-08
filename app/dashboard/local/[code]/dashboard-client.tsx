@@ -2100,6 +2100,18 @@ function TabClubeDeTelas({ code }: { code: string }) {
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Carregando…</div>
 
+  const PARTNERSHIP_TIMEOUT_DAYS = 15
+
+  const daysSince = (dateStr: string) => Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("pt-BR")
+
+  const distanceBadge = (km: string | number) => (
+    <span style={{ background: C.gray100, color: C.text2, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+      {Number(km).toFixed(1)} km
+    </span>
+  )
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -2127,32 +2139,54 @@ function TabClubeDeTelas({ code }: { code: string }) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {suggestions.map((s) => (
-              <div key={s.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{s.partner_name}</div>
-                  <div style={{ fontSize: 12, color: C.text3 }}>
-                    {s.partner_business_type ?? "Categoria não informada"} · {Number(s.distance_km).toFixed(1)} km de distância
+            {suggestions.map((s) => {
+              const age = daysSince(s.created_at)
+              const remaining = PARTNERSHIP_TIMEOUT_DAYS - age
+              const isPending = s.status === "pending"
+              const statusBadge = isPending
+                ? { label: "Aguardando resposta", bg: C.amberLt, color: C.amber }
+                : { label: "Sugestão do sistema", bg: C.gray100, color: C.text2 }
+              return (
+                <div key={s.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{s.partner_name}</div>
+                      <div style={{ fontSize: 12, color: C.text3 }}>{s.partner_business_type ?? "Categoria não informada"}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ background: statusBadge.bg, color: statusBadge.color, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {statusBadge.label}
+                      </span>
+                      {distanceBadge(s.distance_km)}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.text3, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <span>{isPending ? "Pedido" : "Sugerido"} há {plural(age, "dia")}</span>
+                    {isPending && (
+                      <span style={{ color: remaining <= 3 ? C.amber : C.text3, fontWeight: remaining <= 3 ? 600 : 400 }}>
+                        {remaining > 0 ? `· expira em ${plural(remaining, "dia")}` : "· prazo de resposta esgotado"}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => respond(s.id, "rejected")}
+                      disabled={responding === s.id}
+                      style={{ background: C.white, color: C.text2, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
+                    >
+                      Recusar
+                    </button>
+                    <button
+                      onClick={() => respond(s.id, "accepted")}
+                      disabled={responding === s.id}
+                      style={{ background: responding === s.id ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
+                    >
+                      {responding === s.id ? "Aguarde…" : "Aceitar parceria"}
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => respond(s.id, "rejected")}
-                    disabled={responding === s.id}
-                    style={{ background: C.white, color: C.text2, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
-                  >
-                    Recusar
-                  </button>
-                  <button
-                    onClick={() => respond(s.id, "accepted")}
-                    disabled={responding === s.id}
-                    style={{ background: responding === s.id ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: responding === s.id ? "not-allowed" : "pointer" }}
-                  >
-                    {responding === s.id ? "Aguarde…" : "Aceitar parceria"}
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -2170,15 +2204,21 @@ function TabClubeDeTelas({ code }: { code: string }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {accepted.map((p) => (
-              <div key={p.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{p.partner_name}</div>
-                  <div style={{ fontSize: 12, color: C.text3 }}>
-                    {p.partner_business_type ?? "Categoria não informada"} · {Number(p.distance_km).toFixed(1)} km
+              <div key={p.id} style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{p.partner_name}</div>
+                    <div style={{ fontSize: 12, color: C.text3 }}>{p.partner_business_type ?? "Categoria não informada"}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ background: C.greenLt, color: C.green, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      Aprovado
+                    </span>
+                    {distanceBadge(p.distance_km)}
                   </div>
                 </div>
-                <div style={{ background: C.gray100, color: C.text2, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600 }}>
-                  Ativo
+                <div style={{ fontSize: 12, color: C.text3 }}>
+                  Parceiro desde {formatDate(p.responded_at ?? p.created_at)}
                 </div>
               </div>
             ))}
