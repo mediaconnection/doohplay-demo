@@ -134,3 +134,120 @@ NEXT_PUBLIC_BASE_URL            # Used to build absolute URLs server-side
 - All SQL queries go through `pool.query(...)` with parameterized `$1, $2, ...` placeholders — never string interpolation.
 - Dates and periods (today / 7d / 30d) are always resolved server-side to ISO strings before hitting the database.
 - The UI language is Portuguese (pt-BR); keep user-facing strings in Portuguese.
+
+---
+
+## Figma Make UI — Design System (branch: figma-ui)
+
+> Esta seção descreve o front-end visual gerado no Figma Make e disponível na branch `figma-ui`.
+> O objetivo é integrar este design system ao projeto principal sem perder a lógica já existente.
+
+### O que está na branch `figma-ui`
+
+160+ telas React completas com layout, cores, tipografia e componentes visuais prontos para integração.
+Pasta principal: `src/app/components/` — cada arquivo é uma tela independente.
+
+### Como trazer o design para o projeto local
+
+```bash
+# Na raiz do seu projeto local:
+git remote add figma https://github.com/mediaconnection/doohplay-demo.git
+git fetch figma
+
+# Copia apenas as pastas de UI (sem sobrescrever lógica existente):
+git checkout figma/figma-ui -- src/app/components
+git checkout figma/figma-ui -- src/styles
+git checkout figma/figma-ui -- src/app/App.tsx
+```
+
+### Stack do design system
+
+| Camada | Tecnologia |
+|--------|-----------|
+| Framework | React 18 + TypeScript |
+| Build | Vite + `@tailwindcss/vite` (Tailwind CSS v4) |
+| Componentes UI | shadcn/ui (Radix UI primitives) — pasta `src/app/components/ui/` |
+| Gráficos | Recharts |
+| Ícones | lucide-react |
+| Animações | motion/react |
+| Notificações | sonner |
+
+### Fontes
+
+```css
+/* Inter Tight — headings, títulos, KPIs */
+font-family: 'Inter Tight', sans-serif;
+
+/* Inter — corpo de texto */
+font-family: 'Inter', sans-serif;
+
+/* JetBrains Mono — dados numéricos, código, status */
+font-family: 'JetBrains Mono', monospace;
+```
+
+Importadas em `src/styles/fonts.css` via Google Fonts.
+
+### Tokens de cor (objeto T — usado inline nos componentes)
+
+```ts
+const T = {
+  bg:      "#05060E",   // fundo da página
+  panel:   "#0A0C18",   // painéis/seções
+  card:    "#0F1120",   // cards
+  border:  "#1A1D35",   // bordas
+  primary: "#4F6EF7",   // azul principal
+  accent:  "#7C5CFC",   // roxo/destaque
+  success: "#00DC82",   // verde
+  warning: "#FFAA00",   // amarelo
+  danger:  "#FF4D6A",   // vermelho
+  text:    "#ECF0FF",   // texto principal
+  textSub: "#4A5280",   // texto secundário
+  gold:    "#FFD700",   // dourado (enterprise)
+}
+```
+
+Tokens CSS globais em `src/styles/theme.css` — preservar nomes (`--background`, `--foreground`, `--border`, `--primary`, etc.).
+
+### Roteamento do design system
+
+Não usa react-router. Navegação via `useState<View>` no `src/app/App.tsx`.
+Ao integrar com o projeto principal, substitua por react-router ou Next.js pages conforme a arquitetura existente.
+
+### Componentes globais (sempre montados no App.tsx)
+
+```tsx
+<SoundControl />      // controle de som flutuante
+<QuickActions />      // ações rápidas (FAB)
+<LiveTicker />        // ticker de eventos em tempo real
+<CommandPalette />    // cmd+K para navegação rápida
+<KeyboardShortcuts /> // atalhos de teclado
+<Toaster />           // notificações (sonner)
+```
+
+### Recharts — regra importante
+
+Sempre usar `isAnimationActive={false}` em `<Area>`, `<Bar>` e `<Pie>`:
+
+```tsx
+<Area dataKey="value" isAnimationActive={false} />
+<Bar dataKey="value" isAnimationActive={false} />
+<Pie dataKey="value" isAnimationActive={false} />
+```
+
+### Como conectar os componentes visuais à lógica real
+
+Os componentes usam dados mockados (arrays locais). Para conectar ao backend:
+
+1. Identifique o array mockado no componente
+2. Substitua por uma query ao banco (`pg.Pool` ou Supabase conforme o front)
+3. Use o hook `useUserSession` para obter o usuário autenticado
+4. Para dados de campanhas/impressões: use as tabelas `campaigns`, `impressions`, `event_chain`
+5. Para prova de exibição: use `play_logs_certified` e a API de verificação
+
+### Tiers de usuário
+
+| Tier | Cor | Perfil |
+|------|-----|--------|
+| `local` | #00DC82 (verde) | Dono de tela individual |
+| `business` | #4F6EF7 (azul) | Agência / anunciante |
+| `enterprise` | #00A3FF (ciano) | Rede / publisher |
