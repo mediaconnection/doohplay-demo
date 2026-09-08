@@ -896,9 +896,9 @@ Tabelas: `event_chain` (canônica) + 9 partições (`event_chain_2026_03/04/05/0
 
 Validado com prova real, não só "rodou sem erro": `pg_tables` confirma `rowsecurity = true` nas 33; `SET ROLE anon` — `event_chain` (via tabela-mãe, agregando as 9 partições) e `proof_chain` foram de acesso real (1003 linhas em `proof_chain`) pra **0 linhas visíveis**; app real não afetado — `proof_chain` continua com as 1003 linhas pra `postgres`, `event_chain_2026_08` com as 56.967 linhas reais de produção.
 
-**`event_hash_registry` deliberadamente fora deste fix** — único consumidor é o `legacy/ledger/writeEvent.ts` dormente (mesmo status do `event_chain` nesse arquivo específico), fica registrado como pendência separada, mesma classe de risco do teste de contrato já documentado.
+**`event_hash_registry` decidido e corrigido (2026-09-07)**: mesma análise de segurança de todas as outras — dono `postgres`, único consumidor (`legacy/ledger/writeEvent.ts`) via `pg.Pool` (bypassa RLS mesmo se o worker dormente do `event-queue` algum dia reativar), zero uso via Supabase JS. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` sem política, validado: `SET ROLE anon` de acesso real (4.634 linhas) pra `0`; `postgres` continua vendo as 4.634 normalmente.
 
-**Total: 66 tabelas protegidas** (33 anteriores + estas 33). Restam as 40 órfãs confirmadas (baixa prioridade, sem ação) e `event_hash_registry` (pendência separada).
+**Total: 67 tabelas protegidas** (66 anteriores + `event_hash_registry`). Resta só o Grupo órfão (40 tabelas, baixa prioridade, sem ação decidida) — RLS não é mais uma frente ativa por enquanto.
 
 ## Próximos passos em aberto
 
