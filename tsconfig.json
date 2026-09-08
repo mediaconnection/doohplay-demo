@@ -57,6 +57,9 @@
   ],
   "exclude": [
     "node_modules",
-    "scripts"
+    "scripts",
+    "src/app/components",
+    "src/app/App.tsx",
+    "src/styles"
   ]
 }
