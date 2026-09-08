@@ -136,3 +136,7 @@ NEXT_PUBLIC_BASE_URL            # Used to build absolute URLs server-side
 - All SQL queries go through `pool.query(...)` with parameterized `$1, $2, ...` placeholders — never string interpolation.
 - Dates and periods (today / 7d / 30d) are always resolved server-side to ISO strings before hitting the database.
 - The UI language is Portuguese (pt-BR); keep user-facing strings in Portuguese.
+
+## Testing routes against real production
+
+Before calling any real production route/cron job with live test data (via curl, Puppeteer, or otherwise), check whether that call path can trigger a real outbound side effect — WhatsApp (`sendWhatsApp`, whether via `lib/whatsapp.ts` or one of its per-route duplicates), email (Resend), or any other message to a real recipient. If it can, either use test data with a fake/non-real contact value, or get explicit confirmation first — validating that the business logic is correct (status updates, DB rows) is not the same check as confirming no unwanted message went out. This rule existed only as a verbally-agreed convention before 2026-09-08 (never written here), which is why a real test of `POST /api/cron/network-partnerships-timeout` sent an unauthorized real WhatsApp message to a real client (`BARBE332`) that day — see `STATUS_PROJETO.md` for the full incident writeup. Don't let this happen again by relying on conversation memory alone.
