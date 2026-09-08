@@ -33,33 +33,13 @@ export async function PATCH(req: NextRequest, context: any) {
     const media = rows[0]
     if (!media) return Response.json({ error: "Mídia não encontrada" }, { status: 404 })
 
-    // Ao aprovar: distribui pra todos os parceiros já aceitos deste dono —
-    // mesma lógica de quando uma parceria nova é aceita, só que aqui é a
-    // mídia que chegou depois que as parcerias já existiam.
-    if (status === "approved") {
-      await pool.query(
-        `
-        INSERT INTO network_media_distribution (network_media_id, displayed_on_code, active, added_at)
-        SELECT $1, partner_code, true, now()
-        FROM (
-          SELECT CASE WHEN requester_code = $2 THEN partner_code ELSE requester_code END AS partner_code
-          FROM network_partnerships
-          WHERE status = 'accepted' AND (requester_code = $2 OR partner_code = $2)
-        ) partners
-        ON CONFLICT (network_media_id, displayed_on_code) DO UPDATE SET active = true
-        `,
-        [media.id, media.owner_code]
-      )
-    }
-
-    // Ao rejeitar: desativa qualquer distribuição que já tivesse sido feita
-    // (relevante se a mídia foi aprovada antes e depois rejeitada de novo).
-    if (status === "rejected") {
-      await pool.query(
-        `UPDATE network_media_distribution SET active = false WHERE network_media_id = $1`,
-        [media.id]
-      )
-    }
+    // Etapa 2, Fase 2 (2026-09-08): removida a distribuição automática pra
+    // todos os parceiros aceitos quando a mídia é aprovada. Esta rota
+    // continua sendo o gate de qualidade/brand-safety da DOOHPLAY (a peça
+    // só pode ser pedida por um parceiro depois de `status = 'approved'`
+    // aqui) — mas quem decide PRA QUEM ela vai é o próprio dono, pedido por
+    // pedido, em POST /api/client/network-partnerships/[code]/request,
+    // aprovado pelo parceiro que vai exibir, não broadcast automático.
 
     return Response.json({ ok: true })
   } catch (err) {
