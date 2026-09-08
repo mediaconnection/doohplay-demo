@@ -813,6 +813,8 @@ Pra validar o resto do fluxo, inserido diretamente 1 pedido de teste (`status: p
 
 **Fase 4 (2026-09-08) — job de expiração de peça 30 dias**: `POST /api/cron/network-media-expire` (nova) — desativa `network_media_distribution` com `expires_at` vencido e `extended = false`. Sem efeito de notificação (só desliga `active`), risco bem menor que a Fase 3 depois do erro do WhatsApp. Novo Render Cron Job (`doohplay-network-media-expire`, `crn-dafvlffqj5pc738hkk80`, diário às 09:00 UTC), confirmado com o fundador antes de criar. `tsc` 47 (idêntico), `vitest` 81/81, `next build` confirma `Compiled successfully`.
 
+**Fase 4 testada em produção real (2026-09-08), sem repetir o erro da Fase 3**: distribuição de teste inserida com `expires_at` já vencido, rota chamada via HTTP real com `x-cron-secret`. Resultado: `expired: 1`, `active` confirmado `false`. Zero efeito colateral de notificação nesta fase (por design). Dado de teste removido ao final, confirmado zerado.
+
 **Restam, fases 5-6**: limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
 
 ## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
