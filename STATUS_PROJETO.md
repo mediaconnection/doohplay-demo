@@ -808,6 +808,8 @@ Nenhum desses 4 mortos foi corrigido ou apagado — o valor do teste é tornar o
 
 Investigado com dado real de `player_uptime_daily`. O intervalo de heartbeat é hardcoded em `app/player/page.tsx` (`setInterval(sendHeartbeat, 30000)`, 30s), **idêntico pros dois clientes** — não existe config por cliente. Quando o `BARBE332` está de fato conectado, o intervalo real (~30-55s) é próximo do `LEMEL186` (~28-31s). A diferença real: `BARBE332` aparece em só **19 de 55 dias** do período (35%), com janela média online de **~7,8h/dia**; `LEMEL186` aparece em 24 de 49 dias (49%), com **~20,2h/dia**. Mesmo hardware categoria "Android TV", mas chipset diferente (`BARBE332` = Amlogic T600, `LEMEL186` = Amlogic V96) — consistente com os incidentes de offline já documentados (~4,5 dias e ~46h), aponta pra rede/energia local do estabelecimento, não bug de código. **Nenhuma ação de código pendente.**
 
+**Confirmação real (2026-09-08)**: fundador reportou os dois visíveis ligados fisicamente na tela. Checado direto em `players.last_ping` — `BARBE332` com ping há 28s, `LEMEL186` há 7s, ambos `online: true`. Não contradiz o diagnóstico: a instabilidade do `BARBE332` é intermitente (fica online boa parte do tempo, só com cobertura de dias/horas bem menor no histórico), não uma queda constante.
+
 Achado colateral, sem relação: `app/api/events/players/heartbeat/route.ts` referencia colunas inexistentes em `players` (`status`, `last_seen`, `version`, `ip_address`) — quebrado, mas também sem nenhum consumidor real no repo (só `/api/player/heartbeat` é usado por `app/player/page.tsx`). Morto e quebrado ao mesmo tempo, zero impacto prático, não corrigido.
 
 ## 🔴 Segurança — RLS desabilitado em 108 tabelas, exploração real confirmada (2026-09-07)
