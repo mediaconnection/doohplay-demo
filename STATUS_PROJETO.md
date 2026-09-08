@@ -801,7 +801,13 @@ Planejado pelo `arquiteto-agent` a partir de `DOOHPLAY_Clube_de_Telas_Spec_v2.md
 
 Pra validar o resto do fluxo, inserido diretamente 1 pedido de teste (`status: pending`, simulando o que `/request` criaria se estivessem no raio) e testado `/respond` via chamada HTTP real contra produção: (1) `BARBE332` (o requester) tentando aprovar o próprio pedido → **bloqueado, `403`**, confirma a regra central da Fase 2 (só quem vai exibir aprova); (2) `LEMEL186` (o alvo real) aprovando → **`200`**, `status: accepted`. Efeitos colaterais confirmados reais no banco: `network_media_distribution` (1 linha, `LEMEL186`, `active: true`, `expires_at` exatamente 30 dias depois de `published_at`), `network_reciprocity_credits` (`BARBE332→LEMEL186`, `available_count: 1`), `network_partnerships.credit_generated: true`. **Dado de teste removido ao final** — `network_media` (cascade limpou `network_partnerships`+`network_media_distribution` automaticamente via FK), `network_reciprocity_credits`, e os 2 `client_login_codes` de teste. Confirmado com contagem pós-limpeza: tudo zerado de novo.
 
-**Restam, fases 3-6**: job de timeout 15 dias, job de expiração de peça 30 dias, limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
+**Fase 3 (2026-09-08) — job de timeout 15 dias**: `POST /api/cron/network-partnerships-timeout` (nova) — marca `expired_no_response` pedidos `pending` parados há 15 dias, avisa o `requester_code` via WhatsApp. Reaproveita `lib/whatsapp.ts` (módulo central já corrigido nesta sessão) em vez de duplicar a função de envio — mesmo achado de duplicação já corrigido em 7 rotas hoje. Mesmo padrão de auth dos crons existentes (`x-cron-secret` header contra `CRON_SECRET`).
+
+**Achado no caminho**: existe só 1 Render Cron Job real hoje (`doohplay-monthly-report`, mensal) — a rota `app/cron/trial-warning/route.ts` não tem nenhum cron configurado, possivelmente nunca dispara de verdade (não investigado a fundo, fica registrado). Criado novo Render Cron Job (`doohplay-network-partnerships-timeout`, `crn-dafuomgn74is73bol6k0`, diário às 09:00 UTC) — confirmado com o fundador antes de criar (recurso real, cobrado).
+
+`tsc` 47 (idêntico), `vitest` 81/81, `next build` confirma `Compiled successfully`.
+
+**Restam, fases 4-6**: job de expiração de peça 30 dias, limite de 30 recontado por parceiros distintos, reativar peso "Rede" + propagação multi-tela.
 
 ## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
 
