@@ -850,7 +850,17 @@ Dado de teste da Fase 3 já foi limpo na hora (`network_media`, cascade limpou `
 
 `tsc` 47 (após correção), `vitest` 81/81, `next build` confirma `Compiled successfully`.
 
-**Restam, fase 6**: reativar peso "Rede" no `CATEGORY_WEIGHTS` + propagação multi-tela.
+**Fase 6 (2026-09-08) — reativar peso "Rede" + propagação multi-tela, última fase**: `CATEGORY_WEIGHTS` em `app/player/page.tsx` — `rede: 0 → 5`, tirado de `canal` (`20 → 15`), total continua 100%. Nunca tirado de `anunciante` (paga a conta) nem `dono` (identidade do cliente).
+
+**Propagação multi-tela reconfirmada, sem mudança de código necessária**: a query de "rede" em `app/api/client/playlist/[code]/route.ts` filtra só por `nmd.displayed_on_code = $1` (o `code` do cliente) — sem `screen_id`/`player_id` — então já propaga naturalmente pra todas as telas do cliente compartilhando o mesmo código, exatamente como a investigação original tinha confirmado. Reconfirmado agora, depois de todas as mudanças de schema das Fases 1-5, que essa query continua compatível (`active = true`, `status = 'approved'`).
+
+**Confirmado com leitura de código, não suposição, que ligar o peso agora tem zero efeito visível**: `pickNextMedia()` só inclui uma categoria no sorteio se `usable.length > 0` (linha ~1913) — como `network_media_distribution` tem 0 linhas reais hoje, `rede` fica automaticamente fora do sorteio, sem slot em branco, sem redistribuir peso indevidamente pras outras categorias. O peso só passa a valer de verdade quando existir conteúdo real via o Clube de Telas — seguro fazer deploy já.
+
+`tsc` 47 (idêntico), `vitest` 81/81, `next build` confirma `Compiled successfully`.
+
+## Clube de Telas v2 — implementação completa, 6 de 6 fases (2026-09-08)
+
+Todas as fases do plano original (Fase 0 a Fase 6) concluídas, cada uma validada com `tsc`/`vitest`/`next build` e, onde fazia sentido, testada de ponta a ponta contra produção real com dado de teste removido ao final. Achados reais registrados no caminho: `BARBE332`/`LEMEL186` a 12,04km um do outro (fora do raio de 5km — os únicos 2 clientes reais não conseguem usar o recurso entre si hoje, mesmo com tudo funcionando); um incidente real de WhatsApp de teste disparado sem isolamento (investigado, documentado, causa raiz corrigida no `CLAUDE.md`); limite de 30 parceiros unificado numa função só, corrigindo uma inconsistência de contagem que já existia entre 2 rotas antigas.
 
 ## ✅ Etapa 2, item 4 — testes de contrato entre `app/` e `@proof-engine` (2026-09-07)
 

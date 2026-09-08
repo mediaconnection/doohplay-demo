@@ -1837,7 +1837,13 @@ export default async function PlayerPage({
             // Os 15% que eram dela + 5% tirados do institucional genérico viraram
             // 'canal': conteúdo institucional segmentado por business_type do
             // cliente (placements_v2.segment_id → inventory_segments_v2).
-            var CATEGORY_WEIGHTS = { dono: 15, anunciante: 60, rede: 0, institucional: 5, canal: 20 };
+            // Etapa 2, Fase 6 (2026-09-08) — Clube de Telas v2: "rede" reativada
+            // (era 0% desde sempre, sem uso real até a Fase 2 desta etapa
+            // existir). Peso inicial baixo de propósito (5%, tirado de "canal"
+            // que caiu de 20% pra 15%) — validar com uso real antes de subir.
+            // Nunca tirado de "anunciante" (paga a conta) nem "dono"
+            // (identidade do cliente).
+            var CATEGORY_WEIGHTS = { dono: 15, anunciante: 60, rede: 5, institucional: 5, canal: 15 };
             // Fase 12 — precisa bater com a duração usada no CSS das
             // transições (0.7s); se mudar um, muda o outro junto.
             var TRANSITION_MS = 700;
