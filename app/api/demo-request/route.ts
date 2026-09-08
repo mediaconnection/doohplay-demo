@@ -10,7 +10,7 @@ const NOTIFY_PHONE = "5511962050987"
 
 async function sendWhatsApp(phone: string, message: string) {
   try {
-    await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+    const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -21,8 +21,14 @@ async function sendWhatsApp(phone: string, message: string) {
         text: message,
       }),
     })
+    if (!res.ok) {
+      console.error("[demo-request] Evolution API respondeu erro:", res.status)
+      return false
+    }
+    return true
   } catch (err) {
     console.error("[demo-request] WhatsApp error:", err)
+    return false
   }
 }
 

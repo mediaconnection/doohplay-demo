@@ -25,13 +25,19 @@ async function sendWhatsApp(phone: string, message: string) {
   try {
     const clean = phone.replace(/\D/g, "")
     const number = clean.startsWith("55") ? clean : `55${clean}`
-    await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+    const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
       body: JSON.stringify({ number, text: message }),
     })
+    if (!res.ok) {
+      console.error("[cadastro] Evolution API respondeu erro:", res.status)
+      return false
+    }
+    return true
   } catch (err) {
     console.error("[cadastro] WhatsApp error:", err)
+    return false
   }
 }
 

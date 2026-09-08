@@ -14,12 +14,20 @@ const WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN || ""
 
 async function sendWhatsApp(phone: string, message: string) {
   try {
-    await fetch(`${EVOLUTION_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+    const res = await fetch(`${EVOLUTION_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY },
       body: JSON.stringify({ number: phone, text: message }),
     })
-  } catch {}
+    if (!res.ok) {
+      console.error("[finance/webhook] Evolution API respondeu erro:", res.status)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error("[finance/webhook] whatsapp error:", err)
+    return false
+  }
 }
 
 export async function POST(req: NextRequest) {

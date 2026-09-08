@@ -22,8 +22,14 @@ async function sendWhatsApp(phone: string, message: string) {
       body: JSON.stringify({ number, text: message }),
     })
     console.log("[sendWhatsApp] status:", res.status, "number:", number)
+    if (!res.ok) {
+      console.error("[sendWhatsApp] Evolution API respondeu erro:", res.status)
+      return false
+    }
+    return true
   } catch (err) {
     console.error("[sendWhatsApp] erro:", err)
+    return false
   }
 }
 

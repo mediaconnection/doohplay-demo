@@ -20,7 +20,7 @@ async function sendWhatsApp(phone: string, name: string, code: string) {
   const message = `Olá ${name}! 🎉\n\nSeu cadastro no *DOOHPLAY* foi aprovado!\n\nAcesse seu portal de anunciante:\n${link}\n\nSeu código de acesso: *${code}*\n\nQualquer dúvida é só responder aqui. Boas campanhas! 🚀`
 
   try {
-    await fetch("https://evo.doohplay.com.br/message/sendText/doohplay", {
+    const res = await fetch("https://evo.doohplay.com.br/message/sendText/doohplay", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -31,8 +31,14 @@ async function sendWhatsApp(phone: string, name: string, code: string) {
         text: message,
       }),
     })
+    if (!res.ok) {
+      console.error("[register] Evolution API respondeu erro:", res.status)
+      return false
+    }
+    return true
   } catch (err) {
     console.error("[register] WhatsApp error:", err)
+    return false
   }
 }
 

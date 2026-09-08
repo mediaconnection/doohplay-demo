@@ -12,13 +12,19 @@ const DOOHPLAY_PHONE     = process.env.DOOHPLAY_PHONE     || "5511962050987"
 
 async function sendWhatsApp(phone: string, message: string) {
   try {
-    await fetch(`${EVOLUTION_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+    const res = await fetch(`${EVOLUTION_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY },
       body: JSON.stringify({ number: phone, text: message }),
     })
+    if (!res.ok) {
+      console.error("[onboarding] Evolution API respondeu erro:", res.status)
+      return false
+    }
+    return true
   } catch (err) {
     console.error("[onboarding] whatsapp error:", err)
+    return false
   }
 }
 
