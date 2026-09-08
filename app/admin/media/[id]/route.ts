@@ -1,117 +1,12 @@
-// app/api/admin/media/[id]/route.ts
-import { NextRequest } from "next/server"
-import { getServerSession } from "next-auth"
-import { getPool } from "@/lib/db"
-
-export const dynamic = "force-dynamic"
-
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "")
-  return digits.startsWith("55") ? digits : "55" + digits
-}
-
-async function sendWhatsApp(phone: string, message: string) {
-  const url      = process.env.EVOLUTION_API_URL  || "http://2.25.180.53:32768"
-  const key      = process.env.EVOLUTION_API_KEY ?? ""
-  const instance = process.env.EVOLUTION_INSTANCE || "doohplay"
-  const number   = normalizePhone(phone)
-  try {
-    const res = await fetch(url + "/message/sendText/" + instance, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: key },
-      body: JSON.stringify({ number, text: message }),
-    })
-    console.log("[sendWhatsApp] status:", res.status, "number:", number)
-    if (!res.ok) {
-      console.error("[sendWhatsApp] Evolution API respondeu erro:", res.status)
-      return false
-    }
-    return true
-  } catch (err) {
-    console.error("[sendWhatsApp] erro:", err)
-    return false
-  }
-}
-
-export async function PATCH(req: NextRequest, context: any) {
-  const session = await getServerSession()
-  const body    = await req.json()
-
-  const isNextAuth = !!session?.user
-  const isLegacy   = body.secret && body.secret === process.env.ADMIN_SECRET
-
-  if (!isNextAuth && !isLegacy) {
-    return Response.json({ error: "unauthorized" }, { status: 401 })
-  }
-
-  const { id } = await context.params
-  const { status, reason } = body
-
-  if (!["approved", "rejected"].includes(status)) {
-    return Response.json({ error: "status invalido" }, { status: 400 })
-  }
-
-  const pool = getPool()
-
-  try {
-    await pool.query(
-      `UPDATE "CampaignMedia" SET status = $1 WHERE id = $2`,
-      [status, id]
-    )
-
-    // Pra conteúdo do próprio dono (campanha-sombra "Promoções da Loja"),
-    // o registro de Advertiser foi criado com phone='' (ver ensureCampaign
-    // em app/api/studio/upload/route.ts) — sem fallback, a notificação
-    // nunca era enviada, mesmo a UI do dashboard prometendo confirmação
-    // por WhatsApp. Usa o telefone real do studio_clients nesse caso.
-    const { rows } = await pool.query(
-      `SELECT m.name AS media_name, m.type,
-              a.name AS advertiser_name,
-              COALESCE(NULLIF(a.phone, ''), sc.phone) AS advertiser_phone,
-              c.name AS campaign_name
-       FROM "CampaignMedia" m
-       JOIN "Campaign" c ON c.id = m."campaignId"
-       JOIN "Advertiser" a ON a.code = c."advertiserCode"
-       LEFT JOIN studio_clients sc ON sc.code = c."advertiserCode"
-       WHERE m.id = $1 LIMIT 1`,
-      [id]
-    )
-
-    const media = rows[0]
-    console.log("[admin/media PATCH] media:", media?.media_name, "phone:", media?.advertiser_phone, "status:", status)
-
-    if (media && media.advertiser_phone) {
-      if (status === "approved") {
-        await sendWhatsApp(media.advertiser_phone, [
-          "✅ *Mídia aprovada!*",
-          "",
-          "Olá, *" + media.advertiser_name + "*!",
-          "Sua mídia *" + media.media_name + "* foi aprovada e já está sendo exibida nas telas.",
-          "",
-          "Campanha: " + media.campaign_name,
-          "",
-          "_DOOHPLAY — Trust Infrastructure for DOOH Advertising_",
-        ].join("\n"))
-      } else {
-        await sendWhatsApp(media.advertiser_phone, [
-          "❌ *Mídia rejeitada — DOOHPLAY*",
-          "",
-          "Olá, *" + media.advertiser_name + "*!",
-          "Sua mídia *" + media.media_name + "* foi rejeitada.",
-          reason ? "Motivo: " + reason : "",
-          "",
-          "Envie uma nova mídia pelo portal: https://doohplay.com.br/anunciante",
-          "",
-          "_DOOHPLAY — Trust Infrastructure for DOOH Advertising_",
-        ].filter(Boolean).join("\n"))
-      }
-    } else {
-      console.warn("[admin/media PATCH] sem phone — media:", media)
-    }
-
-    return Response.json({ ok: true, status })
-  } catch (err) {
-    console.error("[admin/media PATCH]", err)
-    return Response.json({ error: String(err) }, { status: 500 })
-  }
-}
+// app/admin/media/[id]/route.ts
+//
+// Achado 2026-09-08: esta rota (`/admin/media/{id}`, sem prefixo `/api`)
+// não tem nenhum consumidor real -- a UI do admin (`app/admin/page.tsx`)
+// sempre chamou `/api/admin/media/{id}`. As duas tinham lógica própria
+// duplicada e já haviam divergido de verdade (esta tinha um fix de
+// fallback de telefone que a outra não tinha; a outra tinha tags/
+// display_format/sincronização com creative_assets_v2/placements_v2 que
+// esta nunca recebeu). Colapsada numa única implementação -- o caminho
+// sancionado é `app/api/admin/media/[id]/route.ts`; esta rota permanece
+// só por retrocompatibilidade caso algo externo ainda a chame.
+export { PATCH } from "../../../api/admin/media/[id]/route"

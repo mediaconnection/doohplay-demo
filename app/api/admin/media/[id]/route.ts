@@ -104,13 +104,23 @@ export async function PATCH(req: NextRequest, context: any) {
       )
     }
 
+    // Pra conteúdo do próprio dono (campanha-sombra "Promoções da Loja"),
+    // o registro de Advertiser foi criado com phone='' (ver ensureCampaign
+    // em app/api/studio/upload/route.ts) — sem fallback, a notificação
+    // nunca era enviada, mesmo a UI do dashboard prometendo confirmação
+    // por WhatsApp. Usa o telefone real do studio_clients nesse caso.
+    // Achado 2026-09-08: essa correção existia só na cópia divergente
+    // app/admin/media/[id]/route.ts (rota sem consumidor real hoje) e
+    // nunca tinha chegado nesta, a que a UI de fato chama.
     const { rows } = await pool.query(
       `SELECT m.name AS media_name, m.type,
-              a.name AS advertiser_name, a.phone AS advertiser_phone,
+              a.name AS advertiser_name,
+              COALESCE(NULLIF(a.phone, ''), sc.phone) AS advertiser_phone,
               c.name AS campaign_name
        FROM "CampaignMedia" m
        JOIN "Campaign" c ON c.id = m."campaignId"
        JOIN "Advertiser" a ON a.code = c."advertiserCode"
+       LEFT JOIN studio_clients sc ON sc.code = c."advertiserCode"
        WHERE m.id = $1 LIMIT 1`,
       [id]
     )
