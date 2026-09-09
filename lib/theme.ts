@@ -18,10 +18,14 @@
 //   paleta de páginas públicas de marketing é decisão de marca
 //   separada, não decidida ainda.
 //
-// app/studio/[code]/page.tsx (Studio guiado) NÃO usa nenhuma das duas
-// hoje (fundo #f3f4f6, fonte system-ui, tons ad-hoc próprios) — fica de
-// fora desta formalização de propósito; migrar seria redesign, não
-// refatoração.
+// app/studio/[code]/page.tsx (Studio guiado): o chrome do editor (fundo
+// #f3f4f6, fonte system-ui) continua fora desta formalização — migrar
+// seria redesign, não refatoração. Mas a simulação de preview em tela
+// cheia (array BACKDROPS + overlay) é deliberadamente escura (imita o
+// ambiente real de uma TV) e usa cores literais copiadas do protótipo
+// Figma (TVScreenDesigner.tsx) numa sessão anterior — formalizada abaixo
+// como previewDark (2026-09-09), sem unificar com slateDark/marketingDark
+// (contexto visual diferente: simulação de tela, não chrome de produto).
 
 export const slateDark = {
   bg: "#0B1020",
@@ -74,6 +78,14 @@ export const marketingDark = {
   text: "#F1F5F9",
   blue: "#3B82F6",
   green: "#10B981",
+}
+
+export const previewDark = {
+  bg: "#05060E",
+  panel: "#0A0C18",
+  border: "#232844",
+  text: "#ECF0FF",
+  muted: "#4A5280",
 }
 
 // Referência à custom property setada por next/font/google em

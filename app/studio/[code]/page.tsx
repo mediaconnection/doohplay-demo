@@ -13,6 +13,7 @@ import { getTemplatesForBusinessType, type StudioTemplate } from "@/lib/studioTe
 // Fase 46 (03/09/2026): Etapa 2 do plano de templates guiados — galeria +
 // formulário. Ainda não conectado a prévia/geração real (Etapas 3 e 4).
 import { GUIDED_TEMPLATES, getGuidedTemplate, validateGuidedValues, buildGuidedPreviewCopy, buildGuidedPrompt, type GuidedTemplateId } from "@/lib/guidedTemplates"
+import { previewDark } from "@/lib/theme"
 
 type Client = {
   id: string
@@ -381,10 +382,10 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
   // o DOOHPLAY nao possui e que sugeririam saber onde a tela esta instalada
   // fisicamente, o que o produto nao sabe hoje.
   const BACKDROPS = [
-    { label: "Escuro", emoji: "🌑", css: "#05060E" },
-    { label: "Marca", emoji: "🎨", css: `linear-gradient(135deg, ${clientAccent}30, #05060E 70%)` },
-    { label: "Template", emoji: "🖼", css: `radial-gradient(ellipse at 50% 30%, ${selectedTpl.accent}30 0%, transparent 65%), #05060E` },
-    { label: "Grade", emoji: "🎬", css: `radial-gradient(ellipse at 50% 20%, ${clientAccent}20 0%, transparent 60%), linear-gradient(180deg, #0A0C18, #05060E)` },
+    { label: "Escuro", emoji: "🌑", css: previewDark.bg },
+    { label: "Marca", emoji: "🎨", css: `linear-gradient(135deg, ${clientAccent}30, ${previewDark.bg} 70%)` },
+    { label: "Template", emoji: "🖼", css: `radial-gradient(ellipse at 50% 30%, ${selectedTpl.accent}30 0%, transparent 65%), ${previewDark.bg}` },
+    { label: "Grade", emoji: "🎬", css: `radial-gradient(ellipse at 50% 20%, ${clientAccent}20 0%, transparent 60%), linear-gradient(180deg, ${previewDark.panel}, ${previewDark.bg})` },
   ]
 
   return (
@@ -394,9 +395,12 @@ export default function StudioEditorPage({ params }: { params: { code: string } 
           previewZoom do painel pequeno — fullscreen mostra "do jeito que
           vai aparecer na tela real", não uma lupa de detalhe). */}
       {fullscreenPreview && (
+        // rgba(5,6,14,...) = previewDark.bg em decimal -- deixado como rgba
+        // (não hex) de propósito, pra manter a opacidade 0.96 exata sem
+        // arredondamento na conversão pra alpha-hex.
         <div onClick={() => setFullscreenPreview(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(5,6,14,0.96)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
-          <button onClick={() => setFullscreenPreview(false)} aria-label="Fechar tela cheia" style={{ position: "absolute", top: 20, right: 20, width: 36, height: 36, borderRadius: 10, border: "1px solid #232844", background: "#0A0C18", color: "#ECF0FF", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-          <div style={{ position: "absolute", top: 20, left: 20, fontSize: 11, fontFamily: "monospace", color: "#4A5280" }}>ESC para fechar</div>
+          <button onClick={() => setFullscreenPreview(false)} aria-label="Fechar tela cheia" style={{ position: "absolute", top: 20, right: 20, width: 36, height: 36, borderRadius: 10, border: `1px solid ${previewDark.border}`, background: previewDark.panel, color: previewDark.text, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <div style={{ position: "absolute", top: 20, left: 20, fontSize: 11, fontFamily: "monospace", color: previewDark.muted }}>ESC para fechar</div>
           <div onClick={e => e.stopPropagation()} style={{ width: "min(90vw, 1100px)", boxShadow: "0 40px 120px rgba(0,0,0,0.6)", borderRadius: 16, overflow: "hidden" }}>
             <AdPreview tpl={selectedTpl} client={{...client, primary_color: clientAccent.replace("#","")}} form={form} imageUrl={imageUrl} />
           </div>
