@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 /**
  * app/lead/[code]/route.ts
  *
@@ -25,25 +26,25 @@ export async function GET(
 <title>Cadastre-se e receba novidades</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:system-ui,-apple-system,sans-serif; background:#0B1120; color:#F1F5F9; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+body { font-family:system-ui,-apple-system,sans-serif; background:${marketingDark.bg}; color:${marketingDark.text}; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
 .card { width:100%; max-width:400px; }
 .logo { text-align:center; font-size:18px; font-weight:900; margin-bottom:8px; }
-.logo span { color:#3B82F6; }
+.logo span { color:${marketingDark.blue}; }
 .subtitle { text-align:center; color:#94A3B8; font-size:14px; margin-bottom:28px; }
-.subtitle strong { color:#F1F5F9; }
+.subtitle strong { color:${marketingDark.text}; }
 label { display:block; font-size:12px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; }
 .field { margin-bottom:18px; }
 input[type="text"], input[type="tel"] {
   width:100%; background:#161E2E; border:1px solid #2A3548; border-radius:10px;
-  padding:14px 16px; font-size:16px; color:#F1F5F9; outline:none;
+  padding:14px 16px; font-size:16px; color:${marketingDark.text}; outline:none;
 }
-input[type="text"]:focus, input[type="tel"]:focus { border-color:#3B82F6; }
+input[type="text"]:focus, input[type="tel"]:focus { border-color:${marketingDark.blue}; }
 .consent { display:flex; align-items:flex-start; gap:10px; margin-bottom:24px; }
-.consent input { margin-top:3px; width:18px; height:18px; flex-shrink:0; accent-color:#3B82F6; }
+.consent input { margin-top:3px; width:18px; height:18px; flex-shrink:0; accent-color:${marketingDark.blue}; }
 .consent label { font-size:12px; color:#94A3B8; text-transform:none; font-weight:400; line-height:1.5; margin-bottom:0; }
 .consent a { color:#60A5FA; text-decoration:underline; }
 button {
-  width:100%; background:linear-gradient(135deg,#3B82F6,#6366F1); color:white;
+  width:100%; background:linear-gradient(135deg,${marketingDark.blue},#6366F1); color:white;
   border:none; padding:16px; border-radius:12px; font-size:16px; font-weight:700;
   cursor:pointer;
 }

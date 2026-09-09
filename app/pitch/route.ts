@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 export const dynamic = "force-dynamic"
 
 export function GET() {
@@ -9,7 +10,7 @@ export function GET() {
 <title>DOOHPLAY — Apresentação</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-family:system-ui,-apple-system,sans-serif; color:#F1F5F9; }
+html, body { width:100%; height:100%; overflow:hidden; background:${marketingDark.bg}; font-family:system-ui,-apple-system,sans-serif; color:${marketingDark.text}; }
 
 .deck { width:100%; height:100vh; position:relative; overflow:hidden; }
 
@@ -25,39 +26,39 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
 .slide.prev { opacity:0; transform:translateX(-100%); }
 
 /* BACKGROUNDS por slide */
-.slide-1 { background:linear-gradient(145deg,#0B1120 0%,#0f1f3d 100%); }
-.slide-2 { background:linear-gradient(145deg,#0B1120 0%,#1a0f2e 100%); }
-.slide-3 { background:linear-gradient(145deg,#0B1120 0%,#0f2a1a 100%); }
-.slide-4 { background:linear-gradient(145deg,#0B1120 0%,#2a1a00 100%); }
-.slide-5 { background:linear-gradient(145deg,#0B1120 0%,#1a1a2e 100%); }
-.slide-6 { background:linear-gradient(145deg,#0B1120 0%,#0f1f3d 100%); }
+.slide-1 { background:linear-gradient(145deg,${marketingDark.bg} 0%,#0f1f3d 100%); }
+.slide-2 { background:linear-gradient(145deg,${marketingDark.bg} 0%,#1a0f2e 100%); }
+.slide-3 { background:linear-gradient(145deg,${marketingDark.bg} 0%,#0f2a1a 100%); }
+.slide-4 { background:linear-gradient(145deg,${marketingDark.bg} 0%,#2a1a00 100%); }
+.slide-5 { background:linear-gradient(145deg,${marketingDark.bg} 0%,#1a1a2e 100%); }
+.slide-6 { background:linear-gradient(145deg,${marketingDark.bg} 0%,#0f1f3d 100%); }
 
 .slide-num {
   position:absolute; top:20px; left:24px;
-  font-size:11px; font-weight:700; color:#334155;
+  font-size:11px; font-weight:700; color:${marketingDark.border};
   text-transform:uppercase; letter-spacing:2px;
 }
 .logo-small {
   position:absolute; top:18px; right:24px;
   font-size:14px; font-weight:900; color:#F9FAFB;
 }
-.logo-small span { color:#3B82F6; }
+.logo-small span { color:${marketingDark.blue}; }
 
-.tag { font-size:11px; font-weight:700; color:#3B82F6; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; text-align:center; }
+.tag { font-size:11px; font-weight:700; color:${marketingDark.blue}; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; text-align:center; }
 .headline { font-size:clamp(28px,8vw,42px); font-weight:900; line-height:1.1; text-align:center; margin-bottom:16px; }
 .sub { font-size:15px; color:#94A3B8; text-align:center; line-height:1.6; max-width:340px; }
-.sub strong { color:#F1F5F9; }
+.sub strong { color:${marketingDark.text}; }
 
 .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:340px; margin:20px 0; }
 .stat { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:18px 12px; text-align:center; }
-.stat-num { font-size:32px; font-weight:900; color:#3B82F6; }
+.stat-num { font-size:32px; font-weight:900; color:${marketingDark.blue}; }
 .stat-label { font-size:11px; color:#64748B; margin-top:4px; }
 
 .steps { width:100%; max-width:360px; display:flex; flex-direction:column; gap:14px; }
 .step { display:flex; align-items:flex-start; gap:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px; }
-.step-num { width:32px; height:32px; border-radius:50%; background:#3B82F6; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; }
+.step-num { width:32px; height:32px; border-radius:50%; background:${marketingDark.blue}; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; }
 .step-text { font-size:14px; color:#CBD5E1; line-height:1.5; }
-.step-text strong { color:#F1F5F9; display:block; margin-bottom:2px; }
+.step-text strong { color:${marketingDark.text}; display:block; margin-bottom:2px; }
 
 .highlight { background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(99,102,241,0.15)); border:1px solid rgba(59,130,246,0.3); border-radius:14px; padding:18px 20px; text-align:center; font-size:14px; color:#BFDBFE; line-height:1.6; max-width:340px; margin-top:16px; }
 
@@ -69,10 +70,10 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
 .price-card.featured { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.4); }
 .price-name { font-size:10px; font-weight:700; color:#64748B; margin-bottom:6px; }
 .price-card.featured .price-name { color:#93C5FD; }
-.price-val { font-size:20px; font-weight:900; color:#F1F5F9; }
+.price-val { font-size:20px; font-weight:900; color:${marketingDark.text}; }
 .price-period { font-size:10px; color:#64748B; margin-top:3px; }
 
-.cta-box { background:linear-gradient(135deg,#3B82F6,#6366F1); border-radius:16px; padding:20px 24px; text-align:center; max-width:340px; margin-top:16px; }
+.cta-box { background:linear-gradient(135deg,${marketingDark.blue},#6366F1); border-radius:16px; padding:20px 24px; text-align:center; max-width:340px; margin-top:16px; }
 .cta-box .title { font-size:18px; font-weight:900; margin-bottom:8px; }
 .cta-box .items { font-size:14px; color:rgba(255,255,255,0.85); line-height:1.8; }
 
@@ -86,15 +87,15 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
 .nav-btn {
   width:48px; height:48px; border-radius:50%;
   background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1);
-  color:#F1F5F9; font-size:20px; cursor:pointer;
+  color:${marketingDark.text}; font-size:20px; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   transition:all .2s;
 }
-.nav-btn:hover { background:rgba(59,130,246,0.3); border-color:#3B82F6; }
+.nav-btn:hover { background:rgba(59,130,246,0.3); border-color:${marketingDark.blue}; }
 .nav-btn:disabled { opacity:0.2; cursor:default; }
 .dots { display:flex; gap:6px; }
 .dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.2); transition:all .3s; }
-.dot.active { background:#3B82F6; width:18px; border-radius:3px; }
+.dot.active { background:${marketingDark.blue}; width:18px; border-radius:3px; }
 </style>
 </head>
 <body>
@@ -106,7 +107,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
     <div class="slide-num">01 / 06</div>
     <div class="logo-small">DOOH<span>PLAY</span></div>
     <div class="tag">Para donos de estabelecimento</div>
-    <div class="headline">Sua TV pode estar<br>gerando renda<br><span style="color:#3B82F6">agora</span></div>
+    <div class="headline">Sua TV pode estar<br>gerando renda<br><span style="color:${marketingDark.blue}">agora</span></div>
     <div class="sub">Enquanto seus clientes esperam, a TV fica parada. A DOOHPLAY conecta você com <strong>anunciantes locais</strong> que pagam pra aparecer nessa tela.</div>
     <div class="highlight">📺 Sem trocar a TV · Sem obra · Sem complicação</div>
   </div>
@@ -153,7 +154,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
     <div class="slide-num">04 / 06</div>
     <div class="logo-small">DOOH<span>PLAY</span></div>
     <div class="tag">Já funcionando aqui no bairro</div>
-    <div class="headline" style="font-size:clamp(22px,5vw,32px);margin-bottom:20px">Barbearia Zimermam<br><span style="color:#10B981">● Online agora</span></div>
+    <div class="headline" style="font-size:clamp(22px,5vw,32px);margin-bottom:20px">Barbearia Zimermam<br><span style="color:${marketingDark.green}">● Online agora</span></div>
     <div class="quote">"A instalação foi rápida e o painel é fácil de usar. Já está exibindo meu conteúdo e os primeiros anunciantes estão chegando."</div>
     <div class="quote-author">— Gilson, dono da Barbearia Zimermam · São Paulo</div>
     <div class="highlight">🎥 Posso mostrar a TV funcionando ao vivo agora</div>
@@ -164,7 +165,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
     <div class="slide-num">05 / 06</div>
     <div class="logo-small">DOOH<span>PLAY</span></div>
     <div class="tag">Investimento</div>
-    <div class="headline" style="font-size:clamp(24px,6vw,36px)">Comece por<br><span style="color:#3B82F6">R$ 97/mês</span></div>
+    <div class="headline" style="font-size:clamp(24px,6vw,36px)">Comece por<br><span style="color:${marketingDark.blue}">R$ 97/mês</span></div>
     <div class="price-grid">
       <div class="price-card featured">
         <div class="price-name">STARTER</div>
@@ -190,7 +191,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0B1120; font-
     <div class="slide-num">06 / 06</div>
     <div class="logo-small">DOOH<span>PLAY</span></div>
     <div class="tag">Próximo passo</div>
-    <div class="headline" style="font-size:clamp(26px,7vw,40px)">Instalo hoje.<br>Você decide<br><span style="color:#3B82F6">amanhã.</span></div>
+    <div class="headline" style="font-size:clamp(26px,7vw,40px)">Instalo hoje.<br>Você decide<br><span style="color:${marketingDark.blue}">amanhã.</span></div>
     <div class="cta-box">
       <div class="title">O que preciso de você:</div>
       <div class="items">📛 Nome do estabelecimento<br>📱 WhatsApp<br>📧 Email</div>

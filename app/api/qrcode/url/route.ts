@@ -9,6 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import QRCode from "qrcode"
+import { marketingDark } from "@/lib/theme"
 
 export const dynamic = "force-dynamic"
 
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     const svg = await QRCode.toString(url, {
       type: "svg",
       margin: 1,
-      color: { dark: "#0B1120", light: "#FFFFFF" },
+      color: { dark: marketingDark.bg, light: "#FFFFFF" },
     })
     return new NextResponse(svg, {
       headers: {

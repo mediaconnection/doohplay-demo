@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
+import { marketingDark } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET(
       type: "svg",
       margin: 1,
       color: {
-        dark: "#0B1120",
+        dark: marketingDark.bg,
         light: "#FFFFFF",
       },
     });
