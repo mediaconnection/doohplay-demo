@@ -5,37 +5,7 @@ import { useRouter } from "next/navigation"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 import DtvReadyBadge from "@/components/ui/DtvReadyBadge"
 import AIAssistantPanel from "@/components/AIAssistantPanel"
-
-// Azul/verde alinhados a paleta de marca usada no resto do site (landing,
-// planos, trust-center, /install) - mesmo ajuste ja feito em /install.
-const C = {
-  bg:      "#F8FAFC",
-  white:   "#FFFFFF",
-  sidebar: "#FFFFFF",
-  border:  "#E5E7EB",
-  border2: "#F3F4F6",
-  blue:    "#3B82F6",
-  blueLt:  "#EFF6FF",
-  blueBd:  "#BFDBFE",
-  green:   "#10B981",
-  greenLt: "#DCFCE7",
-  greenBd: "#86EFAC",
-  amber:   "#D97706",
-  amberLt: "#FFFBEB",
-  red:     "#DC2626",
-  redLt:   "#FEF2F2",
-  gray50:  "#F9FAFB",
-  gray100: "#F3F4F6",
-  gray200: "#E5E7EB",
-  gray300: "#D1D5DB",
-  gray400: "#9CA3AF",
-  gray500: "#6B7280",
-  gray700: "#374151",
-  gray900: "#111827",
-  text:    "#111827",
-  text2:   "#6B7280",
-  text3:   "#9CA3AF",
-}
+import { lightDefault as C, FONT_FAMILY } from "@/lib/theme"
 
 const NAV = [
   { id: "dashboard", label: "Dashboard",     icon: "⊞",  desc: "Visão geral da sua tela e ganhos" },
@@ -2672,7 +2642,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: C.bg, fontFamily: FONT_FAMILY }}>
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         html, body { overflow-x: hidden; }

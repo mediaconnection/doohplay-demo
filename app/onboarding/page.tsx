@@ -2,19 +2,20 @@
 
 import { useState } from "react"
 import { BUSINESS_TYPES } from "@/lib/businessTypes"
+import { slateDark, FONT_FAMILY } from "@/lib/theme"
 
-const BG      = "#0B1020"
-const SURFACE = "#111827"
-const BORDER  = "#1F2937"
-const TEXT    = "#F9FAFB"
-const TEXT2   = "#9CA3AF"
-const MUTED   = "#4B5563"
-const BLUE    = "#3B82F6"
-const BLUE2   = "#1D4ED8"
-const GREEN   = "#10B981"
-const AMBER   = "#F59E0B"
-const PURPLE  = "#8B5CF6"
-const RED     = "#EF4444"
+const BG      = slateDark.bg
+const SURFACE = slateDark.surface
+const BORDER  = slateDark.border
+const TEXT    = slateDark.text
+const TEXT2   = slateDark.text2
+const MUTED   = slateDark.muted
+const BLUE    = slateDark.blue
+const BLUE2   = slateDark.blue2
+const GREEN   = slateDark.green
+const AMBER   = slateDark.amber
+const PURPLE  = slateDark.purple
+const RED     = slateDark.red
 
 const inputStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
@@ -156,7 +157,7 @@ export default function OnboardingPage() {
 
   if (done && result) {
     return (
-      <main style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <main style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: FONT_FAMILY }}>
         <style>{`* { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
         <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
           <div style={{ fontSize: 56, marginBottom: 20 }}>🎉</div>
@@ -191,7 +192,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: BG, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: BG, fontFamily: FONT_FAMILY }}>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         input::placeholder { color: ${MUTED}; }
