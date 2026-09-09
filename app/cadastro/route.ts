@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 // app/cadastro/route.ts
 import { BUSINESS_TYPES } from "@/lib/businessTypes"
 
@@ -13,50 +14,50 @@ export function GET() {
 <title>Cadastro — DOOHPLAY</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:system-ui,-apple-system,sans-serif; background:#0F172A; color:#F1F5F9; min-height:100vh; }
+body { font-family:system-ui,-apple-system,sans-serif; background:${marketingDark.bg}; color:${marketingDark.text}; min-height:100vh; }
 
-nav { background:#1E293B; border-bottom:1px solid #334155; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
+nav { background:${marketingDark.surface}; border-bottom:1px solid ${marketingDark.border}; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
 .logo { font-size:18px; font-weight:900; color:#F9FAFB; text-decoration:none; }
-.logo span { color:#3B82F6; }
+.logo span { color:${marketingDark.blue}; }
 
 .container { max-width:520px; margin:0 auto; padding:32px 20px 60px; }
 
 /* STEPS */
 .steps-bar { display:flex; align-items:center; margin-bottom:32px; }
 .step-item { display:flex; align-items:center; gap:8px; flex:1; }
-.step-circle { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; border:2px solid #334155; color:#64748B; background:transparent; transition:all .3s; }
-.step-circle.active { background:#3B82F6; border-color:#3B82F6; color:white; }
-.step-circle.done { background:#10B981; border-color:#10B981; color:white; }
+.step-circle { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; border:2px solid ${marketingDark.border}; color:#64748B; background:transparent; transition:all .3s; }
+.step-circle.active { background:${marketingDark.blue}; border-color:${marketingDark.blue}; color:white; }
+.step-circle.done { background:${marketingDark.green}; border-color:${marketingDark.green}; color:white; }
 .step-label { font-size:12px; color:#64748B; transition:all .3s; }
-.step-label.active { color:#F1F5F9; font-weight:600; }
-.step-line { flex:1; height:1px; background:#334155; margin:0 8px; }
+.step-label.active { color:${marketingDark.text}; font-weight:600; }
+.step-line { flex:1; height:1px; background:${marketingDark.border}; margin:0 8px; }
 
 /* SECTIONS */
 .section { display:none; }
 .section.active { display:block; }
 
-.section-title { font-size:22px; font-weight:800; color:#F1F5F9; margin-bottom:6px; }
+.section-title { font-size:22px; font-weight:800; color:${marketingDark.text}; margin-bottom:6px; }
 .section-sub { font-size:14px; color:#64748B; margin-bottom:24px; line-height:1.5; }
 
 /* FORM */
 label { font-size:12px; font-weight:600; color:#94A3B8; display:block; margin-bottom:6px; }
-input, select { width:100%; background:#1E293B; border:1px solid #334155; border-radius:10px; padding:12px 14px; color:#F1F5F9; font-size:15px; outline:none; transition:border .2s; font-family:inherit; }
-input:focus, select:focus { border-color:#3B82F6; }
+input, select { width:100%; background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:10px; padding:12px 14px; color:${marketingDark.text}; font-size:15px; outline:none; transition:border .2s; font-family:inherit; }
+input:focus, select:focus { border-color:${marketingDark.blue}; }
 input::placeholder { color:#475569; }
 .field { margin-bottom:16px; }
 .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
 /* PLANOS */
 .plans { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
-.plan-card { background:#1E293B; border:2px solid #334155; border-radius:14px; padding:18px 20px; cursor:pointer; transition:all .2s; display:flex; justify-content:space-between; align-items:center; }
-.plan-card:hover { border-color:#3B82F6; }
-.plan-card.selected { border-color:#3B82F6; background:#1e3a5f; }
+.plan-card { background:${marketingDark.surface}; border:2px solid ${marketingDark.border}; border-radius:14px; padding:18px 20px; cursor:pointer; transition:all .2s; display:flex; justify-content:space-between; align-items:center; }
+.plan-card:hover { border-color:${marketingDark.blue}; }
+.plan-card.selected { border-color:${marketingDark.blue}; background:#1e3a5f; }
 .plan-card.featured { position:relative; }
-.plan-badge { position:absolute; top:-10px; left:20px; background:#3B82F6; color:white; font-size:10px; font-weight:700; padding:2px 10px; border-radius:10px; }
-.plan-name { font-size:16px; font-weight:700; color:#F1F5F9; margin-bottom:3px; }
+.plan-badge { position:absolute; top:-10px; left:20px; background:${marketingDark.blue}; color:white; font-size:10px; font-weight:700; padding:2px 10px; border-radius:10px; }
+.plan-name { font-size:16px; font-weight:700; color:${marketingDark.text}; margin-bottom:3px; }
 .plan-desc { font-size:12px; color:#64748B; }
 .plan-price { text-align:right; }
-.plan-value { font-size:22px; font-weight:900; color:#3B82F6; }
+.plan-value { font-size:22px; font-weight:900; color:${marketingDark.blue}; }
 .plan-period { font-size:11px; color:#64748B; }
 
 /* TRIAL */
@@ -67,11 +68,11 @@ input::placeholder { color:#475569; }
 
 /* BOTÕES */
 .btn { width:100%; padding:14px; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; border:none; transition:all .2s; font-family:inherit; }
-.btn-primary { background:linear-gradient(135deg,#3B82F6,#6366F1); color:white; }
+.btn-primary { background:linear-gradient(135deg,${marketingDark.blue},#6366F1); color:white; }
 .btn-primary:hover { opacity:0.9; }
 .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
-.btn-secondary { background:transparent; border:1px solid #334155; color:#94A3B8; margin-top:10px; }
-.btn-secondary:hover { border-color:#3B82F6; color:#3B82F6; }
+.btn-secondary { background:transparent; border:1px solid ${marketingDark.border}; color:#94A3B8; margin-top:10px; }
+.btn-secondary:hover { border-color:${marketingDark.blue}; color:${marketingDark.blue}; }
 
 /* ERROR */
 .error { background:#450a0a; border:1px solid #ef444433; border-radius:8px; padding:10px 14px; font-size:13px; color:#EF4444; margin-bottom:16px; display:none; }
@@ -82,16 +83,16 @@ input::placeholder { color:#475569; }
 .success-icon { font-size:64px; margin-bottom:16px; }
 .success-title { font-size:24px; font-weight:900; color:#4ade80; margin-bottom:8px; }
 .success-sub { font-size:14px; color:#94A3B8; line-height:1.6; margin-bottom:24px; }
-.code-display { background:#0F172A; border:2px solid #3B82F6; border-radius:14px; padding:16px 24px; display:inline-block; font-size:32px; font-weight:900; color:#3B82F6; letter-spacing:6px; margin-bottom:24px; }
-.next-steps { text-align:left; background:#1E293B; border:1px solid #334155; border-radius:12px; padding:20px; margin-bottom:20px; }
+.code-display { background:${marketingDark.bg}; border:2px solid ${marketingDark.blue}; border-radius:14px; padding:16px 24px; display:inline-block; font-size:32px; font-weight:900; color:${marketingDark.blue}; letter-spacing:6px; margin-bottom:24px; }
+.next-steps { text-align:left; background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:12px; padding:20px; margin-bottom:20px; }
 .next-steps-title { font-size:13px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
 .next-step { display:flex; gap:12px; margin-bottom:12px; align-items:flex-start; }
 .next-step:last-child { margin-bottom:0; }
-.next-step-num { width:24px; height:24px; border-radius:50%; background:#3B82F6; color:white; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.next-step-num { width:24px; height:24px; border-radius:50%; background:${marketingDark.blue}; color:white; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
 .next-step-text { font-size:13px; color:#CBD5E1; line-height:1.5; }
-.next-step-text strong { color:#F1F5F9; display:block; }
+.next-step-text strong { color:${marketingDark.text}; display:block; }
 
-.install-btn { display:block; width:100%; padding:14px; background:#10B981; border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; text-align:center; text-decoration:none; cursor:pointer; font-family:inherit; }
+.install-btn { display:block; width:100%; padding:14px; background:${marketingDark.green}; border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; text-align:center; text-decoration:none; cursor:pointer; font-family:inherit; }
 
 /* LOADING */
 .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin .8s linear infinite; display:inline-block; margin-right:8px; vertical-align:middle; }
@@ -130,10 +131,10 @@ input::placeholder { color:#475569; }
     <div class="section-title">Vamos começar! 🚀</div>
     <div class="section-sub">Preencha os dados do seu estabelecimento para criar sua conta</div>
 
-    <div style="background:#1E293B;border:1px solid #3B82F640;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#94A3B8;line-height:1.5;">
-      💡 Este cadastro é para quem <strong style="color:#F1F5F9">tem um estabelecimento e quer colocar a própria TV no ar</strong>.
-      Se você quer <strong style="color:#F1F5F9">anunciar nas telas de outros parceiros</strong> sem ter uma tela própria, o cadastro certo é o
-      <a href="/anunciante/novo" style="color:#3B82F6;text-decoration:underline;">cadastro de anunciante</a>.
+    <div style="background:${marketingDark.surface};border:1px solid ${marketingDark.blue}40;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#94A3B8;line-height:1.5;">
+      💡 Este cadastro é para quem <strong style="color:${marketingDark.text}">tem um estabelecimento e quer colocar a própria TV no ar</strong>.
+      Se você quer <strong style="color:${marketingDark.text}">anunciar nas telas de outros parceiros</strong> sem ter uma tela própria, o cadastro certo é o
+      <a href="/anunciante/novo" style="color:${marketingDark.blue};text-decoration:underline;">cadastro de anunciante</a>.
       (Já tem uma tela com a gente e quer também anunciar em outras telas? Sem problema, pode fazer os dois cadastros.)
     </div>
 
@@ -238,7 +239,7 @@ input::placeholder { color:#475569; }
 
     <div class="error" id="err3"></div>
 
-    <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:20px;">
+    <div style="background:${marketingDark.surface};border:1px solid ${marketingDark.border};border-radius:14px;padding:20px;margin-bottom:20px;">
       <div style="font-size:12px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Resumo</div>
       <div id="summary" style="font-size:14px;color:#CBD5E1;line-height:2;"></div>
     </div>
@@ -347,11 +348,11 @@ function goStep3() {
 
   const plans = { starter:'Starter — R$ 97/mês', pro:'Pro — R$ 290/mês', business:'Business — R$ 620/mês' }
   document.getElementById('summary').innerHTML =
-    '<b style="color:#F1F5F9">'+formData.name+'</b><br>' +
+    '<b style="color:${marketingDark.text}">'+formData.name+'</b><br>' +
     formData.business_type + ' · ' + formData.city + '<br>' +
     '📱 ' + formData.phone + '<br>' +
     '📧 ' + formData.email + '<br>' +
-    '📦 Plano: <b style="color:#3B82F6">' + plans[selectedPlan] + '</b><br>' +
+    '📦 Plano: <b style="color:${marketingDark.blue}">' + plans[selectedPlan] + '</b><br>' +
     '🎁 <b style="color:#4ade80">7 dias grátis</b>'
 
   setStep(3)

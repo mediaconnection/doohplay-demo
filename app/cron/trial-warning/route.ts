@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 // app/api/cron/trial-warning/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
@@ -38,9 +39,9 @@ async function sendEmail(to: string, name: string, code: string, daysLeft: numbe
           ? `⏰ Seu período grátis termina em 2 dias — DOOHPLAY`
           : `⚠️ Último dia do seu período grátis — DOOHPLAY`,
         html: `
-          <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;background:#0F172A;color:#F1F5F9;border-radius:16px;overflow:hidden;">
-            <div style="background:#1E293B;padding:28px;text-align:center;border-bottom:1px solid #334155;">
-              <div style="font-size:24px;font-weight:900;">DOOH<span style="color:#3B82F6">PLAY</span></div>
+          <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;background:${marketingDark.bg};color:${marketingDark.text};border-radius:16px;overflow:hidden;">
+            <div style="background:${marketingDark.surface};padding:28px;text-align:center;border-bottom:1px solid ${marketingDark.border};">
+              <div style="font-size:24px;font-weight:900;">DOOH<span style="color:${marketingDark.blue}">PLAY</span></div>
             </div>
             <div style="padding:28px;">
               <p style="font-size:16px;margin-bottom:16px;">Olá <strong>${name}</strong>! 👋</p>
@@ -52,10 +53,10 @@ async function sendEmail(to: string, name: string, code: string, daysLeft: numbe
               </div>
               <p style="font-size:14px;color:#94A3B8;margin-bottom:20px;line-height:1.6;">
                 Sua TV continuará funcionando normalmente. A partir de amanhã, começará a cobrança de 
-                <strong style="color:#F1F5F9;">R$ ${value.toFixed(2).replace('.', ',')}/mês</strong> 
+                <strong style="color:${marketingDark.text};">R$ ${value.toFixed(2).replace('.', ',')}/mês</strong> 
                 via PIX ou boleto.
               </p>
-              <div style="background:#1E293B;border-radius:12px;padding:16px;margin-bottom:20px;">
+              <div style="background:${marketingDark.surface};border-radius:12px;padding:16px;margin-bottom:20px;">
                 <div style="font-size:12px;color:#64748B;margin-bottom:8px;">O que continua igual:</div>
                 <div style="font-size:13px;color:#CBD5E1;line-height:2;">
                   ✅ TV exibindo seu conteúdo<br>
@@ -65,7 +66,7 @@ async function sendEmail(to: string, name: string, code: string, daysLeft: numbe
                 </div>
               </div>
               <a href="https://doohplay.com.br/dashboard/local/${code}" 
-                style="display:block;background:linear-gradient(135deg,#3B82F6,#6366F1);color:white;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-size:15px;font-weight:700;margin-bottom:12px;">
+                style="display:block;background:linear-gradient(135deg,${marketingDark.blue},#6366F1);color:white;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-size:15px;font-weight:700;margin-bottom:12px;">
                 Acessar meu dashboard
               </a>
               <p style="font-size:12px;color:#475569;text-align:center;">

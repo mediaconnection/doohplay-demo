@@ -5,13 +5,18 @@
 // lugares antes desta migração — não inventadas aqui, só formalizadas:
 //
 // - slateDark: app/admin/page.tsx + app/onboarding/page.tsx (valores
-//   idênticos nos dois). Existe uma segunda variante escura próxima,
-//   usada em app/cadastro/route.ts e na família de páginas de marketing
-//   (#0F172A/#1E293B/#334155, com variações entre si) — decidido
-//   (2026-09-09) que slateDark (esta) é a oficial; a outra fica
-//   documentada aqui só como referência, não migrada ainda.
+//   idênticos nos dois) + app/admin/risk/page.tsx (migrado 2026-09-09).
+//   Decidida como a paleta oficial do produto (2026-09-09).
 // - lightDefault: app/dashboard/local/[code]/dashboard-client.tsx
 //   (tema claro do dashboard do cliente).
+// - marketingDark: app/cadastro/route.ts e as ~20 páginas de marketing
+//   por vertical (automotivo, barbearias, etc.) — segunda variante
+//   escura, deliberadamente separada da oficial (slateDark). Tinha uma
+//   inconsistência real de bg entre dois subgrupos (`#0F172A` vs
+//   `#0B1120`, quase idênticos) — unificada em `#0F172A` (2026-09-09)
+//   antes de formalizar. NÃO foi unificada com slateDark — mudar a
+//   paleta de páginas públicas de marketing é decisão de marca
+//   separada, não decidida ainda.
 //
 // app/studio/[code]/page.tsx (Studio guiado) NÃO usa nenhuma das duas
 // hoje (fundo #f3f4f6, fonte system-ui, tons ad-hoc próprios) — fica de
@@ -60,6 +65,15 @@ export const lightDefault = {
   text: "#111827",
   text2: "#6B7280",
   text3: "#9CA3AF",
+}
+
+export const marketingDark = {
+  bg: "#0F172A",
+  surface: "#1E293B",
+  border: "#334155",
+  text: "#F1F5F9",
+  blue: "#3B82F6",
+  green: "#10B981",
 }
 
 // Referência à custom property setada por next/font/google em

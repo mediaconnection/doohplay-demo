@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 export const dynamic = "force-dynamic"
 
 export function GET() {
@@ -10,107 +11,107 @@ export function GET() {
 <meta name="description" content="Seu cliente já espera enquanto o carro é atendido. Coloque uma TV, mostre seus serviços — e ainda ganhe dinheiro com anúncios enquanto ele aguarda.">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:system-ui,-apple-system,sans-serif; background:#0B1120; color:#F1F5F9; overflow-x:hidden; }
+body { font-family:system-ui,-apple-system,sans-serif; background:${marketingDark.bg}; color:${marketingDark.text}; overflow-x:hidden; }
 
 /* NAV */
 nav { padding:16px 24px; display:flex; align-items:center; justify-content:space-between; max-width:960px; margin:0 auto; }
 .logo { font-size:20px; font-weight:900; color:#F9FAFB; text-decoration:none; }
-.logo span { color:#3B82F6; }
-.nav-cta { background:#3B82F6; color:white; padding:8px 20px; border-radius:20px; font-size:13px; font-weight:700; text-decoration:none; }
+.logo span { color:${marketingDark.blue}; }
+.nav-cta { background:${marketingDark.blue}; color:white; padding:8px 20px; border-radius:20px; font-size:13px; font-weight:700; text-decoration:none; }
 
 /* HERO */
 .hero { text-align:center; padding:48px 24px 40px; max-width:700px; margin:0 auto; }
-.hero-tag { display:inline-block; background:#1e3a5f; color:#60A5FA; border:1px solid #3B82F644; border-radius:20px; padding:6px 16px; font-size:12px; font-weight:700; margin-bottom:20px; }
+.hero-tag { display:inline-block; background:#1e3a5f; color:#60A5FA; border:1px solid ${marketingDark.blue}44; border-radius:20px; padding:6px 16px; font-size:12px; font-weight:700; margin-bottom:20px; }
 .hero h1 { font-size:clamp(32px,6vw,56px); font-weight:900; line-height:1.1; margin-bottom:20px; }
-.hero h1 span { color:#3B82F6; }
+.hero h1 span { color:${marketingDark.blue}; }
 .hero p { font-size:18px; color:#94A3B8; line-height:1.6; margin-bottom:32px; max-width:520px; margin-left:auto; margin-right:auto; }
 .hero-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-.btn-main { background:linear-gradient(135deg,#3B82F6,#6366F1); color:white; padding:16px 32px; border-radius:14px; font-size:16px; font-weight:700; text-decoration:none; display:inline-block; }
-.btn-sec { background:transparent; color:#94A3B8; padding:16px 24px; border-radius:14px; font-size:15px; font-weight:600; text-decoration:none; border:1px solid #334155; display:inline-block; }
+.btn-main { background:linear-gradient(135deg,${marketingDark.blue},#6366F1); color:white; padding:16px 32px; border-radius:14px; font-size:16px; font-weight:700; text-decoration:none; display:inline-block; }
+.btn-sec { background:transparent; color:#94A3B8; padding:16px 24px; border-radius:14px; font-size:15px; font-weight:600; text-decoration:none; border:1px solid ${marketingDark.border}; display:inline-block; }
 
 /* TV VISUAL */
 .tv-section { padding:40px 24px; display:flex; justify-content:center; }
 .tv-wrap { position:relative; max-width:500px; width:100%; }
-.tv-frame { background:#1E293B; border:3px solid #334155; border-radius:16px; padding:16px; position:relative; }
-.tv-screen { background:#0B1120; border-radius:10px; aspect-ratio:16/9; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+.tv-frame { background:${marketingDark.surface}; border:3px solid ${marketingDark.border}; border-radius:16px; padding:16px; position:relative; }
+.tv-screen { background:${marketingDark.bg}; border-radius:10px; aspect-ratio:16/9; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
 .tv-content { text-align:center; }
-.tv-content .promo { font-size:clamp(14px,3vw,22px); font-weight:900; color:#F1F5F9; margin-bottom:6px; }
+.tv-content .promo { font-size:clamp(14px,3vw,22px); font-weight:900; color:${marketingDark.text}; margin-bottom:6px; }
 .tv-content .sub { font-size:clamp(10px,2vw,14px); color:#94A3B8; }
-.tv-badge { position:absolute; top:12px; right:12px; background:#10B981; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:10px; }
-.tv-ad { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(135deg,#1e3a5f,#1e1b4b); border-top:2px solid #3B82F6; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
+.tv-badge { position:absolute; top:12px; right:12px; background:${marketingDark.green}; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:10px; }
+.tv-ad { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(135deg,#1e3a5f,#1e1b4b); border-top:2px solid ${marketingDark.blue}; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
 .tv-ad-text { font-size:clamp(9px,1.5vw,12px); color:#93C5FD; }
 .tv-ad-logo { font-size:clamp(9px,1.5vw,11px); font-weight:700; color:#60A5FA; }
-.tv-stand { width:60px; height:10px; background:#334155; border-radius:4px; margin:0 auto 4px; }
-.tv-base { width:100px; height:6px; background:#334155; border-radius:4px; margin:0 auto; }
-.money-badge { position:absolute; top:-16px; right:-16px; background:#10B981; color:white; border-radius:50%; width:64px; height:64px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; font-weight:700; line-height:1.2; box-shadow:0 4px 20px rgba(16,185,129,0.4); }
+.tv-stand { width:60px; height:10px; background:${marketingDark.border}; border-radius:4px; margin:0 auto 4px; }
+.tv-base { width:100px; height:6px; background:${marketingDark.border}; border-radius:4px; margin:0 auto; }
+.money-badge { position:absolute; top:-16px; right:-16px; background:${marketingDark.green}; color:white; border-radius:50%; width:64px; height:64px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; font-weight:700; line-height:1.2; box-shadow:0 4px 20px rgba(16,185,129,0.4); }
 
 /* COMO FUNCIONA */
 .section { padding:48px 24px; max-width:700px; margin:0 auto; }
-.section-tag { font-size:12px; font-weight:700; color:#3B82F6; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; text-align:center; }
+.section-tag { font-size:12px; font-weight:700; color:${marketingDark.blue}; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; text-align:center; }
 .section-title { font-size:clamp(24px,4vw,36px); font-weight:900; text-align:center; margin-bottom:36px; line-height:1.2; }
 
 .steps { display:flex; flex-direction:column; gap:16px; }
-.step { display:flex; gap:16px; align-items:flex-start; background:#1E293B; border:1px solid #334155; border-radius:16px; padding:20px; }
+.step { display:flex; gap:16px; align-items:flex-start; background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:16px; padding:20px; }
 .step-icon { font-size:32px; flex-shrink:0; }
 .step-content {}
-.step-title { font-size:17px; font-weight:700; color:#F1F5F9; margin-bottom:4px; }
+.step-title { font-size:17px; font-weight:700; color:${marketingDark.text}; margin-bottom:4px; }
 .step-desc { font-size:14px; color:#94A3B8; line-height:1.5; }
 
 /* GANHOS */
-.ganhos { background:#1E293B; border:1px solid #334155; border-radius:20px; padding:32px; margin:0 24px; max-width:700px; margin-left:auto; margin-right:auto; }
+.ganhos { background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:20px; padding:32px; margin:0 24px; max-width:700px; margin-left:auto; margin-right:auto; }
 .ganhos-title { font-size:22px; font-weight:900; margin-bottom:20px; text-align:center; }
 .ganhos-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
-.ganha-card { background:#0B1120; border-radius:14px; padding:16px; text-align:center; }
-.ganha-num { font-size:28px; font-weight:900; color:#3B82F6; }
+.ganha-card { background:${marketingDark.bg}; border-radius:14px; padding:16px; text-align:center; }
+.ganha-num { font-size:28px; font-weight:900; color:${marketingDark.blue}; }
 .ganha-label { font-size:12px; color:#64748B; margin-top:4px; }
 .ganhos-note { font-size:13px; color:#64748B; text-align:center; line-height:1.5; }
 
 /* POR QUE AUTOMOTIVO */
 .segs { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.seg { background:#1E293B; border:1px solid #334155; border-radius:14px; padding:20px; }
+.seg { background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:14px; padding:20px; }
 .seg-icon { font-size:28px; margin-bottom:10px; }
-.seg-name { font-size:15px; font-weight:700; color:#F1F5F9; margin-bottom:4px; }
+.seg-name { font-size:15px; font-weight:700; color:${marketingDark.text}; margin-bottom:4px; }
 .seg-desc { font-size:13px; color:#64748B; line-height:1.4; }
 
 /* PROVA SOCIAL */
-.prova { background:linear-gradient(135deg,#1e3a5f22,#1e1b4b22); border:1px solid #3B82F633; border-radius:20px; padding:28px; max-width:700px; margin:0 auto 48px; }
+.prova { background:linear-gradient(135deg,#1e3a5f22,#1e1b4b22); border:1px solid ${marketingDark.blue}33; border-radius:20px; padding:28px; max-width:700px; margin:0 auto 48px; }
 .prova-quote { font-size:16px; color:#CBD5E1; line-height:1.7; font-style:italic; margin-bottom:16px; }
 .prova-author { display:flex; align-items:center; gap:12px; }
-.prova-avatar { width:44px; height:44px; background:linear-gradient(135deg,#3B82F6,#6366F1); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:white; flex-shrink:0; }
-.prova-name { font-size:14px; font-weight:700; color:#F1F5F9; }
+.prova-avatar { width:44px; height:44px; background:linear-gradient(135deg,${marketingDark.blue},#6366F1); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:white; flex-shrink:0; }
+.prova-name { font-size:14px; font-weight:700; color:${marketingDark.text}; }
 .prova-place { font-size:12px; color:#64748B; }
-.online-dot { display:inline-block; width:8px; height:8px; background:#10B981; border-radius:50%; margin-right:4px; animation:pulse 2s infinite; }
+.online-dot { display:inline-block; width:8px; height:8px; background:${marketingDark.green}; border-radius:50%; margin-right:4px; animation:pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
 
 /* PLANOS */
 .planos { display:flex; flex-direction:column; gap:12px; }
-.plano { background:#1E293B; border:2px solid #334155; border-radius:16px; padding:20px 24px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; text-decoration:none; transition:all .2s; }
-.plano:hover { border-color:#3B82F6; }
-.plano.destaque { border-color:#3B82F6; background:#1e3a5f; }
+.plano { background:${marketingDark.surface}; border:2px solid ${marketingDark.border}; border-radius:16px; padding:20px 24px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; text-decoration:none; transition:all .2s; }
+.plano:hover { border-color:${marketingDark.blue}; }
+.plano.destaque { border-color:${marketingDark.blue}; background:#1e3a5f; }
 .plano-info {}
-.plano-nome { font-size:16px; font-weight:700; color:#F1F5F9; margin-bottom:3px; }
+.plano-nome { font-size:16px; font-weight:700; color:${marketingDark.text}; margin-bottom:3px; }
 .plano-desc { font-size:13px; color:#64748B; }
 .plano-preco { text-align:right; }
-.plano-valor { font-size:24px; font-weight:900; color:#3B82F6; }
+.plano-valor { font-size:24px; font-weight:900; color:${marketingDark.blue}; }
 .plano-periodo { font-size:11px; color:#64748B; }
-.plano-badge { background:#3B82F6; color:white; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; margin-bottom:6px; display:inline-block; }
+.plano-badge { background:${marketingDark.blue}; color:white; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; margin-bottom:6px; display:inline-block; }
 
 /* FAQ */
 .faq { display:flex; flex-direction:column; gap:10px; }
-.faq-item { background:#1E293B; border:1px solid #334155; border-radius:12px; overflow:hidden; }
-.faq-q { padding:16px 20px; font-size:15px; font-weight:600; color:#F1F5F9; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.faq-item { background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:12px; overflow:hidden; }
+.faq-q { padding:16px 20px; font-size:15px; font-weight:600; color:${marketingDark.text}; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
 .faq-q span { color:#64748B; font-size:18px; transition:transform .2s; }
 .faq-q.open span { transform:rotate(45deg); }
 .faq-a { display:none; padding:0 20px 16px; font-size:14px; color:#94A3B8; line-height:1.6; }
 .faq-a.show { display:block; }
 
 /* CTA FINAL */
-.cta-final { background:linear-gradient(135deg,#1e3a5f,#1e1b4b); border:1px solid #3B82F644; border-radius:24px; padding:40px 28px; text-align:center; max-width:700px; margin:0 auto 48px; }
+.cta-final { background:linear-gradient(135deg,#1e3a5f,#1e1b4b); border:1px solid ${marketingDark.blue}44; border-radius:24px; padding:40px 28px; text-align:center; max-width:700px; margin:0 auto 48px; }
 .cta-final h2 { font-size:clamp(24px,4vw,36px); font-weight:900; margin-bottom:12px; }
 .cta-final p { font-size:15px; color:#94A3B8; margin-bottom:28px; line-height:1.6; }
 
 /* FOOTER */
-footer { border-top:1px solid #1E293B; padding:24px; text-align:center; font-size:12px; color:#475569; }
+footer { border-top:1px solid ${marketingDark.surface}; padding:24px; text-align:center; font-size:12px; color:#475569; }
 
 @media(max-width:480px){
   .ganhos-grid { grid-template-columns:1fr 1fr; }
@@ -309,7 +310,7 @@ footer { border-top:1px solid #1E293B; padding:24px; text-align:center; font-siz
 </div>
 
 <footer>
-  <div style="font-size:16px;font-weight:900;margin-bottom:8px;">DOOH<span style="color:#3B82F6">PLAY</span></div>
+  <div style="font-size:16px;font-weight:900;margin-bottom:8px;">DOOH<span style="color:${marketingDark.blue}">PLAY</span></div>
   <div>© 2026 DOOHPLAY · São Paulo, Brasil</div>
   <div style="margin-top:8px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
     <a href="/" style="color:#475569;text-decoration:none">Home</a>

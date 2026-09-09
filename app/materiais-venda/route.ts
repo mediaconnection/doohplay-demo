@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 export const dynamic = "force-dynamic"
 
 export function GET() {
@@ -9,48 +10,48 @@ export function GET() {
 <title>Materiais de Venda — DOOHPLAY</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:system-ui,-apple-system,sans-serif; background:#0F172A; color:#F1F5F9; }
-nav { background:#1E293B; border-bottom:1px solid #334155; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+body { font-family:system-ui,-apple-system,sans-serif; background:${marketingDark.bg}; color:${marketingDark.text}; }
+nav { background:${marketingDark.surface}; border-bottom:1px solid ${marketingDark.border}; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
 .logo { font-size:20px; font-weight:900; color:#F9FAFB; }
-.logo span { color:#3B82F6; }
+.logo span { color:${marketingDark.blue}; }
 .tabs { display:flex; gap:4px; }
 .tab { padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:transparent; color:#94A3B8; transition:all .2s; }
-.tab.active { background:#3B82F6; color:white; }
+.tab.active { background:${marketingDark.blue}; color:white; }
 .section { display:none; max-width:800px; margin:0 auto; padding:32px 24px; }
 .section.active { display:block; }
-.card { background:#1E293B; border:1px solid #334155; border-radius:16px; padding:28px; margin-bottom:24px; }
-.card-title { font-size:18px; font-weight:800; color:#F1F5F9; margin-bottom:6px; }
+.card { background:${marketingDark.surface}; border:1px solid ${marketingDark.border}; border-radius:16px; padding:28px; margin-bottom:24px; }
+.card-title { font-size:18px; font-weight:800; color:${marketingDark.text}; margin-bottom:6px; }
 .card-sub { font-size:13px; color:#64748B; margin-bottom:20px; }
-.script-step { border-left:3px solid #3B82F6; padding:16px 20px; margin-bottom:16px; background:#0F172A; border-radius:0 10px 10px 0; }
-.script-label { font-size:11px; font-weight:700; color:#3B82F6; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.script-step { border-left:3px solid ${marketingDark.blue}; padding:16px 20px; margin-bottom:16px; background:${marketingDark.bg}; border-radius:0 10px 10px 0; }
+.script-label { font-size:11px; font-weight:700; color:${marketingDark.blue}; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
 .script-text { font-size:14px; color:#CBD5E1; line-height:1.7; }
-.script-text em { color:#F1F5F9; font-style:normal; font-weight:600; }
+.script-text em { color:${marketingDark.text}; font-style:normal; font-weight:600; }
 .objection { background:#1a0f00; border:1px solid #92400e33; border-radius:10px; padding:16px; margin-bottom:12px; }
 .objection-q { font-size:13px; color:#fbbf24; font-weight:700; margin-bottom:6px; }
 .objection-a { font-size:13px; color:#CBD5E1; line-height:1.6; }
-.proposal-text { font-size:14px; color:#CBD5E1; line-height:1.8; white-space:pre-line; background:#0F172A; border-radius:10px; padding:16px; border:1px solid #334155; }
-.copy-btn { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:7px 14px; background:transparent; border:1px solid #334155; border-radius:8px; color:#64748B; font-size:12px; cursor:pointer; }
-.copy-btn:hover { border-color:#3B82F6; color:#3B82F6; }
-.slide { background:linear-gradient(135deg,#1E293B,#0F172A); border:1px solid #334155; border-radius:16px; padding:32px; margin-bottom:20px; }
-.slide-tag { font-size:11px; font-weight:700; color:#3B82F6; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; }
-.slide-headline { font-size:24px; font-weight:900; color:#F1F5F9; margin-bottom:12px; line-height:1.2; }
+.proposal-text { font-size:14px; color:#CBD5E1; line-height:1.8; white-space:pre-line; background:${marketingDark.bg}; border-radius:10px; padding:16px; border:1px solid ${marketingDark.border}; }
+.copy-btn { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:7px 14px; background:transparent; border:1px solid ${marketingDark.border}; border-radius:8px; color:#64748B; font-size:12px; cursor:pointer; }
+.copy-btn:hover { border-color:${marketingDark.blue}; color:${marketingDark.blue}; }
+.slide { background:linear-gradient(135deg,${marketingDark.surface},${marketingDark.bg}); border:1px solid ${marketingDark.border}; border-radius:16px; padding:32px; margin-bottom:20px; }
+.slide-tag { font-size:11px; font-weight:700; color:${marketingDark.blue}; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; }
+.slide-headline { font-size:24px; font-weight:900; color:${marketingDark.text}; margin-bottom:12px; line-height:1.2; }
 .slide-body { font-size:14px; color:#94A3B8; line-height:1.7; }
-.slide-body strong { color:#F1F5F9; }
+.slide-body strong { color:${marketingDark.text}; }
 .stat-row { display:flex; gap:12px; margin-top:16px; flex-wrap:wrap; }
-.stat { background:#0F172A; border:1px solid #334155; border-radius:10px; padding:14px 18px; flex:1; min-width:120px; text-align:center; }
-.stat-num { font-size:28px; font-weight:900; color:#3B82F6; }
+.stat { background:${marketingDark.bg}; border:1px solid ${marketingDark.border}; border-radius:10px; padding:14px 18px; flex:1; min-width:120px; text-align:center; }
+.stat-num { font-size:28px; font-weight:900; color:${marketingDark.blue}; }
 .stat-label { font-size:11px; color:#64748B; margin-top:2px; }
-.highlight-box { background:linear-gradient(135deg,#1e3a5f,#1e1b4b); border:1px solid #3B82F6; border-radius:10px; padding:16px; margin-top:14px; font-size:14px; color:#BFDBFE; line-height:1.6; }
+.highlight-box { background:linear-gradient(135deg,#1e3a5f,#1e1b4b); border:1px solid ${marketingDark.blue}; border-radius:10px; padding:16px; margin-top:14px; font-size:14px; color:#BFDBFE; line-height:1.6; }
 .price-row { display:flex; gap:12px; margin-top:16px; }
-.price-card { flex:1; background:#0F172A; border:1px solid #334155; border-radius:12px; padding:16px; text-align:center; }
-.price-card.featured { border-color:#3B82F6; background:#1e3a5f; }
+.price-card { flex:1; background:${marketingDark.bg}; border:1px solid ${marketingDark.border}; border-radius:12px; padding:16px; text-align:center; }
+.price-card.featured { border-color:${marketingDark.blue}; background:#1e3a5f; }
 .price-name { font-size:12px; font-weight:700; color:#64748B; margin-bottom:6px; }
 .price-card.featured .price-name { color:#93C5FD; }
-.price-value { font-size:24px; font-weight:900; color:#F1F5F9; }
+.price-value { font-size:24px; font-weight:900; color:${marketingDark.text}; }
 .price-desc { font-size:11px; color:#64748B; margin-top:4px; }
 .seg-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
-.seg-tab { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid #334155; background:transparent; color:#94A3B8; }
-.seg-tab.active { background:#3B82F6; border-color:#3B82F6; color:white; }
+.seg-tab { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid ${marketingDark.border}; background:transparent; color:#94A3B8; }
+.seg-tab.active { background:${marketingDark.blue}; border-color:${marketingDark.blue}; color:white; }
 @media(max-width:600px){ .price-row,.stat-row { flex-direction:column; } .tab { padding:6px 10px; font-size:12px; } }
 </style>
 </head>
@@ -85,8 +86,8 @@ nav { background:#1E293B; border-bottom:1px solid #334155; padding:0 24px; heigh
       <div class="script-label">Você diz</div>
       <div class="script-text">"Oi, tudo bem? Meu nome é [SEU NOME], sou da <em>DOOHPLAY</em>. Tenho uma solução que está ajudando estabelecimentos aqui do bairro a <em>ganhar dinheiro extra com a TV</em> que já têm — sem custo nenhum pra começar. Você tem 2 minutinhos pra eu te mostrar?"</div>
     </div>
-    <div class="script-step" style="border-color:#10B981">
-      <div class="script-label" style="color:#10B981">Dica</div>
+    <div class="script-step" style="border-color:${marketingDark.green}">
+      <div class="script-label" style="color:${marketingDark.green}">Dica</div>
       <div class="script-text">Se tiver o vídeo da Barbearia Zimermam no celular, mostre já na entrada. Uma imagem vale mais que qualquer explicação.</div>
     </div>
   </div>
@@ -116,8 +117,8 @@ nav { background:#1E293B; border-bottom:1px solid #334155; padding:0 24px; heigh
       <div class="script-label">Você diz</div>
       <div class="script-text">"O que eu preciso de você pra começar hoje é só: <em>nome do estabelecimento, WhatsApp e email</em>. A instalação leva 15 minutos e você já começa a exibir seu conteúdo hoje mesmo. Quer começar?"</div>
     </div>
-    <div class="script-step" style="border-color:#10B981">
-      <div class="script-label" style="color:#10B981">Se hesitar</div>
+    <div class="script-step" style="border-color:${marketingDark.green}">
+      <div class="script-label" style="color:${marketingDark.green}">Se hesitar</div>
       <div class="script-text">"Que tal eu instalar agora e você vê funcionando? Se não gostar nos primeiros 7 dias, cancela sem custo nenhum."</div>
     </div>
   </div>
@@ -272,7 +273,7 @@ Qualquer dúvida, é só me chamar aqui no WhatsApp. Bem-vindo à rede! 🚀</di
     <div class="slide-body">
       <strong>Barbearia Zimermam</strong> — instalado e funcionando<br>
       TV online · Conteúdo rodando · Primeiros anunciantes chegando<br><br>
-      <em style="color:#3B82F6">"A instalação foi rápida e o painel é fácil de usar."</em><br>
+      <em style="color:${marketingDark.blue}">"A instalação foi rápida e o painel é fácil de usar."</em><br>
       — Gilson, dono da Barbearia Zimermam
     </div>
     <div class="highlight-box">🎥 Peça pra ver o vídeo da TV funcionando ao vivo</div>

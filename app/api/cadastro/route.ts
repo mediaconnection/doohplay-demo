@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 // app/api/cadastro/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
@@ -51,35 +52,35 @@ async function sendEmail(to: string, name: string, code: string, plan: string) {
         to,
         subject: "Bem-vindo ao DOOHPLAY! Seu código de tela 📺",
         html: `
-          <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;background:#0F172A;color:#F1F5F9;border-radius:16px;overflow:hidden;">
-            <div style="background:linear-gradient(135deg,#1E293B,#0F172A);padding:32px;text-align:center;border-bottom:1px solid #334155;">
-              <div style="font-size:28px;font-weight:900;margin-bottom:8px;">DOOH<span style="color:#3B82F6">PLAY</span></div>
+          <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;background:${marketingDark.bg};color:${marketingDark.text};border-radius:16px;overflow:hidden;">
+            <div style="background:linear-gradient(135deg,${marketingDark.surface},${marketingDark.bg});padding:32px;text-align:center;border-bottom:1px solid ${marketingDark.border};">
+              <div style="font-size:28px;font-weight:900;margin-bottom:8px;">DOOH<span style="color:${marketingDark.blue}">PLAY</span></div>
               <div style="font-size:16px;color:#94A3B8;">Bem-vindo à rede!</div>
             </div>
             <div style="padding:32px;">
-              <p style="font-size:16px;color:#CBD5E1;margin-bottom:20px;">Olá <strong style="color:#F1F5F9">${name}</strong>! 🎉</p>
+              <p style="font-size:16px;color:#CBD5E1;margin-bottom:20px;">Olá <strong style="color:${marketingDark.text}">${name}</strong>! 🎉</p>
               <p style="font-size:14px;color:#94A3B8;margin-bottom:24px;line-height:1.6;">Sua conta foi criada com sucesso. Aqui estão seus dados de acesso:</p>
-              <div style="background:#0F172A;border:2px solid #3B82F6;border-radius:14px;padding:20px;text-align:center;margin-bottom:24px;">
+              <div style="background:${marketingDark.bg};border:2px solid ${marketingDark.blue};border-radius:14px;padding:20px;text-align:center;margin-bottom:24px;">
                 <div style="font-size:12px;color:#64748B;margin-bottom:8px;">SEU CÓDIGO DE TELA</div>
-                <div style="font-size:36px;font-weight:900;color:#3B82F6;letter-spacing:6px;">${code}</div>
+                <div style="font-size:36px;font-weight:900;color:${marketingDark.blue};letter-spacing:6px;">${code}</div>
               </div>
-              <div style="background:#1E293B;border-radius:12px;padding:16px;margin-bottom:24px;">
+              <div style="background:${marketingDark.surface};border-radius:12px;padding:16px;margin-bottom:24px;">
                 <div style="font-size:12px;color:#64748B;margin-bottom:12px;">SEUS LINKS</div>
                 <div style="font-size:13px;color:#CBD5E1;line-height:2;">
-                  📱 Dashboard: <a href="https://doohplay.com.br/dashboard/local/${code}" style="color:#3B82F6;">doohplay.com.br/dashboard/local/${code}</a><br>
-                  📲 Instalar TV: <a href="https://doohplay.com.br/instalar/${code}" style="color:#3B82F6;">doohplay.com.br/instalar/${code}</a><br>
-                  📖 Guia de uso: <a href="https://doohplay.com.br/guia-uso" style="color:#3B82F6;">doohplay.com.br/guia-uso</a>
+                  📱 Dashboard: <a href="https://doohplay.com.br/dashboard/local/${code}" style="color:${marketingDark.blue};">doohplay.com.br/dashboard/local/${code}</a><br>
+                  📲 Instalar TV: <a href="https://doohplay.com.br/instalar/${code}" style="color:${marketingDark.blue};">doohplay.com.br/instalar/${code}</a><br>
+                  📖 Guia de uso: <a href="https://doohplay.com.br/guia-uso" style="color:${marketingDark.blue};">doohplay.com.br/guia-uso</a>
                 </div>
               </div>
               <div style="background:#052e16;border:1px solid #166534;border-radius:12px;padding:16px;margin-bottom:24px;">
                 <div style="font-size:14px;color:#4ade80;">🎁 <strong>7 dias grátis</strong> — sem nenhuma cobrança agora</div>
                 <div style="font-size:12px;color:#86efac;margin-top:4px;">Após o período de teste, cobramos R$ ${PLANS[plan as PlanKey]?.value ?? 97}/mês via PIX ou boleto.</div>
               </div>
-              <a href="https://doohplay.com.br/instalar/${code}" style="display:block;background:linear-gradient(135deg,#3B82F6,#6366F1);color:white;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-size:15px;font-weight:700;">
+              <a href="https://doohplay.com.br/instalar/${code}" style="display:block;background:linear-gradient(135deg,${marketingDark.blue},#6366F1);color:white;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-size:15px;font-weight:700;">
                 📱 Instalar app na TV agora
               </a>
             </div>
-            <div style="padding:20px 32px;text-align:center;border-top:1px solid #1E293B;">
+            <div style="padding:20px 32px;text-align:center;border-top:1px solid ${marketingDark.surface};">
               <div style="font-size:12px;color:#475569;">Dúvidas? Responda este email ou acesse doohplay.com.br</div>
             </div>
           </div>

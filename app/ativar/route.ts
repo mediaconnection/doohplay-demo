@@ -1,3 +1,4 @@
+import { marketingDark } from "@/lib/theme"
 // app/ativar/route.ts
 export const dynamic = "force-dynamic"
 
@@ -11,29 +12,29 @@ export async function GET() {
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  background:#0F172A; color:#F1F5F9;
+  background:${marketingDark.bg}; color:${marketingDark.text};
   font-family:system-ui,sans-serif;
   display:flex; flex-direction:column;
   align-items:center; justify-content:center;
   height:100vh; padding:24px;
 }
 .logo { font-size:42px; font-weight:900; margin-bottom:8px; letter-spacing:-1px; }
-.logo span { color:#3B82F6; }
+.logo span { color:${marketingDark.blue}; }
 input {
   width:100%; max-width:420px;
   padding:22px 28px;
   font-size:32px; font-weight:700;
   text-align:center; letter-spacing:8px;
-  background:#1E293B; color:#F1F5F9;
-  border:2px solid #334155; border-radius:14px;
+  background:${marketingDark.surface}; color:${marketingDark.text};
+  border:2px solid ${marketingDark.border}; border-radius:14px;
   outline:none; margin-bottom:20px;
   text-transform:uppercase; display:block;
 }
-input:focus { border-color:#3B82F6; }
+input:focus { border-color:${marketingDark.blue}; }
 #btn {
   width:100%; max-width:420px;
   padding:22px; font-size:20px; font-weight:700;
-  background:linear-gradient(135deg,#3B82F6,#6366F1);
+  background:linear-gradient(135deg,${marketingDark.blue},#6366F1);
   color:white; border:none; border-radius:14px;
   cursor:pointer; margin-bottom:20px; display:block;
 }
