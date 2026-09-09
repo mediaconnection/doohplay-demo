@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { slateDark as C, FONT_FAMILY } from "@/lib/theme"
 
 type Client = {
   id: number
@@ -10,14 +11,28 @@ type Client = {
   risk_snapshot: any
 }
 
+function formatDate(d: string) {
+  if (!d) return "—"
+  return new Date(d).toLocaleString("pt-BR")
+}
+
 export default function RiskDashboard() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [reviewing, setReviewing] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function fetchData() {
-    const res = await fetch("/api/risk/blocked")
-    const data = await res.json()
-    setClients(data.data || [])
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/risk/blocked")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Erro ao carregar clientes bloqueados")
+      setClients(data.data || [])
+    } catch (err: any) {
+      setError(err.message ?? "Erro ao carregar clientes bloqueados")
+    }
     setLoading(false)
   }
 
@@ -26,64 +41,90 @@ export default function RiskDashboard() {
   }, [])
 
   async function review(clientId: number, decision: "approved" | "rejected") {
-    await fetch("/api/risk/review", {
-      method: "POST",
-      body: JSON.stringify({
-        clientId,
-        decision,
-        reviewedBy: "admin@doohplay.com"
+    setReviewing(clientId)
+    setError(null)
+    try {
+      const res = await fetch("/api/risk/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          decision,
+          reviewedBy: "admin@doohplay.com",
+        }),
       })
-    })
-
-    fetchData()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error?.formErrors?.join(", ") ?? data.error ?? "Erro ao revisar cliente")
+      await fetchData()
+    } catch (err: any) {
+      setError(err.message ?? "Erro ao revisar cliente")
+    }
+    setReviewing(null)
   }
 
-  if (loading) return <div>Loading...</div>
-
   return (
-    <div style={{ padding: 40 }}>
-      <h1>🚨 Risk Review Dashboard</h1>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT_FAMILY, padding: "32px 40px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+        <span style={{ fontSize: 24 }}>🚨</span>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Revisão de risco</div>
+          <div style={{ fontSize: 13, color: C.text2 }}>Clientes bloqueados automaticamente, aguardando decisão manual</div>
+        </div>
+      </div>
 
-      {clients.map((c) => {
-        const risk = c.risk_snapshot
+      {error && (
+        <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, color: C.red, borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
-        return (
-          <div
-            key={c.id}
-            style={{
-              border: "1px solid #ccc",
-              padding: 20,
-              marginBottom: 20,
-              borderRadius: 10
-            }}
-          >
-            <h2>{c.name} (ID: {c.id})</h2>
+      {loading ? (
+        <div style={{ color: C.text2, fontSize: 14 }}>Carregando…</div>
+      ) : clients.length === 0 ? (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 32, textAlign: "center", color: C.text2, fontSize: 14 }}>
+          Nenhum cliente bloqueado aguardando revisão.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {clients.map((c) => (
+            <div key={c.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: C.text2 }}>ID {c.id} · bloqueado em {formatDate(c.blocked_at)}</div>
+                </div>
+                <span style={{ background: C.amber + "20", color: C.amber, border: `1px solid ${C.amber}44`, borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {c.blocked_reason || "Sem motivo informado"}
+                </span>
+              </div>
 
-            <p><b>Reason:</b> {c.blocked_reason}</p>
-            <p><b>Blocked at:</b> {c.blocked_at}</p>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                Snapshot de risco
+              </div>
+              <pre style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, fontSize: 12, color: C.text2, overflow: "auto", margin: 0, marginBottom: 14, fontFamily: "monospace" }}>
+                {JSON.stringify(c.risk_snapshot, null, 2)}
+              </pre>
 
-            <hr />
-
-            <h3>📊 Risk</h3>
-            <pre>{JSON.stringify(risk, null, 2)}</pre>
-
-            <div style={{ marginTop: 10 }}>
-              <button
-                onClick={() => review(c.id, "approved")}
-                style={{ marginRight: 10 }}
-              >
-                ✅ Approve (Unblock)
-              </button>
-
-              <button
-                onClick={() => review(c.id, "rejected")}
-              >
-                ❌ Keep Blocked
-              </button>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => review(c.id, "rejected")}
+                  disabled={reviewing === c.id}
+                  style={{ background: "transparent", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: reviewing === c.id ? "not-allowed" : "pointer" }}
+                >
+                  Manter bloqueado
+                </button>
+                <button
+                  onClick={() => review(c.id, "approved")}
+                  disabled={reviewing === c.id}
+                  style={{ background: reviewing === c.id ? C.muted : C.green, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: reviewing === c.id ? "not-allowed" : "pointer" }}
+                >
+                  {reviewing === c.id ? "Aguarde…" : "Aprovar (desbloquear)"}
+                </button>
+              </div>
             </div>
-          </div>
-        )
-      })}
+          ))}
+        </div>
+      )}
     </div>
   )
 }
