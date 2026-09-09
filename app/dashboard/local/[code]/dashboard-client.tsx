@@ -2620,6 +2620,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   const [drawerOpen,setDrawerOpen]= useState(false)
   const [showModal, setShowModal] = useState(false)
   const [isMobile,  setIsMobile]  = useState(false)
+  const [loggingOut,setLoggingOut]= useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -2638,6 +2639,15 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   }, [router, client.code])
   const onAddPromo = useCallback(() => setShowModal(true), [])
   const onRefresh = useCallback(() => { window.location.reload() }, [])
+  const onLogout = useCallback(async () => {
+    setLoggingOut(true)
+    try {
+      await fetch("/api/client/auth/logout", { method: "POST" })
+    } catch {}
+    // Hard nav (não router.push): precisa que page.tsx (server component)
+    // reavalie o cookie e mostre o ClientLoginGate de novo.
+    window.location.href = `/dashboard/local/${client.code}`
+  }, [client.code])
   const { online, lastSeen, checking } = usePlayerStatus(client.player_id, player?.online ?? false)
   const initials = client.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()
 
@@ -2752,6 +2762,9 @@ export default function DashboardClient({ client, player, stats, playlist, payme
           <div className="db-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <StatusBadge online={online} checking={checking} />
             <button className="db-header-add" onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Enviar mídia</button>
+            <button onClick={onLogout} disabled={loggingOut} style={{ background: "transparent", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: loggingOut ? "not-allowed" : "pointer" }}>
+              {loggingOut ? "Saindo…" : "Sair"}
+            </button>
           </div>
         </header>
 
