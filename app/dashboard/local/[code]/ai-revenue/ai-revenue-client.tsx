@@ -2,18 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-
-// Mesma paleta de app/dashboard/local/[code]/page.tsx original.
-const C = {
-  bg: "#F8FAFC", white: "#FFFFFF", border: "#E5E7EB", border2: "#F3F4F6",
-  blue: "#3B82F6", blueLt: "#EFF6FF", blueBd: "#BFDBFE",
-  green: "#10B981", greenLt: "#DCFCE7", greenBd: "#86EFAC",
-  amber: "#D97706", amberLt: "#FFFBEB",
-  purple: "#7C3AED", purpleLt: "#F5F3FF",
-  red: "#DC2626", redLt: "#FEF2F2",
-  text: "#111827", text2: "#6B7280", text3: "#9CA3AF",
-  gray50: "#F9FAFB", gray100: "#F3F4F6",
-}
+import { lightDefault as C } from "@/lib/theme"
 
 const fmtR = (n: number) =>
   `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -77,7 +66,7 @@ const OPPORTUNITY_EXAMPLES = [
   {
     icon: "📱", title: "Anunciante de tecnologia — Lançamento de produto",
     desc: "Campanha nacional · 30s · alta CPM por ser campanha de lançamento.",
-    color: C.purple, bg: C.purpleLt, border: "#DDD6FE", match: "79%", category: "Tecnologia",
+    color: C.purple, bg: C.purpleLt, border: C.purpleBd, match: "79%", category: "Tecnologia",
   },
   {
     icon: "🧴", title: "Anunciante de beleza — Linha sazonal",
@@ -194,7 +183,7 @@ export default function AIRevenueTabs({
               </div>
             </div>
 
-            <div style={{ background: `linear-gradient(135deg, ${C.blue} 0%, #7C3AED 100%)`, borderRadius: 16, padding: "28px 32px", marginBottom: 20, color: "#fff" }}>
+            <div style={{ background: `linear-gradient(135deg, ${C.blue} 0%, ${C.purple} 100%)`, borderRadius: 16, padding: "28px 32px", marginBottom: 20, color: "#fff" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", opacity: 0.8 }}>AI REVENUE CENTER</span>
                 <span style={{ fontSize: 11, background: "rgba(255,255,255,0.18)", fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>⭐ Simulação</span>

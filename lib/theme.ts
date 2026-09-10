@@ -59,6 +59,13 @@ export const lightDefault = {
   red: "#DC2626",
   redLt: "#FEF2F2",
   redBd: "#FECACA",
+  // purple* (2026-09-10): selo "⭐ Simulação" — convenção aprovada em
+  // 30/08/2026 pra todo bloco ilustrativo/misto no dashboard do cliente
+  // (ver app/dashboard/local/[code]/ai-revenue/ai-revenue-client.tsx),
+  // não é decoração de uma tela só. Formalizado aqui pra reuso real.
+  purple: "#7C3AED",
+  purpleLt: "#F5F3FF",
+  purpleBd: "#DDD6FE",
   gray50: "#F9FAFB",
   gray100: "#F3F4F6",
   gray200: "#E5E7EB",
