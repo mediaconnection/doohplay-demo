@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { lightDefault as C } from "@/lib/theme"
+import { lightDefault as C, FONT_FAMILY } from "@/lib/theme"
 
 const fmtR = (n: number) =>
   `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -112,7 +112,7 @@ export default function AIRevenueTabs({
   const maxPayout = Math.max(...data.payoutHistory.map(p => p.total), 1)
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT_FAMILY }}>
 
       <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
