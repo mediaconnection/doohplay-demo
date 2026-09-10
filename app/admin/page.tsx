@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { slateDark as C, FONT_FAMILY } from "@/lib/theme"
 
 function formatPhone(phone: string): string {
   const d = (phone ?? "").replace(/\D/g, "")
@@ -23,18 +24,6 @@ function formatCpfCnpj(doc: string): string {
   return doc
 }
 
-const BG      = "#0B1020"
-const SURFACE = "#111827"
-const BORDER  = "#1F2937"
-const TEXT     = "#F9FAFB"
-const TEXT2    = "#9CA3AF"
-const MUTED    = "#4B5563"
-const BLUE     = "#3B82F6"
-const GREEN    = "#10B981"
-const AMBER    = "#F59E0B"
-const RED      = "#EF4444"
-const PURPLE   = "#8B5CF6"
-
 const fmt = (d?: string | null) => {
   if (!d) return "—"
   try { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(d)) }
@@ -52,10 +41,10 @@ function Badge({ label, color }: { label: string; color: string }) {
 
 function KpiCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "20px 24px", flex: 1, minWidth: 160 }}>
-      <div style={{ fontSize: 11, color: TEXT2, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: color ?? TEXT }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: TEXT2, marginTop: 4 }}>{sub}</div>}
+    <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: "20px 24px", flex: 1, minWidth: 160 }}>
+      <div style={{ fontSize: 11, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: color ?? C.text }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: C.text2, marginTop: 4 }}>{sub}</div>}
     </div>
   )
 }
@@ -64,7 +53,7 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string | 
 function MediaPreview({ url, type, name }: { url: string; type: string; name: string }) {
   const [expanded, setExpanded] = useState(false)
   if (!url) return (
-    <div style={{ width: 80, height: 60, background: BORDER, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+    <div style={{ width: 80, height: 60, background: C.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
       {type === "video" ? "🎬" : "🖼️"}
     </div>
   )
@@ -75,13 +64,13 @@ function MediaPreview({ url, type, name }: { url: string; type: string; name: st
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setExpanded(false)}>
             <div onClick={e => e.stopPropagation()} style={{ maxWidth: 800, width: "90%" }}>
               <video src={url} controls autoPlay style={{ width: "100%", borderRadius: 12, maxHeight: "80vh" }} />
-              <button onClick={() => setExpanded(false)} style={{ marginTop: 12, background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>Fechar</button>
+              <button onClick={() => setExpanded(false)} style={{ marginTop: 12, background: C.surface, color: C.text2, border: "1px solid " + C.border, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>Fechar</button>
             </div>
           </div>
         ) : (
-          <div onClick={() => setExpanded(true)} style={{ width: 100, height: 70, background: BORDER, borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 4, border: "1px solid " + MUTED }}>
+          <div onClick={() => setExpanded(true)} style={{ width: 100, height: 70, background: C.border, borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 4, border: "1px solid " + C.muted }}>
             <span style={{ fontSize: 24 }}>🎬</span>
-            <span style={{ fontSize: 9, color: TEXT2 }}>▶ Ver vídeo</span>
+            <span style={{ fontSize: 9, color: C.text2 }}>▶ Ver vídeo</span>
           </div>
         )}
       </div>
@@ -94,14 +83,14 @@ function MediaPreview({ url, type, name }: { url: string; type: string; name: st
           <div onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: "90%" }}>
             <img src={url} alt={name} style={{ width: "100%", borderRadius: 12, maxHeight: "85vh", objectFit: "contain" }} />
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              <button onClick={() => setExpanded(false)} style={{ background: SURFACE, color: TEXT2, border: "1px solid " + BORDER, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>Fechar</button>
-              <a href={url} target="_blank" rel="noreferrer" style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>Abrir original ↗</a>
+              <button onClick={() => setExpanded(false)} style={{ background: C.surface, color: C.text2, border: "1px solid " + C.border, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>Fechar</button>
+              <a href={url} target="_blank" rel="noreferrer" style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>Abrir original ↗</a>
             </div>
           </div>
         </div>
       ) : (
         <img src={url} alt={name} onClick={() => setExpanded(true)}
-          style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8, cursor: "pointer", border: "1px solid " + MUTED, display: "block" }}
+          style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8, cursor: "pointer", border: "1px solid " + C.muted, display: "block" }}
           onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
         />
       )}
@@ -167,74 +156,74 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: step === "preview" ? 800 : 520, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 16, width: "100%", maxWidth: step === "preview" ? 800 : 520, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
 
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>
               {step === "upload"  && "Importar Clientes via CSV"}
               {step === "preview" && `Preview — ${preview.length} linhas encontradas`}
               {step === "result"  && "Importação concluída"}
             </div>
-            <div style={{ fontSize: 12, color: TEXT2, marginTop: 3 }}>
+            <div style={{ fontSize: 12, color: C.text2, marginTop: 3 }}>
               {step === "upload"  && "Cadastre múltiplos clientes de uma vez"}
               {step === "preview" && `${preview.filter(r => r.valid).length} válidas · ${preview.filter(r => !r.valid).length} com erro`}
               {step === "result"  && `${summary?.ok} importados · ${summary?.error} erros`}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C.text2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
           {step === "upload" && (
             <div>
-              <div style={{ background: BG, border: "1px solid " + BORDER, borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: TEXT2 }}>
-                <div style={{ fontWeight: 600, color: TEXT, marginBottom: 6 }}>Colunas esperadas:</div>
-                <code style={{ fontSize: 11, color: BLUE }}>name, business_type, address, city, phone, email</code>
-                <div style={{ marginTop: 6, color: MUTED }}>Obrigatórios: <strong style={{ color: TEXT }}>name, city, phone</strong> · Isso só cadastra o cliente — pra ativar cobrança, use "Assinatura" depois</div>
+              <div style={{ background: C.bg, border: "1px solid " + C.border, borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: C.text2 }}>
+                <div style={{ fontWeight: 600, color: C.text, marginBottom: 6 }}>Colunas esperadas:</div>
+                <code style={{ fontSize: 11, color: C.blue }}>name, business_type, address, city, phone, email</code>
+                <div style={{ marginTop: 6, color: C.muted }}>Obrigatórios: <strong style={{ color: C.text }}>name, city, phone</strong> · Isso só cadastra o cliente — pra ativar cobrança, use "Assinatura" depois</div>
               </div>
               <div
                 onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
                 onClick={() => fileRef.current?.click()}
-                style={{ border: `2px dashed ${dragOver ? BLUE : BORDER}`, borderRadius: 12, padding: "40px 24px", textAlign: "center", cursor: "pointer", background: dragOver ? BLUE + "0A" : BG, transition: "all .2s", marginBottom: 16 }}
+                style={{ border: `2px dashed ${dragOver ? C.blue : C.border}`, borderRadius: 12, padding: "40px 24px", textAlign: "center", cursor: "pointer", background: dragOver ? C.blue + "0A" : C.bg, transition: "all .2s", marginBottom: 16 }}
               >
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 6 }}>
                   {loading ? "Processando…" : "Clique ou arraste o arquivo CSV"}
                 </div>
-                <div style={{ fontSize: 12, color: TEXT2 }}>Apenas arquivos .csv</div>
+                <div style={{ fontSize: 12, color: C.text2 }}>Apenas arquivos .csv</div>
                 <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
               </div>
-              <button onClick={downloadTemplate} style={{ width: "100%", background: "transparent", border: "1px solid " + BORDER, borderRadius: 8, padding: "10px", color: TEXT2, fontSize: 13, cursor: "pointer" }}>
+              <button onClick={downloadTemplate} style={{ width: "100%", background: "transparent", border: "1px solid " + C.border, borderRadius: 8, padding: "10px", color: C.text2, fontSize: 13, cursor: "pointer" }}>
                 ↓ Baixar template CSV
               </button>
             </div>
           )}
 
           {step === "preview" && (
-            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid " + BORDER }}>
+                  <tr style={{ borderBottom: "1px solid " + C.border }}>
                     {["#","Nome","Tipo","Cidade","Telefone","Status"].map(h => (
-                      <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                      <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: C.text2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {preview.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: i < preview.length - 1 ? "1px solid " + BORDER : "none", background: row.valid ? "transparent" : RED + "08" }}>
-                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.line}</td>
-                      <td style={{ padding: "8px 12px", color: TEXT, fontWeight: 500 }}>{row.name || "—"}</td>
-                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.business_type || "—"}</td>
-                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.city || "—"}</td>
-                      <td style={{ padding: "8px 12px", color: TEXT2 }}>{row.phone || "—"}</td>
+                    <tr key={i} style={{ borderBottom: i < preview.length - 1 ? "1px solid " + C.border : "none", background: row.valid ? "transparent" : C.red + "08" }}>
+                      <td style={{ padding: "8px 12px", color: C.text2 }}>{row.line}</td>
+                      <td style={{ padding: "8px 12px", color: C.text, fontWeight: 500 }}>{row.name || "—"}</td>
+                      <td style={{ padding: "8px 12px", color: C.text2 }}>{row.business_type || "—"}</td>
+                      <td style={{ padding: "8px 12px", color: C.text2 }}>{row.city || "—"}</td>
+                      <td style={{ padding: "8px 12px", color: C.text2 }}>{row.phone || "—"}</td>
                       <td style={{ padding: "8px 12px" }}>
                         {row.valid
-                          ? <span style={{ color: GREEN, fontSize: 11, fontWeight: 600 }}>✓ OK</span>
-                          : <span style={{ color: RED, fontSize: 11 }}>⚠ {row.errors?.join(", ")}</span>
+                          ? <span style={{ color: C.green, fontSize: 11, fontWeight: 600 }}>✓ OK</span>
+                          : <span style={{ color: C.red, fontSize: 11 }}>⚠ {row.errors?.join(", ")}</span>
                         }
                       </td>
                     </tr>
@@ -247,25 +236,25 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
           {step === "result" && (
             <div>
               <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-                <div style={{ flex: 1, background: GREEN + "12", border: "1px solid " + GREEN + "33", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: GREEN }}>{summary?.ok}</div>
-                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 4 }}>Importados</div>
+                <div style={{ flex: 1, background: C.green + "12", border: "1px solid " + C.green + "33", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: C.green }}>{summary?.ok}</div>
+                  <div style={{ fontSize: 12, color: C.text2, marginTop: 4 }}>Importados</div>
                 </div>
-                <div style={{ flex: 1, background: RED + "12", border: "1px solid " + RED + "33", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: RED }}>{summary?.error}</div>
-                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 4 }}>Erros</div>
+                <div style={{ flex: 1, background: C.red + "12", border: "1px solid " + C.red + "33", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: C.red }}>{summary?.error}</div>
+                  <div style={{ fontSize: 12, color: C.text2, marginTop: 4 }}>Erros</div>
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {results.map((r, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
                     <div>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{r.name}</span>
-                      {r.code && <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "1px 6px", borderRadius: 8, marginLeft: 8 }}>{r.code}</span>}
+                      <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{r.name}</span>
+                      {r.code && <span style={{ fontSize: 11, color: C.text2, background: C.border, padding: "1px 6px", borderRadius: 8, marginLeft: 8 }}>{r.code}</span>}
                     </div>
                     {r.status === "ok"
-                      ? <span style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>✓ Criado</span>
-                      : <span style={{ fontSize: 11, color: RED }}>✕ {r.error}</span>
+                      ? <span style={{ fontSize: 12, color: C.green, fontWeight: 600 }}>✓ Criado</span>
+                      : <span style={{ fontSize: 11, color: C.red }}>✕ {r.error}</span>
                     }
                   </div>
                 ))}
@@ -274,26 +263,26 @@ function ModalCsvImport({ onClose, onSuccess }: { onClose: () => void; onSuccess
           )}
 
           {error && (
-            <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: RED }}>
+            <div style={{ background: C.red + "18", border: "1px solid " + C.red + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: C.red }}>
               ⚠️ {error}
             </div>
           )}
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + C.border, display: "flex", gap: 10, flexShrink: 0 }}>
           {step === "upload" && (
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.text2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
           )}
           {step === "preview" && (
             <>
-              <button onClick={() => setStep("upload")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>← Voltar</button>
-              <button onClick={handleImport} disabled={loading || preview.filter(r => r.valid).length === 0} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? MUTED : GREEN, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+              <button onClick={() => setStep("upload")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.text2, fontSize: 13, cursor: "pointer" }}>← Voltar</button>
+              <button onClick={handleImport} disabled={loading || preview.filter(r => r.valid).length === 0} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? C.muted : C.green, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
                 {loading ? "Importando…" : `Importar ${preview.filter(r => r.valid).length} clientes →`}
               </button>
             </>
           )}
           {step === "result" && (
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BLUE, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
           )}
         </div>
       </div>
@@ -349,21 +338,21 @@ function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSucce
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 8,
-    padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none", boxSizing: "border-box",
+    width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 8,
+    padding: "9px 12px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box",
   }
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: TEXT2, marginBottom: 4, display: "block" }
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: C.text2, marginBottom: 4, display: "block" }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
 
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>+ Novo Cliente</div>
-            <div style={{ fontSize: 12, color: TEXT2, marginTop: 3 }}>Cadastro manual, sem passar pelo link público</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>+ Novo Cliente</div>
+            <div style={{ fontSize: 12, color: C.text2, marginTop: 3 }}>Cadastro manual, sem passar pelo link público</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C.text2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
@@ -371,14 +360,14 @@ function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSucce
             result.status === "ok" ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: TEXT, marginBottom: 6 }}>Cliente cadastrado!</div>
-                <div style={{ fontSize: 13, color: TEXT2 }}>Código gerado: <span style={{ color: BLUE, fontWeight: 700 }}>{result.code}</span></div>
-                <div style={{ fontSize: 12, color: TEXT2, marginTop: 10 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>Cliente cadastrado!</div>
+                <div style={{ fontSize: 13, color: C.text2 }}>Código gerado: <span style={{ color: C.blue, fontWeight: 700 }}>{result.code}</span></div>
+                <div style={{ fontSize: 12, color: C.text2, marginTop: 10 }}>
                   Sem assinatura no Asaas ainda — use o botão <strong>"Assinatura"</strong> na lista de clientes pra ativar a cobrança quando quiser.
                 </div>
               </div>
             ) : (
-              <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "14px", fontSize: 13, color: RED }}>
+              <div style={{ background: C.red + "18", border: "1px solid " + C.red + "44", borderRadius: 8, padding: "14px", fontSize: 13, color: C.red }}>
                 ⚠️ {result.error}
               </div>
             )
@@ -419,19 +408,19 @@ function ModalNovoCliente({ onClose, onSuccess }: { onClose: () => void; onSucce
           )}
 
           {error && (
-            <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: RED }}>
+            <div style={{ background: C.red + "18", border: "1px solid " + C.red + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: C.red }}>
               ⚠️ {error}
             </div>
           )}
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + C.border, display: "flex", gap: 10, flexShrink: 0 }}>
           {result ? (
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BLUE, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
           ) : (
             <>
-              <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
-              <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? MUTED : GREEN, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.text2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? C.muted : C.green, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
                 {loading ? "Cadastrando…" : "Cadastrar cliente →"}
               </button>
             </>
@@ -491,28 +480,28 @@ function ModalEditarCliente({ client, onClose, onSuccess }: { client: any; onClo
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 8,
-    padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none", boxSizing: "border-box",
+    width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 8,
+    padding: "9px 12px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box",
   }
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: TEXT2, marginBottom: 4, display: "block" }
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: C.text2, marginBottom: 4, display: "block" }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
 
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + BORDER, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>✏️ Editar Cliente</div>
-            <div style={{ fontSize: 12, color: TEXT2, marginTop: 3 }}>{client.name} · #{client.code}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>✏️ Editar Cliente</div>
+            <div style={{ fontSize: 12, color: C.text2, marginTop: 3 }}>{client.name} · #{client.code}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C.text2, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
           {success ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>Dados atualizados!</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Dados atualizados!</div>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -555,19 +544,19 @@ function ModalEditarCliente({ client, onClose, onSuccess }: { client: any; onClo
           )}
 
           {error && (
-            <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: RED }}>
+            <div style={{ background: C.red + "18", border: "1px solid " + C.red + "44", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 13, color: C.red }}>
               ⚠️ {error}
             </div>
           )}
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, flexShrink: 0 }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + C.border, display: "flex", gap: 10, flexShrink: 0 }}>
           {success ? (
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BLUE, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
           ) : (
             <>
-              <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
-              <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? MUTED : BLUE, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.text2, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: loading ? C.muted : C.blue, color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
                 {loading ? "Salvando…" : "Salvar alterações"}
               </button>
             </>
@@ -611,41 +600,41 @@ function ModalAssinatura({ client, onClose, onSuccess }: { client: any; onClose:
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 16, padding: 28, width: "100%", maxWidth: 420 }}>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 16, padding: 28, width: "100%", maxWidth: 420 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>💳 Criar Assinatura</h3>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: TEXT2, fontSize: 20, cursor: "pointer" }}>✕</button>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>💳 Criar Assinatura</h3>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.text2, fontSize: 20, cursor: "pointer" }}>✕</button>
         </div>
 
-        <div style={{ background: BG, borderRadius: 10, padding: "12px 16px", marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{client.name}</div>
-          <div style={{ fontSize: 12, color: TEXT2, marginTop: 2 }}>{client.code} · {client.email ?? "sem email"}</div>
+        <div style={{ background: C.bg, borderRadius: 10, padding: "12px 16px", marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{client.name}</div>
+          <div style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>{client.code} · {client.email ?? "sem email"}</div>
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 12, color: TEXT2, display: "block", marginBottom: 8 }}>Selecione o plano</label>
+          <label style={{ fontSize: 12, color: C.text2, display: "block", marginBottom: 8 }}>Selecione o plano</label>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {Object.entries(PLANS_INFO).map(([key, info]) => (
               <div key={key} onClick={() => setPlan(key)}
-                style={{ background: plan === key ? "#1e3a5f" : BG, border: `1px solid ${plan === key ? BLUE : BORDER}`, borderRadius: 10, padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                style={{ background: plan === key ? "#1e3a5f" : C.bg, border: `1px solid ${plan === key ? C.blue : C.border}`, borderRadius: 10, padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{info.label}</div>
-                  <div style={{ fontSize: 12, color: TEXT2 }}>{info.desc}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{info.label}</div>
+                  <div style={{ fontSize: 12, color: C.text2 }}>{info.desc}</div>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: BLUE }}>{info.value}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: C.blue }}>{info.value}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {error && <div style={{ fontSize: 13, color: RED, background: RED + "18", borderRadius: 8, padding: "10px 14px", marginBottom: 16 }}>{error}</div>}
+        {error && <div style={{ fontSize: 13, color: C.red, background: C.red + "18", borderRadius: 8, padding: "10px 14px", marginBottom: 16 }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "10px", background: "transparent", border: "1px solid " + BORDER, borderRadius: 8, color: TEXT2, fontSize: 14, cursor: "pointer" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", background: "transparent", border: "1px solid " + C.border, borderRadius: 8, color: C.text2, fontSize: 14, cursor: "pointer" }}>
             Cancelar
           </button>
           <button onClick={handleCreate} disabled={loading}
-            style={{ flex: 2, padding: "10px", background: BLUE, border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+            style={{ flex: 2, padding: "10px", background: C.blue, border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
             {loading ? "Criando..." : `Criar · ${PLANS_INFO[plan].value}`}
           </button>
         </div>
@@ -727,8 +716,8 @@ function TabDashboard({ data }: { data: any }) {
           offset += dash
           return el
         })}
-        <text x={size / 2} y={size / 2 - 6} textAnchor="middle" fontSize="20" fontWeight="700" fill={TEXT}>{fmt(total)}</text>
-        <text x={size / 2} y={size / 2 + 14} textAnchor="middle" fontSize="10" fill={TEXT2}>total</text>
+        <text x={size / 2} y={size / 2 - 6} textAnchor="middle" fontSize="20" fontWeight="700" fill={C.text}>{fmt(total)}</text>
+        <text x={size / 2} y={size / 2 + 14} textAnchor="middle" fontSize="10" fill={C.text2}>total</text>
       </svg>
     )
   }
@@ -741,8 +730,8 @@ function TabDashboard({ data }: { data: any }) {
     const areaPath = `${path} L${width},${height} L0,${height} Z`
     return (
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-        <path d={areaPath} fill={BLUE + "22"} />
-        <path d={path} fill="none" stroke={BLUE} strokeWidth={2.5} />
+        <path d={areaPath} fill={C.blue + "22"} />
+        <path d={path} fill="none" stroke={C.blue} strokeWidth={2.5} />
       </svg>
     )
   }
@@ -751,17 +740,17 @@ function TabDashboard({ data }: { data: any }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📊 Dashboard</div>
-          <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>Visão geral da rede</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>📊 Dashboard</div>
+          <div style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>Visão geral da rede</div>
         </div>
-        <div style={{ display: "flex", background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: 3 }}>
-          <button onClick={() => setMode("real")} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: mode === "real" ? BLUE : "transparent", color: mode === "real" ? "#fff" : TEXT2 }}>Dados reais</button>
-          <button onClick={() => setMode("demo")} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: mode === "demo" ? PURPLE : "transparent", color: mode === "demo" ? "#fff" : TEXT2 }}>Modo demonstração</button>
+        <div style={{ display: "flex", background: C.surface, border: "1px solid " + C.border, borderRadius: 8, padding: 3 }}>
+          <button onClick={() => setMode("real")} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: mode === "real" ? C.blue : "transparent", color: mode === "real" ? "#fff" : C.text2 }}>Dados reais</button>
+          <button onClick={() => setMode("demo")} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: mode === "demo" ? C.purple : "transparent", color: mode === "demo" ? "#fff" : C.text2 }}>Modo demonstração</button>
         </div>
       </div>
 
       {mode === "demo" && (
-        <div style={{ background: PURPLE + "15", border: "1px solid " + PURPLE + "44", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: PURPLE, marginBottom: 20 }}>
+        <div style={{ background: C.purple + "15", border: "1px solid " + C.purple + "44", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: C.purple, marginBottom: 20 }}>
           ⚠️ Dados ilustrativos — nenhum número ou marca nesta tela é real. Serve pra visualizar como o dashboard fica com a rede em escala.
         </div>
       )}
@@ -770,103 +759,103 @@ function TabDashboard({ data }: { data: any }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 24 }}>
         {mode === "real" ? (
           <>
-            <DashKpiCard icon="🖥️" color={BLUE} label="Telas Online" value={fmt(online)} sub={`de ${fmt(totalTelas)} telas`} />
-            <DashKpiCard icon="👥" color={GREEN} label="Clientes Ativos" value={fmt(clients.filter((c: any) => c.active).length)} sub={`de ${fmt(totalTelas)} cadastrados`} />
-            <DashKpiCard icon="📢" color={AMBER} label="Campanhas Ativas" value={fmt(activeCampaigns)} sub={`de ${fmt(campaigns.length)} campanhas`} />
-            <DashKpiCard icon="🏢" color={PURPLE} label="Anunciantes" value={fmt(advertisers.length)} sub="cadastrados" />
-            <DashKpiCard icon="▶️" color={RED} label="Execuções (24h)" value={fmt(events24h)} sub={`${fmt(eventsTotal)} desde o início`} />
+            <DashKpiCard icon="🖥️" color={C.blue} label="Telas Online" value={fmt(online)} sub={`de ${fmt(totalTelas)} telas`} />
+            <DashKpiCard icon="👥" color={C.green} label="Clientes Ativos" value={fmt(clients.filter((c: any) => c.active).length)} sub={`de ${fmt(totalTelas)} cadastrados`} />
+            <DashKpiCard icon="📢" color={C.amber} label="Campanhas Ativas" value={fmt(activeCampaigns)} sub={`de ${fmt(campaigns.length)} campanhas`} />
+            <DashKpiCard icon="🏢" color={C.purple} label="Anunciantes" value={fmt(advertisers.length)} sub="cadastrados" />
+            <DashKpiCard icon="▶️" color={C.red} label="Execuções (24h)" value={fmt(events24h)} sub={`${fmt(eventsTotal)} desde o início`} />
           </>
         ) : (
           <>
-            <DashKpiCard icon="🖥️" color={BLUE} label="Telas Online" value={fmt(demoKpis.telas)} sub={`de ${fmt(demoKpis.telasTotal)} telas`} />
-            <DashKpiCard icon="✅" color={GREEN} label="Campanhas Ativas" value={fmt(demoKpis.campanhas)} sub={`de ${fmt(demoKpis.campanhasTotal)} campanhas`} />
-            <DashKpiCard icon="▶️" color={AMBER} label="Execuções Hoje" value={fmt(demoKpis.execucoes)} sub={`${fmt(demoKpis.execucoesOntem)} ontem`} />
-            <DashKpiCard icon="👁️" color={PURPLE} label="Impressões Hoje" value={fmt(demoKpis.impressoes)} sub="+18,6%" />
-            <DashKpiCard icon="💰" color={RED} label="Receita Estimada" value={money(demoKpis.receita)} sub="no período" />
+            <DashKpiCard icon="🖥️" color={C.blue} label="Telas Online" value={fmt(demoKpis.telas)} sub={`de ${fmt(demoKpis.telasTotal)} telas`} />
+            <DashKpiCard icon="✅" color={C.green} label="Campanhas Ativas" value={fmt(demoKpis.campanhas)} sub={`de ${fmt(demoKpis.campanhasTotal)} campanhas`} />
+            <DashKpiCard icon="▶️" color={C.amber} label="Execuções Hoje" value={fmt(demoKpis.execucoes)} sub={`${fmt(demoKpis.execucoesOntem)} ontem`} />
+            <DashKpiCard icon="👁️" color={C.purple} label="Impressões Hoje" value={fmt(demoKpis.impressoes)} sub="+18,6%" />
+            <DashKpiCard icon="💰" color={C.red} label="Receita Estimada" value={money(demoKpis.receita)} sub="no período" />
           </>
         )}
       </div>
 
       {/* Gráfico + Donut */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Execuções por Dia {mode === "demo" && <span style={{ color: PURPLE, fontWeight: 400 }}>(ilustrativo)</span>}</div>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Execuções por Dia {mode === "demo" && <span style={{ color: C.purple, fontWeight: 400 }}>(ilustrativo)</span>}</div>
           {mode === "real" && daily.length === 0 ? (
-            <div style={{ fontSize: 12, color: TEXT2, padding: "40px 0", textAlign: "center" }}>Sem execuções registradas nos últimos 14 dias ainda.</div>
+            <div style={{ fontSize: 12, color: C.text2, padding: "40px 0", textAlign: "center" }}>Sem execuções registradas nos últimos 14 dias ainda.</div>
           ) : (
             <LineChart points={mode === "real" ? daily.map((d: any) => d.count) : demoDaily.map(d => d.count)} />
           )}
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: TEXT2, marginTop: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: C.text2, marginTop: 6 }}>
             <span>{mode === "real" ? daily[0]?.day ?? "" : "há 14 dias"}</span>
             <span>{mode === "real" ? daily[daily.length - 1]?.day ?? "" : "hoje"}</span>
           </div>
         </div>
 
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Status das Telas</div>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Status das Telas</div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <Donut segments={mode === "real"
-              ? [{ value: online || 0.0001, color: GREEN }, { value: offline, color: RED }, { value: never, color: AMBER }]
-              : [{ value: demoDonut.online, color: GREEN }, { value: demoDonut.offline, color: RED }, { value: demoDonut.idle, color: AMBER }]
+              ? [{ value: online || 0.0001, color: C.green }, { value: offline, color: C.red }, { value: never, color: C.amber }]
+              : [{ value: demoDonut.online, color: C.green }, { value: demoDonut.offline, color: C.red }, { value: demoDonut.idle, color: C.amber }]
             } />
             <div style={{ fontSize: 11 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: GREEN, display: "inline-block" }} /> Online ({mode === "real" ? online : demoDonut.online})</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: RED, display: "inline-block" }} /> Offline ({mode === "real" ? offline : demoDonut.offline})</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: AMBER, display: "inline-block" }} /> {mode === "real" ? "Nunca conectou" : "Idle"} ({mode === "real" ? never : demoDonut.idle})</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: C.green, display: "inline-block" }} /> Online ({mode === "real" ? online : demoDonut.online})</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: C.red, display: "inline-block" }} /> Offline ({mode === "real" ? offline : demoDonut.offline})</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: C.amber, display: "inline-block" }} /> {mode === "real" ? "Nunca conectou" : "Idle"} ({mode === "real" ? never : demoDonut.idle})</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Mapa da rede */}
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 4 }}>Mapa da Rede</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Mapa da Rede</div>
         {mode === "demo" ? (
-          <div style={{ fontSize: 12, color: TEXT2, padding: "30px 0", textAlign: "center", border: "1px dashed " + BORDER, borderRadius: 8, marginTop: 10 }}>
+          <div style={{ fontSize: 12, color: C.text2, padding: "30px 0", textAlign: "center", border: "1px dashed " + C.border, borderRadius: 8, marginTop: 10 }}>
             🗺️ Mapa ilustrativo — em escala, mostraria cada tela geolocalizada no país
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 12, color: TEXT2, marginBottom: 12 }}>Sem coordenadas ainda pra desenhar um mapa visual — lista de clientes por cidade abaixo.</div>
+            <div style={{ fontSize: 12, color: C.text2, marginBottom: 12 }}>Sem coordenadas ainda pra desenhar um mapa visual — lista de clientes por cidade abaixo.</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, marginBottom: 12 }}>
               {clients.map((c: any) => (
-                <div key={c.code} style={{ fontSize: 12, color: TEXT, background: BG, borderRadius: 6, padding: "8px 10px" }}>
+                <div key={c.code} style={{ fontSize: 12, color: C.text, background: C.bg, borderRadius: 6, padding: "8px 10px" }}>
                   <div style={{ fontWeight: 600 }}>{c.name}</div>
-                  <div style={{ color: TEXT2, fontSize: 11 }}>{c.address || "sem endereço cadastrado"}</div>
+                  <div style={{ color: C.text2, fontSize: 11 }}>{c.address || "sem endereço cadastrado"}</div>
                 </div>
               ))}
             </div>
-            <button onClick={runGeocode} disabled={geocoding} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "1px solid " + BLUE, background: "transparent", color: BLUE, cursor: geocoding ? "not-allowed" : "pointer" }}>
+            <button onClick={runGeocode} disabled={geocoding} style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 6, border: "1px solid " + C.blue, background: "transparent", color: C.blue, cursor: geocoding ? "not-allowed" : "pointer" }}>
               {geocoding ? "Geocodificando…" : "📍 Rodar geocodificação"}
             </button>
-            {geocodeMsg && <span style={{ fontSize: 12, color: TEXT2, marginLeft: 10 }}>{geocodeMsg}</span>}
+            {geocodeMsg && <span style={{ fontSize: 12, color: C.text2, marginLeft: 10 }}>{geocodeMsg}</span>}
           </>
         )}
       </div>
 
       {/* Campanhas + Ranking */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Campanhas em Exibição {mode === "demo" && <span style={{ color: PURPLE, fontWeight: 400 }}>(ilustrativo)</span>}</div>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Campanhas em Exibição {mode === "demo" && <span style={{ color: C.purple, fontWeight: 400 }}>(ilustrativo)</span>}</div>
           {(mode === "real" ? campaigns.filter((c: any) => c.status === "active") : demoCampaigns).length === 0 ? (
-            <div style={{ fontSize: 12, color: TEXT2, padding: "20px 0", textAlign: "center" }}>Nenhuma campanha ativa ainda.</div>
+            <div style={{ fontSize: 12, color: C.text2, padding: "20px 0", textAlign: "center" }}>Nenhuma campanha ativa ainda.</div>
           ) : (
             <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-              <thead><tr style={{ color: TEXT2, textAlign: "left" }}><th style={{ paddingBottom: 8 }}>Campanha</th><th>Telas</th><th>Status</th></tr></thead>
+              <thead><tr style={{ color: C.text2, textAlign: "left" }}><th style={{ paddingBottom: 8 }}>Campanha</th><th>Telas</th><th>Status</th></tr></thead>
               <tbody>
                 {mode === "real"
                   ? campaigns.filter((c: any) => c.status === "active").map((c: any) => (
-                    <tr key={c.id} style={{ borderTop: "1px solid " + BORDER }}>
-                      <td style={{ padding: "8px 0", color: TEXT }}>{c.name}</td>
-                      <td style={{ color: TEXT2 }}>{c.screen_count}</td>
-                      <td style={{ color: GREEN }}>Em exibição</td>
+                    <tr key={c.id} style={{ borderTop: "1px solid " + C.border }}>
+                      <td style={{ padding: "8px 0", color: C.text }}>{c.name}</td>
+                      <td style={{ color: C.text2 }}>{c.screen_count}</td>
+                      <td style={{ color: C.green }}>Em exibição</td>
                     </tr>
                   ))
                   : demoCampaigns.map((c, i) => (
-                    <tr key={i} style={{ borderTop: "1px solid " + BORDER }}>
-                      <td style={{ padding: "8px 0", color: TEXT }}>{c.name}<div style={{ color: TEXT2, fontSize: 10 }}>{c.advertiser}</div></td>
-                      <td style={{ color: TEXT2 }}>{c.telas}</td>
-                      <td style={{ color: GREEN }}>{c.progresso}%</td>
+                    <tr key={i} style={{ borderTop: "1px solid " + C.border }}>
+                      <td style={{ padding: "8px 0", color: C.text }}>{c.name}<div style={{ color: C.text2, fontSize: 10 }}>{c.advertiser}</div></td>
+                      <td style={{ color: C.text2 }}>{c.telas}</td>
+                      <td style={{ color: C.green }}>{c.progresso}%</td>
                     </tr>
                   ))}
               </tbody>
@@ -874,15 +863,15 @@ function TabDashboard({ data }: { data: any }) {
           )}
         </div>
 
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Ranking de Anunciantes {mode === "demo" && <span style={{ color: PURPLE, fontWeight: 400 }}>(ilustrativo)</span>}</div>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Ranking de Anunciantes {mode === "demo" && <span style={{ color: C.purple, fontWeight: 400 }}>(ilustrativo)</span>}</div>
           {mode === "real" ? (
-            <div style={{ fontSize: 12, color: TEXT2, padding: "20px 0", textAlign: "center" }}>Nenhum anunciante com exibições registradas ainda.</div>
+            <div style={{ fontSize: 12, color: C.text2, padding: "20px 0", textAlign: "center" }}>Nenhum anunciante com exibições registradas ainda.</div>
           ) : (
             demoRanking.map((r, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: i > 0 ? "1px solid " + BORDER : "none", fontSize: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ color: TEXT2 }}>{i + 1}</span><span style={{ color: TEXT }}>{r.name}</span></div>
-                <span style={{ color: TEXT2 }}>{fmt(r.value)}</span>
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: i > 0 ? "1px solid " + C.border : "none", fontSize: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ color: C.text2 }}>{i + 1}</span><span style={{ color: C.text }}>{r.name}</span></div>
+                <span style={{ color: C.text2 }}>{fmt(r.value)}</span>
               </div>
             ))
           )}
@@ -894,13 +883,13 @@ function TabDashboard({ data }: { data: any }) {
 
 function DashKpiCard({ icon, color, label, value, sub }: { icon: string; color: string; label: string; value: string; sub: string }) {
   return (
-    <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 16 }}>
+    <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <div style={{ width: 30, height: 30, borderRadius: 8, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{icon}</div>
-        <div style={{ fontSize: 11, color: TEXT2 }}>{label}</div>
+        <div style={{ fontSize: 11, color: C.text2 }}>{label}</div>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: TEXT }}>{value}</div>
-      <div style={{ fontSize: 10, color: TEXT2, marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{value}</div>
+      <div style={{ fontSize: 10, color: C.text2, marginTop: 2 }}>{sub}</div>
     </div>
   )
 }
@@ -1042,9 +1031,9 @@ function TabDiagnostico() {
   }
 
   const Field = ({ label, value, warn }: { label: string; value: any; warn?: boolean }) => (
-    <div style={{ padding: "10px 14px", background: BG, borderRadius: 8 }}>
-      <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 14, color: warn ? AMBER : TEXT, fontWeight: warn ? 700 : 500 }}>
+    <div style={{ padding: "10px 14px", background: C.bg, borderRadius: 8 }}>
+      <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 14, color: warn ? C.amber : C.text, fontWeight: warn ? 700 : 500 }}>
         {value === null || value === undefined || value === "" ? "—" : String(value)}
       </div>
     </div>
@@ -1052,26 +1041,26 @@ function TabDiagnostico() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24, background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
+      <div style={{ marginBottom: 24, background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>📱 Status do WhatsApp (Evolution API)</div>
-          <button onClick={checkWhatsApp} disabled={waLoading} style={{ fontSize: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", opacity: waLoading ? 0.6 : 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>📱 Status do WhatsApp (Evolution API)</div>
+          <button onClick={checkWhatsApp} disabled={waLoading} style={{ fontSize: 12, background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", opacity: waLoading ? 0.6 : 1 }}>
             {waLoading ? "Checando..." : "Checar conexão"}
           </button>
         </div>
-        <div style={{ fontSize: 12, color: TEXT2, marginBottom: waStatus ? 10 : 0 }}>
+        <div style={{ fontSize: 12, color: C.text2, marginBottom: waStatus ? 10 : 0 }}>
           "Falha ao enviar WhatsApp" no login pode ser bug de código ou sessão desconectada (precisa escanear QR de novo) — isso aqui diz qual dos dois, sem precisar abrir o painel do Evolution na mão.
         </div>
         {waStatus && (
-          <div style={{ padding: 12, background: BG, borderRadius: 8, fontSize: 13, color: waStatus.connected ? "#10B981" : (waStatus.state === "connecting" ? AMBER : RED) }}>
+          <div style={{ padding: 12, background: C.bg, borderRadius: 8, fontSize: 13, color: waStatus.connected ? "#10B981" : (waStatus.state === "connecting" ? C.amber : C.red) }}>
             {waStatus.message || waStatus.error || (waStatus.connected ? "Conectado" : "Desconectado")}
           </div>
         )}
       </div>
 
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📲 Dispositivos aguardando pareamento</div>
-        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>📲 Dispositivos aguardando pareamento</div>
+        <div style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>
           Aparelhos que abriram o app por baixo da primeira vez, sem código configurado. Vincule a um cliente real abaixo.
         </div>
         {/* Fase 36 (20/07/2026): link de download bem visível — achado que
@@ -1087,7 +1076,7 @@ function TabDiagnostico() {
           style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             marginTop: 10, fontSize: 13, fontWeight: 600,
-            color: "#fff", background: BLUE, borderRadius: 8,
+            color: "#fff", background: C.blue, borderRadius: 8,
             padding: "8px 14px", textDecoration: "none",
           }}
         >
@@ -1096,30 +1085,30 @@ function TabDiagnostico() {
       </div>
 
       {loadingPending ? (
-        <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Carregando…</div>
+        <div style={{ fontSize: 13, color: C.text2, marginBottom: 24 }}>Carregando…</div>
       ) : pending.length === 0 ? (
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2, marginBottom: 32 }}>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, fontSize: 13, color: C.text2, marginBottom: 32 }}>
           Nenhum dispositivo aguardando pareamento agora.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
           {pending.map((p: any) => (
-            <div key={p.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div key={p.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 200px" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{p.device_type ?? "Dispositivo"} · {p.platform ?? "—"}</div>
-                <div style={{ fontSize: 11, color: TEXT2 }}>Ativado em {fmt(p.created_at)}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginTop: 2, fontFamily: "monospace" }}>{p.activation_code}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.device_type ?? "Dispositivo"} · {p.platform ?? "—"}</div>
+                <div style={{ fontSize: 11, color: C.text2 }}>Ativado em {fmt(p.created_at)}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.blue, marginTop: 2, fontFamily: "monospace" }}>{p.activation_code}</div>
               </div>
               <input
                 placeholder="Código do cliente (ex: BARBE332)"
                 value={linkCode[p.id] || ""}
                 onChange={e => setLinkCode(c => ({ ...c, [p.id]: e.target.value.toUpperCase() }))}
-                style={{ background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "6px 10px", color: TEXT, fontSize: 13, width: 180 }}
+                style={{ background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "6px 10px", color: C.text, fontSize: 13, width: 180 }}
               />
               <button
                 onClick={() => linkDevice(p.id)}
                 disabled={linking === p.id}
-                style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: linking === p.id ? "not-allowed" : "pointer" }}
+                style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: linking === p.id ? "not-allowed" : "pointer" }}
               >
                 {linking === p.id ? "Vinculando…" : "Vincular"}
               </button>
@@ -1127,61 +1116,61 @@ function TabDiagnostico() {
                 onClick={() => discardDevice(p.id)}
                 disabled={discarding === p.id}
                 title="Remove da lista — não apaga nada além deste registro de pareamento"
-                style={{ background: "transparent", color: RED, border: "1px solid " + RED, borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: discarding === p.id ? "not-allowed" : "pointer" }}
+                style={{ background: "transparent", color: C.red, border: "1px solid " + C.red, borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: discarding === p.id ? "not-allowed" : "pointer" }}
               >
                 {discarding === p.id ? "Descartando…" : "Descartar"}
               </button>
               {linkMsg[p.id] && (
-                <span style={{ fontSize: 12, color: linkMsg[p.id].startsWith("✅") ? GREEN : RED }}>{linkMsg[p.id]}</span>
+                <span style={{ fontSize: 12, color: linkMsg[p.id].startsWith("✅") ? C.green : C.red }}>{linkMsg[p.id]}</span>
               )}
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ marginBottom: 24, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📺 Todas as Telas ({allScreens.length})</div>
-        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+      <div style={{ marginBottom: 24, paddingTop: 12, borderTop: "1px solid " + C.border }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>📺 Todas as Telas ({allScreens.length})</div>
+        <div style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>
           Telas físicas pareadas em todos os clientes — renomeie ou desvincule sem precisar de SQL manual.
         </div>
       </div>
 
       {loadingScreens ? (
-        <div style={{ fontSize: 13, color: TEXT2, marginBottom: 24 }}>Carregando…</div>
+        <div style={{ fontSize: 13, color: C.text2, marginBottom: 24 }}>Carregando…</div>
       ) : allScreens.length === 0 ? (
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2, marginBottom: 32 }}>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, fontSize: 13, color: C.text2, marginBottom: 32 }}>
           Nenhuma tela pareada ainda.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>
           {allScreens.map((s: any) => (
-            <div key={s.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div key={s.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 220px" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{s.label || s.device_type} <span style={{ fontWeight: 400, color: TEXT2 }}>· {s.client_name} ({s.client_code})</span></div>
-                <div style={{ fontSize: 11, color: TEXT2 }}>{s.device_type} · {s.platform} · {s.same_content ? "Mesma playlist" : "Conteúdo próprio"}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginTop: 2, fontFamily: "monospace" }}>{s.activation_code}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.label || s.device_type} <span style={{ fontWeight: 400, color: C.text2 }}>· {s.client_name} ({s.client_code})</span></div>
+                <div style={{ fontSize: 11, color: C.text2 }}>{s.device_type} · {s.platform} · {s.same_content ? "Mesma playlist" : "Conteúdo próprio"}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.blue, marginTop: 2, fontFamily: "monospace" }}>{s.activation_code}</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: s.online ? GREEN + "18" : RED + "18", color: s.online ? GREEN : RED }}>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: s.online ? C.green + "18" : C.red + "18", color: s.online ? C.green : C.red }}>
                 {s.online ? "Online" : "Offline"}
               </span>
               <button
                 onClick={() => removeScreen(s.id, s.label || s.device_type)}
                 disabled={removingScreen === s.id}
-                style={{ fontSize: 11, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "5px 10px", cursor: removingScreen === s.id ? "not-allowed" : "pointer" }}
+                style={{ fontSize: 11, color: C.red, background: "transparent", border: "1px solid " + C.red + "44", borderRadius: 6, padding: "5px 10px", cursor: removingScreen === s.id ? "not-allowed" : "pointer" }}
               >
                 {removingScreen === s.id ? "Removendo…" : "Desvincular"}
               </button>
               {screenMsg[s.id] && (
-                <span style={{ fontSize: 12, color: screenMsg[s.id].startsWith("✅") ? GREEN : RED }}>{screenMsg[s.id]}</span>
+                <span style={{ fontSize: 12, color: screenMsg[s.id].startsWith("✅") ? C.green : C.red }}>{screenMsg[s.id]}</span>
               )}
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ marginBottom: 24, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>Diagnóstico</div>
-        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+      <div style={{ marginBottom: 24, paddingTop: 12, borderTop: "1px solid " + C.border }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Diagnóstico</div>
+        <div style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>
           Busque por código de cliente (ex: BARBE332), código de anunciante (ex: ADV...) ou UUID de campanha — sem precisar de SQL manual no Supabase.
         </div>
       </div>
@@ -1192,28 +1181,28 @@ function TabDiagnostico() {
           onChange={e => setCode(e.target.value)}
           onKeyDown={e => e.key === "Enter" && search()}
           placeholder="Ex: BARBE332"
-          style={{ flex: 1, background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: "10px 14px", color: TEXT, fontSize: 14 }}
+          style={{ flex: 1, background: C.surface, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 14 }}
         />
-        <button onClick={search} disabled={loading} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+        <button onClick={search} disabled={loading} style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
           {loading ? "Buscando…" : "Buscar"}
         </button>
       </div>
 
       {error && (
-        <div style={{ background: RED + "18", border: "1px solid " + RED + "44", borderRadius: 8, padding: "12px 16px", color: RED, fontSize: 13, marginBottom: 20 }}>
+        <div style={{ background: C.red + "18", border: "1px solid " + C.red + "44", borderRadius: 8, padding: "12px 16px", color: C.red, fontSize: 13, marginBottom: 20 }}>
           ⚠️ {error}
         </div>
       )}
 
       {result && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ fontSize: 12, color: TEXT2 }}>
-            Encontrado como: {result.found_as.map((f: string) => <Badge key={f} label={f} color={BLUE} />)}
+          <div style={{ fontSize: 12, color: C.text2 }}>
+            Encontrado como: {result.found_as.map((f: string) => <Badge key={f} label={f} color={C.blue} />)}
           </div>
 
           {result.client && (
-            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 14 }}>👥 Cliente</div>
+            <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>👥 Cliente</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
                 <Field label="Código" value={result.client.code} />
                 <Field label="Nome" value={result.client.name} />
@@ -1222,17 +1211,17 @@ function TabDiagnostico() {
                 <Field label="Mídias cadastradas" value={result.media_count} />
               </div>
               {result.heartbeat && (
-                <div style={{ marginTop: 14, padding: "10px 14px", background: result.heartbeat.likely_offline ? AMBER + "18" : GREEN + "18", borderRadius: 8 }}>
-                  <div style={{ fontSize: 13, color: result.heartbeat.likely_offline ? AMBER : GREEN, fontWeight: 600 }}>
+                <div style={{ marginTop: 14, padding: "10px 14px", background: result.heartbeat.likely_offline ? C.amber + "18" : C.green + "18", borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, color: result.heartbeat.likely_offline ? C.amber : C.green, fontWeight: 600 }}>
                     {result.heartbeat.likely_offline ? "⚠️ Provavelmente offline" : "✅ Online"}
                   </div>
-                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>
                     Último heartbeat há {result.heartbeat.minutes_since_last_ping} minuto(s) — {fmt(result.heartbeat.last_ping)}
                   </div>
                 </div>
               )}
               {!result.heartbeat && (
-                <div style={{ marginTop: 14, padding: "10px 14px", background: RED + "18", borderRadius: 8, fontSize: 13, color: RED }}>
+                <div style={{ marginTop: 14, padding: "10px 14px", background: C.red + "18", borderRadius: 8, fontSize: 13, color: C.red }}>
                   ⚠️ Nenhum registro de heartbeat encontrado pra esse player_id.
                 </div>
               )}
@@ -1240,8 +1229,8 @@ function TabDiagnostico() {
           )}
 
           {result.advertiser && (
-            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 14 }}>📢 Anunciante</div>
+            <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>📢 Anunciante</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
                 <Field label="Código" value={result.advertiser.code} />
                 <Field label="Nome" value={result.advertiser.name} />
@@ -1249,16 +1238,16 @@ function TabDiagnostico() {
                 <Field label="CPF/CNPJ" value={result.advertiser.cpfCnpj} warn={!result.advertiser.cpfCnpj} />
                 <Field label="Cidade" value={result.advertiser.city} warn={!result.advertiser.city} />
               </div>
-              <div style={{ marginTop: 14, padding: "10px 14px", background: result.advertiser_ready_to_bill ? GREEN + "18" : AMBER + "18", borderRadius: 8, fontSize: 13, color: result.advertiser_ready_to_bill ? GREEN : AMBER, fontWeight: 600 }}>
+              <div style={{ marginTop: 14, padding: "10px 14px", background: result.advertiser_ready_to_bill ? C.green + "18" : C.amber + "18", borderRadius: 8, fontSize: 13, color: result.advertiser_ready_to_bill ? C.green : C.amber, fontWeight: 600 }}>
                 {result.advertiser_ready_to_bill ? "✅ Pronto para gerar cobrança" : "⚠️ Falta email ou CPF/CNPJ — cobrança vai falhar"}
               </div>
               {result.campaigns?.length > 0 && (
                 <div style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 12, color: TEXT2, marginBottom: 8 }}>Campanhas recentes</div>
+                  <div style={{ fontSize: 12, color: C.text2, marginBottom: 8 }}>Campanhas recentes</div>
                   {result.campaigns.map((c: any) => (
-                    <div key={c.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: BG, borderRadius: 6, marginBottom: 6, fontSize: 13 }}>
-                      <span style={{ color: TEXT }}>{c.name}</span>
-                      <Badge label={c.status} color={c.status === "active" ? GREEN : c.status === "pending_payment" ? AMBER : TEXT2} />
+                    <div key={c.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: C.bg, borderRadius: 6, marginBottom: 6, fontSize: 13 }}>
+                      <span style={{ color: C.text }}>{c.name}</span>
+                      <Badge label={c.status} color={c.status === "active" ? C.green : c.status === "pending_payment" ? C.amber : C.text2} />
                     </div>
                   ))}
                 </div>
@@ -1267,8 +1256,8 @@ function TabDiagnostico() {
           )}
 
           {result.campaign && (
-            <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 14 }}>📋 Campanha</div>
+            <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>📋 Campanha</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
                 <Field label="Nome" value={result.campaign.name} />
                 <Field label="Status" value={result.campaign.status} />
@@ -1276,9 +1265,9 @@ function TabDiagnostico() {
                 <Field label="Anunciante" value={result.campaign.advertiserCode} />
               </div>
               {result.payment && (
-                <div style={{ marginTop: 14, padding: "10px 14px", background: BG, borderRadius: 8 }}>
+                <div style={{ marginTop: 14, padding: "10px 14px", background: C.bg, borderRadius: 8 }}>
                   <Field label="Pagamento" value={result.payment.status} />
-                  <div style={{ fontSize: 12, color: TEXT2, marginTop: 6 }}>Pago em: {fmt(result.payment.paid_at)}</div>
+                  <div style={{ fontSize: 12, color: C.text2, marginTop: 6 }}>Pago em: {fmt(result.payment.paid_at)}</div>
                 </div>
               )}
             </div>
@@ -1345,14 +1334,14 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
       {showSub && <ModalAssinatura client={showSub} onClose={() => setShowSub(null)} onSuccess={onRefresh} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>
-          Clientes <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({clients.length})</span>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>
+          Clientes <span style={{ fontSize: 13, color: C.text2, fontWeight: 400 }}>({clients.length})</span>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => setShowNovo(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: GREEN + "18", border: "1px solid " + GREEN + "44", color: GREEN, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={() => setShowNovo(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: C.green + "18", border: "1px solid " + C.green + "44", color: C.green, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             + Novo Cliente
           </button>
-          <button onClick={() => setShowCsv(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: BLUE + "18", border: "1px solid " + BLUE + "44", color: BLUE, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={() => setShowCsv(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: C.blue + "18", border: "1px solid " + C.blue + "44", color: C.blue, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             📄 Importar CSV
           </button>
         </div>
@@ -1363,14 +1352,14 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
           const sub = subMap[c.code]
           const hasActiveSub = sub?.status === "ACTIVE"
           return (
-            <div key={c.code} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
+            <div key={c.code} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, color: TEXT, fontSize: 15 }}>{c.name}</span>
-                  <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "1px 7px", borderRadius: 10 }}>{c.code}</span>
+                  <span style={{ fontWeight: 700, color: C.text, fontSize: 15 }}>{c.name}</span>
+                  <span style={{ fontSize: 11, color: C.text2, background: C.border, padding: "1px 7px", borderRadius: 10 }}>{c.code}</span>
                 </div>
-                <div style={{ fontSize: 12, color: TEXT2 }}>{c.business_type} · {c.address ?? "Sem endereço"}{c.city ? `, ${c.city}` : ""}</div>
-                <div style={{ fontSize: 11, color: TEXT2, marginTop: 3, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 12, color: C.text2 }}>{c.business_type} · {c.address ?? "Sem endereço"}{c.city ? `, ${c.city}` : ""}</div>
+                <div style={{ fontSize: 11, color: C.text2, marginTop: 3, display: "flex", gap: 14, flexWrap: "wrap" }}>
                   <span>📱 {c.phone ? formatPhone(c.phone) : "sem telefone"}</span>
                   <span>✉️ {c.email ?? "sem email"}</span>
                   {c.cpf_cnpj !== undefined && <span>🪪 {c.cpf_cnpj ? formatCpfCnpj(c.cpf_cnpj) : "sem CPF/CNPJ"}</span>}
@@ -1379,7 +1368,7 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
                   <select
                     value={draftFor(c).screen_size}
                     onChange={e => setPricingDraft(p => ({ ...p, [c.code]: { ...draftFor(c), screen_size: e.target.value } }))}
-                    style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "3px 6px", color: TEXT }}
+                    style={{ fontSize: 11, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "3px 6px", color: C.text }}
                   >
                     <option value="">Tamanho da tela…</option>
                     <option value="pequena">Pequena</option>
@@ -1391,51 +1380,51 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
                     value={draftFor(c).price_multiplier}
                     onChange={e => setPricingDraft(p => ({ ...p, [c.code]: { ...draftFor(c), price_multiplier: e.target.value } }))}
                     placeholder="1.0"
-                    style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "3px 6px", color: TEXT, width: 60 }}
+                    style={{ fontSize: 11, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "3px 6px", color: C.text, width: 60 }}
                   />
-                  <span style={{ fontSize: 10, color: TEXT2 }}>× multiplicador</span>
+                  <span style={{ fontSize: 10, color: C.text2 }}>× multiplicador</span>
                   <button
                     onClick={() => savePricing(c.code)}
                     disabled={savingPricing === c.code}
-                    style={{ fontSize: 10, background: BLUE + "18", border: "1px solid " + BLUE + "44", color: BLUE, borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontWeight: 600 }}
+                    style={{ fontSize: 10, background: C.blue + "18", border: "1px solid " + C.blue + "44", color: C.blue, borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontWeight: 600 }}
                   >
                     {savingPricing === c.code ? "Salvando…" : "Salvar"}
                   </button>
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Player</div>
-                <Badge label={c.player_status ?? "offline"} color={c.player_status === "online" ? GREEN : MUTED} />
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>Player</div>
+                <Badge label={c.player_status ?? "offline"} color={c.player_status === "online" ? C.green : C.muted} />
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Plano</div>
-                <Badge label={sub?.plan ?? "—"} color={sub ? BLUE : MUTED} />
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>Plano</div>
+                <Badge label={sub?.plan ?? "—"} color={sub ? C.blue : C.muted} />
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>Assinatura</div>
-                <Badge label={isSuperAdmin ? (sub?.status ?? "sem assinatura") : "restrito"} color={hasActiveSub ? GREEN : (isSuperAdmin ? AMBER : MUTED)} />
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>Assinatura</div>
+                <Badge label={isSuperAdmin ? (sub?.status ?? "sem assinatura") : "restrito"} color={hasActiveSub ? C.green : (isSuperAdmin ? C.amber : C.muted)} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {isSuperAdmin && !hasActiveSub && (
                   <button onClick={() => setShowSub(c)}
-                    style={{ fontSize: 12, background: GREEN, border: "none", borderRadius: 6, color: "white", cursor: "pointer", padding: "5px 10px", fontWeight: 600 }}>
+                    style={{ fontSize: 12, background: C.green, border: "none", borderRadius: 6, color: "white", cursor: "pointer", padding: "5px 10px", fontWeight: 600 }}>
                     💳 Assinar
                   </button>
                 )}
                 <Link href={"/dashboard/local/" + c.code} target="_blank"
-                  style={{ fontSize: 12, color: PURPLE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + PURPLE + "44", borderRadius: 6 }}>
+                  style={{ fontSize: 12, color: C.purple, textDecoration: "none", padding: "5px 10px", border: "1px solid " + C.purple + "44", borderRadius: 6 }}>
                   Dashboard
                 </Link>
                 <button
                   onClick={() => setShowEdit(c)}
-                  style={{ fontSize: 12, color: BLUE, background: "transparent", border: "1px solid " + BLUE + "44", borderRadius: 6, padding: "5px 10px", cursor: "pointer" }}
+                  style={{ fontSize: 12, color: C.blue, background: "transparent", border: "1px solid " + C.blue + "44", borderRadius: 6, padding: "5px 10px", cursor: "pointer" }}
                 >
                   ✏️ Editar
                 </button>
                 <button
                   onClick={() => handleDelete(c.code, c.name)}
                   disabled={deletingCode === c.code}
-                  style={{ fontSize: 12, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "5px 10px", cursor: deletingCode === c.code ? "not-allowed" : "pointer" }}
+                  style={{ fontSize: 12, color: C.red, background: "transparent", border: "1px solid " + C.red + "44", borderRadius: 6, padding: "5px 10px", cursor: deletingCode === c.code ? "not-allowed" : "pointer" }}
                 >
                   {deletingCode === c.code ? "Excluindo…" : "🗑 Excluir"}
                 </button>
@@ -1455,33 +1444,33 @@ function TabAssinaturas({ data }: { data: any }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
-        <KpiCard label="MRR"                value={brl(mrr)}                                                                                    color={GREEN}  />
-        <KpiCard label="Assinaturas Ativas" value={subscriptions.filter((s: any) => s.status === "ACTIVE").length}                              color={BLUE}   />
-        <KpiCard label="ARR Projetado"      value={brl(mrr * 12)}                                                                               color={PURPLE} />
+        <KpiCard label="MRR"                value={brl(mrr)}                                                                                    color={C.green}  />
+        <KpiCard label="Assinaturas Ativas" value={subscriptions.filter((s: any) => s.status === "ACTIVE").length}                              color={C.blue}   />
+        <KpiCard label="ARR Projetado"      value={brl(mrr * 12)}                                                                               color={C.purple} />
         <KpiCard label="Ticket Médio"       value={brl(subscriptions.length > 0 ? mrr / subscriptions.length : 0)} />
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>Assinaturas</div>
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 16 }}>Assinaturas</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid " + BORDER }}>
+            <tr style={{ borderBottom: "1px solid " + C.border }}>
               {["Cliente","Plano","Valor","Status","Asaas ID","Criado em"].map(h => (
-                <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+                <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, color: C.text2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {subscriptions.map((s: any, i: number) => (
-              <tr key={s.code} style={{ borderBottom: i < subscriptions.length - 1 ? "1px solid " + BORDER : "none" }}>
+              <tr key={s.code} style={{ borderBottom: i < subscriptions.length - 1 ? "1px solid " + C.border : "none" }}>
                 <td style={{ padding: "12px 16px" }}>
-                  <div style={{ fontWeight: 600, color: TEXT }}>{clientMap[s.code]?.name ?? s.code}</div>
-                  <div style={{ fontSize: 11, color: TEXT2 }}>{s.code}</div>
+                  <div style={{ fontWeight: 600, color: C.text }}>{clientMap[s.code]?.name ?? s.code}</div>
+                  <div style={{ fontSize: 11, color: C.text2 }}>{s.code}</div>
                 </td>
-                <td style={{ padding: "12px 16px" }}><Badge label={s.plan} color={BLUE} /></td>
-                <td style={{ padding: "12px 16px", color: GREEN, fontWeight: 600 }}>{brl(s.value)}</td>
-                <td style={{ padding: "12px 16px" }}><Badge label={s.status} color={s.status === "ACTIVE" ? GREEN : AMBER} /></td>
-                <td style={{ padding: "12px 16px", fontSize: 11, color: TEXT2, fontFamily: "monospace" }}>{s.asaas_subscription_id ?? "—"}</td>
-                <td style={{ padding: "12px 16px", fontSize: 12, color: TEXT2 }}>{fmt(s.created_at)}</td>
+                <td style={{ padding: "12px 16px" }}><Badge label={s.plan} color={C.blue} /></td>
+                <td style={{ padding: "12px 16px", color: C.green, fontWeight: 600 }}>{brl(s.value)}</td>
+                <td style={{ padding: "12px 16px" }}><Badge label={s.status} color={s.status === "ACTIVE" ? C.green : C.amber} /></td>
+                <td style={{ padding: "12px 16px", fontSize: 11, color: C.text2, fontFamily: "monospace" }}>{s.asaas_subscription_id ?? "—"}</td>
+                <td style={{ padding: "12px 16px", fontSize: 12, color: C.text2 }}>{fmt(s.created_at)}</td>
               </tr>
             ))}
           </tbody>
@@ -1516,34 +1505,34 @@ function TabAnunciantes({ data, isSuperAdmin, onRefresh }: { data: any; isSuperA
   return (
     <div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
-        <KpiCard label="Anunciantes"     value={advertisers.length}                                                                          color={BLUE}   />
-        <KpiCard label="Campanhas"       value={campaigns.length}                                                                            color={PURPLE} />
-        <KpiCard label="Ativas"          value={campaigns.filter((c: any) => c.status === "active").length}                                  color={GREEN}  />
+        <KpiCard label="Anunciantes"     value={advertisers.length}                                                                          color={C.blue}   />
+        <KpiCard label="Campanhas"       value={campaigns.length}                                                                            color={C.purple} />
+        <KpiCard label="Ativas"          value={campaigns.filter((c: any) => c.status === "active").length}                                  color={C.green}  />
         {isSuperAdmin && (
-          <KpiCard label="Invest. Total"   value={brl(campaigns.reduce((a: number, c: any) => a + Number(c.budget ?? 0), 0))}                  color={AMBER}  />
+          <KpiCard label="Invest. Total"   value={brl(campaigns.reduce((a: number, c: any) => a + Number(c.budget ?? 0), 0))}                  color={C.amber}  />
         )}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>Anunciantes</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 16 }}>Anunciantes</div>
       {advertisers.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2 }}>Nenhum anunciante cadastrado.</div>
+        <div style={{ textAlign: "center", padding: "40px", background: C.surface, borderRadius: 12, border: "1px dashed " + C.border, color: C.text2 }}>Nenhum anunciante cadastrado.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {advertisers.map((a: any) => (
-            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
+            <div key={a.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr auto auto auto auto", alignItems: "center", gap: 20 }}>
               <div>
-                <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>{a.name}</div>
-                <div style={{ fontSize: 12, color: TEXT2 }}>{a.email ?? "—"} · {a.phone ?? "—"}</div>
+                <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{a.name}</div>
+                <div style={{ fontSize: 12, color: C.text2 }}>{a.email ?? "—"} · {a.phone ?? "—"}</div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: PURPLE }}>{campByAdv[a.code] ?? 0}</div>
-                <div style={{ fontSize: 11, color: TEXT2 }}>Campanhas</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.purple }}>{campByAdv[a.code] ?? 0}</div>
+                <div style={{ fontSize: 11, color: C.text2 }}>Campanhas</div>
               </div>
-              <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "2px 8px", borderRadius: 10 }}>#{a.code}</span>
-              <Link href={"/anunciante/" + a.code} target="_blank" style={{ fontSize: 12, color: BLUE, textDecoration: "none", padding: "5px 10px", border: "1px solid " + BLUE + "44", borderRadius: 6 }}>Portal</Link>
+              <span style={{ fontSize: 11, color: C.text2, background: C.border, padding: "2px 8px", borderRadius: 10 }}>#{a.code}</span>
+              <Link href={"/anunciante/" + a.code} target="_blank" style={{ fontSize: 12, color: C.blue, textDecoration: "none", padding: "5px 10px", border: "1px solid " + C.blue + "44", borderRadius: 6 }}>Portal</Link>
               <button
                 onClick={() => handleDelete(a.code, a.name)}
                 disabled={deletingCode === a.code}
-                style={{ fontSize: 12, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "5px 10px", cursor: deletingCode === a.code ? "not-allowed" : "pointer" }}
+                style={{ fontSize: 12, color: C.red, background: "transparent", border: "1px solid " + C.red + "44", borderRadius: 6, padding: "5px 10px", cursor: deletingCode === a.code ? "not-allowed" : "pointer" }}
               >
                 {deletingCode === a.code ? "Excluindo…" : "🗑 Excluir"}
               </button>
@@ -1569,39 +1558,39 @@ function TabAlertas({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
-        <KpiCard label="A verificar" value={pending.length} color={pending.length > 0 ? AMBER : GREEN} />
-        <KpiCard label="Total já detectado" value={alerts.length} color={BLUE} />
+        <KpiCard label="A verificar" value={pending.length} color={pending.length > 0 ? C.amber : C.green} />
+        <KpiCard label="Total já detectado" value={alerts.length} color={C.blue} />
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 8 }}>Telefones cadastrados como dono de tela E anunciante</div>
-      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 16 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Telefones cadastrados como dono de tela E anunciante</div>
+      <div style={{ fontSize: 13, color: C.text2, marginBottom: 16 }}>
         Não é necessariamente um problema — pode ser um dono de tela anunciando de propósito nas telas de outros parceiros. Mas também é o padrão exato de quando alguém usa o portal errado por engano para fazer upload do próprio conteúdo. Vale dar uma olhada e confirmar com a pessoa se tiver dúvida.
       </div>
       {alerts.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2 }}>
+        <div style={{ textAlign: "center", padding: "40px", background: C.surface, borderRadius: 12, border: "1px dashed " + C.border, color: C.text2 }}>
           Nenhum cadastro duplicado detectado ainda.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {alerts.map((a: any) => (
-            <div key={a.id} style={{ background: SURFACE, border: "1px solid " + (a.resolved ? BORDER : AMBER + "66"), borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr auto auto", alignItems: "center", gap: 20 }}>
+            <div key={a.id} style={{ background: C.surface, border: "1px solid " + (a.resolved ? C.border : C.amber + "66"), borderRadius: 12, padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr auto auto", alignItems: "center", gap: 20 }}>
               <div>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>DONO DE TELA</div>
-                <div style={{ fontWeight: 600, color: TEXT }}>{a.studio_client_name ?? "—"}</div>
-                <div style={{ fontSize: 12, color: TEXT2 }}>#{a.studio_client_code ?? "—"}</div>
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>DONO DE TELA</div>
+                <div style={{ fontWeight: 600, color: C.text }}>{a.studio_client_name ?? "—"}</div>
+                <div style={{ fontSize: 12, color: C.text2 }}>#{a.studio_client_code ?? "—"}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 4 }}>ANUNCIANTE</div>
-                <div style={{ fontWeight: 600, color: TEXT }}>{a.advertiser_name ?? "—"}</div>
-                <div style={{ fontSize: 12, color: TEXT2 }}>#{a.advertiser_code ?? "—"}</div>
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>ANUNCIANTE</div>
+                <div style={{ fontWeight: 600, color: C.text }}>{a.advertiser_name ?? "—"}</div>
+                <div style={{ fontSize: 12, color: C.text2 }}>#{a.advertiser_code ?? "—"}</div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 13, color: TEXT2 }}>{a.phone}</div>
-                <div style={{ fontSize: 11, color: TEXT2 }}>{new Date(a.detected_at).toLocaleDateString("pt-BR")}</div>
+                <div style={{ fontSize: 13, color: C.text2 }}>{a.phone}</div>
+                <div style={{ fontSize: 11, color: C.text2 }}>{new Date(a.detected_at).toLocaleDateString("pt-BR")}</div>
               </div>
               {a.resolved ? (
-                <span style={{ fontSize: 11, color: GREEN, background: GREEN + "22", padding: "4px 10px", borderRadius: 10 }}>Resolvido</span>
+                <span style={{ fontSize: 11, color: C.green, background: C.green + "22", padding: "4px 10px", borderRadius: 10 }}>Resolvido</span>
               ) : (
-                <button onClick={() => markResolved(a.id)} style={{ fontSize: 12, color: TEXT, background: "transparent", border: "1px solid " + BORDER, borderRadius: 6, padding: "6px 12px", cursor: "pointer" }}>
+                <button onClick={() => markResolved(a.id)} style={{ fontSize: 12, color: C.text, background: "transparent", border: "1px solid " + C.border, borderRadius: 6, padding: "6px 12px", cursor: "pointer" }}>
                   Marcar resolvido
                 </button>
               )}
@@ -1618,15 +1607,15 @@ function TabEventos({ data }: { data: any }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
-        <KpiCard label="Total de Eventos"  value={events.total?.toLocaleString("pt-BR")}    color={BLUE}   />
-        <KpiCard label="Últimas 24h"       value={events.last_24h?.toLocaleString("pt-BR")} color={GREEN}  />
-        <KpiCard label="Últimos 7 dias"    value={events.last_7d?.toLocaleString("pt-BR")}  color={PURPLE} />
+        <KpiCard label="Total de Eventos"  value={events.total?.toLocaleString("pt-BR")}    color={C.blue}   />
+        <KpiCard label="Últimas 24h"       value={events.last_24h?.toLocaleString("pt-BR")} color={C.green}  />
+        <KpiCard label="Últimos 7 dias"    value={events.last_7d?.toLocaleString("pt-BR")}  color={C.purple} />
         <KpiCard label="Blocos Totais"     value={blocks.total?.toLocaleString("pt-BR")}    />
-        <KpiCard label="Blocos Ancorados"  value={blocks.anchored?.toLocaleString("pt-BR")} color={AMBER}
+        <KpiCard label="Blocos Ancorados"  value={blocks.anchored?.toLocaleString("pt-BR")} color={C.amber}
           sub={Math.round((blocks.anchored / blocks.total) * 100) + "% do total"} />
       </div>
       <div style={{ display: "flex", gap: 12 }}>
-        <Link href="/explorer" target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: SURFACE, border: "1px solid " + BORDER, color: TEXT, textDecoration: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13 }}>
+        <Link href="/explorer" target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: C.surface, border: "1px solid " + C.border, color: C.text, textDecoration: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13 }}>
           🔍 ProofChain Explorer
         </Link>
       </div>
@@ -1689,63 +1678,63 @@ function TabUsuarios() {
 
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🔐 Usuários e permissões</div>
-      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>🔐 Usuários e permissões</div>
+      <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>
         Cada admin tem seu próprio login. <b>Super admin</b> vê tudo, incluindo Assinaturas/financeiro.
         <b> Operador</b> vê todas as abas, exceto Assinaturas. O login mestre (env) continua funcionando sempre, como chave de emergência.
       </div>
 
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Adicionar admin</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12, color: C.text }}>Adicionar admin</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome</label>
-            <input value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Nome</label>
+            <input value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Senha (mín. 8)</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Senha (mín. 8)</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Papel</label>
-            <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Papel</label>
+            <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
               <option value="operador">Operador</option>
               <option value="super_admin">Super admin</option>
             </select>
           </div>
-          <button onClick={create} disabled={creating} style={{ fontSize: 13, fontWeight: 600, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer", opacity: creating ? 0.6 : 1 }}>
+          <button onClick={create} disabled={creating} style={{ fontSize: 13, fontWeight: 600, background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer", opacity: creating ? 0.6 : 1 }}>
             {creating ? "Criando..." : "Criar"}
           </button>
         </div>
-        {error && <div style={{ fontSize: 12, color: RED, marginTop: 8 }}>⚠️ {error}</div>}
+        {error && <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>⚠️ {error}</div>}
       </div>
 
-      {loading ? <div style={{ color: TEXT2 }}>Carregando...</div> : (
+      {loading ? <div style={{ color: C.text2 }}>Carregando...</div> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {users.map(u => (
-            <div key={u.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={u.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{u.name} {!u.active && <span style={{ color: RED, fontSize: 11 }}> · inativo</span>}</div>
-                <div style={{ fontSize: 11, color: TEXT2 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{u.name} {!u.active && <span style={{ color: C.red, fontSize: 11 }}> · inativo</span>}</div>
+                <div style={{ fontSize: 11, color: C.text2 }}>
                   {u.email} · {u.last_login_at ? `último login ${new Date(u.last_login_at).toLocaleString("pt-BR")}` : "nunca logou"}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <select value={u.role} onChange={e => changeRole(u, e.target.value)} style={{ fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "6px 8px", color: TEXT }}>
+                <select value={u.role} onChange={e => changeRole(u, e.target.value)} style={{ fontSize: 12, background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "6px 8px", color: C.text }}>
                   <option value="operador">Operador</option>
                   <option value="super_admin">Super admin</option>
                 </select>
-                <button onClick={() => toggleActive(u)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "1px solid " + (u.active ? RED : GREEN), background: "transparent", color: u.active ? RED : GREEN, cursor: "pointer" }}>
+                <button onClick={() => toggleActive(u)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "1px solid " + (u.active ? C.red : C.green), background: "transparent", color: u.active ? C.red : C.green, cursor: "pointer" }}>
                   {u.active ? "Desativar" : "Reativar"}
                 </button>
               </div>
             </div>
           ))}
-          {users.length === 0 && <div style={{ color: TEXT2, fontSize: 13 }}>Nenhum admin cadastrado ainda — só o login mestre existe.</div>}
+          {users.length === 0 && <div style={{ color: C.text2, fontSize: 13 }}>Nenhum admin cadastrado ainda — só o login mestre existe.</div>}
         </div>
       )}
     </div>
@@ -1824,64 +1813,64 @@ function TabExemplos() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>📚 Galeria de Exemplos</div>
-        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>📚 Galeria de Exemplos</div>
+        <div style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>
           Mídia pronta por segmento — cliente sem conteúdo próprio pode usar direto na tela dele, com 1 clique. Exemplos do nicho "generico" aparecem pra todo mundo.
         </div>
       </div>
 
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, marginBottom: 28 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Adicionar novo exemplo</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, marginBottom: 28 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Adicionar novo exemplo</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Segmento</label>
-            <select value={niche} onChange={e => setNiche(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Segmento</label>
+            <select value={niche} onChange={e => setNiche(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
               {NICHES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Duração (vídeo)</label>
-            <select value={duration} onChange={e => setDuration(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Duração (vídeo)</label>
+            <select value={duration} onChange={e => setDuration(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
               {[10, 15, 20, 30].map(d => <option key={d} value={d}>{d}s</option>)}
             </select>
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome do exemplo</label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Promoção Corte + Barba" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Nome do exemplo</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Promoção Corte + Barba" style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: TEXT2 }} />
+          <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: C.text2 }} />
         </div>
-        {error && <div style={{ fontSize: 12, color: RED, marginBottom: 10 }}>⚠️ {error}</div>}
-        <button onClick={upload} disabled={uploading} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer" }}>
+        {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>⚠️ {error}</div>}
+        <button onClick={upload} disabled={uploading} style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer" }}>
           {uploading ? "Enviando…" : "Adicionar à galeria"}
         </button>
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: TEXT2 }}>Carregando…</div>
+        <div style={{ fontSize: 13, color: C.text2 }}>Carregando…</div>
       ) : items.length === 0 ? (
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2 }}>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, fontSize: 13, color: C.text2 }}>
           Nenhum exemplo cadastrado ainda — adicione o primeiro acima.
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
           {items.map((ex: any) => (
-            <div key={ex.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden", opacity: ex.active ? 1 : 0.5 }}>
-              <div style={{ height: 90, background: BG }}>
+            <div key={ex.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", opacity: ex.active ? 1 : 0.5 }}>
+              <div style={{ height: 90, background: C.bg }}>
                 {ex.type === "video"
                   ? <video src={ex.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" />
                   : <img src={ex.url} alt={ex.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
               </div>
               <div style={{ padding: "8px 10px" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
-                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6 }}>{ex.niche}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                <div style={{ fontSize: 10, color: C.text2, marginBottom: 6 }}>{ex.niche}</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
                     onClick={() => toggleActive(ex.id, ex.active)}
                     disabled={togglingId === ex.id}
-                    style={{ flex: 1, fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + BORDER, background: ex.active ? RED + "10" : GREEN + "10", color: ex.active ? RED : GREEN, cursor: togglingId === ex.id ? "not-allowed" : "pointer" }}
+                    style={{ flex: 1, fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + C.border, background: ex.active ? C.red + "10" : C.green + "10", color: ex.active ? C.red : C.green, cursor: togglingId === ex.id ? "not-allowed" : "pointer" }}
                   >
                     {togglingId === ex.id ? "…" : ex.active ? "Desativar" : "Reativar"}
                   </button>
@@ -1889,7 +1878,7 @@ function TabExemplos() {
                     onClick={() => deleteExample(ex.id, ex.name)}
                     disabled={deletingId === ex.id}
                     title="Excluir definitivamente"
-                    style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 5, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, cursor: deletingId === ex.id ? "not-allowed" : "pointer" }}
+                    style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 5, border: "1px solid " + C.border, background: "transparent", color: C.text2, cursor: deletingId === ex.id ? "not-allowed" : "pointer" }}
                   >
                     {deletingId === ex.id ? "…" : "🗑"}
                   </button>
@@ -2035,20 +2024,20 @@ function LayoutEditor({ clientCode, onFinalize, initialZones, initialOrientation
     setSaving(false)
   }
 
-  if (loading) return <div style={{ color: TEXT2, fontSize: 13 }}>Carregando editor...</div>
+  if (loading) return <div style={{ color: C.text2, fontSize: 13 }}>Carregando editor...</div>
 
   return (
-    <div style={{ marginTop: 20, borderTop: "1px solid " + BORDER, paddingTop: 20 }}>
-      <div style={{ fontWeight: 600, marginBottom: 4, color: TEXT }}>🎨 Editor de layout personalizado</div>
-      <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+    <div style={{ marginTop: 20, borderTop: "1px solid " + C.border, paddingTop: 20 }}>
+      <div style={{ fontWeight: 600, marginBottom: 4, color: C.text }}>🎨 Editor de layout personalizado</div>
+      <div style={{ fontSize: 11, color: C.text2, marginBottom: 12 }}>
         Clica num modelo pronto pra começar, depois arrasta pra mover e puxa o cantinho pra redimensionar. Clica num bloco pra trocar o conteúdo ou remover.
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {presets.map((p: any) => (
           <button key={p.id} onClick={() => applyPreset(p)} style={{
-            fontSize: 11, padding: "6px 10px", borderRadius: 6, border: "1px solid " + BORDER,
-            background: BG, color: TEXT2, cursor: "pointer",
+            fontSize: 11, padding: "6px 10px", borderRadius: 6, border: "1px solid " + C.border,
+            background: C.bg, color: C.text2, cursor: "pointer",
           }}>{p.orientation === "vertical" ? "📱" : "🖥️"} {p.name}</button>
         ))}
       </div>
@@ -2057,7 +2046,7 @@ function LayoutEditor({ clientCode, onFinalize, initialZones, initialOrientation
         <div>
           <div style={{
             width: canvasW, height: canvasH, position: "relative",
-            background: "#0F172A", border: "1px solid " + BORDER, borderRadius: 8,
+            background: "#0F172A", border: "1px solid " + C.border, borderRadius: 8,
             overflow: "hidden", userSelect: "none",
           }} onMouseDown={() => setSelectedZone(null)}>
             {zones.map((z, i) => (
@@ -2085,8 +2074,8 @@ function LayoutEditor({ clientCode, onFinalize, initialZones, initialOrientation
             ))}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button onClick={addZone} style={{ fontSize: 12, padding: "8px 14px", borderRadius: 6, border: "1px solid " + BORDER, background: BG, color: TEXT2, cursor: "pointer" }}>+ Adicionar bloco</button>
-            <button onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")} style={{ fontSize: 12, padding: "8px 14px", borderRadius: 6, border: "1px solid " + BORDER, background: BG, color: TEXT2, cursor: "pointer" }}>
+            <button onClick={addZone} style={{ fontSize: 12, padding: "8px 14px", borderRadius: 6, border: "1px solid " + C.border, background: C.bg, color: C.text2, cursor: "pointer" }}>+ Adicionar bloco</button>
+            <button onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")} style={{ fontSize: 12, padding: "8px 14px", borderRadius: 6, border: "1px solid " + C.border, background: C.bg, color: C.text2, cursor: "pointer" }}>
               {orientation === "horizontal" ? "🖥️ Horizontal" : "📱 Vertical"} (trocar)
             </button>
           </div>
@@ -2096,20 +2085,20 @@ function LayoutEditor({ clientCode, onFinalize, initialZones, initialOrientation
           {zones.map((z, i) => (
             <div key={z.id} style={{
               display: "flex", alignItems: "center", gap: 8, padding: 8, marginBottom: 6,
-              background: selectedZone === z.id ? BORDER : "transparent", borderRadius: 6,
+              background: selectedZone === z.id ? C.border : "transparent", borderRadius: 6,
             }}>
               <div style={{ width: 10, height: 10, borderRadius: 3, background: ZONE_COLORS[i % ZONE_COLORS.length], flexShrink: 0 }} />
-              <select value={z.content_type} onChange={e => updateZoneType(z.id, e.target.value)} style={{ flex: 1, fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "5px 6px", color: TEXT }}>
+              <select value={z.content_type} onChange={e => updateZoneType(z.id, e.target.value)} style={{ flex: 1, fontSize: 12, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "5px 6px", color: C.text }}>
                 {LAYOUT_CONTENT_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <button onClick={() => removeZone(z.id)} style={{ fontSize: 12, color: RED, background: "transparent", border: "none", cursor: "pointer" }}>✕</button>
+              <button onClick={() => removeZone(z.id)} style={{ fontSize: 12, color: C.red, background: "transparent", border: "none", cursor: "pointer" }}>✕</button>
             </div>
           ))}
         </div>
       </div>
 
       {message && <div style={{ fontSize: 12, marginTop: 12 }}>{message}</div>}
-      <button onClick={save} disabled={saving} style={{ marginTop: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+      <button onClick={save} disabled={saving} style={{ marginTop: 12, background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
         {saving ? "Salvando..." : standalone ? "Usar esse layout" : "Salvar layout personalizado"}
       </button>
     </div>
@@ -2186,79 +2175,79 @@ function TabEnquetes({ data }: { data: any }) {
 
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🗳️ Enquetes</div>
-      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>🗳️ Enquetes</div>
+      <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>
         Interatividade básica — as telas são só de exibição, então quem vê escaneia o QR e vota pelo celular.
         Resultado aparece ao vivo na tela (atualiza a cada 15s).
       </div>
 
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontWeight: 600, marginBottom: 14, color: TEXT }}>Nova enquete</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, marginBottom: 14, color: C.text }}>Nova enquete</div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Cliente</label>
-          <select value={clientCode} onChange={e => setClientCode(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Cliente</label>
+          <select value={clientCode} onChange={e => setClientCode(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
             <option value="">Selecione...</option>
             {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
           </select>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Pergunta</label>
-          <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ex: Qual corte você mais gosta?" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Pergunta</label>
+          <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ex: Qual corte você mais gosta?" style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Opções (2 a 4)</label>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Opções (2 a 4)</label>
           {options.map((opt, i) => (
             <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <input value={opt} onChange={e => updateOption(i, e.target.value)} placeholder={`Opção ${i + 1}`} style={{ flex: 1, background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "7px 9px", color: TEXT, fontSize: 13 }} />
-              {options.length > 2 && <button onClick={() => removeOption(i)} style={{ color: RED, background: "transparent", border: "none", cursor: "pointer", fontSize: 13 }}>✕</button>}
+              <input value={opt} onChange={e => updateOption(i, e.target.value)} placeholder={`Opção ${i + 1}`} style={{ flex: 1, background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "7px 9px", color: C.text, fontSize: 13 }} />
+              {options.length > 2 && <button onClick={() => removeOption(i)} style={{ color: C.red, background: "transparent", border: "none", cursor: "pointer", fontSize: 13 }}>✕</button>}
             </div>
           ))}
-          {options.length < 4 && <button onClick={addOption} style={{ fontSize: 12, background: "transparent", border: "1px dashed " + BORDER, borderRadius: 6, padding: "6px 12px", color: TEXT2, cursor: "pointer" }}>+ Adicionar opção</button>}
+          {options.length < 4 && <button onClick={addOption} style={{ fontSize: 12, background: "transparent", border: "1px dashed " + C.border, borderRadius: 6, padding: "6px 12px", color: C.text2, cursor: "pointer" }}>+ Adicionar opção</button>}
         </div>
-        {error && <div style={{ color: RED, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
-        <button onClick={create} disabled={saving} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+        {error && <div style={{ color: C.red, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
+        <button onClick={create} disabled={saving} style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
           {saving ? "Criando..." : "Criar enquete"}
         </button>
       </div>
 
-      <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Enquetes cadastradas</div>
-      {loading ? <div style={{ color: TEXT2, fontSize: 13 }}>Carregando...</div> : items.length === 0 ? (
-        <div style={{ color: TEXT2, fontSize: 13 }}>Nenhuma enquete ainda.</div>
+      <div style={{ fontWeight: 600, marginBottom: 12, color: C.text }}>Enquetes cadastradas</div>
+      {loading ? <div style={{ color: C.text2, fontSize: 13 }}>Carregando...</div> : items.length === 0 ? (
+        <div style={{ color: C.text2, fontSize: 13 }}>Nenhuma enquete ainda.</div>
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {items.map((it: any) => {
             const r = results[it.id]
             return (
-              <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: 14 }}>
+              <div key={it.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 8, padding: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <div style={{ fontWeight: 600, color: TEXT, fontSize: 13 }}>{it.client_code} — {it.question}</div>
-                    <div style={{ fontSize: 11, color: TEXT2, marginTop: 2 }}>{it.options.join(" · ")}</div>
+                    <div style={{ fontWeight: 600, color: C.text, fontSize: 13 }}>{it.client_code} — {it.question}</div>
+                    <div style={{ fontSize: 11, color: C.text2, marginTop: 2 }}>{it.options.join(" · ")}</div>
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                    <button onClick={() => loadResult(it.id)} style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "4px 8px", color: TEXT2, cursor: "pointer" }}>Ver resultado</button>
-                    <button onClick={() => toggleActive(it.id, it.active)} style={{ fontSize: 11, background: it.active ? "#10B98122" : BG, border: "1px solid " + (it.active ? "#10B981" : BORDER), borderRadius: 5, padding: "4px 8px", color: it.active ? "#10B981" : TEXT2, cursor: "pointer" }}>
+                    <button onClick={() => loadResult(it.id)} style={{ fontSize: 11, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "4px 8px", color: C.text2, cursor: "pointer" }}>Ver resultado</button>
+                    <button onClick={() => toggleActive(it.id, it.active)} style={{ fontSize: 11, background: it.active ? "#10B98122" : C.bg, border: "1px solid " + (it.active ? "#10B981" : C.border), borderRadius: 5, padding: "4px 8px", color: it.active ? "#10B981" : C.text2, cursor: "pointer" }}>
                       {it.active ? "Ativa" : "Inativa"}
                     </button>
-                    <button onClick={() => remove(it.id)} style={{ color: RED, background: "transparent", border: "none", cursor: "pointer", fontSize: 13 }}>✕</button>
+                    <button onClick={() => remove(it.id)} style={{ color: C.red, background: "transparent", border: "none", cursor: "pointer", fontSize: 13 }}>✕</button>
                   </div>
                 </div>
                 {r && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + BORDER }}>
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + C.border }}>
                     {r.options.map((opt: string, i: number) => {
                       const pct = r.total > 0 ? Math.round((r.counts[i] / r.total) * 100) : 0
                       return (
                         <div key={i} style={{ marginBottom: 6 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: TEXT2, marginBottom: 2 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.text2, marginBottom: 2 }}>
                             <span>{opt}</span><span>{pct}% ({r.counts[i]})</span>
                           </div>
-                          <div style={{ height: 5, background: BG, borderRadius: 3, overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: pct + "%", background: BLUE, borderRadius: 3 }} />
+                          <div style={{ height: 5, background: C.bg, borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: pct + "%", background: C.blue, borderRadius: 3 }} />
                           </div>
                         </div>
                       )
                     })}
-                    <div style={{ fontSize: 10, color: TEXT2, marginTop: 4 }}>{r.total} voto(s) no total</div>
+                    <div style={{ fontSize: 10, color: C.text2, marginTop: 4 }}>{r.total} voto(s) no total</div>
                   </div>
                 )}
               </div>
@@ -2401,46 +2390,46 @@ function TabFrota({ data }: { data: any }) {
 
   const onlineCount = screens.filter(s => s.online).length
 
-  if (loading) return <div style={{ color: TEXT2, fontSize: 13 }}>Carregando frota...</div>
+  if (loading) return <div style={{ color: C.text2, fontSize: 13 }}>Carregando frota...</div>
 
   const activeGroup = groups.find((g: any) => g.id === activeGroupId)
 
   return (
     <div>
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 16, marginBottom: 20 }}>
-        <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4 }}>➕ Adicionar tela a um cliente existente</div>
-        <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: 16, marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>➕ Adicionar tela a um cliente existente</div>
+        <div style={{ fontSize: 11, color: C.text2, marginBottom: 12 }}>
           Pro dispositivo aparecer na lista abaixo, ele precisa ter aberto o app do DOOHPLAY pelo menos uma vez (fica "aguardando pareamento" até ser vinculado).
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Cliente</label>
-            <select value={newScreenClient} onChange={e => setNewScreenClient(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Cliente</label>
+            <select value={newScreenClient} onChange={e => setNewScreenClient(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
               <option value="">Selecione...</option>
               {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Dispositivo (aguardando pareamento)</label>
-            <select value={newScreenPlayerId} onChange={e => setNewScreenPlayerId(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Dispositivo (aguardando pareamento)</label>
+            <select value={newScreenPlayerId} onChange={e => setNewScreenPlayerId(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
               <option value="">Selecione...</option>
               {pendingDevices.map((p: any) => <option key={p.id} value={p.id}>{p.device_type || p.platform || p.id.slice(0, 8)}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da tela</label>
-            <input value={newScreenLabel} onChange={e => setNewScreenLabel(e.target.value)} placeholder="Ex: TV Recepção" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Nome da tela</label>
+            <input value={newScreenLabel} onChange={e => setNewScreenLabel(e.target.value)} placeholder="Ex: TV Recepção" style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
-          <button onClick={addScreen} disabled={addingScreen} style={{ fontSize: 13, fontWeight: 600, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer", opacity: addingScreen ? 0.6 : 1 }}>
+          <button onClick={addScreen} disabled={addingScreen} style={{ fontSize: 13, fontWeight: 600, background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer", opacity: addingScreen ? 0.6 : 1 }}>
             {addingScreen ? "Adicionando..." : "Adicionar"}
           </button>
         </div>
-        {pendingDevices.length === 0 && <div style={{ fontSize: 11, color: TEXT2, marginTop: 8 }}>Nenhum dispositivo aguardando pareamento no momento.</div>}
+        {pendingDevices.length === 0 && <div style={{ fontSize: 11, color: C.text2, marginTop: 8 }}>Nenhum dispositivo aguardando pareamento no momento.</div>}
         {addScreenMsg && <div style={{ fontSize: 12, marginTop: 8 }}>{addScreenMsg}</div>}
       </div>
 
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 4 }}>🖥️ Gestão de Frota</div>
-      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>🖥️ Gestão de Frota</div>
+      <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>
         Visão de todas as telas da rede, de todos os clientes juntos — {onlineCount} de {screens.length} online agora.
         Agrupe telas (mesmo de clientes diferentes) pra aplicar layout em massa.
       </div>
@@ -2448,17 +2437,17 @@ function TabFrota({ data }: { data: any }) {
       <div style={{ display: "flex", gap: 20 }}>
         {/* Lista de telas */}
         <div style={{ flex: 2 }}>
-          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden" }}>
             {screens.map((s: any) => (
               <div key={s.id} style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
-                borderBottom: "1px solid " + BORDER,
+                borderBottom: "1px solid " + C.border,
               }}>
                 <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.online ? "#10B981" : "#EF4444", flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{s.client_name} <span style={{ color: TEXT2, fontWeight: 400 }}>· {s.label}</span></div>
-                  <div style={{ fontSize: 11, color: TEXT2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.client_name} <span style={{ color: C.text2, fontWeight: 400 }}>· {s.label}</span></div>
+                  <div style={{ fontSize: 11, color: C.text2 }}>
                     {s.online ? "Online agora" : s.last_ping ? `Offline · visto por último ${new Date(s.last_ping).toLocaleString("pt-BR")}` : "Nunca conectou"}
                   </div>
                 </div>
@@ -2467,41 +2456,41 @@ function TabFrota({ data }: { data: any }) {
                   defaultValue={(s.tags || []).join(", ")}
                   onChange={e => setTagDraft(prev => ({ ...prev, [s.id]: e.target.value }))}
                   onBlur={() => saveTags(s.id)}
-                  style={{ width: 180, fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "5px 8px", color: TEXT }}
+                  style={{ width: 180, fontSize: 11, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "5px 8px", color: C.text }}
                 />
               </div>
             ))}
-            {screens.length === 0 && <div style={{ padding: 20, color: TEXT2, fontSize: 13 }}>Nenhuma tela cadastrada ainda.</div>}
+            {screens.length === 0 && <div style={{ padding: 20, color: C.text2, fontSize: 13 }}>Nenhuma tela cadastrada ainda.</div>}
           </div>
         </div>
 
         {/* Grupos */}
         <div style={{ flex: 1, minWidth: 280 }}>
-          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 16 }}>
-            <div style={{ fontWeight: 600, color: TEXT, marginBottom: 10 }}>Grupos</div>
+          <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: 16 }}>
+            <div style={{ fontWeight: 600, color: C.text, marginBottom: 10 }}>Grupos</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
               <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Nome do grupo novo"
-                style={{ flex: 1, fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "6px 8px", color: TEXT }} />
-              <button onClick={createGroup} style={{ fontSize: 12, background: BLUE, color: "#fff", border: "none", borderRadius: 5, padding: "6px 10px", cursor: "pointer" }}>+ Criar</button>
+                style={{ flex: 1, fontSize: 12, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "6px 8px", color: C.text }} />
+              <button onClick={createGroup} style={{ fontSize: 12, background: C.blue, color: "#fff", border: "none", borderRadius: 5, padding: "6px 10px", cursor: "pointer" }}>+ Criar</button>
             </div>
 
             {groups.map((g: any) => (
-              <div key={g.id} style={{ marginBottom: 10, padding: 10, background: BG, borderRadius: 8, border: "1px solid " + (activeGroupId === g.id ? BLUE : BORDER), cursor: "pointer" }}
+              <div key={g.id} style={{ marginBottom: 10, padding: 10, background: C.bg, borderRadius: 8, border: "1px solid " + (activeGroupId === g.id ? C.blue : C.border), cursor: "pointer" }}
                 onClick={() => setActiveGroupId(g.id === activeGroupId ? null : g.id)}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{g.name}</span>
-                  <span style={{ fontSize: 11, color: TEXT2 }}>{g.screen_ids?.length ?? 0} tela(s)</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{g.name}</span>
+                  <span style={{ fontSize: 11, color: C.text2 }}>{g.screen_ids?.length ?? 0} tela(s)</span>
                 </div>
               </div>
             ))}
-            {groups.length === 0 && <div style={{ fontSize: 12, color: TEXT2 }}>Nenhum grupo ainda. Selecione telas na lista e crie um grupo.</div>}
+            {groups.length === 0 && <div style={{ fontSize: 12, color: C.text2 }}>Nenhum grupo ainda. Selecione telas na lista e crie um grupo.</div>}
 
             {selected.size > 0 && groups.length > 0 && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 6 }}>{selected.size} tela(s) selecionada(s) — adicionar a:</div>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + C.border }}>
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 6 }}>{selected.size} tela(s) selecionada(s) — adicionar a:</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {groups.map((g: any) => (
-                    <button key={g.id} onClick={() => addSelectedToGroup(g.id)} style={{ fontSize: 11, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "4px 8px", color: TEXT2, cursor: "pointer" }}>
+                    <button key={g.id} onClick={() => addSelectedToGroup(g.id)} style={{ fontSize: 11, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "4px 8px", color: C.text2, cursor: "pointer" }}>
                       {g.name}
                     </button>
                   ))}
@@ -2511,10 +2500,10 @@ function TabFrota({ data }: { data: any }) {
           </div>
 
           {activeGroup && (
-            <div style={{ marginTop: 14, background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 16 }}>
+            <div style={{ marginTop: 14, background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, color: TEXT }}>{activeGroup.name}</div>
-                <button onClick={() => deleteGroup(activeGroup.id)} style={{ fontSize: 11, color: RED, background: "transparent", border: "none", cursor: "pointer" }}>Remover grupo</button>
+                <div style={{ fontWeight: 600, color: C.text }}>{activeGroup.name}</div>
+                <button onClick={() => deleteGroup(activeGroup.id)} style={{ fontSize: 11, color: C.red, background: "transparent", border: "none", cursor: "pointer" }}>Remover grupo</button>
               </div>
 
               {(activeGroup.screen_ids || []).map((sid: string) => {
@@ -2522,22 +2511,22 @@ function TabFrota({ data }: { data: any }) {
                 if (!s) return null
                 return (
                   <div key={sid} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
-                    <span style={{ color: TEXT2 }}>{s.client_name} · {s.label}</span>
-                    <button onClick={() => removeFromGroup(activeGroup.id, sid)} style={{ color: RED, background: "transparent", border: "none", cursor: "pointer", fontSize: 11 }}>✕</button>
+                    <span style={{ color: C.text2 }}>{s.client_name} · {s.label}</span>
+                    <button onClick={() => removeFromGroup(activeGroup.id, sid)} style={{ color: C.red, background: "transparent", border: "none", cursor: "pointer", fontSize: 11 }}>✕</button>
                   </div>
                 )
               })}
 
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + BORDER }}>
-                <div style={{ fontSize: 11, color: TEXT2, marginBottom: 6 }}>Aplicar layout a todo o grupo:</div>
-                <select value={chosenLayoutId} onChange={e => setChosenLayoutId(e.target.value)} style={{ width: "100%", fontSize: 12, background: BG, border: "1px solid " + BORDER, borderRadius: 5, padding: "6px 8px", color: TEXT, marginBottom: 8 }}>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + C.border }}>
+                <div style={{ fontSize: 11, color: C.text2, marginBottom: 6 }}>Aplicar layout a todo o grupo:</div>
+                <select value={chosenLayoutId} onChange={e => setChosenLayoutId(e.target.value)} style={{ width: "100%", fontSize: 12, background: C.bg, border: "1px solid " + C.border, borderRadius: 5, padding: "6px 8px", color: C.text, marginBottom: 8 }}>
                   <option value="">Escolha um layout...</option>
                   {presets.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
-                <button onClick={() => applyBulkLayout(activeGroup.id)} style={{ width: "100%", fontSize: 12, fontWeight: 600, background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "8px 0", cursor: "pointer" }}>
+                <button onClick={() => applyBulkLayout(activeGroup.id)} style={{ width: "100%", fontSize: 12, fontWeight: 600, background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "8px 0", cursor: "pointer" }}>
                   Aplicar a {activeGroup.screen_ids?.length ?? 0} tela(s)
                 </button>
-                {message && <div style={{ fontSize: 11, marginTop: 8, color: TEXT2 }}>{message}</div>}
+                {message && <div style={{ fontSize: 11, marginTop: 8, color: C.text2 }}>{message}</div>}
               </div>
             </div>
           )}
@@ -2568,7 +2557,7 @@ function TabCentralControle() {
   }
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t) }, [])
 
-  const statusColor = (s: string) => s === "online" ? GREEN : s === "idle" ? AMBER : MUTED
+  const statusColor = (s: string) => s === "online" ? C.green : s === "idle" ? C.amber : C.muted
   const statusLabel = (s: string) => s === "online" ? "Online" : s === "idle" ? "Ociosa" : "Offline"
 
   const timeAgo = (iso: string | null) => {
@@ -2582,39 +2571,39 @@ function TabCentralControle() {
     return `${Math.floor(h / 24)}d atrás`
   }
 
-  if (loading) return <div style={{ color: TEXT2, fontSize: 13, padding: "40px 0", textAlign: "center" }}>Carregando rede…</div>
+  if (loading) return <div style={{ color: C.text2, fontSize: 13, padding: "40px 0", textAlign: "center" }}>Carregando rede…</div>
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: TEXT }}>Central de Controle · Rede ao Vivo</div>
-          <div style={{ fontSize: 12, color: TEXT2, marginTop: 2 }}>Status real das telas conectadas — atualiza a cada 30s</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Central de Controle · Rede ao Vivo</div>
+          <div style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>Status real das telas conectadas — atualiza a cada 30s</div>
         </div>
-        <button onClick={load} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: "6px 14px", fontSize: 12, color: TEXT2, cursor: "pointer" }}>↻ Atualizar</button>
+        <button onClick={load} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 8, padding: "6px 14px", fontSize: 12, color: C.text2, cursor: "pointer" }}>↻ Atualizar</button>
       </div>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
         <KpiCard label="Total de telas" value={summary.total} />
-        <KpiCard label="Online"  value={summary.online}  color={GREEN} />
-        <KpiCard label="Ociosas" value={summary.idle}    color={AMBER} />
-        <KpiCard label="Offline" value={summary.offline} color={MUTED} />
+        <KpiCard label="Online"  value={summary.online}  color={C.green} />
+        <KpiCard label="Ociosas" value={summary.idle}    color={C.amber} />
+        <KpiCard label="Offline" value={summary.offline} color={C.muted} />
       </div>
 
       {rows.length === 0 ? (
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>📡</div>
-          <div style={{ fontSize: 14, color: TEXT, fontWeight: 600, marginBottom: 6 }}>Nenhuma tela com localização cadastrada ainda</div>
-          <div style={{ fontSize: 12, color: TEXT2 }}>Assim que uma tela tiver latitude/longitude e enviar heartbeat, ela aparece aqui.</div>
+          <div style={{ fontSize: 14, color: C.text, fontWeight: 600, marginBottom: 6 }}>Nenhuma tela com localização cadastrada ainda</div>
+          <div style={{ fontSize: 12, color: C.text2 }}>Assim que uma tela tiver latitude/longitude e enviar heartbeat, ela aparece aqui.</div>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
           {rows.map((p: any) => (
-            <div key={p.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: "16px 18px" }}>
+            <div key={p.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: "16px 18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.client_name ?? p.name ?? "Tela sem cliente"}</div>
-                  <div style={{ fontSize: 11, color: TEXT2, marginTop: 2 }}>{p.location ?? "Localização não informada"}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.client_name ?? p.name ?? "Tela sem cliente"}</div>
+                  <div style={{ fontSize: 11, color: C.text2, marginTop: 2 }}>{p.location ?? "Localização não informada"}</div>
                 </div>
                 <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: statusColor(p.status) + "22", color: statusColor(p.status), border: "1px solid " + statusColor(p.status) + "44", display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor(p.status) }} />
@@ -2622,11 +2611,11 @@ function TabCentralControle() {
                 </span>
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {p.client_code && <span style={{ fontSize: 10, background: BORDER, color: TEXT2, padding: "2px 8px", borderRadius: 10 }}>{p.client_code}</span>}
-                {p.platform && <span style={{ fontSize: 10, background: BORDER, color: TEXT2, padding: "2px 8px", borderRadius: 10 }}>{p.platform}</span>}
-                {p.device_type && <span style={{ fontSize: 10, background: BORDER, color: TEXT2, padding: "2px 8px", borderRadius: 10 }}>{p.device_type}</span>}
+                {p.client_code && <span style={{ fontSize: 10, background: C.border, color: C.text2, padding: "2px 8px", borderRadius: 10 }}>{p.client_code}</span>}
+                {p.platform && <span style={{ fontSize: 10, background: C.border, color: C.text2, padding: "2px 8px", borderRadius: 10 }}>{p.platform}</span>}
+                {p.device_type && <span style={{ fontSize: 10, background: C.border, color: C.text2, padding: "2px 8px", borderRadius: 10 }}>{p.device_type}</span>}
               </div>
-              <div style={{ fontSize: 11, color: TEXT2, marginTop: 10, borderTop: "1px solid " + BORDER, paddingTop: 8 }}>
+              <div style={{ fontSize: 11, color: C.text2, marginTop: 10, borderTop: "1px solid " + C.border, paddingTop: 8 }}>
                 Último sinal: {timeAgo(p.last_ping)}
               </div>
             </div>
@@ -2766,33 +2755,33 @@ function TabTemplates({ data }: { data: any }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>🖼️ Templates de Tela</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>🖼️ Templates de Tela</div>
       </div>
-      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+      <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>
         Escolha entre tela cheia normal ou o template "magazine", que mostra clima, bolsa (B3) e notícias
         numa faixa lateral fixa, ao lado do conteúdo normal.
       </div>
 
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontWeight: 600, marginBottom: 16, color: TEXT }}>Configurar cliente</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, marginBottom: 16, color: C.text }}>Configurar cliente</div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Cliente</label>
-          <select value={clientCode} onChange={e => setClientCode(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Cliente</label>
+          <select value={clientCode} onChange={e => setClientCode(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
             <option value="">Selecione...</option>
             {clients?.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
           </select>
         </div>
 
         {clientCode && clientSettings && (
-          <div style={{ marginBottom: 20, padding: 14, background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 8 }}>
+          <div style={{ marginBottom: 20, padding: 14, background: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 8 }}>
               🎨 Cor da marca — o sistema deriva toda a paleta de destaque da tela a partir dela
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} style={{ width: 44, height: 34, borderRadius: 6, border: "1px solid " + BORDER, background: "transparent", cursor: "pointer" }} />
-              <span style={{ fontSize: 12, color: TEXT2, fontFamily: "monospace" }}>{brandColor.toUpperCase()}</span>
-              <button onClick={saveBrandColor} disabled={savingBrand} style={{ marginLeft: "auto", background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: savingBrand ? 0.6 : 1 }}>
+              <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} style={{ width: 44, height: 34, borderRadius: 6, border: "1px solid " + C.border, background: "transparent", cursor: "pointer" }} />
+              <span style={{ fontSize: 12, color: C.text2, fontFamily: "monospace" }}>{brandColor.toUpperCase()}</span>
+              <button onClick={saveBrandColor} disabled={savingBrand} style={{ marginLeft: "auto", background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: savingBrand ? 0.6 : 1 }}>
                 {savingBrand ? "Salvando..." : "Salvar cor"}
               </button>
             </div>
@@ -2801,8 +2790,8 @@ function TabTemplates({ data }: { data: any }) {
         )}
 
         {clientCode && (
-          <div style={{ marginBottom: 20, padding: 14, background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 8 }}>
+          <div style={{ marginBottom: 20, padding: 14, background: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 8 }}>
               📡 Selo "TV 3.0 Ready" (Fase 45) — declaração de que há um receptor/conversor DTV+ conectado a essa tela, não detecção automática de hardware
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2811,8 +2800,8 @@ function TabTemplates({ data }: { data: any }) {
                 onClick={() => saveDtvReady(!dtvReady)}
                 disabled={savingDtv}
                 style={{
-                  background: dtvReady ? BLUE : BG, color: dtvReady ? "#fff" : TEXT2,
-                  border: "1px solid " + (dtvReady ? BLUE : BORDER), borderRadius: 6,
+                  background: dtvReady ? C.blue : C.bg, color: dtvReady ? "#fff" : C.text2,
+                  border: "1px solid " + (dtvReady ? C.blue : C.border), borderRadius: 6,
                   padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
                   opacity: savingDtv ? 0.6 : 1,
                 }}
@@ -2825,25 +2814,25 @@ function TabTemplates({ data }: { data: any }) {
         )}
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Template</label>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Template</label>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={() => setTemplateKey("fullscreen")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (templateKey === "fullscreen" ? BLUE : BORDER),
-              background: templateKey === "fullscreen" ? BLUE : BG,
-              color: templateKey === "fullscreen" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (templateKey === "fullscreen" ? C.blue : C.border),
+              background: templateKey === "fullscreen" ? C.blue : C.bg,
+              color: templateKey === "fullscreen" ? "#fff" : C.text2, cursor: "pointer",
             }}>🖥️ Tela cheia (padrão)</button>
             <button type="button" onClick={() => setTemplateKey("magazine")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (templateKey === "magazine" ? BLUE : BORDER),
-              background: templateKey === "magazine" ? BLUE : BG,
-              color: templateKey === "magazine" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (templateKey === "magazine" ? C.blue : C.border),
+              background: templateKey === "magazine" ? C.blue : C.bg,
+              color: templateKey === "magazine" ? "#fff" : C.text2, cursor: "pointer",
             }}>🖼️ Magazine (clima+bolsa+notícias)</button>
           </div>
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Efeito de transição entre slides</label>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Efeito de transição entre slides</label>
           <div style={{ display: "flex", gap: 8 }}>
             {[
               { key: "fade", label: "🌫️ Fade" },
@@ -2853,9 +2842,9 @@ function TabTemplates({ data }: { data: any }) {
             ].map(opt => (
               <button key={opt.key} type="button" onClick={() => setTransitionEffect(opt.key)} style={{
                 flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-                border: "1px solid " + (transitionEffect === opt.key ? BLUE : BORDER),
-                background: transitionEffect === opt.key ? BLUE : BG,
-                color: transitionEffect === opt.key ? "#fff" : TEXT2, cursor: "pointer",
+                border: "1px solid " + (transitionEffect === opt.key ? C.blue : C.border),
+                background: transitionEffect === opt.key ? C.blue : C.bg,
+                color: transitionEffect === opt.key ? "#fff" : C.text2, cursor: "pointer",
               }}>{opt.label}</button>
             ))}
           </div>
@@ -2863,7 +2852,7 @@ function TabTemplates({ data }: { data: any }) {
 
         {templateKey === "magazine" && (
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>
               Modo dos widgets (Fase 39)
             </label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -2875,13 +2864,13 @@ function TabTemplates({ data }: { data: any }) {
               ].map(opt => (
                 <button key={opt.key} type="button" onClick={() => setWidgetLayoutMode(opt.key)} style={{
                   flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-                  border: "1px solid " + (widgetLayoutMode === opt.key ? BLUE : BORDER),
-                  background: widgetLayoutMode === opt.key ? BLUE : BG,
-                  color: widgetLayoutMode === opt.key ? "#fff" : TEXT2, cursor: "pointer",
+                  border: "1px solid " + (widgetLayoutMode === opt.key ? C.blue : C.border),
+                  background: widgetLayoutMode === opt.key ? C.blue : C.bg,
+                  color: widgetLayoutMode === opt.key ? "#fff" : C.text2, cursor: "pointer",
                 }}>{opt.label}</button>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
               Revezando: hora↔clima num card, bolsa↔economia noutro. Painel completo (Fase 43): relógio+clima e
               logo fixos nas pontas, card central revezando bolsa/câmbio/indicadores/notícias/economia/qualidade
               do ar/enquete/loteria.
@@ -2891,7 +2880,7 @@ function TabTemplates({ data }: { data: any }) {
 
         {templateKey === "magazine" && (
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>
               Posição do painel (Fase 43)
             </label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -2902,13 +2891,13 @@ function TabTemplates({ data }: { data: any }) {
               ].map(opt => (
                 <button key={opt.key} type="button" onClick={() => setWidgetPosition(opt.key)} style={{
                   flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-                  border: "1px solid " + (widgetPosition === opt.key ? BLUE : BORDER),
-                  background: widgetPosition === opt.key ? BLUE : BG,
-                  color: widgetPosition === opt.key ? "#fff" : TEXT2, cursor: "pointer",
+                  border: "1px solid " + (widgetPosition === opt.key ? C.blue : C.border),
+                  background: widgetPosition === opt.key ? C.blue : C.bg,
+                  color: widgetPosition === opt.key ? "#fff" : C.text2, cursor: "pointer",
                 }}>{opt.label}</button>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
               Lateral direita é a posição de sempre — trocar não afeta clientes já configurados a menos que você salve essa mudança pra eles.
             </div>
           </div>
@@ -2917,43 +2906,43 @@ function TabTemplates({ data }: { data: any }) {
         {templateKey === "magazine" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Localização (nome)</label>
-              <input value={locationName} onChange={e => setLocationName(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+              <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Localização (nome)</label>
+              <input value={locationName} onChange={e => setLocationName(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Latitude</label>
-              <input value={locationLat} onChange={e => setLocationLat(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+              <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Latitude</label>
+              <input value={locationLat} onChange={e => setLocationLat(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Longitude</label>
-              <input value={locationLon} onChange={e => setLocationLon(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+              <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Longitude</label>
+              <input value={locationLon} onChange={e => setLocationLon(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
             </div>
           </div>
         )}
         {templateKey !== "custom" && (
           <>
-            <div style={{ fontSize: 11, color: TEXT2, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: C.text2, marginBottom: 12 }}>
               Bolsa: mostra sempre PETR4, VALE3, MGLU3 e ITUB4 (as únicas ações liberadas sem custo). Notícias: G1 geral.
             </div>
 
-            {error && <div style={{ color: RED, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
-            <button onClick={save} disabled={saving} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+            {error && <div style={{ color: C.red, fontSize: 12, marginBottom: 12 }}>⚠️ {error}</div>}
+            <button onClick={save} disabled={saving} style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
               {saving ? "Salvando..." : "Salvar configuração"}
             </button>
           </>
         )}
       </div>
 
-      <div style={{ fontWeight: 600, marginBottom: 12, color: TEXT }}>Clientes configurados</div>
-      {loading ? <div style={{ color: TEXT2, fontSize: 13 }}>Carregando...</div> : items.length === 0 ? (
-        <div style={{ color: TEXT2, fontSize: 13 }}>Nenhum cliente com template customizado ainda — todos estão em "Tela cheia" (padrão).</div>
+      <div style={{ fontWeight: 600, marginBottom: 12, color: C.text }}>Clientes configurados</div>
+      {loading ? <div style={{ color: C.text2, fontSize: 13 }}>Carregando...</div> : items.length === 0 ? (
+        <div style={{ color: C.text2, fontSize: 13 }}>Nenhum cliente com template customizado ainda — todos estão em "Tela cheia" (padrão).</div>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>
           {items.map((it: any) => (
-            <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={it.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <span style={{ fontWeight: 600, color: TEXT }}>{it.client_code}</span>
-                <span style={{ fontSize: 12, color: TEXT2, marginLeft: 10 }}>
+                <span style={{ fontWeight: 600, color: C.text }}>{it.client_code}</span>
+                <span style={{ fontSize: 12, color: C.text2, marginLeft: 10 }}>
                   {it.template_key === "magazine" ? `🖼️ Magazine · ${it.location_name}` : "🖥️ Tela cheia"}
                 </span>
               </div>
@@ -3126,108 +3115,108 @@ function TabInstitucional() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>🏢 Conteúdo Institucional</div>
-        <div style={{ fontSize: 13, color: TEXT2, marginTop: 2 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>🏢 Conteúdo Institucional</div>
+        <div style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>
           O que o DOOHPLAY mostra nas telas — entra automaticamente na rotação de TODOS os clientes (≈5% do tempo no sorteio ponderado; peças com segmento definido entram como "canal" a ≈20% só nas telas do segmento). Use com moderação.
         </div>
       </div>
 
-      <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, marginBottom: 28 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 }}>Adicionar nova peça institucional</div>
+      <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, marginBottom: 28 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>Adicionar nova peça institucional</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Duração</label>
-            <select value={duration} onChange={e => setDuration(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Duração</label>
+            <select value={duration} onChange={e => setDuration(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
               {[10, 15, 20, 30, 60, 90, 120, 180].map(d => <option key={d} value={d}>{d < 60 ? `${d}s` : `${d / 60}min`}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Posição (ordem)</label>
-            <input type="number" value={position} onChange={e => setPosition(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Posição (ordem)</label>
+            <input type="number" value={position} onChange={e => setPosition(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
         </div>
-        <div style={{ fontSize: 11, color: TEXT2, marginTop: -6, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: C.text2, marginTop: -6, marginBottom: 12 }}>
           Vídeos institucionais de até 3min são permitidos (exceção à regra geral de duração — este conteúdo ocupa só ≈5% do sorteio ponderado (≈20% se tiver segmento definido), então o impacto em inventário é menor).
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Data de início *</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Data de início *</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Data de fim *</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Data de fim *</label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Dias da semana</label>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Dias da semana</label>
           <div style={{ display: "flex", gap: 4 }}>
             {DAYS.map(d => (
               <button key={d.code} type="button" onClick={() => toggleDay(d.code)} style={{
                 flex: 1, fontSize: 11, fontWeight: 600, padding: "6px 0", borderRadius: 5,
-                border: "1px solid " + (daysOfWeek.includes(d.code) ? BLUE : BORDER),
-                background: daysOfWeek.includes(d.code) ? BLUE : BG,
-                color: daysOfWeek.includes(d.code) ? "#fff" : TEXT2, cursor: "pointer",
+                border: "1px solid " + (daysOfWeek.includes(d.code) ? C.blue : C.border),
+                background: daysOfWeek.includes(d.code) ? C.blue : C.bg,
+                color: daysOfWeek.includes(d.code) ? "#fff" : C.text2, cursor: "pointer",
               }}>{d.label}</button>
             ))}
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Horário início (opcional)</label>
-            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Horário início (opcional)</label>
+            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Horário fim (opcional)</label>
-            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Horário fim (opcional)</label>
+            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
           </div>
         </div>
-        <div style={{ fontSize: 11, color: TEXT2, marginTop: -6, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: C.text2, marginTop: -6, marginBottom: 12 }}>
           Deixe horário em branco pra exibir o dia inteiro. Datas são obrigatórias — a peça só entra na rotação dentro da janela configurada.
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Formato de exibição</label>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Formato de exibição</label>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={() => setDisplayFormat("fullscreen")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (displayFormat === "fullscreen" ? BLUE : BORDER),
-              background: displayFormat === "fullscreen" ? BLUE : BG,
-              color: displayFormat === "fullscreen" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (displayFormat === "fullscreen" ? C.blue : C.border),
+              background: displayFormat === "fullscreen" ? C.blue : C.bg,
+              color: displayFormat === "fullscreen" ? "#fff" : C.text2, cursor: "pointer",
             }}>🖥️ Tela cheia</button>
             <button type="button" onClick={() => setDisplayFormat("shrink_lateral")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (displayFormat === "shrink_lateral" ? BLUE : BORDER),
-              background: displayFormat === "shrink_lateral" ? BLUE : BG,
-              color: displayFormat === "shrink_lateral" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (displayFormat === "shrink_lateral" ? C.blue : C.border),
+              background: displayFormat === "shrink_lateral" ? C.blue : C.bg,
+              color: displayFormat === "shrink_lateral" ? "#fff" : C.text2, cursor: "pointer",
             }}>↔️ Encolhe lateral</button>
           </div>
-          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
             "Encolhe lateral": a tela principal encolhe e essa peça aparece do lado, sem cobrir o conteúdo em exibição.
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Tipo de conteúdo</label>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Tipo de conteúdo</label>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={() => setContentType("media")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (contentType === "media" ? BLUE : BORDER),
-              background: contentType === "media" ? BLUE : BG,
-              color: contentType === "media" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (contentType === "media" ? C.blue : C.border),
+              background: contentType === "media" ? C.blue : C.bg,
+              color: contentType === "media" ? "#fff" : C.text2, cursor: "pointer",
             }}>🖼️ Imagem/vídeo</button>
             <button type="button" onClick={() => setContentType("layout")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (contentType === "layout" ? BLUE : BORDER),
-              background: contentType === "layout" ? BLUE : BG,
-              color: contentType === "layout" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (contentType === "layout" ? C.blue : C.border),
+              background: contentType === "layout" ? C.blue : C.bg,
+              color: contentType === "layout" ? "#fff" : C.text2, cursor: "pointer",
             }}>🗂️ Layout multi-zona</button>
             <button type="button" onClick={() => setContentType("youtube")} style={{
               flex: 1, fontSize: 12, fontWeight: 600, padding: "10px 0", borderRadius: 6,
-              border: "1px solid " + (contentType === "youtube" ? BLUE : BORDER),
-              background: contentType === "youtube" ? BLUE : BG,
-              color: contentType === "youtube" ? "#fff" : TEXT2, cursor: "pointer",
+              border: "1px solid " + (contentType === "youtube" ? C.blue : C.border),
+              background: contentType === "youtube" ? C.blue : C.bg,
+              color: contentType === "youtube" ? "#fff" : C.text2, cursor: "pointer",
             }}>▶️ YouTube</button>
           </div>
-          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
             Esses 3 tipos entram misturados na mesma rotação, como slides de uma programação — não são mais um modo fixo de tela.
           </div>
         </div>
@@ -3242,19 +3231,19 @@ function TabInstitucional() {
               const contentZones = customZones.filter((z: any) => z.content_type === "main_rotation" || z.content_type === "ad_only")
               if (contentZones.length === 0) return null
               return (
-                <div style={{ marginTop: 10, padding: 12, background: BG, borderRadius: 8, border: "1px solid " + BORDER }}>
-                  <div style={{ fontSize: 11, color: TEXT2, marginBottom: 10 }}>
+                <div style={{ marginTop: 10, padding: 12, background: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
+                  <div style={{ fontSize: 11, color: C.text2, marginBottom: 10 }}>
                     Escolha o que entra em cada bloco de conteúdo desse layout. Deixar em branco = mistura sozinho com o resto (sorteio automático).
                   </div>
                   {contentZones.map((z: any) => (
                     <div key={z.id} style={{ marginBottom: 8 }}>
-                      <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 3 }}>
+                      <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 3 }}>
                         Bloco "{z.content_type === "main_rotation" ? "Principal" : "Só anúncio"}" ({z.w}%×{z.h}%)
                       </label>
                       <input
                         type="file" accept="image/*,video/*"
                         onChange={e => setZoneFiles(prev => ({ ...prev, [z.id]: e.target.files?.[0] as File }))}
-                        style={{ fontSize: 12, color: TEXT2 }}
+                        style={{ fontSize: 12, color: C.text2 }}
                       />
                       {zoneFiles[z.id] && <span style={{ fontSize: 11, color: "#10B981", marginLeft: 8 }}>✓ {zoneFiles[z.id].name}</span>}
                     </div>
@@ -3267,61 +3256,61 @@ function TabInstitucional() {
 
         {contentType === "youtube" && (
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>URL do vídeo</label>
-            <input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
-            <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+            <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>URL do vídeo</label>
+            <input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
+            <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
               ⚠️ Precisa de internet no aparelho pra funcionar (diferente do resto, que roda de um cache local). Os controles do YouTube aparecem — é exigência deles, não removemos.
             </div>
           </div>
         )}
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Grupo de sequência (opcional)</label>
-          <input value={sequenceGroup} onChange={e => setSequenceGroup(e.target.value)} placeholder="Ex: bloco-manha" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
-          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Grupo de sequência (opcional)</label>
+          <input value={sequenceGroup} onChange={e => setSequenceGroup(e.target.value)} placeholder="Ex: bloco-manha" style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
+          <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
             Itens com o mesmo nome de grupo tocam em bloco, um atrás do outro, quando a vez do institucional chegar — sensação de "canal DOOHPLAY" em vez de peça solta.
           </div>
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Canal (opcional)</label>
-          <select value={segmentId} onChange={e => setSegmentId(e.target.value)} style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }}>
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Canal (opcional)</label>
+          <select value={segmentId} onChange={e => setSegmentId(e.target.value)} style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }}>
             <option value="">Institucional genérico — todas as telas (5% do tempo)</option>
             {segments.map(seg => (
               <option key={seg.id} value={seg.id}>{seg.name}</option>
             ))}
           </select>
-          <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>
             Sem escolher um canal, a peça é institucional genérico e aparece em toda tela da rede (5% do tempo). Escolhendo um canal, ela só aparece nas telas do tipo de negócio daquele canal (20% do tempo).
           </div>
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: TEXT2, display: "block", marginBottom: 4 }}>Nome da peça</label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Boas-vindas DOOHPLAY" style={{ width: "100%", background: BG, border: "1px solid " + BORDER, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 13 }} />
+          <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 4 }}>Nome da peça</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Boas-vindas DOOHPLAY" style={{ width: "100%", background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 13 }} />
         </div>
         {contentType === "media" && (
           <div style={{ marginBottom: 12 }}>
-            <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: TEXT2 }} />
+            <input type="file" accept="image/*,video/*" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13, color: C.text2 }} />
           </div>
         )}
-        {error && <div style={{ fontSize: 12, color: RED, marginBottom: 10 }}>⚠️ {error}</div>}
-        <button onClick={upload} disabled={uploading} style={{ background: BLUE, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer" }}>
+        {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>⚠️ {error}</div>}
+        <button onClick={upload} disabled={uploading} style={{ background: C.blue, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer" }}>
           {uploading ? "Enviando…" : "Adicionar à rotação institucional"}
         </button>
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: TEXT2 }}>Carregando…</div>
+        <div style={{ fontSize: 13, color: C.text2 }}>Carregando…</div>
       ) : items.length === 0 ? (
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, padding: 20, fontSize: 13, color: TEXT2 }}>
+        <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, padding: 20, fontSize: 13, color: C.text2 }}>
           Nenhuma peça institucional cadastrada ainda — o slot de 10% fica vazio até você adicionar a primeira.
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
           {items.map((it: any) => (
-            <div key={it.id} style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 10, overflow: "hidden", opacity: it.active ? 1 : 0.5 }}>
-              <div style={{ height: 90, background: BG, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div key={it.id} style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", opacity: it.active ? 1 : 0.5 }}>
+              <div style={{ height: 90, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {it.type === "layout"
                   ? <span style={{ fontSize: 28 }}>🗂️</span>
                   : it.type === "youtube"
@@ -3331,24 +3320,24 @@ function TabInstitucional() {
                   : <img src={it.url} alt={it.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
               </div>
               <div style={{ padding: "8px 10px" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
-                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s{it.sequence_group ? ` · 🔗 ${it.sequence_group}` : ""}{it.segment_id ? ` · 📺 ${segments.find(s => s.id === it.segment_id)?.name ?? "canal"}` : ""}</div>
-                <div style={{ fontSize: 10, color: TEXT2, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📅 {scheduleSummary(it)}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
+                <div style={{ fontSize: 10, color: C.text2, marginBottom: 2 }}>pos. {it.position} · {it.duration}s{it.sequence_group ? ` · 🔗 ${it.sequence_group}` : ""}{it.segment_id ? ` · 📺 ${segments.find(s => s.id === it.segment_id)?.name ?? "canal"}` : ""}</div>
+                <div style={{ fontSize: 10, color: C.text2, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📅 {scheduleSummary(it)}</div>
                 {it.display_format === "shrink_lateral" && (
-                  <div style={{ fontSize: 10, color: BLUE, marginBottom: 6, fontWeight: 600 }}>↔️ Encolhe lateral</div>
+                  <div style={{ fontSize: 10, color: C.blue, marginBottom: 6, fontWeight: 600 }}>↔️ Encolhe lateral</div>
                 )}
                 <div style={{ display: "flex", gap: 4 }}>
                   <button
                     onClick={() => toggleActive(it.id, it.active)}
                     disabled={togglingId === it.id}
-                    style={{ flex: 1, fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + BORDER, background: it.active ? RED + "10" : GREEN + "10", color: it.active ? RED : GREEN, cursor: togglingId === it.id ? "not-allowed" : "pointer" }}
+                    style={{ flex: 1, fontSize: 10, fontWeight: 600, padding: "4px", borderRadius: 5, border: "1px solid " + C.border, background: it.active ? C.red + "10" : C.green + "10", color: it.active ? C.red : C.green, cursor: togglingId === it.id ? "not-allowed" : "pointer" }}
                   >
                     {togglingId === it.id ? "…" : it.active ? "Desativar" : "Reativar"}
                   </button>
                   <button
                     onClick={() => remove(it.id, it.name)}
                     disabled={deletingId === it.id}
-                    style={{ fontSize: 10, padding: "4px 8px", borderRadius: 5, border: "1px solid " + BORDER, background: "transparent", color: TEXT2, cursor: deletingId === it.id ? "not-allowed" : "pointer" }}
+                    style={{ fontSize: 10, padding: "4px 8px", borderRadius: 5, border: "1px solid " + C.border, background: "transparent", color: C.text2, cursor: deletingId === it.id ? "not-allowed" : "pointer" }}
                   >
                     🗑️
                   </button>
@@ -3383,31 +3372,31 @@ function TabRede({ data, onRefresh }: { data: any; onRefresh: () => void }) {
 
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 8 }}>
-        Mídia do Clube de Telas <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>
+        Mídia do Clube de Telas <span style={{ fontSize: 13, color: C.text2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
       </div>
-      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 20 }}>
+      <div style={{ fontSize: 13, color: C.text2, marginBottom: 20 }}>
         Ao aprovar, a mídia é distribuída automaticamente para todos os parceiros já aceitos do dono.
       </div>
       {pending.length === 0 && (
-        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2, marginBottom: 24 }}>
+        <div style={{ textAlign: "center", padding: "40px", background: C.surface, borderRadius: 12, border: "1px dashed " + C.border, color: C.text2, marginBottom: 24 }}>
           Nenhuma mídia de rede pendente. ✅
         </div>
       )}
       {pending.map((m: any) => (
-        <div key={m.id} style={{ background: SURFACE, border: "1px solid " + AMBER + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
+        <div key={m.id} style={{ background: C.surface, border: "1px solid " + C.amber + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
             <MediaPreview url={m.url} type={m.type} name={m.name} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
-              <div style={{ fontSize: 12, color: TEXT2, marginBottom: 2 }}>{m.owner_name ?? m.owner_code} · #{m.owner_code}</div>
-              <div style={{ fontSize: 11, color: MUTED }}>{m.partner_count ?? 0} parceiro(s) aceito(s) vão receber essa mídia se aprovada</div>
+              <div style={{ fontWeight: 600, color: C.text, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
+              <div style={{ fontSize: 12, color: C.text2, marginBottom: 2 }}>{m.owner_name ?? m.owner_code} · #{m.owner_code}</div>
+              <div style={{ fontSize: 11, color: C.muted }}>{m.partner_count ?? 0} parceiro(s) aceito(s) vão receber essa mídia se aprovada</div>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: C.green + "22", color: C.green, border: "1px solid " + C.green + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 {loading === m.id ? "…" : "✓ Aprovar"}
               </button>
-              <button onClick={() => handle(m.id, "rejected")} disabled={loading === m.id} style={{ background: RED + "22", color: RED, border: "1px solid " + RED + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => handle(m.id, "rejected")} disabled={loading === m.id} style={{ background: C.red + "22", color: C.red, border: "1px solid " + C.red + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 ✕ Rejeitar
               </button>
             </div>
@@ -3416,24 +3405,24 @@ function TabRede({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       ))}
       {others.length > 0 && (
         <>
-          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
-          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
+          <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid " + BORDER }}>
+                <tr style={{ borderBottom: "1px solid " + C.border }}>
                   {["Mídia","Dono","Tipo","Status","Data"].map(h => (
-                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: C.text2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {others.map((m: any, i: number) => (
-                  <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + BORDER : "none" }}>
-                    <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{m.name}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.owner_name ?? m.owner_code}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
-                    <td style={{ padding: "10px 16px" }}><Badge label={m.status} color={m.status === "approved" ? GREEN : m.status === "rejected" ? RED : AMBER} /></td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{fmt(m.created_at)}</td>
+                  <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + C.border : "none" }}>
+                    <td style={{ padding: "10px 16px", color: C.text, fontWeight: 500 }}>{m.name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{m.owner_name ?? m.owner_code}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
+                    <td style={{ padding: "10px 16px" }}><Badge label={m.status} color={m.status === "approved" ? C.green : m.status === "rejected" ? C.red : C.amber} /></td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{fmt(m.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -3496,76 +3485,76 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
 
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 20 }}>
-        Mídias <span style={{ fontSize: 13, color: TEXT2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 20 }}>
+        Mídias <span style={{ fontSize: 13, color: C.text2, fontWeight: 400 }}>({pending.length} pendente{pending.length !== 1 ? "s" : ""})</span>
       </div>
       {pending.length === 0 && (
-        <div style={{ textAlign: "center", padding: "40px", background: SURFACE, borderRadius: 12, border: "1px dashed " + BORDER, color: TEXT2, marginBottom: 24 }}>
+        <div style={{ textAlign: "center", padding: "40px", background: C.surface, borderRadius: 12, border: "1px dashed " + C.border, color: C.text2, marginBottom: 24 }}>
           Nenhuma mídia pendente. ✅
         </div>
       )}
       {pending.map((m: any) => (
-        <div key={m.id} style={{ background: SURFACE, border: "1px solid " + AMBER + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
+        <div key={m.id} style={{ background: C.surface, border: "1px solid " + C.amber + "44", borderRadius: 12, padding: "16px 20px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
             <MediaPreview url={m.url} type={m.type} name={m.name} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, color: TEXT, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
-              <div style={{ fontSize: 12, color: TEXT2, marginBottom: 2 }}>{m.advertiser_name} · {m.campaign_name}</div>
-              <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>{fmt(m.createdAt)} · {m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</div>
-              {m.url && <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: BLUE, textDecoration: "none" }}>↗ Abrir arquivo original</a>}
-              <div style={{ fontSize: 10, color: TEXT2, marginTop: 10, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Tags de brand-safety (opcional)</div>
+              <div style={{ fontWeight: 600, color: C.text, marginBottom: 4, fontSize: 14 }}>{m.name}</div>
+              <div style={{ fontSize: 12, color: C.text2, marginBottom: 2 }}>{m.advertiser_name} · {m.campaign_name}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>{fmt(m.createdAt)} · {m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</div>
+              {m.url && <a href={m.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: C.blue, textDecoration: "none" }}>↗ Abrir arquivo original</a>}
+              <div style={{ fontSize: 10, color: C.text2, marginTop: 10, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Tags de brand-safety (opcional)</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {AD_TAGS.map(tag => {
                   const active = (pendingTags[m.id] ?? []).includes(tag.id)
                   return (
-                    <button key={tag.id} onClick={() => toggleTag(m.id, tag.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, border: "1px solid " + (active ? AMBER : BORDER), background: active ? AMBER + "22" : "transparent", color: active ? AMBER : TEXT2, cursor: "pointer" }}>
+                    <button key={tag.id} onClick={() => toggleTag(m.id, tag.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, border: "1px solid " + (active ? C.amber : C.border), background: active ? C.amber + "22" : "transparent", color: active ? C.amber : C.text2, cursor: "pointer" }}>
                       {tag.label}
                     </button>
                   )
                 })}
               </div>
-              <div style={{ fontSize: 10, color: TEXT2, marginTop: 10, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Formato de exibição</div>
+              <div style={{ fontSize: 10, color: C.text2, marginTop: 10, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Formato de exibição</div>
               <select
                 value={pendingFormat[m.id] ?? "fullscreen"}
                 onChange={e => setPendingFormat(prev => ({ ...prev, [m.id]: e.target.value }))}
-                style={{ fontSize: 12, padding: "6px 10px", borderRadius: 7, border: "1px solid " + BORDER, background: BG, color: TEXT, outline: "none" }}
+                style={{ fontSize: 12, padding: "6px 10px", borderRadius: 7, border: "1px solid " + C.border, background: C.bg, color: C.text, outline: "none" }}
               >
                 {DISPLAY_FORMATS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: GREEN + "22", color: GREEN, border: "1px solid " + GREEN + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => handle(m.id, "approved")} disabled={loading === m.id} style={{ background: C.green + "22", color: C.green, border: "1px solid " + C.green + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 {loading === m.id ? "…" : "✓ Aprovar"}
               </button>
-              <button onClick={() => setRejectId(rejectId === m.id ? null : m.id)} disabled={loading === m.id} style={{ background: RED + "22", color: RED, border: "1px solid " + RED + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => setRejectId(rejectId === m.id ? null : m.id)} disabled={loading === m.id} style={{ background: C.red + "22", color: C.red, border: "1px solid " + C.red + "44", borderRadius: 7, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 ✕ Rejeitar
               </button>
             </div>
           </div>
           {rejectId === m.id && (
             <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
-              <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da rejeição…" style={{ flex: 1, background: BG, border: "1px solid " + BORDER, borderRadius: 7, padding: "8px 12px", color: TEXT, fontSize: 13, outline: "none" }} />
-              <button onClick={() => handle(m.id, "rejected", reason)} style={{ background: RED, color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Confirmar</button>
-              <button onClick={() => { setRejectId(null); setReason("") }} style={{ background: "transparent", color: TEXT2, border: "1px solid " + BORDER, borderRadius: 7, padding: "8px 12px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da rejeição…" style={{ flex: 1, background: C.bg, border: "1px solid " + C.border, borderRadius: 7, padding: "8px 12px", color: C.text, fontSize: 13, outline: "none" }} />
+              <button onClick={() => handle(m.id, "rejected", reason)} style={{ background: C.red, color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Confirmar</button>
+              <button onClick={() => { setRejectId(null); setReason("") }} style={{ background: "transparent", color: C.text2, border: "1px solid " + C.border, borderRadius: 7, padding: "8px 12px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
             </div>
           )}
         </div>
       ))}
       {others.length > 0 && (
         <>
-          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
-          <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, marginBottom: 12, marginTop: 8 }}>Histórico</div>
+          <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: 12, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid " + BORDER }}>
+                <tr style={{ borderBottom: "1px solid " + C.border }}>
                   {["Preview","Mídia","Anunciante","Campanha","Tipo","Status","Tags","Data"].map(h => (
-                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: TEXT2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: C.text2, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {others.map((m: any, i: number) => (
-                  <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + BORDER : "none" }}>
+                  <tr key={m.id} style={{ borderBottom: i < others.length - 1 ? "1px solid " + C.border : "none" }}>
                     <td style={{ padding: "10px 16px" }}>
                       {m.url ? (
                         m.type === "video"
@@ -3573,13 +3562,13 @@ function TabMidias({ data, onRefresh }: { data: any; onRefresh: () => void }) {
                           : <a href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt={m.name} style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 6, display: "block" }} onError={e => { (e.target as HTMLImageElement).style.display = "none" }} /></a>
                       ) : <span style={{ fontSize: 20 }}>{m.type === "video" ? "🎬" : "🖼️"}</span>}
                     </td>
-                    <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{m.name}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.advertiser_name}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.campaign_name}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
-                    <td style={{ padding: "10px 16px" }}><Badge label={m.status} color={m.status === "approved" ? GREEN : m.status === "rejected" ? RED : AMBER} /></td>
-                    <td style={{ padding: "10px 16px", fontSize: 11, color: TEXT2 }}>{(m.content_tags ?? []).join(", ") || "—"}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT2 }}>{fmt(m.createdAt)}</td>
+                    <td style={{ padding: "10px 16px", color: C.text, fontWeight: 500 }}>{m.name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{m.advertiser_name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{m.campaign_name}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{m.type === "video" ? "🎬 Vídeo" : "🖼️ Imagem"}</td>
+                    <td style={{ padding: "10px 16px" }}><Badge label={m.status} color={m.status === "approved" ? C.green : m.status === "rejected" ? C.red : C.amber} /></td>
+                    <td style={{ padding: "10px 16px", fontSize: 11, color: C.text2 }}>{(m.content_tags ?? []).join(", ") || "—"}</td>
+                    <td style={{ padding: "10px 16px", fontSize: 12, color: C.text2 }}>{fmt(m.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -3613,7 +3602,7 @@ export default function AdminPage() {
   }
 
   if (status === "loading" || loading || !data) return (
-    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", color: TEXT2, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.text2, fontFamily: "'Inter', system-ui, sans-serif" }}>
       Carregando…
     </div>
   )
@@ -3644,34 +3633,34 @@ export default function AdminPage() {
   ]
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder { color: #4B5563; }`}</style>
 
-      <div style={{ background: SURFACE, borderBottom: "1px solid " + BORDER, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ background: C.surface, borderBottom: "1px solid " + C.border, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #3B82F6, #6366F1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
           <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em" }}>
-            <span style={{ color: TEXT }}>DOOH</span><span style={{ color: BLUE }}>PLAY</span>
+            <span style={{ color: C.text }}>DOOH</span><span style={{ color: C.blue }}>PLAY</span>
           </span>
-          <span style={{ fontSize: 11, color: TEXT2, background: BORDER, padding: "2px 8px", borderRadius: 10, marginLeft: 4 }}>Admin</span>
+          <span style={{ fontSize: 11, color: C.text2, background: C.border, padding: "2px 8px", borderRadius: 10, marginLeft: 4 }}>Admin</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 12, color: TEXT2 }}>{session?.user?.email}</span>
-          <Link href="/" style={{ fontSize: 12, color: TEXT2, textDecoration: "none" }}>← Site</Link>
-          <button onClick={() => signOut({ callbackUrl: "/admin/login" })} style={{ fontSize: 12, color: RED, background: "transparent", border: "1px solid " + RED + "44", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>
+          <span style={{ fontSize: 12, color: C.text2 }}>{session?.user?.email}</span>
+          <Link href="/" style={{ fontSize: 12, color: C.text2, textDecoration: "none" }}>← Site</Link>
+          <button onClick={() => signOut({ callbackUrl: "/admin/login" })} style={{ fontSize: 12, color: C.red, background: "transparent", border: "1px solid " + C.red + "44", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>
             Sair
           </button>
         </div>
       </div>
 
-      <div style={{ background: SURFACE, borderBottom: "1px solid " + BORDER, padding: "0 24px", display: "flex", gap: 4 }}>
+      <div style={{ background: C.surface, borderBottom: "1px solid " + C.border, padding: "0 24px", display: "flex", gap: 4 }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "14px 18px", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? BLUE : TEXT2, borderBottom: "2px solid " + (tab === t.id ? BLUE : "transparent"), display: "flex", alignItems: "center", gap: 6 }}>
+          <button key={t.id} onClick={() => setTab(t.id)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "14px 18px", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.blue : C.text2, borderBottom: "2px solid " + (tab === t.id ? C.blue : "transparent"), display: "flex", alignItems: "center", gap: 6 }}>
             {t.icon} {t.label}
             {t.count !== undefined && (
-              <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 10, background: (t as any).alert ? AMBER + "33" : BORDER, color: (t as any).alert ? AMBER : TEXT2, fontWeight: (t as any).alert ? 700 : 400 }}>{t.count}</span>
+              <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 10, background: (t as any).alert ? C.amber + "33" : C.border, color: (t as any).alert ? C.amber : C.text2, fontWeight: (t as any).alert ? 700 : 400 }}>{t.count}</span>
             )}
           </button>
         ))}

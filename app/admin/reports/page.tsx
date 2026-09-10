@@ -1,23 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import { slateDark as C, FONT_FAMILY } from "@/lib/theme";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-function statusBadge(status: string) {
+function statusBadge(status: string): { label: string; color: string } {
   switch (status) {
     case "valid":
-      return "bg-green-100 text-green-800";
+      return { label: status, color: C.green };
     case "revoked":
-      return "bg-red-100 text-red-800";
+      return { label: status, color: C.red };
     case "expired":
-      return "bg-yellow-100 text-yellow-800";
+      return { label: status, color: C.amber };
     case "superseded":
-      return "bg-orange-100 text-orange-800";
+      return { label: status, color: C.purple };
     default:
-      return "bg-gray-100 text-gray-600";
+      return { label: status, color: C.muted };
   }
 }
 
@@ -29,83 +30,92 @@ export default async function AdminReportsPage() {
     .limit(50);
 
   if (error) {
-    return <div className="p-6 text-red-600">Erro ao carregar relatórios</div>;
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT_FAMILY, padding: "32px 40px" }}>
+        <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, color: C.red, borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>
+          Erro ao carregar relatórios
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">
-        Relatórios emitidos
-      </h1>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT_FAMILY, padding: "32px 40px" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 24 }}>Relatórios emitidos</div>
 
-      <div className="overflow-x-auto rounded-xl border bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
-              <th className="p-3 text-left">Tipo</th>
-              <th className="p-3 text-left">Período</th>
-              <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left">Assinado em</th>
-              <th className="p-3 text-left">Ações</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((r) => (
-              <tr key={r.hash} className="border-t">
-                <td className="p-3">{r.report_type}</td>
-
-                <td className="p-3">
-                  {new Date(r.start_date).toLocaleDateString("pt-BR")} –{" "}
-                  {new Date(r.end_date).toLocaleDateString("pt-BR")}
-                </td>
-
-                <td className="p-3">
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${statusBadge(
-                      r.status
-                    )}`}
-                  >
-                    {r.status}
-                  </span>
-                </td>
-
-                <td className="p-3">
-                  {r.signed_at
-                    ? new Date(r.signed_at).toLocaleString("pt-BR")
-                    : "-"}
-                </td>
-
-                <td className="p-3 flex gap-3">
-                  <Link
-                    href={`/verify/${r.hash}`}
-                    target="_blank"
-                    className="text-blue-600 underline"
-                  >
-                    Verificar
-                  </Link>
-
-                  <a
-                    href={`/api/reports/dashboard?hash=${r.hash}`}
-                    target="_blank"
-                    className="text-gray-700 underline"
-                  >
-                    PDF
-                  </a>
-
-                  {r.status === "valid" && (
-                    <form action={`/admin/reports/revoke?hash=${r.hash}`} method="post">
-                      <button className="text-red-600 underline">
-                        Revogar
-                      </button>
-                    </form>
-                  )}
-                </td>
+      {data.length === 0 ? (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 32, textAlign: "center", color: C.text2, fontSize: 14 }}>
+          Nenhum relatório emitido ainda.
+        </div>
+      ) : (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: C.bg }}>
+                <th style={{ padding: 12, textAlign: "left", color: C.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tipo</th>
+                <th style={{ padding: 12, textAlign: "left", color: C.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Período</th>
+                <th style={{ padding: 12, textAlign: "left", color: C.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</th>
+                <th style={{ padding: 12, textAlign: "left", color: C.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Assinado em</th>
+                <th style={{ padding: 12, textAlign: "left", color: C.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Ações</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+
+            <tbody>
+              {data.map((r) => {
+                const badge = statusBadge(r.status);
+                return (
+                  <tr key={r.hash} style={{ borderTop: `1px solid ${C.border}` }}>
+                    <td style={{ padding: 12, color: C.text }}>{r.report_type}</td>
+
+                    <td style={{ padding: 12, color: C.text2 }}>
+                      {new Date(r.start_date).toLocaleDateString("pt-BR")} –{" "}
+                      {new Date(r.end_date).toLocaleDateString("pt-BR")}
+                    </td>
+
+                    <td style={{ padding: 12 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: badge.color + "22", color: badge.color, border: `1px solid ${badge.color}44` }}>
+                        {badge.label}
+                      </span>
+                    </td>
+
+                    <td style={{ padding: 12, color: C.text2 }}>
+                      {r.signed_at
+                        ? new Date(r.signed_at).toLocaleString("pt-BR")
+                        : "—"}
+                    </td>
+
+                    <td style={{ padding: 12, display: "flex", gap: 14 }}>
+                      <Link
+                        href={`/verify/${r.hash}`}
+                        target="_blank"
+                        style={{ color: C.blue, textDecoration: "underline", fontSize: 13 }}
+                      >
+                        Verificar
+                      </Link>
+
+                      <a
+                        href={`/api/reports/dashboard?hash=${r.hash}`}
+                        target="_blank"
+                        style={{ color: C.text2, textDecoration: "underline", fontSize: 13 }}
+                      >
+                        PDF
+                      </a>
+
+                      {r.status === "valid" && (
+                        <form action={`/admin/reports/revoke?hash=${r.hash}`} method="post">
+                          <button type="submit" style={{ background: "none", border: "none", padding: 0, color: C.red, textDecoration: "underline", fontSize: 13, cursor: "pointer" }}>
+                            Revogar
+                          </button>
+                        </form>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
