@@ -830,7 +830,7 @@ function TabTV({ client, player, playlist, online, checking }: any) {
             ))}
           </div>
         )}
-        <div style={{ background: "#0F172A", display: "flex", justifyContent: "center", padding: isPortrait ? "16px 0" : 0 }}>
+        <div style={{ background: D.bg, display: "flex", justifyContent: "center", padding: isPortrait ? "16px 0" : 0 }}>
           <div style={{
             position: "relative", overflow: "hidden",
             width: isPortrait ? 180 : "100%",
@@ -847,7 +847,7 @@ function TabTV({ client, player, playlist, online, checking }: any) {
               />
             ) : (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                <div style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>📺</div><div style={{ fontSize: 12, color: "#64748B", marginTop: 8 }}>Preview indisponível</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>📺</div><div style={{ fontSize: 12, color: D.muted, marginTop: 8 }}>Preview indisponível</div></div>
               </div>
             )}
           </div>
