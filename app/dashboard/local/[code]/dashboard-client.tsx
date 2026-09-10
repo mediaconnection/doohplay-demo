@@ -406,14 +406,14 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
   )
 }
 
-function ModalConfirmDelete({ name, onConfirm, onCancel, loading }: { name: string; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
+function ModalConfirmDelete({ name, onConfirm, onCancel, loading, message }: { name: string; onConfirm: () => void; onCancel: () => void; loading: boolean; message?: string }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", padding: "24px" }}>
         <div style={{ fontSize: 40, textAlign: "center", marginBottom: 12 }}>🗑️</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.text, textAlign: "center", marginBottom: 8 }}>Excluir esta mídia?</div>
         <div style={{ fontSize: 13, color: C.text2, textAlign: "center", marginBottom: 20 }}>
-          "<strong>{name}</strong>" será removida da sua TV permanentemente. Essa ação não pode ser desfeita.
+          "<strong>{name}</strong>" {message ?? "será removida da sua TV permanentemente. Essa ação não pode ser desfeita."}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onCancel} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>
@@ -2392,6 +2392,7 @@ function NetworkMediaSection({ code }: { code: string }) {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -2425,13 +2426,16 @@ function NetworkMediaSection({ code }: { code: string }) {
     setUploading(false)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir essa mídia? Ela vai parar de aparecer nas telas dos parceiros.")) return
-    setDeletingId(id)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeletingId(deleteTarget.id)
     try {
-      await fetch(`/api/client/network-media/${code}?id=${id}`, { method: "DELETE" })
+      await fetch(`/api/client/network-media/${code}?id=${deleteTarget.id}`, { method: "DELETE" })
+      setDeleteTarget(null)
       load()
-    } catch {}
+    } catch {
+      setError("Erro ao excluir. Tenta de novo.")
+    }
     setDeletingId(null)
   }
 
@@ -2443,6 +2447,16 @@ function NetworkMediaSection({ code }: { code: string }) {
 
   return (
     <div style={{ marginTop: 28 }}>
+      {deleteTarget && (
+        <ModalConfirmDelete
+          name={deleteTarget.name}
+          message="vai parar de aparecer nas telas dos parceiros. Essa ação não pode ser desfeita."
+          loading={deletingId === deleteTarget.id}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.text2 }}>Mídia que você manda pra rede ({items.length})</div>
         <button
@@ -2489,7 +2503,7 @@ function NetworkMediaSection({ code }: { code: string }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 12, background: st.bg, color: st.color }}>{st.label}</span>
                   <button
-                    onClick={() => handleDelete(m.id)}
+                    onClick={() => setDeleteTarget({ id: m.id, name: m.name })}
                     disabled={deletingId === m.id}
                     style={{ fontSize: 11, color: C.red, background: "transparent", border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "4px 10px", cursor: deletingId === m.id ? "not-allowed" : "pointer" }}
                   >
