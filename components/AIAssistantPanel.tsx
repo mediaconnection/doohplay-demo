@@ -8,15 +8,7 @@
 // - Aba Chat: POST /api/client/assistant/message (IA de verdade via
 //   Anthropic, server-side) — histórico mantido só em memória do navegador.
 import { useState, useEffect, useRef } from "react"
-
-const C = {
-  white: "#FFFFFF", border: "#E5E7EB", border2: "#F3F4F6",
-  blue: "#3B82F6", blueLt: "#EFF6FF",
-  green: "#10B981", greenLt: "#DCFCE7",
-  amber: "#D97706", amberLt: "#FFFBEB",
-  red: "#DC2626", redLt: "#FEF2F2",
-  text: "#111827", text2: "#6B7280", text3: "#9CA3AF",
-}
+import { lightDefault as C } from "@/lib/theme"
 
 type Insight = {
   id: string; title: string; body: string; impact: string
