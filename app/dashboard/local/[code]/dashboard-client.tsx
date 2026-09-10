@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 import DtvReadyBadge from "@/components/ui/DtvReadyBadge"
 import AIAssistantPanel from "@/components/AIAssistantPanel"
-import { lightDefault as C, FONT_FAMILY } from "@/lib/theme"
+import { lightDefault as C, deviceDark as D, FONT_FAMILY } from "@/lib/theme"
 
 const NAV = [
   { id: "dashboard", label: "Dashboard",     icon: "⊞",  desc: "Visão geral da sua tela e ganhos" },
@@ -437,6 +437,13 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
       ? (() => { const diff = Math.floor((Date.now() - new Date(player.last_ping).getTime()) / 1000); if (diff < 60) return `${diff}s atrás`; if (diff < 3600) return `${Math.floor(diff/60)}min atrás`; return `${Math.floor(diff/3600)}h atrás` })()
       : "sem dados"
 
+  // Uptime real dos últimos 30 dias (player_heartbeats), já calculado na
+  // query de page.tsx — não exibido em lugar nenhum da aba até agora.
+  // Mesmos limiares de "excelente/bom/atenção" já usados em /trust-center.
+  const sla = typeof player?.sla_30d === "number" ? player.sla_30d : null
+  const slaColor = sla === null ? C.text3 : sla >= 90 ? C.green : sla >= 70 ? C.amber : C.red
+  const slaText = sla === null ? "—" : `${sla.toFixed(1)}%`
+
   // Anúncios reais — antes era um array mockado (Bradesco/iFood/Natura)
   // sempre exibido independente de existir anúncio real ou não. Reaproveita
   // a mesma rota já usada em TabAnuncios (GET /api/client/ads/[code]).
@@ -465,7 +472,7 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
       {/* Trial Banner */}
       <TrialBanner code={client.code} />
 
-      <div style={{ background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : "#FECACA"}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+      <div style={{ background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : C.redBd}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 36, height: 36, background: online ? C.green : C.red, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -485,7 +492,7 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
         <KpiCard label="Receita este mês" value={fmtR(revenue)}    sub="Confirmado"       icon="💵" color={C.green} />
         <KpiCard label="Campanhas ativas" value={String(activeAds.length)} sub={ads.length > activeAds.length ? `${ads.length - activeAds.length} pausada(s)` : "—"} icon="▶"  color={C.blue}  />
         <KpiCard label="Visualizações"    value={fmt(vizToday)}    sub="Hoje" icon="👁" color={C.blue}  />
-        <KpiCard label="Status da TV"     value={online ? "Online" : "Offline"} sub={player?.id ? `SCR-${player.id.slice(0,5).toUpperCase()}` : "—"} icon="📶" color={online ? C.green : C.red} />
+        <KpiCard label="Uptime (30d)"     value={slaText} sub="Tempo online no período" icon="📶" color={slaColor} />
       </div>
 
       <div className="db-tv-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, marginBottom: 20, alignItems: "start" }}>
@@ -494,35 +501,33 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
             <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Minha TV Agora</div>
             <button onClick={() => onNav("tv")} style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ao vivo →</button>
           </div>
-          <div style={{ background: "#0F172A", margin: 16, borderRadius: 10, padding: "28px 16px", textAlign: "center", minHeight: 140, position: "relative" }}>
+          <div style={{ background: D.bg, margin: 16, borderRadius: 10, padding: "28px 16px", textAlign: "center", minHeight: 140, position: "relative" }}>
             <div style={{ position: "absolute", top: 10, left: 14, background: online ? C.green : C.red, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{online ? "● AO VIVO" : "● OFFLINE"}</div>
             {loadingAds ? (
-              <div style={{ fontSize: 12, color: "#94A3B8" }}>Carregando…</div>
+              <div style={{ fontSize: 12, color: D.text }}>Carregando…</div>
             ) : currentAd ? (
               <>
-                <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>📢 ANÚNCIO ATIVO</div>
+                <div style={{ fontSize: 11, color: D.text, marginBottom: 6 }}>📢 ANÚNCIO ATIVO</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 4 }}>{currentAd.campaign_name}</div>
-                <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>{currentAd.advertiser_name}</div>
+                <div style={{ fontSize: 11, color: D.muted, marginTop: 4 }}>{currentAd.advertiser_name}</div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 30 }}>Nenhum anúncio de terceiro ativo agora</div>
-                <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Sua tela está exibindo conteúdo próprio</div>
+                <div style={{ fontSize: 13, color: D.text, marginTop: 30 }}>Nenhum anúncio de terceiro ativo agora</div>
+                <div style={{ fontSize: 11, color: D.muted, marginTop: 4 }}>Sua tela está exibindo conteúdo próprio</div>
               </>
             )}
           </div>
         </div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Em exibição agora</div>
-          {currentAd ? (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>{currentAd.campaign_name}</div>
-              <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>{currentAd.advertiser_name} · ativo</div>
-            </>
-          ) : (
-            <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>Sem anúncio de terceiro no momento</div>
-          )}
-          <div style={{ width: 80, height: 80, background: C.gray100, borderRadius: 8, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>⬛</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Dispositivo</div>
+          <div style={{ width: 64, height: 64, background: C.gray100, borderRadius: 8, margin: "0 auto 12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📺</div>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{player?.device_type || player?.platform || "Não identificado"}</div>
+            {player?.device_type && player?.platform && player.device_type !== player.platform && (
+              <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>{player.platform}</div>
+            )}
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Próximo anúncio</span><span style={{ fontWeight: 500 }}>{nextAd ? nextAd.campaign_name : "—"}</span></div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Visualizações hoje</span><span style={{ fontWeight: 600, color: C.text }}>{fmt(vizToday)}</span></div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2 }}><span>Ganho hoje</span><span style={{ fontWeight: 600, color: C.green }}>{fmtR(stats.revenue_today || 0)}</span></div>

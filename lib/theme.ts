@@ -58,6 +58,7 @@ export const lightDefault = {
   amberLt: "#FFFBEB",
   red: "#DC2626",
   redLt: "#FEF2F2",
+  redBd: "#FECACA",
   gray50: "#F9FAFB",
   gray100: "#F3F4F6",
   gray200: "#E5E7EB",
@@ -86,6 +87,18 @@ export const previewDark = {
   border: "#232844",
   text: "#ECF0FF",
   muted: "#4A5280",
+}
+
+// deviceDark (2026-09-10): a caixa de simulação "Minha TV Agora" em
+// app/dashboard/local/[code]/dashboard-client.tsx (TabDashboard) — cores
+// já em uso ali antes desta formalização. Deliberadamente separada de
+// previewDark: são dois contextos diferentes (edição/preview de conteúdo
+// no Studio vs. card de status do dispositivo no dashboard do cliente),
+// mesmo que pareçam conceitualmente parecidos — decisão do fundador.
+export const deviceDark = {
+  bg: "#0F172A",
+  text: "#94A3B8",
+  muted: "#64748B",
 }
 
 // Referência à custom property setada por next/font/google em
