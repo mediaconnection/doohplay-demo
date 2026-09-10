@@ -1368,9 +1368,8 @@ function TabGanhos({ stats, payments, code }: any) {
         <KpiCard label="Este mês" value={fmtR(stats.revenue_month || 0)} sub="Receita confirmada" icon="💵" color={C.green} />
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between" }}>
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}` }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Histórico de pagamentos</div>
-          <button style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer" }}>↓ Exportar</button>
         </div>
         {history.length === 0 ? (
           <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>
