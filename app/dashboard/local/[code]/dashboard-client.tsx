@@ -154,7 +154,7 @@ function KpiCard({ label, value, sub, icon, color = C.blue, onClick }: { label: 
 
 function StatusBadge({ online, checking = false }: { online: boolean; checking?: boolean }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : "#FECACA"}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 500, color: online ? C.green : C.red, opacity: checking ? 0.6 : 1, transition: "opacity 0.3s" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : C.redBd}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 500, color: online ? C.green : C.red, opacity: checking ? 0.6 : 1, transition: "opacity 0.3s" }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block", animation: online ? "pulse 2s infinite" : "none" }} />
       {checking ? "Verificando…" : online ? "Online" : "Offline"}
     </span>
@@ -337,7 +337,7 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
                     <input value={detail} onChange={e => setDetail(e.target.value)} placeholder="Ex: Válido essa semana" style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none" }} />
                   </div>
                 </div>
-                {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
+                {error && <div style={{ background: C.redLt, border: `1px solid ${C.redBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Foto do produto/espaço (opcional)</label>
                   <div onClick={() => document.getElementById("photo-input-ia")?.click()} style={{ border: `2px dashed ${photo ? C.green : C.border}`, borderRadius: 10, padding: "14px", textAlign: "center", cursor: "pointer", background: photo ? C.greenLt : C.gray50 }}>
@@ -392,7 +392,7 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
                   </div>
                   {file && <div style={{ fontSize: 11, color: C.green, marginTop: 6 }}>✓ {file.name} ({fmtSize(file.size)})</div>}
                 </div>
-                {error && <div style={{ background: C.redLt, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
+                {error && <div style={{ background: C.redLt, border: `1px solid ${C.redBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red }}>⚠️ {error}</div>}
                 <div style={{ display: "flex", gap: 10 }}>
                   <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.text2, cursor: "pointer" }}>Cancelar</button>
                   <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: "11px", borderRadius: 8, border: "none", background: loading ? C.gray300 : C.blue, color: C.white, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>{loading ? "Enviando…" : "Enviar para aprovação →"}</button>
@@ -1505,7 +1505,7 @@ function TabConfiguracoes({ code }: { code: string }) {
           </div>
         ))}
       </div>
-      {error   && <div style={{ background: C.redLt,   border: `1px solid #FECACA`,      borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red   }}>⚠️ {error}</div>}
+      {error   && <div style={{ background: C.redLt,   border: `1px solid ${C.redBd}`,      borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.red   }}>⚠️ {error}</div>}
       {success && <div style={{ background: C.greenLt, border: `1px solid ${C.greenBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.green }}>✓ Configurações salvas!</div>}
       <button onClick={save} disabled={saving} style={{ background: saving ? C.gray300 : C.blue, color: C.white, border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Salvando…" : "Salvar configurações"}</button>
       <ChannelPreferences code={code} />
