@@ -1785,6 +1785,8 @@ function TabPlaylist({ code }: { code: string }) {
   const [success,  setSuccess]  = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleteError, setDeleteError] = useState("")
 
   const load = () => {
     setLoading(true)
@@ -1797,15 +1799,17 @@ function TabPlaylist({ code }: { code: string }) {
 
   useEffect(() => { load() }, [code])
 
-  const handleDeleteItem = async (id: string, name: string) => {
-    if (!confirm(`Excluir "${name}" pra sempre? Essa ação não pode ser desfeita.`)) return
-    setDeletingId(id)
+  const handleDeleteItem = async () => {
+    if (!deleteTarget) return
+    setDeletingId(deleteTarget.id)
+    setDeleteError("")
     try {
-      const res = await fetch(`/api/client/media/${id}?code=${code}`, { method: "DELETE" })
+      const res = await fetch(`/api/client/media/${deleteTarget.id}?code=${code}`, { method: "DELETE" })
       if (!res.ok) throw new Error()
+      setDeleteTarget(null)
       load()
     } catch {
-      alert("Erro ao excluir. Tenta de novo.")
+      setDeleteError("Erro ao excluir. Tenta de novo.")
     }
     setDeletingId(null)
   }
@@ -1873,6 +1877,17 @@ function TabPlaylist({ code }: { code: string }) {
 
   return (
     <div>
+      {deleteTarget && (
+        <ModalConfirmDelete
+          name={deleteTarget.name}
+          loading={deletingId === deleteTarget.id}
+          onConfirm={handleDeleteItem}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {deleteError && <div style={{ background: C.redLt, border: `1px solid ${C.redBd}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: C.red }}>⚠️ {deleteError}</div>}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Programação da Playlist</div>
@@ -1957,7 +1972,7 @@ function TabPlaylist({ code }: { code: string }) {
                 {expanded === item.id ? "▲ Fechar" : "⚙ Programar"}
               </button>
               <button
-                onClick={() => handleDeleteItem(item.id, item.name)}
+                onClick={() => setDeleteTarget({ id: item.id, name: item.name })}
                 disabled={deletingId === item.id}
                 style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: deletingId === item.id ? "not-allowed" : "pointer", color: C.red, flexShrink: 0 }}
               >
