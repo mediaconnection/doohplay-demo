@@ -95,13 +95,28 @@ continua fisicamente preso a este repositório. Levantamento real
   `next.config.ts` que `@/core` sempre resolve pra raiz, não `src/`).
   Validado sem regressão: `tsc` 47 (idêntico), `vitest` 81/81, `next build`
   compila.
-  **Deixado de propósito, não investigado com o mesmo rigor**:
-  `legacy/proof/{buildMerkleRoot,merkle,merkleBatch,merkleProof}.ts`,
-  `packages/proof-engine/proof/{helpers,layers}/merkle.ts` — uma checagem
-  inicial por nome de arquivo genérico deu resultados idênticos suspeitos
-  pros 3 últimos (mesmo tipo de falso-positivo já visto com `merkleRoot`),
-  não reconferida com caminho exato. Não presumir vivo nem morto sem
-  refazer a checagem. Os 6 arquivos físicos distintos chamados
+  **Reconferido e limpo (2026-09-12)**:
+  `legacy/proof/{buildMerkleRoot,merkle,merkleBatch,merkleProof}.ts` e
+  `packages/proof-engine/proof/helpers/merkle.ts` confirmados mortos por
+  caminho exato (a checagem inicial por nome genérico tinha dado
+  falso-positivo, mesmo padrão já visto com `merkleRoot`). Removido, junto
+  com o fechamento completo de consumidores internos também mortos
+  (`legacy/proof/{generateProof,batchMerkle,verifyMerkleProof,
+  batchCrossLayerVerify}.ts`, 9 arquivos ao todo). **`packages/proof-engine/proof/layers/merkle.ts`
+  não é morto** — é usado por `proof/engine.ts` (`runProofEngine`), que roda
+  dentro de `/api/verify/[hash]`, o endpoint público principal de
+  verificação. Isso levou a um achado maior: `layers/merkle.ts` usa uma
+  **terceira convenção de hash** (`sha256(0x01 || bytes(left) || bytes(right))`,
+  binária com prefixo de domínio, diferente das convenções (a)/(b) já
+  documentadas acima), que bate exato com o `hashNode` do pipeline real
+  (`proof/aggregator/proofChainAggregator.ts::buildCompatibleMerkleTree`) —
+  escritor e verificador reais consistentes entre si, sem bug. Mas
+  `packages/proof-engine/domain/block/createBlock.ts` (vivo via rota manual
+  `/api/ledger/build-block`, sem cron) usa a convenção (a), incompatível —
+  risco latente não corrigido, testado empiricamente contra dado real de
+  produção (query recursiva com `pgcrypto`) e **não disparado até agora**.
+  Ver `STATUS_PROJETO.md` pro relato completo. Os 6 arquivos físicos
+  distintos chamados
   `generateProof.ts` (`app/api/audit/generateProof.ts`,
   `core/audit/generateProof.ts`, `legacy/proof/generateProof.ts`,
   `packages/proof-engine/proof/generateProof.ts`, `scripts/generateProof.ts`)
