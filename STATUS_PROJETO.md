@@ -1124,3 +1124,13 @@ Pedido do usuário: limpar os 5 arquivos de Redis mortos/manuais mapeados no ach
 **Removido, cluster morto confirmado por fechamento completo**: `lib/queue/connection.ts` (zero consumidor), `lib/queue/redis.ts` (só `scripts/run-block-finalization.ts`, já com bug pré-existente que o deixava não-funcional), e a árvore inteira `src/lib/queue/{alertQueue,connection,eventQueue,eventWorker,redis}.ts` (5 arquivos autocontidos, zero consumidor externo real — só `scripts/testAlertQueue.ts`, que fica com import pendurado, script manual fora do escopo do `tsc`). Total: 7 arquivos removidos.
 
 **Contagem final corrigida**: das 14 instanciações Redis originais, eram **10 genuinamente ativas** (não 9) — consolidadas em 3: client oficial compartilhado + 2 conexões fail-fast separadas por design (`rateLimit.ts`, `alertQueue.ts`). Os outros 5 eram mortos, removidos. Validado sem regressão: `tsc --noEmit` (47, idêntico — confirma que o fechamento estava completo), `vitest` (81/81), `next build` (compila).
+
+## 🟡 Pendência ativa — instrumentação de contagem de comandos Redis, decisão adiada até ter dado real (2026-09-12)
+
+Decisão consciente do usuário, seguindo a recomendação do `financeiro-agent` desta sessão: **não decidir entre consolidar mais ou fazer upgrade do plano Upstash às cegas** — antes, instrumentar a contagem real de comandos Redis por janela de tempo (48-72h), pra ter dado real de volume ao invés de estimativa.
+
+**Implementado**: `packages/shared-infra/redis.ts` agora sobrescreve `sendCommand` (método real de protótipo do `ioredis`, confirmado em `node_modules/ioredis/built/Redis.js` — todos os comandos passam por ele internamente, incluindo os do BullMQ) na instância singleton, contando cada comando emitido por este processo. A cada 15 minutos, loga `[redis-instrumentation] N comandos em X.Xmin (~Y/min)` e reseta o contador. Puramente observacional — não decide nem age sozinha, só loga. Como o client é compartilhado entre `doohplay-demo` (web) e `doohplay-workers`, cada serviço loga sua própria contagem nos próprios logs do Render — para o total real, somar os dois.
+
+**Não implementado de propósito**: nem consolidação adicional, nem upgrade do plano Upstash. Ambos ficam fora de escopo até ter dado real.
+
+**Prazo de reavaliação: ~2026-09-15** (72h a partir de hoje). Nessa data (ou quando o usuário pedir), somar os logs `[redis-instrumentation]` dos dois serviços pra decidir com dado real entre consolidar mais ou fazer upgrade — e então remover essa instrumentação (não é pra ficar rodando indefinidamente, é diagnóstico temporário).

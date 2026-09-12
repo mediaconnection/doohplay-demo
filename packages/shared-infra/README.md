@@ -156,3 +156,17 @@ conexões fail-fast separadas por design (`rateLimit.ts`,
 `alertQueue.ts`). Os 5 arquivos restantes eram código morto, removidos.
 Validado sem regressão: `tsc --noEmit` (47, idêntico), `vitest` (81/81),
 `next build` (compila).
+
+## Instrumentação temporária de contagem de comandos (2026-09-12 → ~09-15)
+
+`getRedis()` sobrescreve `sendCommand` (método real do protótipo do
+`ioredis`, todos os comandos passam por ele) pra contar comandos
+emitidos por este processo, logando `[redis-instrumentation] N comandos
+em X.Xmin (~Y/min)` a cada 15 min. Decisão consciente de esperar dado
+real antes de decidir entre consolidar mais ou fazer upgrade do plano
+Upstash — ver `STATUS_PROJETO.md`, seção "Pendência ativa — instrumentação
+de contagem de comandos Redis". **Puramente diagnóstico, não decide nem
+age sozinha.** Como o client é compartilhado entre `doohplay-demo` e
+`doohplay-workers`, o total real é a soma dos logs dos dois serviços.
+**Remover depois da decisão (~2026-09-15)** — não é telemetria
+permanente.
