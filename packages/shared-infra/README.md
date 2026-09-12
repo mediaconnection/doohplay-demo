@@ -56,21 +56,36 @@ individualmente, com confirmação explícita do usuário antes de tocar
 repositório pronto — mas não decidido — para uma eventual Etapa 3 física;
 a decisão de separar em repos continua em aberto e é do usuário.
 
-## Achado colateral, fora de escopo, não investigado
+## Achado colateral — investigado e fechado (2026-09-12)
 
 `@/lib/redis` não são 2 clients Redis como o `CLAUDE.md` documentava —
-são **5 arquivos físicos distintos**: o oficial (`lib/redis.ts`, agora
-aqui), `lib/queue/connection.ts` (zero consumidor real encontrado,
-candidato a código morto, não confirmado com o mesmo rigor), `lib/queue/redis.ts`
-(raiz, host hardcoded `127.0.0.1:6379`, 1 consumidor via `import()` em
-`scripts/run-block-finalization.ts` — que tem um bug pré-existente
-desestruturando `{ connection }` de um módulo que só exporta `redis`),
-`src/lib/queue/redis.ts` (host hardcoded, usado só por
-`src/lib/queue/alertQueue.ts` → `scripts/testAlertQueue.ts`, script
-manual) e `src/lib/queue/connection.ts` (byte-idêntico ao da raiz, usado
-por `src/lib/queue/{eventWorker,eventQueue}.ts` cujo status real em
-produção não está confirmado). **Achado mais sério**: `render.yaml` não
-declara nenhum processo worker separado — o status real do BullMQ em
-produção (`npm run worker`) está incerto. Não investigado a fundo aqui,
-fica registrado para investigação dedicada antes de decidir o que fazer
-com os outros 4 arquivos.
+são 5 arquivos físicos distintos. Investigação completa a partir de
+`worker.ts` (o entrypoint real do serviço `doohplay-workers` no Render,
+confirmado via `list_services` — não aparece no `render.yaml`, foi
+configurado direto no painel): ele só importa de `lib/queue/workers/*`
+na raiz, nunca de `src/lib/queue/*`. Confirmado por caminho exato:
+
+- `lib/redis.ts` (agora aqui) — o único client oficial, usado pelos 5
+  workers reais.
+- `lib/queue/connection.ts` (raiz) — **zero consumidor**, morto.
+- `src/lib/queue/connection.ts` — só usado por
+  `src/lib/queue/{eventWorker,eventQueue}.ts`, que também têm **zero
+  consumidor real** — cluster inteiro morto, mesmo padrão de árvore
+  paralela inalcançável em `src/lib/` já documentado no `CLAUDE.md`
+  (trust-graph, alerts engine).
+- `lib/queue/redis.ts` (raiz, host hardcoded `127.0.0.1:6379`) — só
+  alcançável via `scripts/run-block-finalization.ts`, script manual
+  standalone, fora de qualquer pipeline automatizado.
+- `src/lib/queue/redis.ts` — mesmo padrão, só alcançável via
+  `src/lib/queue/alertQueue.ts` → `scripts/testAlertQueue.ts`, também
+  script manual.
+
+**Achado bem mais sério, encontrado no caminho**: o serviço
+`doohplay-workers` tinha `buildFilter.paths` malformado (`["worker.ts
+lib/** core/**"]`, um único item em vez de 3 padrões separados) —
+nenhum commit tocando `lib/**` desde 03/09 disparou redeploy automático,
+incluindo as 3 fases deste pacote. Deploy manual disparado pra corrigir
+o sintoma imediato (worker agora roda o HEAD atual, confirmado limpo nos
+logs); a correção do `buildFilter` em si precisa ser feita no painel do
+Render (fora do alcance das ferramentas disponíveis). Ver
+`STATUS_PROJETO.md` pro relato completo.
