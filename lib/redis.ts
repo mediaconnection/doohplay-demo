@@ -1,23 +1,6 @@
 ﻿// @ts-nocheck
-import Redis from "ioredis"
-
-let _redis: Redis | null = null
-
-export function getRedis(): Redis {
-  if (!_redis) {
-    _redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    })
-    _redis.on("error", (err) => {
-      console.warn("[Redis] error (non-fatal):", err.message)
-    })
-  }
-  return _redis
-}
-
-export const redis = new Proxy({} as Redis, {
-  get(_, prop) {
-    return (getRedis() as any)[prop]
-  }
-})
+// Implementação real vive em packages/shared-infra/redis.ts (workspace
+// package @doohplay/shared-infra) -- este arquivo é reexport puro, único
+// caminho sancionado para import (@/lib/redis e caminhos relativos pra
+// cá continuam funcionando sem mudança).
+export { redis, getRedis } from "@doohplay/shared-infra/redis"

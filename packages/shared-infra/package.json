@@ -1,0 +1,11 @@
+{
+  "name": "@doohplay/shared-infra",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "ioredis": "^5.10.1"
+  },
+  "exports": {
+    "./*": "./*.ts"
+  }
+}
