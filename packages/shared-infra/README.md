@@ -118,16 +118,41 @@ compatível porque o client oficial já usa `maxRetriesPerRequest: null`,
 exigido pelo BullMQ — múltiplas `Queue` compartilhando uma conexão é o
 padrão que o próprio BullMQ recomenda pra reduzir conexões totais).
 
-**1 mantida separada, por desenho, não por descuido**:
-`lib/security/rateLimit.ts` usa `maxRetriesPerRequest: 2` (finito) +
-`lazyConnect: true`, deliberadamente "fail-open" — se o Redis cair, a
-checagem de rate-limit falha rápido e libera a requisição em vez de
-travar rotas públicas de verificação. Compartilhar a conexão oficial
-(`maxRetriesPerRequest: null` = retry infinito) inverteria esse
-comportamento de segurança. Documentado aqui pra não ser "corrigido" por
-engano numa limpeza futura.
+**2 mantidas separadas, por desenho, não por descuido**:
+- `lib/security/rateLimit.ts` usa `maxRetriesPerRequest: 2` (finito) +
+  `lazyConnect: true`, deliberadamente "fail-open" — se o Redis cair, a
+  checagem de rate-limit falha rápido e libera a requisição em vez de
+  travar rotas públicas de verificação.
+- **Correção de um erro cometido nesta mesma consolidação**: `lib/queue/alertQueue.ts`
+  (raiz) foi catalogado por engano como código morto/só-script no
+  levantamento inicial — na verdade tem um consumidor real
+  (`app/api/audit/campaign/[campaign_id]/route.ts` → `lib/queue/enqueueAlert.ts`
+  → `lib/queue/alertQueue.ts`), achado só depois ao verificar import
+  relativo `./alertQueue` de dentro de `lib/queue/enqueueAlert.ts` (mesmo
+  tipo de erro de grep genérico já visto antes nesta sessão). Sua config
+  (`maxRetriesPerRequest: 0`, `enableOfflineQueue: false`) é ainda mais
+  agressivamente fail-fast que o rate-limiter — projetado pra nunca
+  bloquear a rota de auditoria de campanha se o Redis de alertas falhar.
+  **Não consolidado de propósito**, pelo mesmo motivo do rate-limiter.
 
-**Resultado**: de 9 conexões ativas reais pra **2** (a oficial
-compartilhada + a do rate-limiter, separada por design). Validado sem
-regressão: `tsc --noEmit` (47, idêntico), `vitest` (81/81), `next build`
-(compila).
+Compartilhar a conexão oficial (`maxRetriesPerRequest: null` = retry
+infinito) inverteria o comportamento de segurança dos dois. Documentado
+aqui pra não serem "corrigidos" por engano numa limpeza futura.
+
+**Cluster morto confirmado e removido (2026-09-12)**: `lib/queue/connection.ts`
+(zero consumidor), `lib/queue/redis.ts` (só usado por
+`scripts/run-block-finalization.ts`, que já tinha um bug pré-existente
+desestruturando um campo inexistente — script já não funcionava), e a
+árvore inteira `src/lib/queue/{alertQueue,connection,eventQueue,eventWorker,redis}.ts`
+(5 arquivos, autocontida, zero consumidor externo real, mesmo padrão de
+árvore paralela morta em `src/lib/` já documentado no `CLAUDE.md`) — só
+usada por `scripts/testAlertQueue.ts`, que passa a ter import
+pendurado (script manual, fora do escopo do `tsc`, já não crítico).
+
+**Resultado final**: das 14 instanciações originais, **10 eram
+genuinamente ativas** (não 9 — a correção do `alertQueue.ts` mudou a
+conta), consolidadas em **3**: o client oficial compartilhado + 2
+conexões fail-fast separadas por design (`rateLimit.ts`,
+`alertQueue.ts`). Os 5 arquivos restantes eram código morto, removidos.
+Validado sem regressão: `tsc --noEmit` (47, idêntico), `vitest` (81/81),
+`next build` (compila).
