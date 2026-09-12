@@ -21,12 +21,20 @@ continuam funcionando sem nenhuma mudança de import. Validado sem
 regressão: `tsc --noEmit` (47, idêntico), `vitest` (81/81), `next build`
 (compila).
 
-**Fases 2 (`lib/db.ts`) e 3 (`lib/supabaseServer.ts`) não iniciadas** —
-pausa deliberada: os dois arquivos são consumidos por rotas comerciais
-reais (`app/api/client/*`, `admin/*`, `advertiser/*`, `studio/*`,
-`finance/*`), zona de "parar e confirmar" do `CLAUDE.md`. Mesmo sendo
-reexport puro (sem mudança de comportamento), exige confirmação explícita
-do usuário antes de tocar, não decidida sozinho.
+**Fase 2 (`lib/db.ts`) concluída, com confirmação explícita do usuário
+antes de tocar** (zona de "parar e confirmar" do `CLAUDE.md` — `@/lib/db`
+é consumido por rotas comerciais reais). `lib/db.ts` (o `pg.Pool`
+singleton, com timeouts já documentados contra a classe de bug de
+conexão travada) virou reexport puro de `db.ts` deste pacote. Consumidores
+reconferidos por caminho exato antes de mexer: 256 estáticos + 58
+dinâmicos via `@/lib/db`, mais a ponte `src/lib/db.ts` → `scripts/alertWorker.ts`
+— nenhum precisou mudar. Validado sem regressão: `tsc --noEmit` (47,
+idêntico — os 5 erros pré-existentes de `Pool`/`err: any` só mudaram de
+arquivo, acompanhando o código), `vitest` (81/81), `next build` (compila
+em toda a árvore, incluindo as rotas comerciais).
+
+**Fase 3 (`lib/supabaseServer.ts`) não iniciada** — mesma pausa
+deliberada, aguardando confirmação explícita antes de tocar.
 
 ## Achado colateral, fora de escopo, não investigado
 
