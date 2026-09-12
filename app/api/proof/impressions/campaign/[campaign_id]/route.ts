@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { buildMerkleTree } from "@/lib/crypto/merkle"
+import { buildMerkleRoot } from "@/lib/crypto/merkle"
 import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
@@ -107,7 +107,7 @@ export async function GET(
       )
     }
 
-    const merkle = buildMerkleTree(hashes)
+    const merkleRoot = buildMerkleRoot(hashes)
 
     return NextResponse.json(
       {
@@ -116,7 +116,7 @@ export async function GET(
         impression_count: impressions.length,
         valid_impression_count: hashes.length,
         invalid_impression_count: impressions.length - hashes.length,
-        merkle_root: merkle.root,
+        merkle_root: merkleRoot,
         impressions,
         meta: {
           generated_at: new Date().toISOString()

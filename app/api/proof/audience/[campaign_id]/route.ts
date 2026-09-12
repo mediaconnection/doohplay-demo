@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { buildMerkleTree } from "@/lib/crypto/merkle"
+import { buildMerkleRoot } from "@/lib/crypto/merkle"
 import { pool } from "@/lib/db"
 
 export const runtime = "nodejs"
@@ -107,7 +107,7 @@ export async function GET(
       )
     }
 
-    const merkle = buildMerkleTree(hashes)
+    const merkleRoot = buildMerkleRoot(hashes)
 
     const totalAudience = measurementsData.reduce(
       (acc, row) => acc + row.viewer_count,
@@ -122,7 +122,7 @@ export async function GET(
         valid_measurements: hashes.length,
         invalid_measurements: rows.length - hashes.length,
         total_audience: totalAudience,
-        merkle_root: merkle.root,
+        merkle_root: merkleRoot,
         measurements_data: measurementsData,
         meta: {
           generated_at: new Date().toISOString()
