@@ -35,17 +35,56 @@ mecanismos coexistem.
 adapter (agora em `proof/adapters/supabase.ts`) passou a reusar o client
 oficial `@/lib/supabaseServer.ts` em vez de instanciar o próprio.
 
-## Dívida técnica conhecida, aceita conscientemente (2026-09-10)
+## Dívida técnica conhecida, aceita conscientemente (2026-09-10/11)
 
 Ter `package.json` próprio **não torna este pacote portável** — ele
 continua fisicamente preso a este repositório. Levantamento real
 (`grep` dentro de `packages/proof-engine/**`, não presumido):
 
-- **49 arquivos, 63 imports** de volta pra `@/lib/*` fora do pacote:
-  `@/lib/db` (38× — o pool `pg.Pool` inteiro), `@/lib/crypto` (8×),
-  `@/lib/observability` (4×), `@/lib/redis` (3×), `@/lib/merkle` (3×),
-  `@/lib/config` (2×), e 1× cada de `@/lib/tsa`, `@/lib/supabaseServer`,
-  `@/lib/prisma`, `@/lib/ledger`, `@/lib/cache`.
+- **Antes de mover qualquer coisa: 49 arquivos, 63 imports** de volta pra
+  `@/lib/*` fora do pacote: `@/lib/db` (38× — o pool `pg.Pool` inteiro,
+  280 consumidores externos ao todo), `@/lib/supabaseServer` (31 externos),
+  `@/lib/redis` (12), `@/lib/merkle`/`@/lib/crypto/merkle` (5 cada),
+  `@/lib/observability/*` (3), `@/lib/config/env` (3),
+  `@/lib/crypto/ledgerVerify` (3), `@/lib/crypto/assinarComA1` (2),
+  `@/lib/prisma` (1 — só aparece com `import()` dinâmico, não com `from`
+  estático; ver achado abaixo sobre metodologia). **Nenhum desses é
+  candidato a "mover pra dentro"** — são infraestrutura genuinamente
+  compartilhada com o resto do produto. Resolver isso de verdade exigiria
+  um pacote compartilhado à parte (ex: `@doohplay/db-client`), o que já é
+  trabalho de Etapa 3 física, não preparação de baixo risco.
+- **Movidos pra dentro do pacote (2026-09-11)**: `crypto/pkcs7Signer.ts` e
+  `crypto/tsaRFC3161.ts` (ex-`lib/crypto/*.ts`) — confirmado, com busca
+  por nome de arquivo (não só por alias), que `generateProofCertificate.ts`
+  era o único consumidor real de cada um. Passaram a depender de
+  `node-forge`/`node-fetch` como dependências diretas do pacote (adicionadas
+  ao `package.json`). Reduz o levantamento acima pra 49 arquivos / 61
+  imports (o arquivo `generateProofCertificate.ts` continua na lista por
+  causa do `@/lib/db`, que é infra compartilhada, não candidato a mover).
+- **Achado de metodologia (2026-09-11), importante para quem revisitar
+  isso**: uma primeira tentativa desta sessão quis mover também
+  `lib/crypto/merkleRoot.ts`, catalogado como "0 consumidores externos" —
+  mas essa contagem só buscava pelo alias `@/lib/crypto/merkleRoot`.
+  `next build` real quebrou com `Module not found`: o arquivo tem
+  consumidores via **import relativo** (`lib/merkle/index.ts`,
+  `lib/crypto/merkle.ts`) que o grep por alias não pegava. Revertido antes
+  do commit. **Sempre checar consumidores por nome de arquivo
+  (`grep -rE "from [\"'][^\"']*/nomeDoArquivo[\"']"`), nunca só pelo
+  caminho de import usado dentro deste pacote** — um arquivo pode ter zero
+  consumidores via `@/lib/*` e ainda assim ser importado de outro lugar por
+  caminho relativo.
+- **Achado maior, não corrigido, fora de escopo**: essa investigação de
+  `merkleRoot` revelou que existem **múltiplas implementações reais de
+  merkle root** espalhadas pelo repositório — `lib/crypto/merkleRoot.ts` e
+  um `src/core/audit/merkleRoot.ts` completamente separado — com pontes de
+  re-export cruzando `lib/merkle/index.ts`, `lib/crypto/merkle.ts`, 4
+  arquivos dentro de `packages/proof-engine/domain/proof/`
+  (`buildMerkleRoot.ts`, `merkle.ts`, `merkleBatch.ts`, `merkleProof.ts`),
+  `src/lib/proof/merkle.ts`, `core/audit/generateProof.ts` e
+  `src/core/audit/generateProof.ts`. Mesma classe de risco já documentada
+  no `STATUS_PROJETO.md` pra outras duplicações (WhatsApp, hash-chain
+  writer, `admin/media/[id]`) — merece investigação dedicada própria antes
+  de qualquer mudança em código de merkle, não decidido aqui.
 - **1 import de `next/server`** (`proof/certificate.ts`, tipos
   `NextRequest`/`NextResponse`) — acoplamento ao framework do app
   comercial, não só ao `lib/`.
@@ -59,8 +98,14 @@ continua fisicamente preso a este repositório. Levantamento real
   próprio `./types` do pacote ou usar o alias `@/lib/proof/types`.
   Corrigir fica fora do escopo desta tarefa (não muda comportamento real
   hoje), registrado aqui pra não ser recriado por engano depois.
+- **Achado colateral, não corrigido**: `src/lib/tsa/createTsaToken.ts` é
+  um duplicado órfão byte-idêntico de `lib/tsa/createTsaToken.ts`, sem
+  nenhum consumidor real (o alias `@/lib/tsa/createTsaToken` sempre
+  resolve pro caminho raiz, que é tentado primeiro). Registrado, não
+  removido.
 
-**Isso é o item maior de uma eventual Etapa 3 física** — resolver esse
-acoplamento reverso pesa mais que decidir empacotamento/dependências.
-Nenhuma ação necessária agora; decisão de separar em repos físicos
-continua em aberto e é do usuário.
+**O acoplamento reverso genuíno restante é o item maior de uma eventual
+Etapa 3 física** — resolver `@/lib/db`/`supabaseServer`/`redis` (a infra de
+fato compartilhada) pesa muito mais do que decidir empacotamento. Nenhuma
+ação necessária agora; decisão de separar em repos físicos continua em
+aberto e é do usuário.
