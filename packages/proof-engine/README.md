@@ -150,13 +150,14 @@ continua fisicamente preso a este repositório. Levantamento real
   resolve pro caminho raiz, que é tentado primeiro). Registrado, não
   removido.
 
-**Atualização (2026-09-12)**: começou a extração dessa infra compartilhada
-pra um pacote próprio, `packages/shared-infra` (`@doohplay/shared-infra`)
-— ver README dele. Fase 1 (`@/lib/redis`) concluída via reexport puro,
-zero import mudou. `@/lib/db` e `@/lib/supabaseServer` pausados de
-propósito — tocam rotas comerciais reais, exigem confirmação explícita do
-usuário antes (zona de "parar e confirmar" do `CLAUDE.md`), mesmo sendo
-reexport sem mudança de comportamento. Plano técnico completo das 3 fases
-em `STATUS_PROJETO.md`. Decisão de separar em repos físicos (Etapa 3 de
-verdade) continua em aberto e é do usuário — isso aqui ainda é só
-preparação de baixo risco.
+**Atualização (2026-09-12)**: extração dessa infra compartilhada pra um
+pacote próprio, `packages/shared-infra` (`@doohplay/shared-infra`) —
+ver README dele. **As 3 fases concluídas**: `@/lib/redis`, `@/lib/db` e
+`@/lib/supabaseServer` são hoje reexports puros de `packages/shared-infra`
+— zero import mudou em nenhum consumidor, cada fase validada
+individualmente (`tsc`/`vitest`/`next build`, mais teste real de ponta a
+ponta contra produção pras duas últimas, que tocam rotas comerciais —
+zona de "parar e confirmar" do `CLAUDE.md`, com confirmação explícita do
+usuário antes de cada uma). Plano técnico completo em `STATUS_PROJETO.md`.
+Decisão de separar em repos físicos (Etapa 3 de verdade) continua em
+aberto e é do usuário — isso aqui ainda é só preparação de baixo risco.

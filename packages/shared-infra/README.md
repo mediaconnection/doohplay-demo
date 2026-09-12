@@ -33,8 +33,28 @@ idêntico — os 5 erros pré-existentes de `Pool`/`err: any` só mudaram de
 arquivo, acompanhando o código), `vitest` (81/81), `next build` (compila
 em toda a árvore, incluindo as rotas comerciais).
 
-**Fase 3 (`lib/supabaseServer.ts`) não iniciada** — mesma pausa
-deliberada, aguardando confirmação explícita antes de tocar.
+**Fase 3 (`lib/supabaseServer.ts`) concluída, com confirmação explícita
+do usuário antes de tocar.** `lib/supabaseServer.ts` (client Supabase
+admin/service-role, `createClient` + singleton lazy via
+`getSupabaseAdmin()`/`Proxy`, validação eager de env vars no topo do
+módulo) virou reexport puro de `supabaseServer.ts` deste pacote.
+Consumidores reconferidos por caminho exato: 28 estáticos + 2 dinâmicos
+via `@/lib/supabaseServer`, mais a ponte `lib/supabase.ts` (da
+consolidação de Supabase de 06-07/09) → nenhum precisou mudar. Atenção
+redobrada ao histórico já documentado de "Proxy lazy-loaded não incluído
+pelo webpack" — **não se reproduziu**: `next build` compilou limpo, e
+**testado de ponta a ponta contra produção real** (`GET /api/verify/[hash]`
+com um `event_hash` genuíno do banco) devolveu `200` com dado de
+certificação real recuperado via Supabase. Validado sem regressão: `tsc
+--noEmit` (47, idêntico), `vitest` (81/81), `next build` (compila).
+
+**As 3 fases do plano de infraestrutura compartilhada estão concluídas.**
+`@/lib/redis`, `@/lib/db` e `@/lib/supabaseServer` são hoje reexports
+puros de `packages/shared-infra`, cada um validado e deployado
+individualmente, com confirmação explícita do usuário antes de tocar
+`db.ts`/`supabaseServer.ts` (zona comercial do `CLAUDE.md`). Isso deixa o
+repositório pronto — mas não decidido — para uma eventual Etapa 3 física;
+a decisão de separar em repos continua em aberto e é do usuário.
 
 ## Achado colateral, fora de escopo, não investigado
 
