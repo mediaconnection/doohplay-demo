@@ -6,7 +6,7 @@ export {
   type MerkleProofItem,
 } from "../../packages/proof-engine/proof/merkle/verifyMerkleProof"
 export { generateMerkleProof } from "../crypto/merkleRoot"
-export { buildMerkleRoot } from "../../src/core/audit/merkleRoot"
+export { buildMerkleRoot } from "../../core/audit/merkleRoot"
 export { normalizeHash } from "../../packages/proof-engine/proof/chain"
 
 export { generateMerkleProof as buildMerkleProof } from "../crypto/merkleRoot"

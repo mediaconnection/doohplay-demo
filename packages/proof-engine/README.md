@@ -73,18 +73,49 @@ continua fisicamente preso a este repositório. Levantamento real
   caminho de import usado dentro deste pacote** — um arquivo pode ter zero
   consumidores via `@/lib/*` e ainda assim ser importado de outro lugar por
   caminho relativo.
-- **Achado maior, não corrigido, fora de escopo**: essa investigação de
-  `merkleRoot` revelou que existem **múltiplas implementações reais de
-  merkle root** espalhadas pelo repositório — `lib/crypto/merkleRoot.ts` e
-  um `src/core/audit/merkleRoot.ts` completamente separado — com pontes de
-  re-export cruzando `lib/merkle/index.ts`, `lib/crypto/merkle.ts`, 4
-  arquivos dentro de `packages/proof-engine/domain/proof/`
-  (`buildMerkleRoot.ts`, `merkle.ts`, `merkleBatch.ts`, `merkleProof.ts`),
-  `src/lib/proof/merkle.ts`, `core/audit/generateProof.ts` e
-  `src/core/audit/generateProof.ts`. Mesma classe de risco já documentada
-  no `STATUS_PROJETO.md` pra outras duplicações (WhatsApp, hash-chain
-  writer, `admin/media/[id]`) — merece investigação dedicada própria antes
-  de qualquer mudança em código de merkle, não decidido aqui.
+- **Achado maior, investigado e parcialmente limpo (2026-09-11/12)**: a
+  investigação de `merkleRoot` revelou **16+ arquivos físicos** de merkle
+  root espalhados pelo repositório, com 2 convenções de algoritmo
+  coexistindo (ver `STATUS_PROJETO.md`, seção "Investigação de merkle root
+  duplicado", pro relato completo incluindo 2 acusações de bug feitas e
+  retratadas na mesma sessão). Fechado: `app/api/proof/audience/[campaign_id]`
+  e `app/api/proof/impressions/campaign/[campaign_id]` corrigidas pra usar a
+  convenção canônica. **Limpeza de duplicação executada (2026-09-11/12)**,
+  só nos casos com consumidores reais 100% mapeados por caminho exato (não
+  por nome de arquivo genérico, que já deu falso-positivo uma vez nesta
+  investigação): `src/core/audit/{generateProof,merkleRoot,timestampProof}.ts`
+  e `core/audit/timestamp-proof/route.ts` +
+  `src/core/audit/timestamp-proof/route.ts` (órfãos, fora de `app/`, nunca
+  foram rotas de verdade) removidos; `packages/proof-engine/domain/proof/merkle.ts`
+  e `packages/proof-engine/proof/buildImpressionMerkle.ts` removidos (zero
+  consumidor real). Os 4 arquivos que apontavam pra `src/core/audit/merkleRoot.ts`
+  (`lib/crypto/merkle.ts`, `lib/merkle/index.ts`,
+  `packages/proof-engine/domain/proof/{buildMerkleRoot,merkleBatch}.ts`)
+  redirecionados pro `core/audit/merkleRoot.ts` (raiz — confirmado via
+  `next.config.ts` que `@/core` sempre resolve pra raiz, não `src/`).
+  Validado sem regressão: `tsc` 47 (idêntico), `vitest` 81/81, `next build`
+  compila.
+  **Deixado de propósito, não investigado com o mesmo rigor**:
+  `legacy/proof/{buildMerkleRoot,merkle,merkleBatch,merkleProof}.ts`,
+  `packages/proof-engine/proof/{helpers,layers}/merkle.ts` — uma checagem
+  inicial por nome de arquivo genérico deu resultados idênticos suspeitos
+  pros 3 últimos (mesmo tipo de falso-positivo já visto com `merkleRoot`),
+  não reconferida com caminho exato. Não presumir vivo nem morto sem
+  refazer a checagem. Os 6 arquivos físicos distintos chamados
+  `generateProof.ts` (`app/api/audit/generateProof.ts`,
+  `core/audit/generateProof.ts`, `legacy/proof/generateProof.ts`,
+  `packages/proof-engine/proof/generateProof.ts`, `scripts/generateProof.ts`)
+  também não foram tocados — pelo menos 2 são features genuinamente
+  diferentes com nome coincidente (uma sem parâmetro, outra parametrizada
+  por `event_hash`), renomear é refactor maior, não limpeza rápida.
+  **Achado novo, fora de escopo, não investigado**: `core/audit/eventChainRepository.ts`
+  e `src/core/audit/eventChainRepository.ts` **divergem de verdade**
+  (schemas de INSERT diferentes, não são cópia idêntica) — a versão `src/`
+  parece órfã (zero consumidor via alias, que sempre resolve pra raiz, nem
+  via relativo), mas isso liga a `core/players/pairingService.ts` vs.
+  `src/core/players/pairingService.ts` (outro par `core/`/`src/core/` não
+  investigado). Registrado pra investigação futura dedicada, não decidido
+  aqui.
 - **1 import de `next/server`** (`proof/certificate.ts`, tipos
   `NextRequest`/`NextResponse`) — acoplamento ao framework do app
   comercial, não só ao `lib/`.
