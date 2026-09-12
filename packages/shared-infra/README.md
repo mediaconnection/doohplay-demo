@@ -86,6 +86,48 @@ lib/** core/**"]`, um único item em vez de 3 padrões separados) —
 nenhum commit tocando `lib/**` desde 03/09 disparou redeploy automático,
 incluindo as 3 fases deste pacote. Deploy manual disparado pra corrigir
 o sintoma imediato (worker agora roda o HEAD atual, confirmado limpo nos
-logs); a correção do `buildFilter` em si precisa ser feita no painel do
-Render (fora do alcance das ferramentas disponíveis). Ver
-`STATUS_PROJETO.md` pro relato completo.
+logs); **corrigido pelo usuário no painel do Render e testado** (commit
+seguinte, tocando só arquivo fora dos 3 padrões, confirmado que não
+disparou redeploy indevido). Ver `STATUS_PROJETO.md` pro relato completo.
+
+## Consolidação de conexões Redis (2026-09-12)
+
+Motivada por uma análise de custo/risco real: o rate-limit do Upstash
+voltou a aparecer nos logs (circuit-breaker em "tentativa 8", pausas até
+120s) — a condição de revisita definida na decisão de 2026-09-08
+("consolidar vs. upgrade, nenhum por ora") se confirmou.
+
+Levantamento fresco (`grep -rn "new Redis(\|new IORedis("`) achou **14
+instanciações reais** — mesmo número já documentado, mas **5 delas são
+código morto ou só scripts manuais** (o cluster de `src/lib/queue/` +
+`lib/queue/{connection,redis,alertQueue}.ts`, já mapeado acima), deixando
+**9 genuinamente ativas em produção**.
+
+Das 9, **7 tinham configuração simples/compatível** e foram consolidadas
+pra reusar o client oficial (`@/lib/redis`, agora com as proteções de
+timeout/retry do antigo `packages/proof-engine/proof/cache/redis.ts`
+incorporadas — `connectTimeout`, `commandTimeout`, `keepAlive`,
+`retryStrategy`): `app/api/metrics/prometheus/route.ts`,
+`lib/observability/metricsRedis.ts`, `lib/queue/utils/idempotency.ts`,
+`packages/proof-engine/blockchain/idempotency.ts`,
+`packages/proof-engine/proof/cache/proofCache.ts`,
+`packages/proof-engine/proof/cache/redis.ts` (esse último, na prática,
+código morto — zero consumidor real confirmado, convertido em reexport
+só por consistência), e `lib/queue/riskQueue.ts` (`Queue` do BullMQ,
+compatível porque o client oficial já usa `maxRetriesPerRequest: null`,
+exigido pelo BullMQ — múltiplas `Queue` compartilhando uma conexão é o
+padrão que o próprio BullMQ recomenda pra reduzir conexões totais).
+
+**1 mantida separada, por desenho, não por descuido**:
+`lib/security/rateLimit.ts` usa `maxRetriesPerRequest: 2` (finito) +
+`lazyConnect: true`, deliberadamente "fail-open" — se o Redis cair, a
+checagem de rate-limit falha rápido e libera a requisição em vez de
+travar rotas públicas de verificação. Compartilhar a conexão oficial
+(`maxRetriesPerRequest: null` = retry infinito) inverteria esse
+comportamento de segurança. Documentado aqui pra não ser "corrigido" por
+engano numa limpeza futura.
+
+**Resultado**: de 9 conexões ativas reais pra **2** (a oficial
+compartilhada + a do rate-limiter, separada por design). Validado sem
+regressão: `tsc --noEmit` (47, idêntico), `vitest` (81/81), `next build`
+(compila).

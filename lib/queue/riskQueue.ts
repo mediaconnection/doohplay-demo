@@ -2,11 +2,9 @@
 // /lib/queue/riskQueue.ts
 
 import { Queue } from "bullmq"
-import IORedis from "ioredis"
+import { getRedis } from "@/lib/redis"
 
-const connection = new IORedis(process.env.REDIS_URL!, {
-  maxRetriesPerRequest: null
-})
+const connection = getRedis()
 
 export const riskQueue = new Queue("risk-processing", {
   connection,

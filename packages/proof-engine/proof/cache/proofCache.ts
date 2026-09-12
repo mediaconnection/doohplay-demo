@@ -1,24 +1,10 @@
 // @ts-nocheck
-import Redis from "ioredis"
+import { getRedis } from "@/lib/redis"
 import type { EntityType, ProofResultLike } from "../types"
 
 export type CachedProof = ProofResultLike
 
 const DEFAULT_TTL_SECONDS = 3600
-
-let _redis: Redis | null = null
-
-function getRedis(): Redis {
-  if (!_redis) {
-    _redis = new Redis(process.env.REDIS_URL as string, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-      lazyConnect: false,
-    })
-    _redis.on("error", (e) => console.error("[proofCache] Redis error:", e.message))
-  }
-  return _redis
-}
 
 function normalizeKey(key: string): string {
   const normalized = String(key).trim().toLowerCase().replace(/^0x/, "")

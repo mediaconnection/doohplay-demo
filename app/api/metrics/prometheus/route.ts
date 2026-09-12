@@ -3,9 +3,7 @@ export const fetchCache = "force-no-store"
 export const revalidate = 0
 
 import { NextResponse } from "next/server"
-import IORedis from "ioredis"
-
-const redis = new IORedis(process.env.REDIS_URL!)
+import { redis } from "@/lib/redis"
 
 export async function GET() {
   const keys = await redis.keys("metrics:counter:*")

@@ -1,7 +1,5 @@
 // @ts-nocheck
-import IORedis from "ioredis"
-
-const redis = new IORedis(process.env.REDIS_URL!)
+import { redis } from "@/lib/redis"
 
 /* =========================
    COUNTERS

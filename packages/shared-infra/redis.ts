@@ -8,6 +8,12 @@ export function getRedis(): Redis {
     _redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      connectTimeout: 10_000,
+      commandTimeout: 5_000,
+      keepAlive: 30_000,
+      retryStrategy(times) {
+        return Math.min(times * 100, 2_000)
+      },
     })
     _redis.on("error", (err) => {
       console.warn("[Redis] error (non-fatal):", err.message)
