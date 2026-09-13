@@ -1288,3 +1288,19 @@ Reportado pelo fundador como urgente: o selo "TV 3.0 READY" (`components/ui/DtvR
 **Ação corretiva tomada** (mesma sessão, imediata): `UPDATE feature_flags SET enabled = false WHERE client_code='BARBE332' AND flag_key='dtv_ready'` — confirmado `enabled=false` às 20:03:22 UTC. `app/dashboard/local/[code]/page.tsx` é `force-dynamic` (sem cache/ISR), então o efeito foi imediato, sem necessidade de deploy. **Nenhum código foi removido** — só a flag que ligava o claim público foi desativada; a feature (adapter, migração, textos comerciais, página `/tv-3-0-ready`) continua intacta no repositório, pronta pra ser reativada com decisão consciente e revisão jurídica/comercial concluída.
 
 **Pendência real, não resolvida por este fix**: decisão de postura sobre "TV 3.0 Ready" (revisão jurídica, quando/se ativar publicamente pra algum cliente) continua em aberto — este incidente só corrigiu o sintoma imediato (claim ligado sem querer), não substitui essa decisão.
+
+## ✅ Fase 4 — mockup aprovado implementado em produção (2026-09-13)
+
+Mockup do dashboard do cliente (`TabDashboard`, `dashboard-client.tsx`) aprovado pelo fundador via Claude.ai, implementado em cima do sistema de design das Fases 0-2. Como a Fase 2 ainda não tinha virado código real (só a POC em HTML estático da Fase 3), esta tarefa criou a versão mínima dos componentes agora — `components/ui/tokens.ts`, `theme-shape.ts`, `card.tsx`, `Badge.tsx`, `button.tsx`, `SectionTitle.tsx` (substituindo o scaffold Tailwind morto documentado na Fase 0, zero consumidor real antes).
+
+**4 mudanças implementadas** (commit `55b990c`):
+1. **Badge "TV 3.0 READY" removido definitivamente** do banner de status (import + render tirados de `TabDashboard`) — reforça, no código, a correção do incidente registrado horas antes (flag já desativada no banco). Leitura da flag em `page.tsx` mantida intacta pra reativação consciente futura.
+2. **Banner de offline com ação clara**: "Sua TV está offline há Xh" (calculado do `last_ping` real) + orientação "verifique energia e Wi-Fi do [device_type]" + botão "Ver diagnóstico" que rola até o card Dispositivo (`scrollIntoView`, nenhuma tela nova inventada).
+3. **`KpiCard` com hierarquia real**: prop `danger`, ativada quando `sla_30d < 50` — Uptime (30d) usa cor de alerta real em vez do estilo neutro dos outros 3 KPIs.
+4. **"Minha TV Agora" + "Dispositivo" consolidados**: usam `Card`/`SectionTitle`/`Button` do sistema novo, ícone+nome do dispositivo numa linha compacta em vez de bloco centralizado solto, espaçamento na escala formalizada (4/8/12/16/24).
+
+Nenhuma mudança de dado/API — só apresentação. Validado sem regressão: `tsc --noEmit` (57, idêntico ao baseline atual da sessão — já tinha migrado de 47 por commits anteriores não relacionados a esta tarefa), `vitest` (81/81), `next build` (compila, falha só no erro pré-existente conhecido de `/api/documents/.../pdf`).
+
+**Deploy `dep-dajgeics728c73bbj9ng` live** (2026-09-13 20:31:02 UTC), zero erros novos nos logs da janela do deploy. Smoke test via `WebFetch` em `/dashboard/local/BARBE332`: rota responde normal (tela do `ClientLoginGate`, sem erro 500/stack trace).
+
+**Validação visual pendente**: o conteúdo real do banner/KPI/grid exige login de cliente (sessão real) — não verificado nesta sessão por não ter as credenciais do `BARBE332`. Fundador ainda precisa confirmar visualmente a implementação depois de logar.
