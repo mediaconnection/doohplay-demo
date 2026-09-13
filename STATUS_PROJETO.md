@@ -1133,4 +1133,73 @@ Decisão consciente do usuário, seguindo a recomendação do `financeiro-agent`
 
 **Não implementado de propósito**: nem consolidação adicional, nem upgrade do plano Upstash. Ambos ficam fora de escopo até ter dado real.
 
+## 📋 Fila de Design — Figma (dashboard do cliente) — inventário e comparação (2026-09-13)
+
+Pedido do fundador: clientes não estão aceitando o layout atual, e ele considera que o protótipo Figma Make representa o que ele e os clientes esperam ver no produto real — mais forte que "referência estética", pode envolver estrutura/organização de informação, não só cor. Escopo: dashboard do cliente/dono de tela (`app/dashboard/local/[code]`, onde vivem `BARBE332`/`LEMEL186`), explicitamente não admin/investidor/anunciante.
+
+### Componentes do Figma Make investigados
+
+Protótipo extraído dentro do próprio repo, em `src/app/components/` (árvore paralela inalcançável, mesmo padrão de "pasta separada do Next.js real" já documentado no `CLAUDE.md` pra `src/lib/`). Candidatos identificados por nome, confirmados por conteúdo:
+
+- `LocalDashboard.tsx` (630 linhas) — bate exatamente com a persona/rota real (nome + navegação: Dashboard/Minha TV/Conteúdo/Anúncios/Ganhos/Relatórios/Configurações). Sidebar desktop. 100% mockado (`revenueData`, `activeAds`, `paymentHistory`, `contentItems` — tudo array fixo no arquivo).
+- `ClientDashboard.tsx` (525 linhas) — também dashboard de dono de tela, mas layout mobile/app single-column, tema escuro, com sistema de planos (starter/pro/business), quota de IA visível, e "provas de exibição" com hash. 100% mockado (contadores via `setInterval`/`Math.random`, hashes via `randHex()`).
+- `MobileDashboard.tsx` (211 linhas) — variante mobile pra dono de MÚLTIPLAS telas (grid de status por tela + feed de alertas). 100% mockado.
+- Descartado após leitura: `ClientPortal.tsx` (333 linhas) — apesar do nome, é portal de ANUNCIANTE (campanhas/budget/criativos aprovados), persona errada pra este inventário.
+- Descartados por nome/categoria óbvia, não lidos: `AdvertiserCenter*.tsx`, `InvestorDashboard.tsx`, `MultiTenantAdmin.tsx`, `ExecutiveDashboard.tsx`, `EnterpriseDashboard.tsx`, `BusinessDashboard.tsx`, `GrowthDashboard.tsx`, `AnalyticsDashboard.tsx`, `ESGDashboard.tsx`, `RealtimeDashboard.tsx`, `SLADashboard.tsx`, `PartnerPortal.tsx`, `WhiteLabelPortal.tsx` — admin/investidor/parceiro/anunciante, fora do escopo (dono de tela).
+
+### Comparação estrutural — Figma vs. real (`dashboard-client.tsx`)
+
+**Navegação**: o real (`NAV`, 12 itens — Dashboard/Assistente IA/Minha TV/Conteúdo/Anúncios/Ganhos/Receita com IA/Relatórios/Playlist/Clube de Telas/Meus Clientes/Configurações) já é estruturalmente **mais rico** que qualquer um dos 3 protótipos — já inclui Assistente IA (`AIAssistantPanel` real), AI Revenue Center (rota real `/ai-revenue`, portada em 30/08/2026), Playlist por tela, Clube de Telas e Meus Clientes, nenhum presente nos protótipos investigados. Isso não é gap, é o oposto: parte do que os protótipos "prometem" já foi construída de verdade.
+
+Onde o real fica atrás estruturalmente, aba por aba:
+
+- **Dashboard** (`TabDashboard` real vs. `DashboardView`/home do `ClientDashboard` no Figma): real tem banner de status + `TrialBanner` + 4 KPIs (Receita mês/Campanhas ativas/Visualizações/Uptime 30d) + painel "Minha TV Agora" (preview + device) + lista de anúncios reais + "Ganhos Futuros" (3 cenários, explicitamente rotulado "exemplo ilustrativo, não é projeção calculada a partir dos seus dados"). O Figma (`LocalDashboard`) tem 5 KPIs (+"Saldo a receber" como card próprio), TV mockup com QR code embutido + mini-resumo inline, MAIS card de receita com gráfico de 6 meses, MAIS "Calendário de pagamentos" (Processado/Agendado/Pendente), MAIS banner CTA "Adicione uma promoção", MAIS bloco "Sugestões de IA" com 4 oportunidades quantificadas em R$, MAIS o mesmo "Ganhos Futuros" mas sem o aviso de "ilustrativo" (rotulado "Estimado pela IA"/"Projeção otimista", como se fosse cálculo real).
+- **Ganhos** (`TabGanhos` real vs. `GanhosView` do Figma): real é uma lista plana de pagamentos + 1 KPI ("Este mês"). Figma tem hero card de saldo a receber (botões "Extrato PDF" e "Solicitar adiantamento"), 4 stat tiles (Total acumulado/Média mensal/Melhor mês/Anúncios pagantes), gráfico de barras de visualizações por dia (7 dias), e a mesma lista de histórico que o real já tem. Aqui o Figma é estruturalmente bem mais rico, em cima de dado que já existe (`payments`/`stats`).
+- **Minha TV** (`TabTV` real vs. `MinhaTVView` do Figma): o real na verdade é **mais avançado** que o Figma — preview ao vivo real via iframe do player (`/player?screen=...`), múltiplas telas reais com seleção e programação por tela filtrada de verdade. O Figma usa mockup estático e mostra "Informações da Tela" (Modelo/SO/versão do app/Resolução/IP local) + grade de "Ações" (Reiniciar app/Forçar sync/Screenshot/Suporte) que o real não tem — mas isso exige controle remoto real do player Android, não é reorganizar dado existente.
+- **Conteúdo** (`TabConteudo` real vs. `ContentView` do Figma): real já é mais rico (galeria de exemplos por nicho, atribuição de mídia por tela, indicador de uso do plano) — Figma é só uma grade simples de cards. Sem gap relevante.
+
+### Gaps concretos
+
+**(a) Reorganização/hierarquia possível com dado 100% real hoje:**
+1. Ganhos — 4 stat tiles (Total acumulado, Média mensal, Melhor mês, Anúncios pagantes), todos deriváveis de `payments`/`stats` já carregados pela própria aba.
+2. Ganhos — gráfico de barras "Visualizações por dia" (7 dias); plausível sem feature nova, mas precisa confirmar se existe série diária dos últimos 7 dias disponível (hoje só `stats.plays_today` foi confirmado).
+3. Ganhos — hero card de saldo a receber com valor + data de pagamento, dado que já existe (hoje só aparece como texto simples na aba financeiro externa, `/dashboard/financeiro/[code]`).
+4. Dashboard — gráfico de receita dos últimos 6 meses (equivalente a "Quanto ganhei este mês?" do Figma); mesmo dado do item 1.
+5. Dashboard — teaser/card-resumo linkando pro AI Revenue Center já existente (rota real `/ai-revenue`) **apenas se** esse backend já produzir sugestões reais (não mockadas) com valor calculado — não confirmado nesta investigação, ver item (c)5.
+
+**(b) Mudança visual pura (cor/estilo):**
+1. Moldura/gradiente mais "produzido" ao redor do preview real da TV (o iframe ao vivo já funciona — é só wrapper visual, sem tocar lógica).
+2. Paleta/tipografia: Figma usa `Inter Tight` em títulos + paleta verde/azul mais saturada em `LocalDashboard`; real usa o tema padrão (`lib/theme.ts`).
+3. Cards com mais respiro/raio de borda, badges de status mais arredondados.
+
+**(c) O Figma mostra, mas não existe de verdade no backend — vai pra fila, não é descartado:**
+1. Dashboard — "Sugestões de IA" (`LocalDashboard`): 4 oportunidades com ganho em R$ quantificado, geradas por array fixo no protótipo.
+2. Ganhos — "Solicitar adiantamento" (antecipação de recebível): nenhuma lógica de antecipação/factoring existe hoje (`lib/asaas.ts` só processa cobrança normal).
+3. Ganhos — "Extrato PDF": não confirmado se existe endpoint de exportação financeira em PDF.
+4. Minha TV — grade de "Ações" remotas (Reiniciar app/Forçar sync/Screenshot): exige canal de comando real do servidor pro player Android — o player hoje só reporta heartbeat, não recebe comandos.
+5. Minha TV — "Informações da Tela" detalhada (SO, versão do app, resolução, IP local): campos de telemetria que precisam existir no schema/heartbeat do player antes de exibir — hoje só `device_type`/`platform`/`sla_30d` são reais.
+6. Dashboard (`LocalDashboard`) — QR code embutido no preview da TV pra "escanear e ver a promoção": não existe fluxo de landing page pública por promoção/hash pra isso hoje (existe verificação pública de proof-of-play por hash, mas não é a mesma coisa).
+7. `ClientDashboard.tsx` — quota de IA/plano como card na tela principal ("N gerações restantes"): o dado provavelmente já existe (`/api/client/plan-usage/[code]`, já consumido em `ModalPromocao`/`TabConteudo`/`TabTV`), mas não confirmado 1:1 nesta investigação — registrado aqui por cautela em vez de assumido como (a).
+
+### Proposta de prioridade (só itens a/b — maior impacto na rejeição do cliente, menor risco)
+
+1. **Ganhos — stat tiles + gráfico de receita 6 meses** (a1, a2, a4): maior impacto percebido — hoje a aba que mais expõe "quanto eu ganhei" é uma lista crua de pagamentos sem contexto; dado já existe.
+2. **Reskin visual do card "Minha TV Agora"** (b1, b2): o preview real já funciona (iframe ao vivo), só precisa da moldura/gradiente/badges do Figma por cima; baixo risco porque não toca lógica.
+3. **Dashboard — hero de saldo a receber + data de pagamento** (a3): pequeno, mas fecha uma pergunta recorrente de cliente ("quando eu recebo").
+4. Teaser do AI Revenue Center no Dashboard (a5) fica por último até confirmar se as sugestões de lá são reais — não vale portar um teaser bonito pra dado que também é mockado.
+
+### Fila de atividades — itens categoria (c), aguardando aprovação do fundador
+
+| # | Recurso/página (Figma) | O que promete | O que precisa existir antes | Prioridade proposta |
+|---|---|---|---|---|
+| 1 | `GanhosView` — "Solicitar adiantamento" | Cliente pedir antecipação do saldo a receber | Lógica de antecipação/factoring + integração financeira real (Asaas ou parceiro) | Baixa — feature financeira nova, risco regulatório/operacional |
+| 2 | `GanhosView` — "Extrato PDF" | Exportar histórico de pagamentos em PDF | Confirmar se já existe endpoint de exportação; se não, gerar PDF a partir de `payments` | Média — self-service simples, baixo risco técnico |
+| 3 | `MinhaTVView` — Ações remotas (Reiniciar app/Forçar sync/Screenshot) | Controle remoto do player Android pelo dashboard | Canal de comando real (push/RPC) no player Android — mudança de contrato web↔Android, mesma classe de risco do incidente de 25/06 | Baixa — requer coordenação com o front Android, escopo grande |
+| 4 | `MinhaTVView` — "Informações da Tela" detalhada | SO, versão do app, resolução, IP local | Player Android reportar esses campos no heartbeat | Baixa — depende do app Android, não só do front web |
+| 5 | `LocalDashboard` — "Sugestões de IA" com ganho em R$ quantificado | Recomendações de receita com valor estimado | Confirmar/expandir cálculo real no AI Revenue Center (`/ai-revenue`) | Média — se o backend de lá já calcula isso de verdade, vira quase (a) |
+| 6 | `LocalDashboard` — QR code na TV pra promoção individual | Cliente final escanear e ver a promoção em exibição | Landing page pública por promoção/hash + geração de QR dinâmico | Baixa — feature nova de consumidor final, não só painel do dono |
+| 7 | `ClientDashboard.tsx` — quota de IA/plano como card no Dashboard | Visibilidade de plano e gerações restantes na tela principal | Provavelmente nenhuma feature nova — só confirmar que `/api/client/plan-usage/[code]` cobre 1:1 e expor como card | Alta — mais perto de (a) que de (c), risco baixo se confirmado |
+
+Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
+
 **Prazo de reavaliação: ~2026-09-15** (72h a partir de hoje). Nessa data (ou quando o usuário pedir), somar os logs `[redis-instrumentation]` dos dois serviços pra decidir com dado real entre consolidar mais ou fazer upgrade — e então remover essa instrumentação (não é pra ficar rodando indefinidamente, é diagnóstico temporário).
