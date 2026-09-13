@@ -20,10 +20,19 @@ export async function sendWhatsApp(phone: string, message: string) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS)
   try {
+    // Achado em produção (2026-09-13): telefones já salvos com "55" na
+    // frente (ex: "+55 11 95475-1622", formato usado pra LEMEL186) tinham
+    // o "55" duplicado aqui, virando um JID inválido na Evolution API
+    // ("555511954751622" em vez de "5511954751622") — a mensagem nunca
+    // saía, sem erro visível pro cliente (login por WhatsApp simplesmente
+    // não chegava). Mesma checagem de idempotência já usada em outras
+    // implementações do repo (app/api/auth/otp/send, cron/monthly-report).
+    const digits = phone.replace(/\D/g, "")
+    const number = digits.startsWith("55") ? digits : `55${digits}`
     const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
-      body: JSON.stringify({ number: `55${phone.replace(/\D/g, "")}`, text: message }),
+      body: JSON.stringify({ number, text: message }),
       signal: controller.signal,
     })
 
