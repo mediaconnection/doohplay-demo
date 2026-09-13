@@ -1237,3 +1237,44 @@ Investigação do item 1 da fila de Design/Produto acima. Front afetado: **`app/
 - **Destinatário**: técnica pronta pros dois casos (dono via `studio_clients.phone`, ou fundador via número fixo) — decisão do fundador, não decidida aqui.
 
 **Antes de implementar**: testar a lógica com dado simulado local primeiro — não esperar uma tela cair de verdade pra descobrir se o alerta funciona. Não disparar WhatsApp de teste pro número real de `BARBE332`/`LEMEL186` sem confirmação explícita (regra do `CLAUDE.md` sobre efeito colateral externo real).
+
+## 🎨 Sistema de design — Fases 0 a 3, prova de conceito aprovada (2026-09-13)
+
+Motivado por feedback real do fundador: insatisfação persistente com o resultado visual mesmo depois de corrigir a regra de honestidade (ver Melhoria 2 no histórico do `designer-agent.md`). Hipótese investigada: a causa não é só "intensidade visual tímida", é ausência de sistema formal (espaçamento/tipografia/elevação/raio).
+
+### Fase 0 — Evidência real de inconsistência
+
+Grep real em `app/`+`components/` (não estimativa):
+- **Border-radius**: 22 valores distintos em uso (2 a 999). Só em `dashboard-client.tsx` convivem 8/10/20/`50%` em cards e badges adjacentes.
+- **Padding**: dezenas de combinações string + 15 valores numéricos crus, sem aderência a múltiplos de 4/8px.
+- **Badges**: `borderRadius:20` domina (99×), convive com `999` (9×) e `50%` (46×) sem critério documentado.
+- **Botões**: zero componente compartilhado em uso real — cada botão é `<button style={{}}>` inline, 4 variações de padding só em `dashboard-client.tsx`.
+- **Tipografia**: 22 valores de `fontSize` (8-56px); título de seção tem 18 combinações distintas de tamanho+peso.
+- **Espaçamento (`gap`)**: 15 valores distintos, mas com convergência informal real em 8/10/12/16 — o código já "quer" ser múltiplo de 4/8, nunca foi formalizado.
+- **Elevação**: 28 usos de `boxShadow`, 13 valores distintos — praticamente uma sombra por componente.
+
+**Correção à hipótese original**: `components/ui/` já existe (`Badge.tsx`, `button.tsx`, `card.tsx`, etc.) — não é ausência de biblioteca. Mas 7 dos 9 arquivos são código morto (zero import real, scaffold Tailwind desconectado de `lib/theme.ts`, mesmo padrão de árvore paralela já documentado nesta sessão). Só `DtvReadyBadge.tsx` e `TimeAgo.tsx` estão vivos. Causa real: biblioteca genérica nunca adotada, produto cresceu 100% por composição inline ad hoc.
+
+### Fase 1 — Síntese (sem copiar identidade visual de terceiros)
+
+Confirmado contra padrões conhecidos (Linear/Stripe Dashboard/Vercel usados só como referência de sistema): "parecer premium" vem de poucas decisões repetidas sem exceção — espaçamento fixo, tipografia curta, 2-3 níveis de elevação nomeados, 1-2 raios de borda — não de intensidade isolada por tela.
+
+### Fase 2 — Proposta do sistema (aprovada pelo fundador em 2026-09-13)
+
+- **Espaçamento**: `4/8/12/16/24/32/48px`
+- **Tipografia** (5 níveis): caption 12/500, body 14/400, label 14/600, subtitle 18/700, title 24/800
+- **Elevação** (3 níveis nomeados): `sm` (`0 1px 3px rgba(0,0,0,.12)`), `md` (`0 8px 24px rgba(0,0,0,.16)`), `lg` (`0 20px 60px rgba(0,0,0,.24)`)
+- **Componentes propostos**: `<Card theme elevation padding>`, `<Badge theme status>`, `<Button theme variant size>`, `<SectionTitle theme level>` — tema como prop, nunca cor hardcoded
+- **Onde viver**: reaproveitar `components/ui/` existente (substituir conteúdo de `card.tsx`/`Badge.tsx`/`button.tsx`, mesmo alias `@/components/ui`), não criar pasta nova
+
+### Fase 3 — Prova de conceito (feita, aguardando revisão visual do fundador)
+
+Preview HTML estático gerado em `design-previews/minha-tv-agora-poc.html` (fora do repositório versionado — pasta isolada, não entra no build, arquivo não comitado por ser artefato de trabalho, não deliverable). Compara "antes" (fiel ao código real, `dashboard-client.tsx:498-534`) vs. "depois" (sistema proposto) no card "Minha TV Agora" + "Dispositivo". Mesmo conteúdo/campos reais nas duas colunas, só muda a camada visual.
+
+**Decisão tomada nesta etapa** (sub-decisão que ficara em aberto na Fase 2): normalização de tema resolvida usando `lightDefault` direto pra essa tela (é o tema real dela) + `deviceDark` mantido separado pra caixa de TV, sem inventar um mapa de normalização genérico ainda — fica pra quando/se o sistema for generalizado pra outros temas (`slateDark`, `marketingDark`) numa fase futura.
+
+**Raio consolidado em 3 valores com propósito** (não um valor único forçado): `card:12px`, `chip:8px` (ícones pequenos), `pill:20px` (badges) — mantém a intenção da Fase 1 ("pequeno número de decisões", não "um valor só pra tudo").
+
+**Escopo desta fase**: só as 2 caixas citadas, só CSS/estrutura, nenhuma chamada de API nova, nenhum componente React real criado ainda.
+
+**Próximo passo em aberto — não iniciado, decisão do fundador**: migrar isso pra componentes React reais em `components/ui/` (Fase 4, fora do escopo aprovado até aqui) e/ou rollout pra outras telas. Nenhuma das duas está decidida.
