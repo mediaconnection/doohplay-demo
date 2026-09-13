@@ -1370,3 +1370,13 @@ Nos dois deploys do worker desta tarefa (com e sem retry), `scheduleOfflineAlert
 **Decisão consciente, nada implementado**: não forçar redeploys repetidos pra tentar de novo agora (cada restart é o tipo de burst que pode estar alimentando o próprio rate-limit) e não expandir o retry do `offlineAlertWorker` além do já feito, por ora. Fica registrado como reforço pro prazo de reavaliação de ~2026-09-15 (instrumentação de contagem de comandos Redis) — se o padrão "restart causa rate-limit sustentado" se confirmar de novo, é argumento a mais pra upgrade do plano Upstash em vez de só consolidação de conexões (consolidação não ajuda um problema de burst-no-boot).
 
 **Pendência aberta**: revisitar se o job de offline-alert conseguiu se autoagendar num restart futuro (qualquer commit que toque `lib/**`/`worker.ts`), ou considerar proteger `scheduleOfflineAlertJob()`/`scheduleAggregatorJob()` com o mesmo circuit breaker num momento futuro dedicado a isso.
+
+## 🔴→✅ Bug real corrigido — login por WhatsApp do LEMEL186 nunca chegava (2026-09-13)
+
+Reportado pelo fundador em produção: pediu o código de acesso em `https://doohplay.com.br/dashboard/local/LEMEL186` e o WhatsApp nunca chegou.
+
+**Causa raiz confirmada nos logs de erro da Evolution API** (22:14:29 e 22:15:56 UTC): `lib/whatsapp.ts::sendWhatsApp` sempre prefixava `"55"` no telefone sem checar se já tinha — diferente de outras implementações do repo (`app/api/auth/otp/send/route.ts`, `app/api/cron/monthly-report/route.ts`), que já faziam essa checagem. Telefone do `LEMEL186` está salvo como `+55 11 95475-1622` (já com `55`); limpo pra dígitos vira `5511954751622`, e a função prefixava outro `55` → `555511954751622`, JID inválido. Erro real capturado: `{"jid":"555511954751622@s.whatsapp.net","exists":false}`. `BARBE332` nunca teve esse problema porque o telefone dele está salvo sem `55` (`11944457675`) — por isso passou despercebido até agora.
+
+**Fix** (commit `dcca06f`): checa se os dígitos já começam com `55` antes de prefixar. Nenhum DDD brasileiro começa com `55`, então não há ambiguidade. 4 consumidores confirmados (`request-otp`, `network-partnerships-timeout`, `webhooks/asaas`, `offlineAlertCheck`, este último implementado nesta mesma sessão) — nenhum quebra com a mudança.
+
+**Confirmado funcionando de ponta a ponta**: nova tentativa de login às 22:29:27 UTC gerou o código, zero erro nos logs (antes o erro 400 aparecia na hora), e o **fundador confirmou ter recebido o WhatsApp de verdade**. Validado sem regressão: `tsc --noEmit` (57, idêntico), `vitest` (81/81).
