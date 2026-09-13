@@ -1203,3 +1203,14 @@ Onde o real fica atrás estruturalmente, aba por aba:
 Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
 
 **Prazo de reavaliação: ~2026-09-15** (72h a partir de hoje). Nessa data (ou quando o usuário pedir), somar os logs `[redis-instrumentation]` dos dois serviços pra decidir com dado real entre consolidar mais ou fazer upgrade — e então remover essa instrumentação (não é pra ficar rodando indefinidamente, é diagnóstico temporário).
+
+## 📋 Fila de Design/Produto — itens fora do escopo Figma (2026-09-13)
+
+Registrados pelo fundador, separados da fila acima porque não vêm da comparação com o protótipo Figma Make — são gaps competitivos e um incidente real já vivido. Mesma regra: aguardando aprovação explícita antes de qualquer implementação, nada sai daqui sozinho.
+
+| # | Item | Motivação | Esforço | Prioridade proposta |
+|---|---|---|---|---|
+| 1 | Alerta proativo de tela offline via WhatsApp | Concorrente (SigX) já oferece; incidente real já vivido — `BARBE332`/`LEMEL186` ficaram offline sem ninguém notar a tempo (ver achado 2026-09-06 acima) | Baixo — heartbeat já existe, `sendWhatsApp` já corrigido; falta só a lógica de "avisar após N minutos sem ping" | **Alta** |
+| 2 | Zoneamento de tela (multi-zona simultânea no player) | Diferencial real do concorrente, sem equivalente hoje no DOOHPLAY | Maior — mudança estrutural no player e no motor de sorteio de conteúdo | A definir |
+
+Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
