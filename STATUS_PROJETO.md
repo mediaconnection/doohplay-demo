@@ -1380,3 +1380,19 @@ Reportado pelo fundador em produção: pediu o código de acesso em `https://doo
 **Fix** (commit `dcca06f`): checa se os dígitos já começam com `55` antes de prefixar. Nenhum DDD brasileiro começa com `55`, então não há ambiguidade. 4 consumidores confirmados (`request-otp`, `network-partnerships-timeout`, `webhooks/asaas`, `offlineAlertCheck`, este último implementado nesta mesma sessão) — nenhum quebra com a mudança.
 
 **Confirmado funcionando de ponta a ponta**: nova tentativa de login às 22:29:27 UTC gerou o código, zero erro nos logs (antes o erro 400 aparecia na hora), e o **fundador confirmou ter recebido o WhatsApp de verdade**. Validado sem regressão: `tsc --noEmit` (57, idêntico), `vitest` (81/81).
+
+## 🔄 Correção — "upgrade do Upstash resolve o burst" estava errado, dado real invalida a hipótese (2026-09-13)
+
+Continuação do achado "Agendamento do alerta de tela offline falhou no boot" (acima). Pedido: confirmar o preço real do próximo tier Upstash que resolveria o rate-limit de burst/conexões no boot, antes de qualquer decisão de gastar dinheiro.
+
+**Teste de restart único** (pedido explícito, não repetido): 3ª tentativa consecutiva de agendamento do `offlineAlertWorker` no mesmo dia, **falhou de novo**, mesmo padrão exato (3 tentativas, mesmo comando `bull:screen-offline-alert:repeat ZRANGE WITHSCORES`, rate-limit sustentado).
+
+**Dado acumulado da instrumentação** (29,6h corridas, 2026-09-12T17:15Z → 2026-09-13T22:51Z, agregação completa sem gaps): **4.770 comandos combinados** (4.755 worker + 15 web), **taxa média ~2,69 comandos/min**, **pico de 89/15min (~5,9/min)** — só nos 3 momentos de restart de hoje, nunca em tráfego orgânico. Padrão estável e cíclico, sem tendência de crescimento nas ~30h.
+
+**Hipótese inicial (errada)**: como `getRedis()` já é singleton (consolidado numa sessão anterior), e o volume médio é trivial, a causa pareceria ser limite de **taxa por segundo (burst)** no boot dos 6 workers do BullMQ — e "upgrade de plano Upstash" resolveria isso.
+
+**Correção com dado real**: busquei a documentação oficial da Upstash (`upstash.com/pricing`, `upstash.com/blog/limits-increase`) em vez de estimar. Achado: **desde a atualização "Increasing Limits for Upstash Redis", todos os planos — Free, Pay-as-You-Go e Fixed — já compartilham o mesmo teto de 10.000 comandos/segundo e 10.000 conexões simultâneas.** Não é um limite exclusivo de tier pago. Nosso pico real (~0,1 comando/seg) está muitas ordens de magnitude abaixo até do teto do plano gratuito — **upgrade de tier não resolveria isso**, porque o limite documentado que ele elevaria já não é o gargalo.
+
+**Evidência adicional**: a mensagem de erro (`"...please contact support@upstash.com for further details"`) não é o texto padrão de "estourou seu plano, faça upgrade" — sugere uma flag/quota específica da conta (diária, de memória, ou algo fora da doc pública), não resolvível só trocando de tier.
+
+**Não implementado, nenhum preço confirmado**: não dá pra responder "qual tier resolve" com confiança — as evidências reais apontam que a causa pode não ser de plano. **Próximo passo real recomendado**: abrir ticket com `support@upstash.com` (ou o fundador checar Account → Billing/Usage do painel deles, sem acesso desta sessão) pra identificar a causa real antes de qualquer gasto. Decisão de custo continua em aberto — nenhum upgrade foi solicitado nem aprovado.
