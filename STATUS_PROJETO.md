@@ -1210,7 +1210,30 @@ Registrados pelo fundador, separados da fila acima porque não vêm da comparaç
 
 | # | Item | Motivação | Esforço | Prioridade proposta |
 |---|---|---|---|---|
-| 1 | Alerta proativo de tela offline via WhatsApp | Concorrente (SigX) já oferece; incidente real já vivido — `BARBE332`/`LEMEL186` ficaram offline sem ninguém notar a tempo (ver achado 2026-09-06 acima) | Baixo — heartbeat já existe, `sendWhatsApp` já corrigido; falta só a lógica de "avisar após N minutos sem ping" | **Alta** |
+| 1 | Alerta proativo de tela offline via WhatsApp | Concorrente (SigX) já oferece; incidente real já vivido — `BARBE332`/`LEMEL186` ficaram offline sem ninguém notar a tempo (ver achado 2026-09-06 acima) | Baixo — heartbeat já existe, `sendWhatsApp` já corrigido; falta só a lógica de "avisar após N minutos sem ping" | **Alta — investigado e com proposta concreta em 2026-09-13, ver seção abaixo** |
 | 2 | Zoneamento de tela (multi-zona simultânea no player) | Diferencial real do concorrente, sem equivalente hoje no DOOHPLAY | Maior — mudança estrutural no player e no motor de sorteio de conteúdo | A definir |
 
 Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
+
+## 🔍 Investigação — Alerta proativo de tela offline via WhatsApp (proposta, aguardando aprovação) (2026-09-13)
+
+Investigação do item 1 da fila de Design/Produto acima. Front afetado: **`app/`** (comercial, produção real — `BARBE332`/`LEMEL186`), não `src/`. Nada implementado nesta etapa, nenhuma mensagem real enviada.
+
+### Achados
+
+- **Heartbeat real**: `app/player/page.tsx` chama `POST /api/player/heartbeat` a cada 30s exatos (`setInterval`). O endpoint grava `players.last_ping = NOW()` e alimenta `player_uptime_daily` (histórico real). Hoje já existem **dois thresholds de "online" inconsistentes** no código — 3 min (`GET /api/player/heartbeat`, `app/api/admin/fleet/route.ts`) e 5 min (`app/api/players/status/route.ts`) — nenhum dos dois dispara notificação, é só exibição visual de status.
+- **"Mecanismo parcial" já existia, mas era código morto**: `core/players/playerWatchdog.ts` (deletado no commit `ea625da`, limpeza de árvore morta desta sessão) fazia esse tipo de checagem, mas pertencia à árvore paralela `src/` (proof/blockchain) — importava de `@/src/lib/db` e `@/src/core/audit/emitCanonicalEvent`, nunca do `app/` de produção real. Threshold fixo de 2 min (geraria alarme falso constante pro `BARBE332`). E mesmo vivo, **não mandava WhatsApp** — só marcava `is_active=false` e emitia um evento `PLAYER_OFFLINE` pro ledger de auditoria interno. Nenhum humano seria notificado por ele.
+- **Mecanismo de cron do projeto**: não é `pg_cron` (nenhum uso encontrado no repo) — é **Render Cron Jobs** batendo num endpoint interno autenticado por header `x-cron-secret` (`render.yaml`, padrão já usado por `monthly-report` e `trial-warning`).
+- **Achado colateral, fora do escopo desta investigação** (registrado, não corrigido): o cron `trial-warning` no `render.yaml` chama `/api/cron/trial-warning`, mas a rota real está em `app/cron/trial-warning/route.ts` (sem `/api`) — path errado, provavelmente 404 silencioso há um tempo.
+- **WhatsApp**: `lib/whatsapp.ts` → `sendWhatsApp(phone: string, message: string): Promise<boolean>`, timeout de 8s, já com a correção de 08/09 (não reporta sucesso falso). Número do dono já armazenado em `studio_clients.phone`, com flag `notif_whatsapp` de opt-in (já usada em `monthly-report`).
+- **Correção nos números de falso positivo do prompt original**: `BARBE332` ~35% dos dias bate com o já registrado (achado 2026-09-06 acima). **`LEMEL186` é 49%, não 85%** como o prompt original supôs. Mais relevante: quando online, `BARBE332` fica em média só ~7,8h/dia (19 de 55 dias) vs. ~20,2h/dia do `LEMEL186` (24 de 49 dias) — sugere quedas curtas e frequentes, não apagões inteiros, o que muda o cálculo do threshold ideal.
+
+### Proposta (aguardando aprovação do fundador — nada implementado)
+
+- **Mecanismo**: novo Render Cron Job (mesmo padrão do `monthly-report`) chamando `POST /api/cron/screen-offline-alert`, autenticado por `x-cron-secret`, rodando a cada 5-10min (o cron só verifica; o threshold é quem decide se alerta).
+- **Threshold**: **45 minutos sem ping** como padrão inicial — 30min ainda arriscaria pegar flutuação normal do `BARBE332`. Proposto como configurável por cliente (nova coluna `studio_clients.offline_alert_threshold_min`, default 45), não fixo no código.
+- **Anti-repetição**: reusar `report_logs` (mesma tabela do `monthly-report`) — inserir registro `type='offline_alert'` ao disparar; só alerta de novo quando o player voltar a pingar e cair de novo, ou após 6h contínuas offline sem nenhum aviso. Proposto também um alerta de "voltou ao ar" pra fechar o ciclo.
+- **Texto sugerido**: "⚠️ Sua tela [nome] está sem conexão há mais de 45 minutos. Verifique a energia e o Wi-Fi do local. Assim que ela voltar, você recebe um aviso aqui."
+- **Destinatário**: técnica pronta pros dois casos (dono via `studio_clients.phone`, ou fundador via número fixo) — decisão do fundador, não decidida aqui.
+
+**Antes de implementar**: testar a lógica com dado simulado local primeiro — não esperar uma tela cair de verdade pra descobrir se o alerta funciona. Não disparar WhatsApp de teste pro número real de `BARBE332`/`LEMEL186` sem confirmação explícita (regra do `CLAUDE.md` sobre efeito colateral externo real).
