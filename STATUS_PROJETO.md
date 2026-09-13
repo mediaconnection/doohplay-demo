@@ -1304,3 +1304,36 @@ Nenhuma mudança de dado/API — só apresentação. Validado sem regressão: `t
 **Deploy `dep-dajgeics728c73bbj9ng` live** (2026-09-13 20:31:02 UTC), zero erros novos nos logs da janela do deploy. Smoke test via `WebFetch` em `/dashboard/local/BARBE332`: rota responde normal (tela do `ClientLoginGate`, sem erro 500/stack trace).
 
 **Validação visual pendente**: o conteúdo real do banner/KPI/grid exige login de cliente (sessão real) — não verificado nesta sessão por não ter as credenciais do `BARBE332`. Fundador ainda precisa confirmar visualmente a implementação depois de logar.
+
+## 📋 Fila de Design — Figma, continuação: Anúncios, Relatórios, Playlist (2026-09-13)
+
+Retomada da investigação Figma vs. real (seção "Fila de Design — Figma", acima) pras abas ainda não cobertas do dashboard do cliente. Confirmado via `find`: não existe nenhum componente Figma adicional tipo "ScreenOwnerDashboard"/"MyScreen" além dos 3 já conhecidos (`LocalDashboard.tsx`, `ClientDashboard.tsx`, `MobileDashboard.tsx`).
+
+**Anúncios**: sem equivalente real no Figma. O item existe no menu lateral de `LocalDashboard.tsx` mas é **nav morto no próprio protótipo** (`case "ads"` não existe no switch de conteúdo — cai de volta no Dashboard). O real (`TabAnuncios`, `dashboard-client.tsx:1233-1407`) já é mais completo (repasse 40%, anunciantes, dados bancários/Pix, histórico). Nada a portar.
+
+**Receita com IA**: já investigado e já portado antes desta sessão (2026-08-30, "AI Revenue Center") — não é achado novo.
+
+**Relatórios**: sem equivalente direto (mesmo padrão de nav morto), mas 2 componentes Figma acessíveis pelos atalhos rápidos de `ClientDashboard.tsx`/`MobileDashboard.tsx`:
+- `RevenueReport.tsx` — gráfico de 7 meses, pizza de "fontes de receita", extrato com TXN-IDs e anunciantes fictícios (mesmo padrão de conteúdo fabricado já corrigido antes nesta sessão).
+- `AnalyticsDashboard.tsx` — granularidade por hora/dia, tudo `Math.random()`.
+
+O real (`TabRelatorios`, `dashboard-client.tsx:1446-1471`) é bem mais magro: receita do mês + últimos 3 pagamentos + link pro dashboard financeiro completo (`/dashboard/financeiro/[code]`, arquivo separado, não lido nesta investigação).
+- (a) reorganização com dado real: só se existir granularidade diária/horária real armazenada — **não confirmado**, precisa checar schema de `payments`/`display_events` antes de prometer.
+- (c) fila: gráfico de "fontes de receita" por canal (Publicidade Direta/Rede Programática/Patrocínio — segmentação que não existe no modelo real hoje) e extrato bancário completo com TXN-IDs formatados (real só tem `payments` simples).
+
+**Playlist**: sem equivalente direto nos 3 candidatos, mas achado `PlaylistManager.tsx` (461 linhas) — conexão de navegação a partir do dono-de-tela **não confirmada**, pode pertencer a outra persona. O real (`TabPlaylist`, `dashboard-client.tsx:1827-2087+`) já é rico e funcional: reordenar, duração por item, transição, agendamento por dia/horário/período, resumo semanal (`CalendarioSemanal`). O Figma traz 2 ideias sem equivalente real:
+- (c) fila: "weight" de mixagem de conteúdo (motor de sorteio ponderado — hoje é sequencial, sem peso) e blocos de horário com `cpmBoost` (preço diferenciado por faixa horária, não existe hoje).
+- (b) paleta escura do protótipo já descartada por convenção (ver `designer-agent.md`) — não portar.
+
+**Minha TV, Conteúdo e Ganhos**: já cobertos na seção "Fila de Design — Figma" original (acima), sem mudança nesta rodada.
+
+### Fila de atividades — itens novos desta rodada, categoria (c), aguardando aprovação do fundador
+
+| # | Recurso/página (Figma) | O que promete | O que precisa existir antes | Prioridade proposta |
+|---|---|---|---|---|
+| 8 | `RevenueReport.tsx` — pizza de "fontes de receita" | Segmentar receita por canal (Publicidade Direta/Rede Programática/Patrocínio) | Modelo de dado não distingue canal de receita hoje — exige schema novo | Baixa — feature analítica nova, não reorganização |
+| 9 | `RevenueReport.tsx` — extrato bancário completo (TXN-IDs) | Extrato formal de transações, estilo bancário | Confirmar se `payments` comporta esse nível de detalhe ou precisa de tabela nova | Baixa |
+| 10 | `PlaylistManager.tsx` — "weight" de mixagem de conteúdo | Ponderar quanto cada item aparece, não só ordem sequencial | Motor de sorteio ponderado no player — mudança estrutural, mesma classe de risco de `app/player` (sagrado) | Baixa — requer cautela extra por tocar player ao vivo |
+| 11 | `PlaylistManager.tsx` — blocos de horário com `cpmBoost` | Precificar diferente por faixa de horário | Lógica de precificação dinâmica por horário — não existe hoje | Baixa |
+
+Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
