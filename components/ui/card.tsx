@@ -1,19 +1,39 @@
+// components/ui/card.tsx
+// Card real do sistema de design (Fase 2/3, ver STATUS_PROJETO.md).
+// Substitui o scaffold Tailwind anterior (zero consumidor real,
+// desconectado de lib/theme.ts) — mesmo caminho e alias @/components/ui/card.
+"use client"
 import * as React from "react"
+import { radius, elevation, spacing, type ElevationLevel } from "./tokens"
+import type { UiTheme } from "./theme-shape"
 
-function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`} {...props} />
+type CardPadding = "none" | "compact" | "comfortable"
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  theme: UiTheme
+  elevation?: ElevationLevel
+  padding?: CardPadding
 }
 
-function CardHeader({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props} />
+const PADDING: Record<CardPadding, number> = { none: 0, compact: spacing[4], comfortable: spacing[5] }
+
+export function Card({ theme, elevation: el = "sm", padding = "none", style, children, ...props }: CardProps) {
+  return (
+    <div
+      style={{
+        background: theme.white,
+        border: `1px solid ${theme.border}`,
+        borderRadius: radius.card,
+        boxShadow: elevation[el],
+        padding: PADDING[padding],
+        overflow: "hidden",
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  )
 }
 
-function CardTitle({ className = "", ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={`font-semibold leading-none tracking-tight ${className}`} {...props} />
-}
-
-function CardContent({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={`p-6 pt-0 ${className}`} {...props} />
-}
-
-export { Card, CardHeader, CardTitle, CardContent }
+export default Card

@@ -3,9 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
-import DtvReadyBadge from "@/components/ui/DtvReadyBadge"
 import AIAssistantPanel from "@/components/AIAssistantPanel"
 import { lightDefault as C, deviceDark as D, FONT_FAMILY } from "@/lib/theme"
+import { Card } from "@/components/ui/card"
+import { SectionTitle } from "@/components/ui/SectionTitle"
+import { Button } from "@/components/ui/button"
+import { spacing } from "@/components/ui/tokens"
 
 const NAV = [
   { id: "dashboard", label: "Dashboard",     icon: "⊞",  desc: "Visão geral da sua tela e ganhos" },
@@ -139,16 +142,27 @@ function TrialBanner({ code }: { code: string }) {
   )
 }
 
-function KpiCard({ label, value, sub, icon, color = C.blue, onClick }: { label: string; value: string; sub?: string; icon: string; color?: string; onClick?: () => void }) {
+function KpiCard({ label, value, sub, icon, color = C.blue, onClick, danger = false }: { label: string; value: string; sub?: string; icon: string; color?: string; onClick?: () => void; danger?: boolean }) {
   return (
-    <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", cursor: onClick ? "pointer" : "default", flex: 1, minWidth: 0 }}>
+    <Card
+      theme={C}
+      elevation="sm"
+      padding="comfortable"
+      onClick={onClick}
+      style={{
+        cursor: onClick ? "pointer" : "default",
+        flex: 1,
+        minWidth: 0,
+        ...(danger ? { background: C.redLt, border: `1px solid ${C.redBd}` } : {}),
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12, color: C.text2, fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: 12, color: danger ? C.red : C.text2, fontWeight: danger ? 700 : 500 }}>{label}</span>
         <span style={{ fontSize: 18 }}>{icon}</span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: C.text, letterSpacing: "-0.03em" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: sub.startsWith("+") ? C.green : C.text3, marginTop: 4 }}>{sub}</div>}
-    </div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: danger ? C.red : C.text, letterSpacing: "-0.03em" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: danger ? C.red : sub.startsWith("+") ? C.green : C.text3, marginTop: 4 }}>{sub}</div>}
+    </Card>
   )
 }
 
@@ -428,14 +442,20 @@ function ModalConfirmDelete({ name, onConfirm, onCancel, loading, message }: { n
   )
 }
 
-function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo, online, lastSeen, checking, dtvReady }: any) {
+function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo, online, lastSeen, checking }: any) {
   const revenue = stats.revenue_month || 0
   const vizToday = stats.plays_today
-  const sinceText = lastSeen
-    ? (() => { const diff = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 1000); if (diff < 60) return `${diff}s atrás`; if (diff < 3600) return `${Math.floor(diff/60)}min atrás`; return `${Math.floor(diff/3600)}h atrás` })()
-    : player?.last_ping
-      ? (() => { const diff = Math.floor((Date.now() - new Date(player.last_ping).getTime()) / 1000); if (diff < 60) return `${diff}s atrás`; if (diff < 3600) return `${Math.floor(diff/60)}min atrás`; return `${Math.floor(diff/3600)}h atrás` })()
-      : "sem dados"
+  const lastPingRef = lastSeen ?? player?.last_ping ?? null
+  const lastPingDiffSec = lastPingRef ? Math.floor((Date.now() - new Date(lastPingRef).getTime()) / 1000) : null
+  const sinceText = lastPingDiffSec === null ? "sem dados"
+    : lastPingDiffSec < 60 ? `${lastPingDiffSec}s atrás`
+    : lastPingDiffSec < 3600 ? `${Math.floor(lastPingDiffSec / 60)}min atrás`
+    : `${Math.floor(lastPingDiffSec / 3600)}h atrás`
+  // "há Xh" pro banner de offline — mesma referência de tempo do sinceText,
+  // só formatada sem o sufixo "atrás" (frase diferente: "está offline há X").
+  const offlineDuration = lastPingDiffSec === null ? null
+    : lastPingDiffSec < 3600 ? `${Math.max(1, Math.floor(lastPingDiffSec / 60))}min`
+    : `${Math.floor(lastPingDiffSec / 3600)}h`
 
   // Uptime real dos últimos 30 dias (player_heartbeats), já calculado na
   // query de page.tsx — não exibido em lugar nenhum da aba até agora.
@@ -443,6 +463,11 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
   const sla = typeof player?.sla_30d === "number" ? player.sla_30d : null
   const slaColor = sla === null ? C.text3 : sla >= 90 ? C.green : sla >= 70 ? C.amber : C.red
   const slaText = sla === null ? "—" : `${sla.toFixed(1)}%`
+  // Hierarquia visual real entre KPIs: uptime abaixo de 50% num período de
+  // 30 dias é sinal de instabilidade séria (não flutuação normal de rede,
+  // já visto em BARBE332 ~35%/LEMEL186 ~49% na investigação de alerta de
+  // offline, 2026-09-13) — ganha estilo de alerta em vez do neutro dos outros 3.
+  const slaDanger = sla !== null && sla < 50
 
   // Anúncios reais — antes era um array mockado (Bradesco/iFood/Natura)
   // sempre exibido independente de existir anúncio real ou não. Reaproveita
@@ -472,37 +497,57 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
       {/* Trial Banner */}
       <TrialBanner code={client.code} />
 
-      <div style={{ background: online ? C.greenLt : C.redLt, border: `1px solid ${online ? C.greenBd : C.redBd}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 36, height: 36, background: online ? C.green : C.red, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <Card
+        theme={C}
+        elevation={online ? "sm" : "md"}
+        style={{ marginBottom: spacing[5], ...(online ? {} : { background: C.redLt, border: `1px solid ${C.redBd}` }) }}
+      >
+        <div style={{ padding: `${spacing[3]}px ${spacing[5]}px`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing[2] }}>
+          <div style={{ display: "flex", alignItems: "center", gap: spacing[3] }}>
+            <div style={{ width: 36, height: 36, background: online ? C.green : C.red, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: online ? C.green : C.red }}>
+                {online ? "Sua TV está online e funcionando" : offlineDuration ? `Sua TV está offline há ${offlineDuration}` : "Sua TV está offline"}
+              </div>
+              <div style={{ fontSize: 12, color: online ? C.green : C.red, opacity: 0.85 }}>
+                {online
+                  ? `Última sincronização: ${sinceText}`
+                  : `Verifique a energia e o Wi-Fi ${player?.device_type ? `do ${player.device_type}` : "do dispositivo"} no local.`}
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: online ? C.green : C.red }}>{online ? "Sua TV está online e funcionando" : "Sua TV está offline"}</div>
-            <div style={{ fontSize: 12, color: online ? C.green : C.red, opacity: 0.8 }}>Última sincronização: {sinceText}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: spacing[2] }}>
+            {!online && (
+              <Button
+                theme={C}
+                variant="secondary"
+                size="sm"
+                onClick={() => document.getElementById("device-info")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              >
+                Ver diagnóstico →
+              </Button>
+            )}
+            <StatusBadge online={online} checking={checking} />
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <DtvReadyBadge enabled={!!dtvReady} />
-          <StatusBadge online={online} checking={checking} />
-        </div>
-      </div>
+      </Card>
 
-      <div className="db-kpis" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <div className="db-kpis" style={{ display: "flex", gap: spacing[3], marginBottom: spacing[5], flexWrap: "wrap" }}>
         <KpiCard label="Receita este mês" value={fmtR(revenue)}    sub="Confirmado"       icon="💵" color={C.green} />
         <KpiCard label="Campanhas ativas" value={String(activeAds.length)} sub={ads.length > activeAds.length ? `${ads.length - activeAds.length} pausada(s)` : "—"} icon="▶"  color={C.blue}  />
         <KpiCard label="Visualizações"    value={fmt(vizToday)}    sub="Hoje" icon="👁" color={C.blue}  />
-        <KpiCard label="Uptime (30d)"     value={slaText} sub="Tempo online no período" icon="📶" color={slaColor} />
+        <KpiCard label="Uptime (30d)"     value={slaText} sub="Tempo online no período" icon="📶" color={slaColor} danger={slaDanger} />
       </div>
 
-      <div className="db-tv-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, marginBottom: 20, alignItems: "start" }}>
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-          <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Minha TV Agora</div>
-            <button onClick={() => onNav("tv")} style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ao vivo →</button>
-          </div>
-          <div style={{ background: D.bg, margin: 16, borderRadius: 10, padding: "28px 16px", textAlign: "center", minHeight: 140, position: "relative" }}>
-            <div style={{ position: "absolute", top: 10, left: 14, background: online ? C.green : C.red, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{online ? "● AO VIVO" : "● OFFLINE"}</div>
+      <div className="db-tv-grid" style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: spacing[4], marginBottom: spacing[5], alignItems: "start" }}>
+        <Card theme={C} elevation="sm">
+          <SectionTitle theme={C} action={<Button theme={C} variant="ghost" size="sm" onClick={() => onNav("tv")}>Ao vivo →</Button>}>
+            Minha TV Agora
+          </SectionTitle>
+          <div style={{ background: D.bg, margin: spacing[3], borderRadius: 12, padding: `${spacing[4]}px ${spacing[3]}px`, textAlign: "center", minHeight: 110, position: "relative" }}>
+            <div style={{ position: "absolute", top: spacing[2], left: spacing[3], background: online ? C.green : C.red, color: C.white, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{online ? "● AO VIVO" : "● OFFLINE"}</div>
             {loadingAds ? (
               <div style={{ fontSize: 12, color: D.text }}>Carregando…</div>
             ) : currentAd ? (
@@ -518,20 +563,21 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
               </>
             )}
           </div>
-        </div>
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Dispositivo</div>
-          <div style={{ width: 64, height: 64, background: C.gray100, borderRadius: 8, margin: "0 auto 12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📺</div>
-          <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{player?.device_type || player?.platform || "Não identificado"}</div>
-            {player?.device_type && player?.platform && player.device_type !== player.platform && (
-              <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>{player.platform}</div>
-            )}
+        </Card>
+        <Card theme={C} elevation="sm" padding="compact" id="device-info">
+          <div style={{ display: "flex", alignItems: "center", gap: spacing[3], marginBottom: spacing[4] }}>
+            <div style={{ width: 40, height: 40, background: C.gray100, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📺</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player?.device_type || player?.platform || "Não identificado"}</div>
+              {player?.device_type && player?.platform && player.device_type !== player.platform && (
+                <div style={{ fontSize: 11, color: C.text3 }}>{player.platform}</div>
+              )}
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Próximo anúncio</span><span style={{ fontWeight: 500 }}>{nextAd ? nextAd.campaign_name : "—"}</span></div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: 6 }}><span>Visualizações hoje</span><span style={{ fontWeight: 600, color: C.text }}>{fmt(vizToday)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: spacing[2] }}><span>Próximo anúncio</span><span style={{ fontWeight: 500 }}>{nextAd ? nextAd.campaign_name : "—"}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2, marginBottom: spacing[2] }}><span>Visualizações hoje</span><span style={{ fontWeight: 600, color: C.text }}>{fmt(vizToday)}</span></div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.text2 }}><span>Ganho hoje</span><span style={{ fontWeight: 600, color: C.green }}>{fmtR(stats.revenue_today || 0)}</span></div>
-        </div>
+        </Card>
       </div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
@@ -2655,7 +2701,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   const initials = client.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()
 
   const tabContent: Record<string, React.ReactNode> = {
-    dashboard:  <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} dtvReady={dtvReady} />,
+    dashboard:  <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} />,
     assistente: <AIAssistantPanel code={client.code} onNavigate={onNav} />,
     tv:         <TabTV client={client} player={player} playlist={playlist} online={online} checking={checking} />,
     conteudo:   <TabConteudo client={client} playlist={playlist} onAddPromo={onAddPromo} onRefresh={onRefresh} />,
