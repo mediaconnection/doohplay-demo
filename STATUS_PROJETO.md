@@ -1337,3 +1337,22 @@ O real (`TabRelatorios`, `dashboard-client.tsx:1446-1471`) é bem mais magro: re
 | 11 | `PlaylistManager.tsx` — blocos de horário com `cpmBoost` | Precificar diferente por faixa de horário | Lógica de precificação dinâmica por horário — não existe hoje | Baixa |
 
 Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
+
+## ✅ Alerta proativo de tela offline via WhatsApp — implementado (2026-09-13)
+
+Implementa a proposta registrada na seção "Investigação — Alerta proativo de tela offline via WhatsApp" (acima), item 1 da fila de Design/Produto. Front: `app/`/`lib/` (comercial real).
+
+**Decisões tomadas nesta etapa** (com aprovação explícita do fundador):
+- **Destinatário: só o fundador** (`DOOHPLAY_PHONE`, mesmo número já usado em `app/api/onboarding/route.ts`) — não o dono do estabelecimento.
+- **Mecanismo: repeatable job do BullMQ dentro do `doohplay-workers` já existente** (`lib/queue/workers/offlineAlertWorker.ts`, a cada 10min), não um Render Cron Job novo — decisão consciente pra não criar um 4º recurso cobrado quando o processo que já roda 24/7 resolve com custo zero. Mesmo padrão idempotente já usado pelo `proofchain-aggregator` (`alertWorker.ts`), incluindo o mesmo cuidado de não reagendar em todo boot do worker (evita bater no Upstash desnecessariamente, mesma classe de problema já investigada nesta sessão).
+- **Alerta de "voltou ao ar" incluído** desde já, pra fechar o ciclo (fundador sabe quando resolveu, não só quando caiu).
+
+**Implementação**:
+- `sql/screen_offline_alert.sql` — `studio_clients.offline_alert_threshold_min` (default 45min) + tabela `screen_offline_incidents` (uma linha aberta por incidente, `recovered_at IS NULL` = ainda offline). Aplicada em produção via migration.
+- `lib/screens/offlineAlertCheck.ts` — lógica real: busca players com `last_ping` mais velho que o threshold do cliente, verifica incidente aberto (evita repetir alerta, só reenvia depois de 6h contínuas), fecha e avisa quando volta. Reusa `lib/whatsapp.ts::sendWhatsApp` — atenção ao prefixo `55` (essa função já prefixa sozinha; `DOOHPLAY_PHONE`, que já vem com `55`, precisa ter o prefixo removido antes de passar, senão dobra — feito corretamente).
+- `lib/queue/workers/offlineAlertWorker.ts` — wiring BullMQ, mesmo padrão do `alertWorker.ts`.
+- `worker.ts` — inicializa e agenda o novo worker, incluído no shutdown gracioso.
+
+Validado sem regressão: `tsc --noEmit` (57, idêntico), `vitest` (81/81), `next build` (compila, falha só no erro pré-existente conhecido de `/api/documents/.../pdf`).
+
+**Achado real durante o teste (fora do escopo desta tarefa, mas urgente)**: query de validação contra produção mostrou que **as duas telas reais estão offline agora** — `BARBE332` e `LEMEL186` com `last_ping` de 2026-09-08, ~5,8 dias sem pingar. Confirma exatamente o gap que esta feature deveria cobrir. Fundador confirmou explicitamente que o primeiro disparo real (WhatsApp de verdade, refletindo esse estado real, não teste) pode acontecer assim que o worker subir com esse código.

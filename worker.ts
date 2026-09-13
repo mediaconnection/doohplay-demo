@@ -12,6 +12,7 @@ import { getProofWorker } from "./lib/queue/workers/proofWorker"
 import { getAggregatorWorker, scheduleAggregatorJob } from "./lib/queue/workers/alertWorker"
 import { getRiskWorker } from "./lib/queue/workers/riskWorker"
 import { getAlertWorker } from "./lib/queue/workers/blockWorker"
+import { getOfflineAlertWorker, scheduleOfflineAlertJob } from "./lib/queue/workers/offlineAlertWorker"
 
 console.log("🟢 DOOHPLAY Event Worker started")
 
@@ -31,10 +32,18 @@ console.log("✅ riskWorker started")
 const alertWorker = getAlertWorker()
 console.log("✅ alertWorker started")
 
+const offlineAlertWorker = getOfflineAlertWorker()
+console.log("✅ offlineAlertWorker started")
+
 // Agenda o job de agregação do Proofchain (a cada 5 minutos)
 scheduleAggregatorJob()
   .then(() => console.log("✅ aggregatorJob scheduled"))
   .catch((err) => console.error("❌ Failed to schedule aggregator:", err))
+
+// Agenda a checagem de tela offline (a cada 10 minutos)
+scheduleOfflineAlertJob()
+  .then(() => console.log("✅ offlineAlertJob scheduled"))
+  .catch((err) => console.error("❌ Failed to schedule offline alert:", err))
 
 // Logs de processamento
 eventWorker.on("completed", (job) => console.log(`✅ eventWorker completed: ${job.id}`))
@@ -53,6 +62,7 @@ async function shutdown(signal: string) {
     aggregatorWorker.close(),
     riskWorker.close(),
     alertWorker.close(),
+    offlineAlertWorker.close(),
   ])
   console.log("✅ Workers closed")
   process.exit(0)
