@@ -4,9 +4,13 @@
 // WhatsApp". Motivado por gap real contra concorrente (SigX) e pelo
 // incidente real de BARBE332/LEMEL186 offline sem ninguém notar a tempo.
 //
-// Destinatário: só o fundador (decisão do fundador, 2026-09-13) — não o
-// dono do estabelecimento. DOOHPLAY_PHONE é o mesmo número interno já
-// usado em app/api/onboarding/route.ts.
+// Destinatários: fundador (DOOHPLAY_PHONE, número interno já usado em
+// app/api/onboarding/route.ts) E o dono do estabelecimento
+// (studio_clients.phone) -- decisão confirmada pelo fundador em
+// 2026-09-13, revisando a decisão original de "só o fundador". Textos
+// diferentes pra cada um: o fundador precisa saber QUAL cliente caiu
+// (nome/código na mensagem); o dono já sabe que é a tela dele, mensagem
+// em primeira pessoa, sem nome/código.
 //
 // Threshold configurável por cliente (studio_clients.offline_alert_threshold_min,
 // default 45min) — calibrado pro padrão real de queda curta/frequente do
@@ -22,6 +26,9 @@ import { sendWhatsApp } from "@/lib/whatsapp"
 // lib/whatsapp.ts::sendWhatsApp já prefixa "55" sozinho -- por isso o
 // DOOHPLAY_PHONE (que já vem com "55" no valor histórico de onboarding)
 // precisa ter esse prefixo removido antes de passar pra cá, senão dobra.
+// client_phone (studio_clients.phone) vai direto, sem esse tratamento --
+// lib/whatsapp.ts já lida com os dois formatos reais em uso (com ou sem
+// "55" na frente, achado/corrigido em 2026-09-13 pro caso do LEMEL186).
 const DOOHPLAY_PHONE_RAW = process.env.DOOHPLAY_PHONE || "5511962050987"
 const DOOHPLAY_PHONE_DIGITS = DOOHPLAY_PHONE_RAW.replace(/^55/, "")
 
@@ -31,6 +38,7 @@ interface OfflinePlayerRow {
   player_id: string
   client_code: string
   client_name: string
+  client_phone: string | null
   threshold_min: number
   last_ping: string
 }
@@ -39,6 +47,7 @@ interface RecoveredPlayerRow {
   incident_id: number
   client_code: string
   client_name: string
+  client_phone: string | null
 }
 
 export interface OfflineAlertCheckResult {
@@ -48,12 +57,29 @@ export interface OfflineAlertCheckResult {
   errors: { client_code: string; message: string }[]
 }
 
-function offlineMessage(clientName: string, clientCode: string, thresholdMin: number): string {
+function offlineMessageFounder(clientName: string, clientCode: string, thresholdMin: number): string {
   return `⚠️ *Alerta DOOHPLAY* — a tela de *${clientName}* (${clientCode}) está sem conexão há mais de ${thresholdMin} minutos.`
 }
 
-function recoveredMessage(clientName: string, clientCode: string): string {
+function offlineMessageOwner(thresholdMin: number): string {
+  return `⚠️ *DOOHPLAY* — sua tela está sem conexão há mais de ${thresholdMin} minutos. Verifique a energia e o Wi-Fi do aparelho.`
+}
+
+function recoveredMessageFounder(clientName: string, clientCode: string): string {
   return `✅ *DOOHPLAY* — a tela de *${clientName}* (${clientCode}) voltou a enviar sinal.`
+}
+
+function recoveredMessageOwner(): string {
+  return `✅ *DOOHPLAY* — sua tela voltou a funcionar normalmente.`
+}
+
+// Manda pro fundador sempre; pro dono só se tiver telefone cadastrado.
+// allSettled: uma falha (ex: número do dono inválido) não deve derrubar
+// o envio pro outro destinatário.
+async function notifyBoth(clientPhone: string | null, founderMsg: string, ownerMsg: string): Promise<void> {
+  const sends = [sendWhatsApp(DOOHPLAY_PHONE_DIGITS, founderMsg)]
+  if (clientPhone) sends.push(sendWhatsApp(clientPhone, ownerMsg))
+  await Promise.allSettled(sends)
 }
 
 /**
@@ -70,6 +96,7 @@ export async function runScreenOfflineAlertCheck(dryRun = false): Promise<Offlin
       p.id::text AS player_id,
       sc.code AS client_code,
       sc.name AS client_name,
+      sc.phone AS client_phone,
       sc.offline_alert_threshold_min AS threshold_min,
       p.last_ping::text AS last_ping
     FROM players p
@@ -93,7 +120,11 @@ export async function runScreenOfflineAlertCheck(dryRun = false): Promise<Offlin
             `INSERT INTO screen_offline_incidents (player_id, client_code) VALUES ($1::uuid, $2)`,
             [player.player_id, player.client_code]
           )
-          await sendWhatsApp(DOOHPLAY_PHONE_DIGITS, offlineMessage(player.client_name, player.client_code, player.threshold_min))
+          await notifyBoth(
+            player.client_phone,
+            offlineMessageFounder(player.client_name, player.client_code, player.threshold_min),
+            offlineMessageOwner(player.threshold_min)
+          )
         }
         continue
       }
@@ -103,7 +134,11 @@ export async function runScreenOfflineAlertCheck(dryRun = false): Promise<Offlin
         result.alerted.push({ client_code: player.client_code, client_name: player.client_name })
         if (!dryRun) {
           await pool.query(`UPDATE screen_offline_incidents SET last_alerted_at = NOW() WHERE id = $1`, [openIncident[0].id])
-          await sendWhatsApp(DOOHPLAY_PHONE_DIGITS, offlineMessage(player.client_name, player.client_code, player.threshold_min))
+          await notifyBoth(
+            player.client_phone,
+            offlineMessageFounder(player.client_name, player.client_code, player.threshold_min),
+            offlineMessageOwner(player.threshold_min)
+          )
         }
       } else {
         result.skipped_anti_repeat.push({ client_code: player.client_code, client_name: player.client_name })
@@ -118,7 +153,8 @@ export async function runScreenOfflineAlertCheck(dryRun = false): Promise<Offlin
     SELECT
       soi.id AS incident_id,
       sc.code AS client_code,
-      sc.name AS client_name
+      sc.name AS client_name,
+      sc.phone AS client_phone
     FROM screen_offline_incidents soi
     JOIN players p ON p.id = soi.player_id
     JOIN studio_clients sc ON sc.player_id = p.id
@@ -132,7 +168,11 @@ export async function runScreenOfflineAlertCheck(dryRun = false): Promise<Offlin
       result.recovered.push({ client_code: player.client_code, client_name: player.client_name })
       if (!dryRun) {
         await pool.query(`UPDATE screen_offline_incidents SET recovered_at = NOW() WHERE id = $1`, [player.incident_id])
-        await sendWhatsApp(DOOHPLAY_PHONE_DIGITS, recoveredMessage(player.client_name, player.client_code))
+        await notifyBoth(
+          player.client_phone,
+          recoveredMessageFounder(player.client_name, player.client_code),
+          recoveredMessageOwner()
+        )
       }
     } catch (err: any) {
       console.error(`[offline-alert] erro de recovery pra ${player.client_code}:`, err)
