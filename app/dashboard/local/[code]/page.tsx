@@ -156,9 +156,9 @@ export default async function DashboardPage({
     // assinatura, que induzia o cliente a erro).
     try {
       const revRes = await pool.query(
-        `SELECT COALESCE(SUM(cp.amount), 0)::float AS revenue_month
+        `SELECT COALESCE(SUM(cp.value), 0)::float AS revenue_month
          FROM campaign_payments cp
-         JOIN "Campaign" c ON c.id = cp.campaign_id
+         JOIN "Campaign" c ON c.id = cp.campaign_id::text
          WHERE c."advertiserCode" = $1
            AND cp.status = 'confirmed'
            AND cp.paid_at >= date_trunc('month', NOW())`,
@@ -210,17 +210,22 @@ export default async function DashboardPage({
     playlist = plRes.rows
   } catch {}
 
-  // 5. Payments
+  // 5. Payments -- client_payments nunca existiu em produção (achado
+  // 2026-09-13, investigação da aba Ganhos). client_payouts é o
+  // mecanismo real e funcional (já usado por app/api/client/payouts/route.ts),
+  // só não estava conectado ao dashboard. net_amount (repasse líquido
+  // após o payout_rate, hoje 40%) é o que o cliente de fato recebe --
+  // é isso que "Ganhos" deve mostrar, não o bruto.
   let payments: Payment[] = []
   try {
     const payRes = await pool.query(
-      `SELECT id::text, value::float, status,
+      `SELECT id::text, net_amount::float AS value, status,
               paid_at::text, created_at::text
-       FROM client_payments
-       WHERE code = $1
+       FROM client_payouts
+       WHERE client_code = $1
        ORDER BY created_at DESC
        LIMIT 10`,
-      [code]
+      [upperCode]
     )
     payments = payRes.rows
   } catch {}
