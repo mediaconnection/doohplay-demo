@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { SectionTitle } from "@/components/ui/SectionTitle"
 import { Button } from "@/components/ui/button"
 import { spacing } from "@/components/ui/tokens"
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 
 const NAV = [
   { id: "dashboard", label: "Dashboard",     icon: "⊞",  desc: "Visão geral da sua tela e ganhos" },
@@ -1406,26 +1407,94 @@ function TabAnuncios({ stats, payments, code, onAddPromo }: any) {
   )
 }
 
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+// reference_month é DATE (sem hora) -- usa getters UTC pra não sofrer o
+// deslocamento de fuso que new Date("2026-09-01") sofreria num horário
+// local atrás de UTC (viraria "ago" em vez de "set").
+function fmtMonthLabel(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${MESES_ABREV[d.getUTCMonth()]}/${String(d.getUTCFullYear()).slice(-2)}`
+}
+
 function TabGanhos({ stats, payments, code }: any) {
-  const history = payments ?? []
+  const history: any[] = payments ?? []
+
+  if (history.length === 0) {
+    return (
+      <Card theme={C} elevation="sm">
+        <div style={{ padding: `${spacing[7]}px ${spacing[5]}px`, textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: spacing[2] }}>💳</div>
+          <div style={{ fontSize: 13, color: C.text3, maxWidth: 340, margin: "0 auto", lineHeight: 1.5 }}>
+            Nenhum repasse de anúncio ainda — assim que o primeiro anúncio de terceiro for pago, seus ganhos aparecem aqui.
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  const paid = history.filter((p) => p.status === "paid")
+  const pendingTotal = history
+    .filter((p) => p.status === "pending" || p.status === "processing")
+    .reduce((s, p) => s + Number(p.value || 0), 0)
+  const paidTotal = paid.reduce((s, p) => s + Number(p.value || 0), 0)
+
+  const now = new Date()
+  const thisMonthTotal = paid
+    .filter((p) => {
+      if (!p.reference_month) return false
+      const ref = new Date(p.reference_month)
+      return ref.getUTCFullYear() === now.getUTCFullYear() && ref.getUTCMonth() === now.getUTCMonth()
+    })
+    .reduce((s, p) => s + Number(p.value || 0), 0)
+
+  // Agrupa repasses pagos por mês de referência -- só os meses que existem
+  // de verdade entram no gráfico, nunca preenche os que faltam com zero
+  // disfarçado de dado real (mesma regra de honestidade de sempre).
+  const byMonth = new Map<string, { label: string; value: number }>()
+  for (const p of paid) {
+    if (!p.reference_month) continue
+    const d = new Date(p.reference_month)
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    const existing = byMonth.get(key)
+    byMonth.set(key, { label: fmtMonthLabel(p.reference_month), value: (existing?.value ?? 0) + Number(p.value || 0) })
+  }
+  const chartData = Array.from(byMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([, v]) => v)
+
   return (
     <div>
-      <div className="db-kpis" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Este mês" value={fmtR(stats.revenue_month || 0)} sub="Receita confirmada" icon="💵" color={C.green} />
+      <div className="db-kpis" style={{ display: "flex", gap: spacing[3], marginBottom: spacing[5], flexWrap: "wrap" }}>
+        <KpiCard label="Recebido este mês" value={fmtR(thisMonthTotal)} sub="Repasses pagos no mês" icon="💵" color={C.green} />
+        <KpiCard label="Total acumulado" value={fmtR(paidTotal)} sub="Todo o histórico pago" icon="📊" color={C.blue} />
+        <KpiCard label="Pendente" value={fmtR(pendingTotal)} sub="Aguardando repasse" icon="⏳" color={C.amber} />
+        <KpiCard label="Repasses pagos" value={String(paid.length)} sub="Desde o início" icon="✅" color={C.green} />
       </div>
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border2}` }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Histórico de pagamentos</div>
-        </div>
-        {history.length === 0 ? (
-          <div style={{ padding: "24px 18px", textAlign: "center", color: C.text3, fontSize: 13 }}>
-            Nenhum pagamento confirmado ainda.
+
+      {chartData.length > 0 && (
+        <Card theme={C} elevation="sm" style={{ marginBottom: spacing[5] }}>
+          <SectionTitle theme={C}>Receita por mês</SectionTitle>
+          <div style={{ padding: spacing[4] }}>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData}>
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text3 }} axisLine={false} tickLine={false} />
+                <YAxis hide />
+                <Tooltip formatter={(v) => fmtR(Number(v ?? 0))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <Bar dataKey="value" fill={C.blue} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        ) : history.map((p: any, i: number) => (
+        </Card>
+      )}
+
+      <Card theme={C} elevation="sm">
+        <SectionTitle theme={C}>Histórico de pagamentos</SectionTitle>
+        {history.map((p: any, i: number) => (
           <div key={p.id} style={{ padding: "14px 18px", borderBottom: i < history.length - 1 ? `1px solid ${C.border2}` : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div style={{ width: 32, height: 32, background: C.greenLt, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div style={{ width: 32, height: 32, background: p.status === "paid" ? C.greenLt : C.gray100, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={p.status === "paid" ? C.green : C.text3} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{fmtDate(p.paid_at || p.created_at, true)}</div>
@@ -1433,12 +1502,14 @@ function TabGanhos({ stats, payments, code }: any) {
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{fmtR(p.value)}</div>
-              <span style={{ fontSize: 11, color: C.green }}>Pago</span>
+              <div style={{ fontSize: 14, fontWeight: 700, color: p.status === "paid" ? C.green : C.text2 }}>{fmtR(p.value)}</div>
+              <span style={{ fontSize: 11, color: p.status === "paid" ? C.green : C.text3 }}>
+                {p.status === "paid" ? "Pago" : p.status === "processing" ? "Processando" : "Pendente"}
+              </span>
             </div>
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   )
 }

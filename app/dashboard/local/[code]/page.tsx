@@ -57,6 +57,7 @@ export type Payment = {
   status: string
   paid_at: string | null
   created_at: string
+  reference_month: string | null
 }
 
 export default async function DashboardPage({
@@ -220,7 +221,7 @@ export default async function DashboardPage({
   try {
     const payRes = await pool.query(
       `SELECT id::text, net_amount::float AS value, status,
-              paid_at::text, created_at::text
+              paid_at::text, created_at::text, reference_month::text
        FROM client_payouts
        WHERE client_code = $1
        ORDER BY created_at DESC
