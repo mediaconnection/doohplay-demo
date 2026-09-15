@@ -1947,3 +1947,32 @@ de Erro #3 do projeto (erro silencioso engolido), só que numa página
 reais ainda ficariam sem essas duas métricas até terem dado em
 `screen_stats`, mas pelo menos o status básico voltaria a refletir a
 realidade.
+
+**✅ RESOLVIDO (15/09/2026, commit `78ebe22`, confirmado `9c416a8`)**:
+`getPlayer()` corrigido — `last_seen` trocado por `last_ping` (real).
+**`trust_score` NÃO passou a vir de `screen_stats`** — a reconfirmação
+de schema antes de codar achou que `screen_stats.screen_id` liga em
+`screens.id` (tabela separada do motor de anúncios/proof), não em
+`players.id` como um registro anterior presumia; fazer esse `JOIN`
+teria ligado numa relação inexistente no schema. Em vez disso,
+`trustScore` ficou `null` fixo (sem query nenhuma pra `screen_stats`),
+com comentário no código explicando o motivo, pronto pra reabrir se
+existir uma fonte real ligada a `players` no futuro. `sla_30d`
+**removido do portal público por completo** — confirmado que essa
+coluna nunca existiu em nenhum lugar do schema, decisão de não deixar
+campo fantasma esperando dado que nunca chegaria.
+
+**Confirmado via log real do Render, pós-deploy**: `BARBE332` passou a
+mostrar **"Tela Offline"** — real (zero heartbeat do dispositivo no
+período), não bug. `LEMEL186` mostra **"Tela Online"** — real. **Nota
+importante pra sessões futuras**: essa mudança de status do `BARBE332`
+é a correção **revelando** um estado que sempre esteve escondido atrás
+de um "Verificando..." travado (a query antes sempre falhava
+silenciosamente) — não é regressão nova causada por essa correção.
+Registrado explicitamente no `STATUS_PROJETO.md` e na memória do
+projeto pra evitar alarme falso numa investigação futura que veja esse
+status e não tenha esse contexto.
+
+**Ação real decorrente, pendente**: `BARBE332` está genuinamente
+offline agora (não mais um falso "Verificando...") — vale confirmar
+com o Gilson o que está havendo com o dispositivo físico.
