@@ -1475,3 +1475,22 @@ Confirmado direto no código atual de `TabGanhos` (`dashboard-client.tsx`): 4 st
 **Nota**: o stat tile "próximo pagamento previsto", cogitado como opção no prompt que motivou esta checagem, **não foi implementado** — decisão consciente de quem fez `a37bdc9`, consistente com a mesma regra de nunca mostrar previsão sem agendamento real por trás (mesma disciplina aplicada ao portal público nesta sessão).
 
 **Conclusão**: o prompt que pedia essa proposta foi gerado antes dessa confirmação chegar até essa sessão — sem necessidade real de ação, nenhuma linha de código tocada. Não é mais item pendente na fila de design.
+
+## ✅ Investimento real em `app/dashboard/analytics` — Fase 0 (investigação) e Fase 1 (Impressões + link) concluídas (2026-09-15, commit `dc25ef9`)
+
+Decisão do fundador: investir de verdade nessa rota (antes órfã, só acessível por URL direta) em vez de deixar como pendência recategorizada. Fase 0 (investigação, sem código) confirmou:
+
+1. **RPCs**: só `dashboard_kpis`, `dashboard_executions_by_campaign`, `dashboard_executions_by_player`, `dashboard_executions_over_time` existem. `dashboard_revenue_by_period`/`dashboard_revenue_by_advertiser` continuam não existindo.
+2. **Achado que corrige o diagnóstico anterior sobre sessão/RLS**: o problema de "Sem dados" por RLS com chave anônima documentado antes **não se aplica mais** aos 4 widgets atuais — `Kpis.tsx`/`CampaignsChart.tsx` migraram pra rotas próprias (`app/api/dashboard/kpis`, `.../executions-by-campaign`) que exigem `getServerSession` real e chamam a RPC via `pool.query()` (conexão direta, sem passar por Supabase/RLS). Qualquer RPC nova que siga o mesmo padrão herda sessão + bypass de RLS de graça — não é mais um problema em aberto, é só seguir o precedente.
+3. **`lib/cpmEstimate.ts` não é CPM real** — é uma tabela de preço fixo por faixa de volume (`plays30d > 500 → R$8`), documentada como "referência comercial, não preço fechado". Usar como "CPM médio" seria rotular errado (pareceria média de transação real).
+4. **`Advertiser`/`Campaign`/`campaign_payments` seguem em 0 linhas** — reconfirmado. Não é só `Advertiser` vazio: toda a cadeia comercial de rede (anunciante → campanha → pagamento) está zerada em produção.
+5. **Navegação**: nem `/admin` nem `/dashboard` têm nav compartilhada real — `/admin` usa abas por estado React dentro de um único componente de 3.700 linhas; `/dashboard` não tinha nenhum link de saída. Duas opções propostas, decisão do fundador: virar aba dentro de `admin/page.tsx` (mais caro, precisa portar conteúdo) ou link simples a partir de `/dashboard` (mais barato, mantém rota própria).
+
+**Fase 1 aprovada e implementada** (Receita/CPM/Fill rate explicitamente fora de escopo por decisão do fundador, até existir anunciante real):
+- `app/dashboard/analytics/page.tsx`: removido todo dado mockado. KPI real único "Impressões" (`total_executions` de `dashboard_kpis`, reaproveitando `/api/dashboard/kpis` — zero rota nova), sem delta fabricado (`KpiCard`, não `KpiCardTrend` — `dashboard_kpis` não devolve período anterior pra comparar). Nota honesta no lugar de Receita/CPM/Fill rate/donut de anunciante, explicando que aparecem quando houver o primeiro anunciante ativo — não é bug, é ausência real de dado.
+- `app/dashboard/page.tsx`: link "Analytics →" no cabeçalho do Central de Controle (Opção B, a mais barata) — rota deixa de ser órfã.
+
+Validado: `tsc --noEmit` (49, baseline), `vitest` (81/81), `next build` (`Compiled successfully`).
+
+**Fases 2 e 3 — registradas como pendência, condicionadas, não são tarefa técnica em aberto agora**:
+- **Fase 2** (RPCs `dashboard_revenue_by_period`/`dashboard_revenue_by_advertiser`, mesmo padrão de rota já validado) e **Fase 3** (decidir o que "CPM médio" e "Fill rate" significam de verdade nesse produto) **não fazem sentido antes de existir o primeiro anunciante real com campanha ativa** — construir RPC de receita sobre uma tabela com 0 linhas não tem valor nenhum hoje. Revisitar quando `Advertiser`/`Campaign` tiverem o primeiro registro real.
