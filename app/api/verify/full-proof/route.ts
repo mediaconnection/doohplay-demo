@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
-    const { getSupabaseServer } = await import("@/lib/supabaseServer")
+    const { supabaseAdmin } = await import("@/lib/supabaseServer")
 
   const hash = request.nextUrl.searchParams.get("hash")
 
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing hash" }, { status: 400 })
   }
 
-  const supabase = getSupabaseServer()
+  const supabase = supabaseAdmin
 
   const { error } = await supabase
     .from("pdf_hashes")
