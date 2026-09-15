@@ -1902,16 +1902,48 @@ versão mais recente.
 
 **Achado investigado, confirmado inofensivo**: existe uma pasta local
 (`Documents\DOOHPLAY-projeto\Instrucoes de desenvolvimento\`) com 6
-versões antigas do documento (`v5_FINAL` a `v5_FINAL5` + uma datada).
-Diferente da bifurcação de código de 4 meses (seção 12.43), **essas
-são todas anteriores a esta sessão** — a mais recente é
-`v5_FINAL04-09-2026.md`, de 04/09/2026 07:13 (a `v5_FINAL5` é de
-03/09/2026 16:46, anterior a ela, apesar do nome), ambas antes da
-maratona de segurança (RLS) e do Clube de Telas v2. Essas 6 nunca
-estiveram em nenhum repositório git — moram fora, em
-`Documents\DOOHPLAY-projeto\...` — então não há `git blame` possível
-ali; confirmado por diff de conteúdo direto contra a versão atual
-(zero linha substantiva única em qualquer uma das 6) que nenhuma
-delas foi tocada depois de salva, e que são etapas de evolução
-histórica já superadas, não cópias paralelas ativas. Organizadas numa
-subpasta de arquivo histórico, sem necessidade de reconciliação.
+versões antigas do documento (`v5_FINAL` a `v5_FINAL5`, mais
+`v5_FINAL04-09-2026.md`). Diferente da bifurcação de código de 4 meses
+(seção 12.43), **essas são todas anteriores a esta sessão** — a mais
+recente é `v5_FINAL04-09-2026.md` (04/09/2026 07:13), não a
+`v5_FINAL5` (na verdade de 03/09 16:46, como uma checagem anterior
+errou ao afirmar). **Correção de método**: essas 6 versões nunca
+estiveram em nenhum repositório Git (vivem fora do repo, em
+`Documents\DOOHPLAY-projeto\...`) — não existe `git blame` possível
+pra rodar ali; a conclusão de que são obsoletas/seguras foi confirmada
+por **diff de conteúdo direto** contra a versão atual, não pelo
+histórico Git que uma checagem anterior citou incorretamente.
+Organizadas numa subpasta de arquivo histórico, sem necessidade de
+reconciliação.
+
+### 12.50 — Fix do portal público portado + achado maior: `getPlayer()` sempre falhou silenciosamente
+O fix do guard condicional de Trust/SLA (badges do Hero/rodapé em
+`app/portal/[code]/page.tsx`, seção 12.31 do incidente de segurança
+original) foi finalmente **portado da linha antiga (`dashboard-web`,
+`demo-master`) pra produção real** (`dashboard-web-prod`, `demo/master`,
+commit `b5e4eac`) — diff idêntico byte a byte, testado (`tsc`/`vitest`
+no baseline), confirmado com `BARBE332`/`LEMEL186` não tendo
+`trust_score`/`sla_30d` calculados hoje, então o comportamento correto
+(ocultar os badges) já é o que acontece.
+
+**Achado mais sério no caminho**: `getPlayer()`, usado pelo bloco
+"Status da Tela" do mesmo portal público, consulta colunas que **não
+existem** em `players` — `sla_30d`, `trust_score`, `last_seen` (o
+substituto real é `last_ping`; `trust_score` de verdade mora em
+`screen_stats`, ligado por `screen_id`, tabela onde `BARBE332`/
+`LEMEL186` não têm nenhuma linha ainda). Resultado: a query **sempre
+lança erro SQL**, sempre engolido por `catch { return null }` — não é
+caso de borda, é **falha permanente desde sempre**, pra qualquer
+cliente. O portal público mostra "Verificando..." pra sempre no status
+online/offline, **mesmo com as telas realmente online** (confirmado:
+`last_ping` de ambas atualizado agora mesmo). Mesma classe do Padrão
+de Erro #3 do projeto (erro silencioso engolido), só que numa página
+**pública**, visível a qualquer visitante externo.
+
+**Registrado como tarefa própria, prioridade real** (não baixa, já que
+é visível externamente): corrigir `getPlayer()` pra usar `last_ping`
+(restaura status online/offline real) e considerar join com
+`screen_stats` pra trust/SLA reais quando existir linha — os 2 clientes
+reais ainda ficariam sem essas duas métricas até terem dado em
+`screen_stats`, mas pelo menos o status básico voltaria a refletir a
+realidade.
