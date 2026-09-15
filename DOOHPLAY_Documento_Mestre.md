@@ -1985,3 +1985,156 @@ build efêmero que não persistia na instância real, achado de
 08/09/2026) e só consumia tempo de build a cada deploy sem propósito.
 Não precisou de código/commit — resolvido inteiramente por
 configuração. Item fechado, sem pendência técnica remanescente.
+
+### 12.52 — `app/dashboard/analytics`: Fases 1 e 2 concluídas
+Decisão de investir na rota órfã `analytics`, motivada por anunciante
+real esperado em breve. Executado em 3 fases planejadas, 2 concluídas:
+
+**Fase 1**: reaproveitou `dashboard_kpis` (já existente) pra
+"Impressões", tela linkada num lugar real do produto (deixa de ser
+órfã) — via `Link` no cabeçalho do Central de Controle interno, opção
+de menor esforço.
+
+**Fase 2** (commit `0333d03`, docs em `bfae2de`): 2 RPCs novas —
+`dashboard_revenue_by_period` e `dashboard_revenue_by_advertiser` —
+criadas seguindo o padrão já confirmado funcionando (rota própria em
+`app/api/dashboard/`, `getServerSession` real, `pool.query()` direto,
+não `.rpc()` do Supabase com chave anônima — esse padrão já resolvia
+sessão e RLS de uma vez, sem precisar de investigação nova). Testadas
+com 0 linhas (estado real hoje) antes de considerar prontas. Empty
+state honesto mantido enquanto não há anunciante real.
+
+**Fase 3 (CPM médio, Fill rate)**: fica pendente — sem fonte de dado
+clara hoje, depende de confirmar quando o anunciante real de fato
+entrar na base.
+
+**Achado de processo**: escrita em `dashboard-web-prod` (checkout fora
+do diretório de trabalho principal da sessão) foi bloqueada pelo
+classificador de modo automático do Claude Code (`Modify Shared
+Resources`) — resolvido com aprovação manual de cada escrita, mantendo
+o trabalho na linha correta (`master`) em vez de desviar pro checkout
+antigo divergente (`demo-master`), que teria recriado o problema da
+bifurcação de 4 meses.
+
+### 12.53 — Contrato Media Connection: confirmado não-assinado, sem urgência real
+Decisão de negócio revisitada com o fundador. Confirmado:
+- Contrato **ainda não assinado** — segue em formato de template
+- **Nenhuma operação real** rodando com os 5 Integrantes do Hub ainda
+  (sem indicação de cliente, sem repasse de comissão em jogo) — risco
+  jurídico de "operação informal sem proteção contratual" **não se
+  aplica hoje**, porque não há operação nenhuma acontecendo
+- Falta **negociar algum ponto do contrato** ainda (detalhe não
+  compartilhado, por escolha do fundador) antes de assinar
+
+**Classificação corrigida**: isso não é pendência técnica nem de
+segurança — é negociação comercial em andamento, fora do escopo de
+qualquer correção de código. Sem urgência real enquanto não houver
+operação de fato rodando com o Hub.
+
+### 12.54 — TV 3.0 Ready: correção factual + trazido com linguagem honesta
+**Correção importante sobre registro anterior**: a seção 12.35/histórico
+falava em "8 commits" de TV 3.0 Ready — investigação real no git
+confirmou que é **1 único commit** (16/08/2026, 17 arquivos). A
+contagem de "8" nunca esteve certa, mesmo repetida em duas passagens
+diferentes do documento sem baterem entre si — corrigido só agora, ao
+investigar o conteúdo real em vez de confiar na descrição anterior.
+
+**Categorização dos 17 arquivos**: 5 de claim público/UI (badge,
+página `/tv-3-0-ready`, doc comercial), 10 de infraestrutura técnica
+(feature flags genéricas, `detectReceiver.ts` que sempre retorna
+`false` honestamente), 2 de documentação interna. O commit original é
+a **origem confirmada** do badge "TV 3.0 READY" que apareceu sem
+decisão consciente em produção no incidente de 13/09 (seção 12.46-área)
+— não era código nunca antes mesclado, tinha alguma exposição anterior.
+
+**Decisão final do fundador**: trazer tudo, mas com **linguagem
+corrigida** — "TV 3.0 READY"/"Pronto" (afirma capacidade técnica que
+não existe: nenhuma TV brasileira com chip nativo, SBT/Record em
+teste, datacasting "em estudo" até pela Globo) trocado por
+**"Preparando para TV 3.0"/"Preparando o futuro"** em todo o material
+(componente renomeado `DtvFuturoBadge.tsx`, toggle do admin, página
+pública, FAQ, doc comercial).
+
+**Confirmado antes do commit** (15/09/2026, commit `4ca3416`):
+- `feature_flags.dtv_ready` continua `DEFAULT false`; única linha real
+  (`BARBE332`, do próprio incidente de 13/09) confirmada `enabled: false`
+  — nada muda pra clientes reais hoje
+- Texto exato validado via HTML renderizado de verdade (não descrição)
+  — "Preparando para TV 3.0" visível, zero ocorrência residual de
+  "Ready"/"Pronto" em texto público (as únicas menções restantes de
+  "ready" no HTML são internas do Next.js, nome de rota)
+- Selo reconectado conscientemente no `dashboard-client.tsx` (mesmo
+  local do incidente anterior), mas com a linguagem corrigida — decisão
+  informada, não repetição do acidente
+
+`tsc`/`vitest`/`next build` sem regressão. **Item fechado**: mantém a
+ambição comercial de "estar de olho na próxima onda" sem afirmar
+capacidade técnica que não existe.
+
+### 12.55 — `BARBE332` online de novo + bug duplo real no cálculo de "Uptime (30d)" corrigido
+`BARBE332` confirmado online novamente (visualmente, no dashboard) —
+o Gilson resolveu o que quer que estivesse acontecendo com o
+dispositivo. No processo, achado e corrigido um bug real e duplo:
+
+**Bug 1 — tabela errada**: `sla_30d` em
+`app/dashboard/local/[code]/page.tsx` consultava `player_heartbeats`,
+tabela **sem nenhuma escrita** por este front (compartilhada com
+prova/blockchain, documentado no próprio `heartbeat/route.ts`) —
+sempre 0 linhas, sempre `0.0%`, disfarçado de dado real.
+
+**Bug 2 — fórmula errada, mascarado pelo Bug 1**: mesmo se a tabela
+certa fosse usada, `COUNT(*) / 30 * 100` conta **linhas brutas**, não
+dias distintos — com múltiplos heartbeats por dia (392 num único dia
+pra `BARBE332`), o resultado passaria de 100% quase de imediato. Só
+não apareceu porque o Bug 1 já zerava tudo antes.
+
+**Corrigido** (commit `1f5065c`): reaproveitado o padrão já correto,
+existente em duas outras rotas do mesmo projeto
+(`app/api/client/screens/[code]/route.ts`,
+`app/api/admin/screens/route.ts`) — `days_present / days_total * 100`
+via `player_uptime_daily` (tabela real, com escrita confirmada, 392
+pings hoje contando corretamente como 1 dia presente).
+
+**Testado contra dado real dos 2 clientes**: `BARBE332` 33,3% (10/30
+dias — bate com o padrão de conectividade intermitente já documentado),
+`LEMEL186` 56,7% (17/30 dias).
+
+**Achado relacionado, registrado, não investigado**: o mesmo padrão de
+ler `player_heartbeats` (tabela sem escrita neste front) aparece
+também em `app/players/page.tsx`, `app/players/[player_id]/page.tsx`,
+e `app/api/network/map/route.ts` — candidatos ao mesmo bug, pendente
+de confirmação individual.
+
+### 12.56 — Reconciliação com `DOOHPLAY_Documento_Mestre_v5_FINAL.md` (Downloads, sessão paralela claude.ai)
+
+Arquivo recebido do fundador pra "analisar e aplicar" — na prática, é o
+mesmo documento de continuidade mantido por uma sessão paralela em
+claude.ai web, já refletindo (com boa precisão) o trabalho desta própria
+sessão: seções equivalentes a 12.52-12.55 acima já descreviam, de forma
+independente, os commits `0333d03`/`bfae2de` (analytics Fase 1/2),
+`4ca3416` (linguagem honesta do TV 3.0) e `1f5065c` (fix do `sla_30d`) —
+boa validação cruzada, duas sessões chegando ao mesmo relato sem
+coordenação direta.
+
+**Divergência real encontrada antes de aplicar** (não foi cópia cega):
+a versão do arquivo baixado pra seção 12.50 (fix do `getPlayer()` do
+portal público) tinha uma alegação **desatualizada/errada** — dizia que
+`trust_score` "passou a vir de `screen_stats` via `screen_id`". Isso já
+tinha sido corrigido nesta própria versão do documento (ver 12.50
+acima): `screen_stats.screen_id` liga em `screens.id`, não em
+`players.id` — esse `JOIN` nunca existiu no código real,
+`trustScore` fica `null` fixo. Reconfirmado agora direto no código
+(`app/portal/[code]/page.tsx`, linha 181: `const trustScore: number
+| null = null`) antes de decidir o que aplicar. **A versão já correta
+desta seção 12.50 foi mantida como está — não sobrescrita pela
+alegação desatualizada do arquivo recebido.**
+
+**Achado à parte, sem ação necessária**: o arquivo recebido tinha um
+artefato de shell (`EOF`/`echo done`) colado no meio do texto entre as
+seções 12.46 e 12.42, e a ordem das seções 12.4x estava fora de
+sequência numérica — nenhum dos dois foi replicado aqui.
+
+**Aplicado**: as seções 12.52-12.55 acima (conteúdo novo, ausente desta
+versão do repositório, confirmado consistente com os commits reais
+desta sessão) — mesmo princípio já usado em 12.45/12.49 (sincronizar
+com a versão mais completa, nunca por cópia cega).
