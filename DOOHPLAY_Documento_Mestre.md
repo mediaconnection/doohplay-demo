@@ -1976,3 +1976,12 @@ status e não tenha esse contexto.
 **Ação real decorrente, pendente**: `BARBE332` está genuinamente
 offline agora (não mais um falso "Verificando...") — vale confirmar
 com o Gilson o que está havendo com o dispositivo físico.
+
+### 12.51 — `regenerate-public-key.js` removido do Pre-Deploy Command
+Ação manual do fundador, direto no painel do Render (`doohplay-demo` →
+Settings → Deploy → Pre-Deploy Command) — campo esvaziado, confirmado
+por print. O script nunca teve efeito real (escrevia num contexto de
+build efêmero que não persistia na instância real, achado de
+08/09/2026) e só consumia tempo de build a cada deploy sem propósito.
+Não precisou de código/commit — resolvido inteiramente por
+configuração. Item fechado, sem pendência técnica remanescente.
