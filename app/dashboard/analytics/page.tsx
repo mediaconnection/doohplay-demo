@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import PeriodFilter from "../components/PeriodFilter";
 import KpiCard from "../components/KpiCard";
 import CampaignsChart from "../components/CampaignsChart";
+import RevenueByPeriodChart from "../components/RevenueByPeriodChart";
+import RevenueByAdvertiserChart from "../components/RevenueByAdvertiserChart";
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
 import { getPeriodRange } from "../utils/period";
@@ -113,21 +115,25 @@ export default function AnalyticsPage() {
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 flex flex-col items-center justify-center text-center gap-2" style={{ minHeight: 220 }}>
-            <span className="text-3xl">💰</span>
-            <p className="text-sm text-gray-300 max-w-xs">
-              Métricas de receita (Receita, CPM médio, Fill rate, Receita por
-              anunciante) aparecem aqui assim que houver o primeiro anunciante
-              ativo na rede.
-            </p>
-            <p className="text-xs text-gray-500">
-              Hoje a rede tem 0 anunciantes com campanha ativa — nada pra
-              calcular ainda, não é um bug.
-            </p>
-          </div>
-
+          {start && end && <RevenueByPeriodChart startDate={start} endDate={end} />}
           {start && end && <CampaignsChart startDate={start} endDate={end} />}
         </div>
+      </section>
+
+      {/* ===== RECEITA ===== */}
+      <section className="space-y-6">
+        <h2 className="text-lg font-semibold text-gray-400 uppercase tracking-wider">
+          Receita
+        </h2>
+
+        {start && end && <RevenueByAdvertiserChart startDate={start} endDate={end} />}
+
+        {/* Fase 2 (RPCs de receita): CPM médio e Fill rate seguem de fora --
+            sem fonte de dado clara hoje, fica pra Fase 3 (ver STATUS_PROJETO.md). */}
+        <p className="text-xs text-gray-500">
+          CPM médio e Fill rate ainda não aparecem aqui — sem fonte de dado
+          real confirmada, fica para uma próxima fase.
+        </p>
       </section>
     </div>
   );
