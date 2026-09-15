@@ -1465,3 +1465,13 @@ Fecha a tarefa registrada acima. **Correção ao próprio registro anterior**, a
 Validado sem regressão: `tsc --noEmit` (49, baseline), `vitest` (81/81).
 
 **Ação real decorrente — fechada (15/09/2026)**: fundador avisado sobre `BARBE332` estar genuinamente offline (dispositivo físico, não bug de código). Nenhuma ação de código pendente por conta disso — fica com o fundador decidir se/quando investigar a causa física (energia, rede do estabelecimento), mesmo padrão de incidentes de offline já documentados antes neste arquivo.
+
+## ✅ Confirmado — visual da aba Ganhos (stat tiles + gráfico) já implementado, não é mais item pendente (2026-09-15)
+
+Um prompt separado pediu pra retomar a "proposta ainda não implementada" de stat tiles + gráfico de receita de 6 meses pra aba Ganhos (dado real via `client_payouts` já corrigido em `7e32af0`). Investigação antes de propor qualquer coisa encontrou: **já está implementado e em produção**, commit `a37bdc9` (13/09/2026), aprovado via preview (`design-previews/ganhos-poc.html`), mesmo processo investigar → propor → mockup → aprovação → implementar.
+
+Confirmado direto no código atual de `TabGanhos` (`dashboard-client.tsx`): 4 stat tiles com dado real (Recebido este mês, Total acumulado, Pendente, Repasses pagos), gráfico de barras de 6 meses via `recharts` (só meses que existem de verdade, sem preencher lacuna, agrupamento por getters UTC pra evitar deslocamento de mês por fuso), empty state honesto quando `client_payouts` está vazio (caso real hoje de `BARBE332`/`LEMEL186` — nunca 4 tiles de R$0,00 disfarçados), componentes do sistema de design (`<Card>`/`<SectionTitle>`) em vez de estilo inline novo.
+
+**Nota**: o stat tile "próximo pagamento previsto", cogitado como opção no prompt que motivou esta checagem, **não foi implementado** — decisão consciente de quem fez `a37bdc9`, consistente com a mesma regra de nunca mostrar previsão sem agendamento real por trás (mesma disciplina aplicada ao portal público nesta sessão).
+
+**Conclusão**: o prompt que pedia essa proposta foi gerado antes dessa confirmação chegar até essa sessão — sem necessidade real de ação, nenhuma linha de código tocada. Não é mais item pendente na fila de design.
