@@ -173,8 +173,8 @@ export default async function PortalPage({ params }: { params: { code: string } 
   ])
 
   const online = isOnline(player?.last_seen ?? null)
-  const trustScore = player?.trust_score ?? 97
-  const sla = player?.sla_30d ?? 99.1
+  const trustScore = player?.trust_score ?? null
+  const sla = player?.sla_30d ?? null
   const DEMO_HASH = "20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
 
   // ── Colors ──────────────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ export default async function PortalPage({ params }: { params: { code: string } 
             { label: client.active ? "✓ Ativa" : "Inativa", bg: client.active ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)", color: client.active ? GREEN : "#EF4444", border: client.active ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)" },
             { label: "✓ ICP Brasil", bg: "rgba(59,130,246,0.1)", color: BLUE, border: "rgba(59,130,246,0.25)" },
             { label: "✓ Blockchain", bg: "rgba(139,92,246,0.1)", color: "#8B5CF6", border: "rgba(139,92,246,0.25)" },
-            { label: `Trust ${trustScore}/100`, bg: accentLight, color: accent, border: accentBorder },
+            ...(trustScore != null ? [{ label: `Trust ${trustScore}/100`, bg: accentLight, color: accent, border: accentBorder }] : []),
           ].map(b => (
             <span key={b.label} style={{ fontSize: 11, fontWeight: 500, padding: "3px 10px", borderRadius: 20, background: b.bg, color: b.color, border: `1px solid ${b.border}` }}>
               {b.label}
@@ -289,10 +289,10 @@ export default async function PortalPage({ params }: { params: { code: string } 
           <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1rem 1.25rem" }}>
             <div style={{ fontSize: 10, color: TEXT2, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>SLA 30 dias</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 28, fontWeight: 700, color: GREEN, letterSpacing: "-0.03em" }}>{sla.toFixed(1)}%</span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: GREEN, letterSpacing: "-0.03em" }}>{sla != null ? `${sla.toFixed(1)}%` : "—"}</span>
             </div>
             <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-              <div style={{ height: "100%", width: `${Math.min(sla, 100)}%`, background: GREEN, borderRadius: 2 }} />
+              <div style={{ height: "100%", width: `${sla != null ? Math.min(sla, 100) : 0}%`, background: GREEN, borderRadius: 2 }} />
             </div>
           </div>
           <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1rem 1.25rem" }}>
@@ -321,12 +321,16 @@ export default async function PortalPage({ params }: { params: { code: string } 
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 500, padding: "4px 10px", borderRadius: 8, background: "rgba(139,92,246,0.1)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
-                Trust {trustScore}/100
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 500, padding: "4px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: GREEN, border: "1px solid rgba(16,185,129,0.2)" }}>
-                SLA {sla.toFixed(1)}%
-              </span>
+              {trustScore != null && (
+                <span style={{ fontSize: 11, fontWeight: 500, padding: "4px 10px", borderRadius: 8, background: "rgba(139,92,246,0.1)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
+                  Trust {trustScore}/100
+                </span>
+              )}
+              {sla != null && (
+                <span style={{ fontSize: 11, fontWeight: 500, padding: "4px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: GREEN, border: "1px solid rgba(16,185,129,0.2)" }}>
+                  SLA {sla.toFixed(1)}%
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -397,7 +401,10 @@ export default async function PortalPage({ params }: { params: { code: string } 
 
         {/* ── Trust tags ── */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginBottom: "1.5rem" }}>
-          {["SHA-256", "Merkle Tree", "Polygon Mainnet", "ICP-Brasil", `Score ${trustScore}/100`].map(tag => (
+          {[
+            "SHA-256", "Merkle Tree", "Polygon Mainnet", "ICP-Brasil",
+            ...(trustScore != null ? [`Score ${trustScore}/100`] : []),
+          ].map(tag => (
             <span key={tag} style={{ fontSize: 10, fontWeight: 500, padding: "3px 10px", borderRadius: 20, background: "rgba(59,130,246,0.08)", color: BLUE, border: "1px solid rgba(59,130,246,0.15)" }}>
               {tag}
             </span>
