@@ -118,13 +118,21 @@ export default async function DashboardPage({
              THEN true
              ELSE false
            END AS online,
-           (SELECT COUNT(*)::float / 30 * 100
-              FROM player_heartbeats ph
-              WHERE ph.player_id = p.id
-                AND ph.last_seen_at > NOW() - INTERVAL '30 days'
-                AND ph.status = 'online'
-           ) AS sla_30d
+           -- 15/09/2026: sla_30d corrigido pra usar player_uptime_daily
+           -- (mesmo padrão de app/api/client/screens/[code]/route.ts e
+           -- app/api/admin/screens/route.ts), não mais player_heartbeats
+           -- (tabela da frente de prova/blockchain, sem escrita neste
+           -- front — sempre 0 linhas, dava sla_30d=0.0% mesmo com o
+           -- dispositivo online e enviando heartbeat real). days_present
+           -- conta dias distintos com pelo menos um ping, não linhas
+           -- brutas — um dia com 392 pings ainda conta como 1 dia.
+           CASE WHEN up.days_total > 0 THEN up.days_present::float / up.days_total * 100 END AS sla_30d
          FROM players p
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*) AS days_present, (CURRENT_DATE - MIN(day) + 1) AS days_total
+           FROM player_uptime_daily
+           WHERE player_id = p.id AND day > CURRENT_DATE - INTERVAL '30 days'
+         ) up ON true
          WHERE p.id = $1::uuid
          LIMIT 1`,
         [client.player_id]
