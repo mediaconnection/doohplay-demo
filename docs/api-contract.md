@@ -144,7 +144,7 @@ Tabela generica `feature_flags` (`client_code` + `flag_key` unico) — nao criar
 }
 ```
 
-`dtv_ready` e sempre `false` por padrao. Ausencia da flag NUNCA muda comportamento existente do player — mesmo padrao "zero mudanca pra quem nao configurou" usado no resto do contrato. Quando `true`, o player web prioriza codec VVC quando disponivel e mostra o selo comercial "TV 3.0 Ready"; e uma flag de compatibilidade/declaracao do instalador, nao deteccao automatica de hardware (nao existe API de browser para consultar dispositivos HDMI-CEC a jusante) nem promessa de recepcao de transmissao aberta de TV 3.0.
+`dtv_ready` e sempre `false` por padrao. Ausencia da flag NUNCA muda comportamento existente do player — mesmo padrao "zero mudanca pra quem nao configurou" usado no resto do contrato. Quando `true`, o player web sinaliza preferencia por codec VVC (infraestrutura de intencao — o pipeline de midia ainda nao gera/seleciona variante por codec) e mostra o selo comercial "Preparando para TV 3.0" (renomeado de "TV 3.0 Ready" em 15/09/2026, ver docs/tv-3-0-ready-textos-comerciais.md); e uma flag de compatibilidade/declaracao do instalador, nao deteccao automatica de hardware (nao existe API de browser para consultar dispositivos HDMI-CEC a jusante) nem promessa de recepcao de transmissao aberta de TV 3.0.
 
 ## Governanca
 

@@ -2648,8 +2648,8 @@ function TabTemplates({ data }: { data: any }) {
   const [brandColor, setBrandColor] = useState("#3B82F6")
   const [savingBrand, setSavingBrand] = useState(false)
   const [brandMsg, setBrandMsg] = useState("")
-  // Fase 45 (16/08/2026): selo "TV 3.0 Ready" — flag declarada por
-  // cliente, ver docs/dtv-ready-mvp-plano.md. NÃO é detecção automática
+  // Fase 45 (16/08/2026): selo "Preparando para TV 3.0" — flag declarada
+  // por cliente, ver docs/dtv-ready-mvp-plano.md. NÃO é detecção automática
   // de hardware; é o instalador confirmando que há um receptor/conversor
   // DTV+ conectado àquela tela.
   const [dtvReady, setDtvReady] = useState(false)
@@ -2690,7 +2690,7 @@ function TabTemplates({ data }: { data: any }) {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || "Erro ao salvar")
       setDtvReady(next)
-      setDtvMsg(next ? "✅ Selo TV 3.0 Ready ativado" : "Selo desativado")
+      setDtvMsg(next ? "✅ Selo \"Preparando para TV 3.0\" ativado" : "Selo desativado")
     } catch (err: any) {
       setDtvMsg("⚠️ " + (err.message || "Erro ao salvar"))
     }
@@ -2792,7 +2792,7 @@ function TabTemplates({ data }: { data: any }) {
         {clientCode && (
           <div style={{ marginBottom: 20, padding: 14, background: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
             <label style={{ fontSize: 11, color: C.text2, display: "block", marginBottom: 8 }}>
-              📡 Selo "TV 3.0 Ready" (Fase 45) — declaração de que há um receptor/conversor DTV+ conectado a essa tela, não detecção automática de hardware
+              📡 Selo "Preparando para TV 3.0" (Fase 45) — declaração de que há um receptor/conversor DTV+ conectado a essa tela, não detecção automática de hardware
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button

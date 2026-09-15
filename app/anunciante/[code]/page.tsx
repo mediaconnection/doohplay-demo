@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useState, useEffect, useRef, use } from "react";
-import DtvReadyBadge from "@/components/ui/DtvReadyBadge";
+import DtvFuturoBadge from "@/components/ui/DtvFuturoBadge";
 
 // ─── Paleta dark premium ─────────────────────────────────────────────────────
 const C = {
@@ -238,8 +238,8 @@ function TabCampanhas({ code, campaigns, onRefresh }: { code: string; campaigns:
                     <div>
                       <div style={{ fontSize: 13, color: C.text, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                         {sc.name}
-                        {/* Fase 45 (16/08/2026): selo declarativo, ver components/ui/DtvReadyBadge.tsx */}
-                        {sc.dtv_ready && <DtvReadyBadge enabled variant="compact" />}
+                        {/* Fase 45 (16/08/2026): selo declarativo, ver components/ui/DtvFuturoBadge.tsx */}
+                        {sc.dtv_ready && <DtvFuturoBadge enabled variant="compact" />}
                       </div>
                       <div style={{ fontSize: 11, color: C.textSub }}>
                         {sc.city}

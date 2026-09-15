@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import type { ClientData, PlayerData, StatsData, PlaylistItem, Payment } from "./page"
 import AIAssistantPanel from "@/components/AIAssistantPanel"
+import DtvFuturoBadge from "@/components/ui/DtvFuturoBadge"
 import { lightDefault as C, deviceDark as D, FONT_FAMILY } from "@/lib/theme"
 import { Card } from "@/components/ui/card"
 import { SectionTitle } from "@/components/ui/SectionTitle"
@@ -443,7 +444,7 @@ function ModalConfirmDelete({ name, onConfirm, onCancel, loading, message }: { n
   )
 }
 
-function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo, online, lastSeen, checking }: any) {
+function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddPromo, online, lastSeen, checking, dtvReady }: any) {
   const revenue = stats.revenue_month || 0
   const vizToday = stats.plays_today
   const lastPingRef = lastSeen ?? player?.last_ping ?? null
@@ -530,6 +531,7 @@ function TabDashboard({ client, player, stats, playlist, payments, onNav, onAddP
                 Ver diagnóstico →
               </Button>
             )}
+            <DtvFuturoBadge enabled={!!dtvReady} />
             <StatusBadge online={online} checking={checking} />
           </div>
         </div>
@@ -2772,7 +2774,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   const initials = client.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()
 
   const tabContent: Record<string, React.ReactNode> = {
-    dashboard:  <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} />,
+    dashboard:  <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} dtvReady={dtvReady} />,
     assistente: <AIAssistantPanel code={client.code} onNavigate={onNav} />,
     tv:         <TabTV client={client} player={player} playlist={playlist} online={online} checking={checking} />,
     conteudo:   <TabConteudo client={client} playlist={playlist} onAddPromo={onAddPromo} onRefresh={onRefresh} />,

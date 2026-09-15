@@ -1,4 +1,4 @@
-# DOOHPLAY — Textos comerciais: "TV 3.0 Ready" (Fase 45)
+# DOOHPLAY — Textos comerciais: "Preparando para TV 3.0" (Fase 45)
 
 > Papel: Docs & Produto Agent DOOHPLAY. Ver `docs/dtv-ready-mvp-plano.md`
 > pro plano técnico e `docs/api-contract.md` pro contrato da flag
@@ -12,7 +12,7 @@
 - O player DOOHPLAY é compatível com o padrão TV 3.0 (DTV+). Suporte ao
   codec VVC está em preparação — a seleção automática de variante de
   mídia por codec ainda não está ativa (ver "O que isso NÃO é").
-- Um selo visual "TV 3.0 Ready" no dashboard do cliente e no portal do
+- Um selo visual "Preparando para TV 3.0" no dashboard do cliente e no portal do
   anunciante, ativado quando o instalador confirma que existe um
   receptor/conversor DTV+ externo conectado àquela tela.
 - Uma forma do anunciante identificar, na hora de montar uma campanha,
@@ -53,7 +53,7 @@
 > custo extra de instalação. (Quem decodifica a transmissão de TV 3.0 em
 > si é o conversor externo, não o player DOOHPLAY.)
 >
-> Hoje o selo "TV 3.0 Ready" indica compatibilidade de player e, quando
+> Hoje o selo "Preparando para TV 3.0" indica compatibilidade de player e, quando
 > aplicável, a presença de um receptor ou conversor externo conectado à
 > tela. A TV 3.0 já teve sua primeira transmissão comercial no Brasil
 > (Globo, Copa do Mundo 2026), hoje limitada a Rio de Janeiro, São Paulo
@@ -63,8 +63,9 @@
 ## FAQ (mesmo conteúdo da página pública `/tv-3-0-ready`)
 
 **Minha TV já recebe canais de TV 3.0 pelo ar com isso?**
-Não. Significa que o player já é compatível, com suporte a VVC em
-preparação — a recepção real depende de transmissão comercial das
+Não. Significa que estamos de olho no novo padrão e preparando o player
+pra ele, com suporte a VVC também em preparação — a recepção real
+depende de transmissão comercial das
 emissoras na sua região e de um conversor externo conectado. A Globo já
 transmitiu a Copa do Mundo 2026 em TV 3.0, hoje limitada a Rio de
 Janeiro, São Paulo e Brasília.
@@ -161,3 +162,17 @@ versão:
    "nenhuma atualização nunca mais" — impreciso, já que o suporte a VVC,
    quando existir, ainda vai exigir uma atualização de software (só não
    troca de hardware). Reescrito no texto de proposta comercial.
+
+## Revisão de linguagem — remove "Ready"/"Pronto" (15/09/2026)
+
+Decisão do fundador: trazer a Fase 45 pra uso consciente, mas sem a
+palavra "Ready" (ou "Pronto", em qualquer variação PT/EN) — afirma
+prontidão técnica que não existe hoje (`detectDtvReceiver()` retorna
+`preferVvc` como sinal declarado, não decodificação real; nenhuma TV
+vendida no Brasil tem chip DTV+ nativo; SBT/Record seguem em piloto).
+Troca em todo o material: selo, página pública, este documento →
+"Preparando para TV 3.0". Não muda nenhum fato já corrigido nas duas
+revisões de conteúdo anteriores (16/08) — só a moldura de "prontidão"
+pra "intenção futura". `feature_flags.dtv_ready` segue desativada por
+padrão para todo cliente; nenhuma linha foi criada/alterada como parte
+desta revisão.

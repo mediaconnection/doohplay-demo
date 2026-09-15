@@ -1,7 +1,13 @@
-// components/ui/DtvReadyBadge.tsx
-// Fase 45 (16/08/2026) — selo comercial "TV 3.0 Ready", compartilhado
-// entre o dashboard do cliente e o portal do anunciante. Ver
-// docs/dtv-ready-mvp-plano.md e docs/api-contract.md (campo dtv_ready).
+// components/ui/DtvFuturoBadge.tsx
+// Fase 45 (16/08/2026) — selo comercial "Preparando para TV 3.0",
+// compartilhado entre o dashboard do cliente e o portal do anunciante.
+// Ver docs/dtv-ready-mvp-plano.md e docs/api-contract.md (campo dtv_ready).
+//
+// Renomeado de DtvReadyBadge em 15/09/2026: "TV 3.0 Ready"/"Pronto"
+// afirma prontidão técnica que não existe (detectDtvReceiver() sempre
+// retorna preferVvc condicionado a um sinal declarado, não a decodificação
+// real; nenhuma TV vendida no Brasil tem chip DTV+ nativo; SBT/Record
+// seguem em piloto). Ver docs/tv-3-0-ready-textos-comerciais.md.
 //
 // Importante: este selo reflete uma flag DECLARADA no admin (o instalador
 // confirma que existe um receptor/conversor DTV+ conectado àquela tela),
@@ -10,13 +16,13 @@
 // para o porquê técnico.
 "use client"
 
-type DtvReadyBadgeProps = {
+type DtvFuturoBadgeProps = {
   enabled: boolean
   /** "full": selo com texto e ícone. "compact": só o ícone, pra espaços apertados. */
   variant?: "full" | "compact"
 }
 
-export default function DtvReadyBadge({ enabled, variant = "full" }: DtvReadyBadgeProps) {
+export default function DtvFuturoBadge({ enabled, variant = "full" }: DtvFuturoBadgeProps) {
   if (!enabled) return null
 
   const iconSvg = (
@@ -30,7 +36,7 @@ export default function DtvReadyBadge({ enabled, variant = "full" }: DtvReadyBad
   if (variant === "compact") {
     return (
       <span
-        title="TV 3.0 Ready"
+        title="Preparando para TV 3.0"
         style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           width: 22, height: 22, borderRadius: 6,
@@ -52,7 +58,7 @@ export default function DtvReadyBadge({ enabled, variant = "full" }: DtvReadyBad
       }}
     >
       {iconSvg}
-      TV 3.0 READY
+      PREPARANDO PARA TV 3.0
     </span>
   )
 }

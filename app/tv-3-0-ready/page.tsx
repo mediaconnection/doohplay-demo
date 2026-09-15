@@ -1,9 +1,12 @@
 // app/tv-3-0-ready/page.tsx
-// Fase 45 (16/08/2026) — página pública "TV 3.0 Ready". Ver
+// Fase 45 (16/08/2026) — página pública "Preparando para TV 3.0". Ver
 // docs/dtv-ready-mvp-plano.md. Texto revisado pra nunca prometer recepção
 // de transmissão de TV 3.0 aberta hoje — é compatibilidade de player +
 // declaração do instalador sobre um receptor/conversor externo, ver
 // app/player/dtv/detectReceiver.ts pro porquê técnico.
+//
+// Renomeada de "TV 3.0 Ready" em 15/09/2026: "Ready"/"Pronto" afirma
+// prontidão que não existe hoje. Ver docs/tv-3-0-ready-textos-comerciais.md.
 import Link from "next/link"
 
 const BG     = "#080C18"
@@ -18,7 +21,7 @@ const PURPLE = "#8B5CF6"
 const FAQ = [
   {
     q: "Minha TV já recebe canais de TV 3.0 pelo ar com isso?",
-    a: "Não. \"TV 3.0 Ready\" significa que o player DOOHPLAY já é compatível com o novo padrão, com suporte ao codec VVC em preparação — a recepção de transmissão aberta de TV 3.0 depende de emissoras transmitindo comercialmente na sua região e de um receptor/conversor externo conectado à tela. A Globo já transmitiu a Copa do Mundo 2026 em TV 3.0, hoje limitada a Rio de Janeiro, São Paulo e Brasília; SBT e Record seguem com estações-piloto em teste.",
+    a: "Não. \"Preparando para TV 3.0\" significa que estamos de olho no novo padrão e preparando o player pra ele, com suporte ao codec VVC também em preparação — a recepção de transmissão aberta de TV 3.0 depende de emissoras transmitindo comercialmente na sua região e de um receptor/conversor externo conectado à tela. A Globo já transmitiu a Copa do Mundo 2026 em TV 3.0, hoje limitada a Rio de Janeiro, São Paulo e Brasília; SBT e Record seguem com estações-piloto em teste.",
   },
   {
     q: "O que exatamente o selo confirma?",
@@ -30,7 +33,7 @@ const FAQ = [
   },
   {
     q: "Isso muda o preço da minha assinatura?",
-    a: "Não há cobrança adicional confirmada nesta fase. O preço específico da Fase Ready ainda não foi definido — se isso mudar, avisamos antes de qualquer cobrança.",
+    a: "Não há cobrança adicional confirmada nesta fase. O preço específico dessa fase ainda não foi definido — se isso mudar, avisamos antes de qualquer cobrança.",
   },
   {
     q: "Quando a recepção de transmissão aberta vai funcionar de verdade?",
@@ -57,16 +60,17 @@ export default function Tv3ReadyPage() {
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "4rem 1.5rem" }}>
         <div style={{ textAlign: "center", marginBottom: "3rem" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 20, padding: "4px 14px", fontSize: 12, color: PURPLE, fontWeight: 500, marginBottom: 16 }}>
-            📡 TV 3.0 Ready
+            📡 Preparando para TV 3.0
           </div>
           <h1 style={{ fontSize: 36, fontWeight: 900, letterSpacing: "-0.03em", marginBottom: 12 }}>
-            Preparado para o novo padrão<br /><span style={{ color: PURPLE }}>de TV brasileira.</span>
+            De olho no futuro<br /><span style={{ color: PURPLE }}>da TV brasileira.</span>
           </h1>
           <p style={{ fontSize: 15, color: TEXT2, maxWidth: 580, margin: "0 auto", lineHeight: 1.6 }}>
-            Nosso player já é compatível com o TV 3.0 (DTV+), com suporte ao codec
-            VVC em preparação. Isso é preparação técnica de player — não é promessa
-            de recepção de transmissão aberta hoje. Veja abaixo exatamente o que já
-            existe e o que ainda depende do setor de radiodifusão.
+            Estamos de olho no TV 3.0 (DTV+) e preparando nosso player pra ele, com
+            suporte ao codec VVC também em preparação. Isso não é promessa de
+            recepção de transmissão aberta hoje, nem um recurso ativo agora — veja
+            abaixo exatamente o que já existe e o que ainda depende do setor de
+            radiodifusão.
           </p>
         </div>
 
