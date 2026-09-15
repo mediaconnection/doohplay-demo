@@ -1413,3 +1413,20 @@ Follow-up da pendência do Documento-Mestre (achado: telefone cadastrado seria o
 **Limite honesto da confirmação**: `studio_clients` não tem coluna `updated_at`, só `created_at` — sem trilha de auditoria, não dá pra cravar com certeza absoluta que o telefone já estava corrigido exatamente às 22:29:27 daquele dia. Fato confirmado: o telefone está correto **agora**, e não há evidência em contrário (nenhum outro `used: true` depois dessa data que sugerisse uma segunda tentativa/correção).
 
 **Fecha a história**: "número errado, cliente nunca conseguiu entrar sozinho" → confirmado resolvido, com 1 uso real registrado.
+
+## 📋 Pendência recategorizada — `app/dashboard/analytics`: não é "3 RPCs faltando", é decisão de produto + design de schema (2026-09-14)
+
+Investigação do item #4 do lote "4 correções pequenas" (`prompt_4_correcoes_pequenas.md`) — parou antes de qualquer código, por regra explícita do próprio pedido ("se revelar escopo maior que o esperado, pare e reporte antes de continuar"). Itens #1 e #3 do mesmo lote foram corrigidos e commitados (`d72d08c`, `bfeb186`); #2 (`regenerate-public-key.js`) já estava resolvido, só falta limpar o campo `preDeployCommand` no painel do Render, sem ferramenta MCP pra isso.
+
+**O que existe hoje**: `app/dashboard/analytics/page.tsx` roda 100% com dado mockado (`MOCK_KPIS`, `MOCK_REVENUE`, `MOCK_ADVERTISERS_REVENUE`), incluindo nomes fictícios de anunciante (Auto Finance, Varejo Brasil, Banco Delta, Food Express) — mesmo padrão de conteúdo fabricado já corrigido com a remoção completa de `app/dashboard/executive` (ver `DOOHPLAY_Documento_Mestre.md`, achado das 3 rotas órfãs `analytics`/`executive`/`trust`).
+
+**Por que não é "plugar 3 RPCs"**:
+1. Das 2 RPCs que o TODO do arquivo pede (`dashboard_revenue_by_period`, `dashboard_revenue_by_advertiser`), **nenhuma existe hoje** (confirmado via `information_schema.routines` no Supabase de produção, projeto `mdlbajgnntjwhycouzit` — só existem `dashboard_kpis`, `dashboard_executions_by_campaign`, `dashboard_executions_by_player`, `dashboard_executions_over_time`) — precisam ser desenhadas do zero, não só conectadas.
+2. A RPC que já existe (`dashboard_kpis`) devolve `total_executions`/`active_players`/`total_seconds`/`active_campaigns` (conferido em `app/dashboard/components/Kpis.tsx`) — não bate com os 4 KPIs que esta tela quer (Impressões/Receita/CPM médio/Fill rate). Precisaria de lógica nova, não reaproveito direto.
+3. "Receita por anunciante" esbarra num achado já registrado (seção do AI Revenue Center, acima): a tabela `Advertiser` está com **0 linhas com campanha ativa** em produção — com dado real, o gráfico mostraria vazio, não os 5 nomes fictícios do mock.
+4. As RPCs reais de dashboard já existentes rodam com `SECURITY INVOKER` (correção de RLS anterior) e o `/dashboard` interno não tem sessão autenticada real — qualquer RPC nova herdaria o mesmo "Sem dados no período" sem uma solução de auth à parte.
+5. É rota órfã (sem link em nenhum lugar do produto) — mesma pendência de decisão de produto já registrada no `DOOHPLAY_Documento_Mestre.md` pras 3 rotas órfãs `analytics`/`executive`/`trust` (que motivou a remoção completa de `executive`).
+
+**Nota de transparência sobre fragmentação de documento**: a cópia de `DOOHPLAY_Documento_Mestre.md` versionada neste repositório (raiz, commit `48fc087`) está **desatualizada** em relação à versão mais recente mantida em sessões claude.ai fora do repo — não inclui, por exemplo, o achado que motivou a remoção de `executive` por conteúdo fabricado, nem o fechamento do telefone do `LEMEL186` já registrado aqui em cima. Fica pendente decidir se/quando sincronizar as duas cópias — não fiz isso agora, fora do escopo deste registro.
+
+**Pendência real, correta**: não "implementar 3 RPCs" — é (a) decisão de produto sobre manter/descartar `app/dashboard/analytics` (mesma decisão pendente de `trust`), e só se mantida, (b) desenhar schema real de 2 RPCs novas (incluindo decidir o que "Fill rate"/"CPM médio" significam de verdade neste produto) e (c) decidir se/como mostrar nome de anunciante sem repetir o incidente de conteúdo fabricado.
