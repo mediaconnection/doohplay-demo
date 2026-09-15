@@ -1892,3 +1892,26 @@ em paralelo, sem que ninguém perceba até o `git push` reclamar.
 Reforça o valor de checar `git log origin/master` antes de investigar
 qualquer área que já teve mudança recente, não só no início de sessões
 longas.
+
+### 12.49 — Documento-Mestre sincronizado no repositório oficial + fragmentação histórica investigada e descartada como risco
+Corrigido: o `DOOHPLAY_Documento_Mestre.md` versionado no repositório
+(seção 12.45) estava desatualizado — faltavam o achado de
+`app/dashboard/executive` (12.46) e o fechamento do telefone do
+`LEMEL186`. **Substituído por completo** (commit `fd2c0c8`) pela
+versão mais recente.
+
+**Achado investigado, confirmado inofensivo**: existe uma pasta local
+(`Documents\DOOHPLAY-projeto\Instrucoes de desenvolvimento\`) com 6
+versões antigas do documento (`v5_FINAL` a `v5_FINAL5` + uma datada).
+Diferente da bifurcação de código de 4 meses (seção 12.43), **essas
+são todas anteriores a esta sessão** — a mais recente é
+`v5_FINAL04-09-2026.md`, de 04/09/2026 07:13 (a `v5_FINAL5` é de
+03/09/2026 16:46, anterior a ela, apesar do nome), ambas antes da
+maratona de segurança (RLS) e do Clube de Telas v2. Essas 6 nunca
+estiveram em nenhum repositório git — moram fora, em
+`Documents\DOOHPLAY-projeto\...` — então não há `git blame` possível
+ali; confirmado por diff de conteúdo direto contra a versão atual
+(zero linha substantiva única em qualquer uma das 6) que nenhuma
+delas foi tocada depois de salva, e que são etapas de evolução
+histórica já superadas, não cópias paralelas ativas. Organizadas numa
+subpasta de arquivo histórico, sem necessidade de reconciliação.
