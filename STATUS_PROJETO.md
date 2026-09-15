@@ -1494,3 +1494,27 @@ Validado: `tsc --noEmit` (49, baseline), `vitest` (81/81), `next build` (`Compil
 
 **Fases 2 e 3 — registradas como pendência, condicionadas, não são tarefa técnica em aberto agora**:
 - **Fase 2** (RPCs `dashboard_revenue_by_period`/`dashboard_revenue_by_advertiser`, mesmo padrão de rota já validado) e **Fase 3** (decidir o que "CPM médio" e "Fill rate" significam de verdade nesse produto) **não fazem sentido antes de existir o primeiro anunciante real com campanha ativa** — construir RPC de receita sobre uma tabela com 0 linhas não tem valor nenhum hoje. Revisitar quando `Advertiser`/`Campaign` tiverem o primeiro registro real.
+
+## ✅ Fase 2 de `app/dashboard/analytics` — RPCs de receita implementadas (2026-09-15, commit `0333d03`)
+
+Motivada por um anunciante real esperado em breve (ainda não está na base — decisão de adiantar a infraestrutura antes da tração comercial chegar, não uma correção do achado acima). Seguiu `prompt_analytics_fase2.md`, mesmo padrão validado na Fase 1.
+
+**2 funções SQL novas no Supabase de produção** (`mdlbajgnntjwhycouzit`), `LANGUAGE sql STABLE`, mesmo estilo de `dashboard_kpis`/`dashboard_executions_*`:
+- `dashboard_revenue_by_period(start_date, end_date)` — soma `campaign_payments.value` por dia (`date_trunc('day', paid_at)`), `WHERE status = 'CONFIRMED'`.
+- `dashboard_revenue_by_advertiser(start_date, end_date)` — mesma soma, agrupada por anunciante via `campaign_payments` → `"Campaign"` (`cp.campaign_id::text = c.id`) → `"Advertiser"` (`c."advertiserCode" = a.code`).
+
+**Achado de schema relevante**: as RPCs de execução (`dashboard_kpis` etc.) leem de `display_events`/`campaigns` (minúsculo) — tabelas do motor de exibição/prova. Receita **não vem dessas tabelas** — vem de `campaign_payments`/`"Campaign"`/`"Advertiser"` (PascalCase, billing real do Asaas, ligadas ao front `app/`). As duas RPCs novas usam exclusivamente essas últimas — sem mistura de front, consistente com a regra do `CLAUDE.md`.
+
+**Rotas** (mesmo padrão de `kpis/route.ts`, `getServerSession` real + `pool.query`, sem `.rpc()` anônimo):
+- `app/api/dashboard/revenue-by-period/route.ts`
+- `app/api/dashboard/revenue-by-advertiser/route.ts`
+
+**Frontend** (`app/dashboard/analytics/page.tsx`): a nota placeholder da Fase 1 foi substituída por `RevenueByPeriodChart.tsx` e `RevenueByAdvertiserChart.tsx` (novos, padrão de `CampaignsChart.tsx`). Empty state honesto — "Ainda não há receita registrada... — aparece aqui assim que a primeira campanha for paga" — em vez de número fabricado, para o estado zerado de hoje. CPM médio/Fill rate seguem de fora (Fase 3, nota curta na tela explicando por quê).
+
+**Teste com dado zerado (estado real de hoje)**: as duas RPCs rodam sem erro contra `campaign_payments` com 0 linhas e devolvem array vazio — confirmado direto no banco antes de escrever qualquer rota.
+
+Validado: `tsc --noEmit` (59 — confirmado via stash/pop que é o baseline idêntico com ou sem esta mudança; o "49" registrado na Fase 1 estava desatualizado), `vitest` (81/81), `next build` (`Compiled successfully`, falha depois só no erro pré-existente conhecido de `/api/documents/.../pdf`).
+
+**Nota de processo**: a criação das 2 functions SQL e a escrita dos arquivos novos foram bloqueadas pelo classificador de modo automático do Claude Code ("Modify Shared Resources", por `dashboard-web-prod` ser um checkout fora do diretório de trabalho principal da sessão) — cada ação foi reaprovada manualmente pelo fundador em tempo real antes de prosseguir.
+
+**Fase 3 segue como pendência condicionada** — decidir o que "CPM médio" e "Fill rate" significam de verdade neste produto só faz sentido depois que `campaign_payments`/`Campaign` tiverem o primeiro pagamento confirmado real.
