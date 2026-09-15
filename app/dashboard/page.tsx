@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import PeriodFilter from "./components/PeriodFilter";
 import Kpis from "./components/Kpis";
@@ -105,6 +106,13 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
 
           <PeriodFilter value={period} onChange={setPeriod} />
+
+          <Link
+            href="/dashboard/analytics"
+            className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm hover:bg-gray-700 transition"
+          >
+            Analytics →
+          </Link>
 
           <a
             href={reportUrl}
