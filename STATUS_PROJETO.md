@@ -1400,3 +1400,16 @@ Continuação do achado "Agendamento do alerta de tela offline falhou no boot" (
 **Ticket de suporte preparado e enviado** (2026-09-13): identificador do banco confirmado pelo fundador direto no painel do Upstash — `social-rat-137187.upstash.io` (não obtido via env vars: a API do Render conectada nesta sessão só permite escrever variáveis de ambiente, nunca ler valores/segredos — limitação de acesso, não falta de tentativa). Texto do ticket para `support@upstash.com` redigido (em inglês, descreve o erro exato, os 3 horários de falha de hoje, o comando específico que falha, o volume acumulado de 29,6h/4.770 comandos, e pergunta qual limite específico da conta está sendo violado) — **enviado pelo fundador**.
 
 **Pendência ativa**: aguardando resposta do suporte da Upstash identificando a causa real do rate-limit. Decisão de custo (upgrade de plano ou qualquer outra ação) continua pausada até essa resposta — não decidir às cegas, mesma regra já aplicada à instrumentação de contagem de comandos.
+
+## ✅ Confirmado — telefone do LEMEL186 correto e primeiro login WhatsApp real fechado (2026-09-14)
+
+Follow-up da pendência do Documento-Mestre (achado: telefone cadastrado seria o placeholder interno da DOOHPLAY, não o do cliente) e da seção acima ("Bug real corrigido — login por WhatsApp do LEMEL186 nunca chegava").
+
+**Confirmado direto no banco de produção** (Supabase, projeto `mdlbajgnntjwhycouzit`, consulta real via SQL, não memória/alegação):
+- `studio_clients.phone` de `LEMEL186` está correto hoje: `+55 11 95475-1622` — o número real do LeMelo, não mais nenhum placeholder.
+- `client_login_codes` (única tabela do fluxo real `/dashboard/local/[code]`, exclusivamente WhatsApp — confirmado lendo `app/api/client/auth/request-otp/route.ts`, que nunca envia por e-mail) tem **45 códigos gerados** pra `LEMEL186` entre 17/07 e 13/09/2026: 44 nunca usados, **1 usado com sucesso** — `id aea31092-ee89-4276-af9b-eed396aad51f`, gerado `2026-09-13 22:29:27 UTC`. Mesmo timestamp já registrado na seção acima do bug do prefixo `55` ("nova tentativa de login às 22:29:27 UTC... fundador confirmou ter recebido o WhatsApp de verdade") — é o mesmo evento, agora confirmado como o único login WhatsApp real bem-sucedido da conta até hoje.
+- `otp_tokens` (tabela separada, do fluxo genérico `/login`, aceita e-mail ou telefone) tem 14 registros pra `LEMEL186`, todos com telefone/e-mail de teste (`5511975883827`/`5511962050987`, `teste@doohplay.com.br`) — nenhum é login real do cliente, são sessões de teste do time em investigações anteriores.
+
+**Limite honesto da confirmação**: `studio_clients` não tem coluna `updated_at`, só `created_at` — sem trilha de auditoria, não dá pra cravar com certeza absoluta que o telefone já estava corrigido exatamente às 22:29:27 daquele dia. Fato confirmado: o telefone está correto **agora**, e não há evidência em contrário (nenhum outro `used: true` depois dessa data que sugerisse uma segunda tentativa/correção).
+
+**Fecha a história**: "número errado, cliente nunca conseguiu entrar sozinho" → confirmado resolvido, com 1 uso real registrado.
