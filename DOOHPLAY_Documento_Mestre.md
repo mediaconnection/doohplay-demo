@@ -1452,10 +1452,29 @@ parte da dificuldade de acesso perseguida ao longo de várias sessões
 desta maratona (login por e-mail sempre funcionou como caminho
 alternativo, mascarando o problema real).
 
-**🔴 Ação necessária do fundador, não resolvível por código**: obter o
-telefone real do LeMelo e corrigir o cadastro. Sem isso, o cliente
-continua sem conseguir logar sozinho via WhatsApp, mesmo com todo o
-resto do sistema tecnicamente correto.
+**✅ RESOLVIDO (data exata incerta, confirmado via consulta direta em
+15/09/2026)**: telefone corrigido pra `+55 11 95475-1622` (fornecido
+pelo fundador). Confirmado direto na produção — não é mais o placeholder
+interno da DOOHPLAY. **Nota de precisão**: não há registro de quando
+exatamente a correção foi aplicada nem de qual sessão a fez — o
+Documento-mestre ficou desatualizado nesse item por um tempo, mesma
+lição da seção 12.48 (dado registrado precisa ser reconfirmado, não
+presumido válido só por estar escrito).
+
+**Fechamento final**: confirmado exatamente **1 login WhatsApp real
+bem-sucedido** desde que a conta existe — `client_login_codes`, id
+`aea31092…`, **13/09/2026 22:29:27 UTC** (dos 45 códigos gerados entre
+17/07 e 13/09, 44 nunca usados). Mesmo timestamp já associado, na
+seção 12.23, à reconexão da instância Evolution API e à confirmação do
+fundador de ter recebido o código — evidência circunstancial forte,
+mas **não 100% cravada**: `studio_clients` não tem coluna `updated_at`,
+então não dá pra provar com certeza absoluta que o telefone já estava
+corrigido *naquele exato momento* (vs. corrigido depois). O que é
+seguro afirmar: a rota sempre envia pro telefone cadastrado no momento
+da requisição, o telefone está correto agora, e não há nenhum outro
+`used: true` posterior que sugira uma segunda tentativa/correção.
+`otp_tokens` (fluxo `/login` genérico) tem 14 registros pra esse
+cliente, mas todos com contato de teste do time, não do cliente real.
 
 ### 12.38 — Central de Controle: mock do Figma portado com dado 100% real
 `/dashboard` real ganhou o "Central de Controle" inspirado no mock do
@@ -1611,6 +1630,26 @@ convenção de `.claude/settings.local.json` (nunca commitado). **Nenhuma
 pendência técnica em aberto** — só o telefone do `LEMEL186`, que
 depende exclusivamente do fundador (adiado por decisão consciente).
 
+### 12.47 — Investigação pausada: "Acoplamento reverso (`@/lib/*`)"
+Nova investigação iniciada em 10/09/2026 (contexto exato ainda não
+detalhado nesta conversa — parece relacionada à disciplina de
+isolamento de fronts já trabalhada nesta maratona, possivelmente
+imports de `app/`/`src/` apontando de volta pra `lib/` de forma
+invertida ou inadequada). Levantamento de **63 imports categorizados**
+foi feito, mas **não chegou a ser commitado** antes da sessão bater o
+**limite semanal do Claude Code** (reseta só em 11/09 22h,
+horário de Brasília) — diferente dos limites de sessão anteriores, que
+resetavam em minutos/horas.
+
+**Nada foi perdido em termos de código** — `git status` confirmado
+limpo antes do limite bater, nenhuma mudança de arquivo em risco. O
+levantamento dos 63 imports, por não ter sido salvo em arquivo/commit,
+provavelmente precisa ser refeito quando a sessão for retomada.
+
+**Ação pendente**: aguardar o reset (11/09 22h) ou usar `/upgrade` pra
+continuar antes disso — decisão do fundador, sem urgência técnica
+confirmada até agora.
+
 ### 12.44 — Reskin sequenciado das 4 áreas com Designer Agent: `app/admin` fechado
 Continuação da decisão de aplicar UX substancial nas 4 áreas do
 produto (dashboard interno, admin, anunciante, dashboard do cliente),
@@ -1655,6 +1694,58 @@ real, confirmado sem mudança desde a investigação anterior).
   2 arquivos sem erro novo. Teste visual real não possível localmente
   (dependem de sessão NextAuth + banco de produção) — confirmado só via
   deploy real, `live` sem falha
+
+### 12.45 — Documento-Mestre versionado no repositório oficial
+O `DOOHPLAY_Documento_Mestre.md` agora vive na raiz do repositório de
+produção (mesma convenção de `CLAUDE.md`/`STATUS_PROJETO.md`), commit
+`48fc087`, confirmado `live`. Fecha o ciclo de fragmentação entre esta
+conversa e a pasta Downloads local — a partir de agora, a fonte de
+verdade tem endereço fixo e permanente dentro do próprio código.
+
+### 12.46 — 🔴 Achado de segurança de conteúdo escapou da varredura original: `app/dashboard/executive`
+Investigação de origem das 3 rotas órfãs de `app/dashboard`
+(`analytics`/`executive`/`trust`) revelou, com evidência de commit
+(não suposição):
+
+- **Todas as 3 são "trabalho inacabado/esquecido"**, não "removidas
+  deliberadamente" — nenhuma teve link removido em algum momento,
+  nenhum commit documenta decisão de descarte
+- **`analytics`** e **`executive`**: criadas no mesmo dia (25/08/2026),
+  mesmo autor, explicitamente "baseado num Figma Make de referência",
+  nunca retomadas depois
+- **`trust`**: mais antiga (18/05/2026), scaffold do commit inicial do
+  repositório inteiro, 4 meses sem trabalho real
+
+**🔴 Achado sério**: `app/dashboard/executive` tinha exatamente o mesmo
+padrão de conteúdo fabricado já corrigido em 15+ lugares nesta sessão
+(landing, trust-center, AI Revenue Center) — marcas reais (Itaú,
+iFood, Bradesco, Natura) como "anunciante interessado" com valores
+inventados, "Telas Ativas: 12.847", "Trust Score: 97.3", "SLA: 99.9%".
+**Escapou da varredura original só por estar órfã** (sem link, ninguém
+pensou em checar uma URL não navegável).
+
+**Resolvido (09/09/2026, commit `03fe71e`)**: arquivo removido por
+completo — rota órfã, zero consumidor confirmado, sem lógica
+reaproveitável que valesse preservar. `tsc`/`next build` confirmados
+sem regressão.
+
+**`app/dashboard/analytics`**: registrado como candidato barato de
+terminar — as 3 RPCs Supabase que faltam já estão nomeadas no próprio
+comentário-TODO do arquivo (`dashboard_kpis_period`,
+`dashboard_revenue_by_advertiser`). Não implementado, só documentado.
+
+**`app/dashboard/trust`**: investigada sobreposição antes de decidir
+remover — **não é redundância completa**. Zero overlap com a Central
+de Controle (saúde operacional de tela, não prova/confiança); overlap
+parcial com `/trust-center` público (duplica status de ancoragem +
+score agregado), mas a **timeline diária de 30 dias e a distribuição
+por faixa de trust score não existem em nenhum outro lugar do
+produto** — fica como está, decisão de produto separada, não removida.
+
+**Lição**: rotas sem link não são invisíveis de verdade — continuam
+acessíveis por URL direta em produção, e podem carregar o mesmo risco
+de qualquer página "oficial". Vale, no futuro, incluir rotas órfãs em
+qualquer varredura de conteúdo fabricado, não só as linkadas no menu.
 EOF
 echo done
 
@@ -1777,3 +1868,27 @@ em nível de código-fonte — duas sessões trabalhando sem saber uma da
 outra, divergindo silenciosamente por meses. Vale, daqui pra frente,
 confirmar `git log` contra o remoto real no início de qualquer sessão
 grande, não só assumir que o checkout local está sincronizado.
+
+### 12.48 — Episódio resolvido: investigação pontual colidiu com trabalho oficial já aprovado
+Durante uma tentativa de portar ícones `lucide-react` do Figma Make pro
+`dashboard-client.tsx`, `git push` foi rejeitado — `origin/master` já
+estava 36 commits à frente. Investigação (via `fetch`, sem merge)
+revelou que o commit `55b990c` (mesmo dia, horas antes) já tinha
+implementado exatamente a mesma área — **o próprio mockup do dashboard
+do `BARBE332` aprovado nesta sessão** (seção anterior, banner sem "TV
+3.0 READY", KPI de Uptime com destaque de risco, "Minha TV Agora"
+consolidado), usando os componentes reais do sistema de design
+(`<Card>`, prop `danger`) — mais maduro que a troca pontual de ícone
+que estava em andamento em paralelo.
+
+**Resolvido sem perda**: commit local dos ícones descartado (`git
+reset`) sem tentar reaproveitar nada; `git pull` trouxe o trabalho
+oficial; repositório confirmado limpo e sincronizado depois.
+
+**Lição registrada**: mesmo dentro da mesma sessão de trabalho, uma
+investigação pontual (aberta como "vamos ver o que dá pra portar do
+Figma") pode colidir com trabalho "oficial" já aprovado e implementado
+em paralelo, sem que ninguém perceba até o `git push` reclamar.
+Reforça o valor de checar `git log origin/master` antes de investigar
+qualquer área que já teve mudança recente, não só no início de sessões
+longas.
