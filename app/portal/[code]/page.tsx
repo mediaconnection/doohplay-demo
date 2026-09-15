@@ -18,9 +18,7 @@ type Client = {
 
 type Player = {
   id: string
-  last_seen: string | null
-  sla_30d: number | null
-  trust_score: number | null
+  last_ping: string | null
 }
 
 type Stats = {
@@ -81,7 +79,7 @@ async function getPlayer(playerId: string): Promise<Player | null> {
   try {
     const r = await Promise.race([
       pool.query(
-        `SELECT id::text, last_seen::text, sla_30d, trust_score
+        `SELECT id::text, last_ping::text
          FROM players WHERE id = $1 LIMIT 1`,
         [playerId]
       ),
@@ -172,9 +170,15 @@ export default async function PortalPage({ params }: { params: { code: string } 
     client.player_id ? getRecentPlays(client.player_id) : Promise.resolve([]),
   ])
 
-  const online = isOnline(player?.last_seen ?? null)
-  const trustScore = player?.trust_score ?? null
-  const sla = player?.sla_30d ?? null
+  const online = isOnline(player?.last_ping ?? null)
+  // Sem fonte real de trust_score pros clientes do portal hoje: a única
+  // trust_score existente no banco (screen_stats.trust_score) é chaveada
+  // por screens.id, tabela separada do motor de anúncios/proof, sem
+  // nenhuma linha vinculada a studio_clients/players — ligar por
+  // players.id seria um JOIN pra uma relação que não existe no schema.
+  // Ver STATUS_PROJETO.md (getPlayer() consultava colunas inexistentes)
+  // pra reabrir isso quando houver uma fonte real de trust_score aqui.
+  const trustScore: number | null = null
   const DEMO_HASH = "20ec722b179a772ddc19c2a6053326906da1e598cc3dcaeed4a48efee2f950be"
 
   // ── Colors ──────────────────────────────────────────────────────────────────
@@ -284,17 +288,11 @@ export default async function PortalPage({ params }: { params: { code: string } 
           ))}
         </div>
 
-        {/* ── SLA + Tempo em ar ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1rem 1.25rem" }}>
-            <div style={{ fontSize: 10, color: TEXT2, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>SLA 30 dias</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 28, fontWeight: 700, color: GREEN, letterSpacing: "-0.03em" }}>{sla != null ? `${sla.toFixed(1)}%` : "—"}</span>
-            </div>
-            <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-              <div style={{ height: "100%", width: `${sla != null ? Math.min(sla, 100) : 0}%`, background: GREEN, borderRadius: 2 }} />
-            </div>
-          </div>
+        {/* ── Tempo em ar ── */}
+        {/* SLA 30 dias removido: sla_30d não existe em lugar nenhum do
+            schema (verificado — não é coluna errada, é métrica nunca
+            implementada). Ver STATUS_PROJETO.md. */}
+        <div style={{ marginBottom: 16 }}>
           <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "1rem 1.25rem" }}>
             <div style={{ fontSize: 10, color: TEXT2, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Tempo em exibição</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: BLUE, letterSpacing: "-0.03em" }}>
@@ -316,7 +314,7 @@ export default async function PortalPage({ params }: { params: { code: string } 
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>Tela {online ? "Online" : "Offline"}</div>
                 <div style={{ fontSize: 11, color: TEXT2, marginTop: 1 }}>
-                  Último heartbeat: {fmtDate(player.last_seen)}
+                  Último heartbeat: {fmtDate(player.last_ping)}
                 </div>
               </div>
             </div>
@@ -324,11 +322,6 @@ export default async function PortalPage({ params }: { params: { code: string } 
               {trustScore != null && (
                 <span style={{ fontSize: 11, fontWeight: 500, padding: "4px 10px", borderRadius: 8, background: "rgba(139,92,246,0.1)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
                   Trust {trustScore}/100
-                </span>
-              )}
-              {sla != null && (
-                <span style={{ fontSize: 11, fontWeight: 500, padding: "4px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: GREEN, border: "1px solid rgba(16,185,129,0.2)" }}>
-                  SLA {sla.toFixed(1)}%
                 </span>
               )}
             </div>
