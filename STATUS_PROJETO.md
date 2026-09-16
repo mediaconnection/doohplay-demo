@@ -1518,3 +1518,19 @@ Validado: `tsc --noEmit` (59 — confirmado via stash/pop que é o baseline idê
 **Nota de processo**: a criação das 2 functions SQL e a escrita dos arquivos novos foram bloqueadas pelo classificador de modo automático do Claude Code ("Modify Shared Resources", por `dashboard-web-prod` ser um checkout fora do diretório de trabalho principal da sessão) — cada ação foi reaprovada manualmente pelo fundador em tempo real antes de prosseguir.
 
 **Fase 3 segue como pendência condicionada** — decidir o que "CPM médio" e "Fill rate" significam de verdade neste produto só faz sentido depois que `campaign_payments`/`Campaign` tiverem o primeiro pagamento confirmado real.
+
+## 🟡 Pendência real, prioridade alta mas não urgente — pipeline de ancoragem/Merkle parece parado ou muito atrasado desde ~26/08/2026
+
+Achado durante a investigação do alarme "event_chain parado desde 03/06" (ver correção logo abaixo — a gravação em si está saudável). Ao checar o lado de ancoragem/agregação: **40.019 eventos em `event_chain` sem `block_id`** (nunca agregados em bloco/ancorados), o mais antigo pendente desde **07/04/2026**, e o **último evento efetivamente ancorado foi em 26/08/2026** — quase 3 semanas atrás na data desta investigação (15-16/09/2026). Escrita de prova nova continua chegando normalmente (evento real a cada poucos segundos, confirmado ao vivo), só a etapa de Merkle/ancoragem na Polygon é que parece travada ou muito atrasada.
+
+**Sem risco de perda de dado** — tudo está seguro no Postgres (`event_chain`), só não certificado/ancorado ainda.
+
+**Investigar em sessão própria**, verificando especificamente se o circuit-breaker do Upstash (commit da seção de 03/09, `lib/queue/rateLimitCircuitBreaker.ts`) e o processamento do backlog de 68.947 eventos (27/08/2026) resolveram a causa raiz de verdade ou só mitigaram temporariamente — a data do último evento ancorado (26/08) é bem próxima do processamento de backlog (27/08), o que sugere que a agregação pode ter parado de novo logo depois daquele processamento manual, antes mesmo do circuit-breaker (03/09) entrar em produção.
+
+## Correção de nota — commit `9043e6b` (fix de `player_heartbeats`/Network Center)
+
+O comentário desse commit dizia que "Execuções"/"Eventos inválidos" no Network Center e na página de detalhe do player ficam honestamente em 0 porque `event_chain` não recebe linha nova via `source_table='display_events'` desde 03/06/2026. Isso é **tecnicamente verdade pro join usado, mas impreciso como conclusão geral** — dá a entender que não há dado de execução disponível, quando na verdade existe, só não é capturado por aquele join.
+
+**Achado real**: `event_chain` recebe eventos novos continuamente até hoje (99% das linhas, `source_table IS NULL`, dado real de `player_id`/`screen_code`/`media_id`/`played_at` dentro do campo `payload` JSON, gravado por `POST /api/player/event` → `appendEventToLedger()`). O `source_table='display_events'` era uma correlação antiga, diferente, que caiu em desuso por volta de 03/06/2026 sem afetar a gravação real.
+
+**Vale correção própria no Network Center depois, sem urgência**: trocar o join de `source_table='display_events'` por filtro em `payload->>'player_id'` pra `player_metrics` (em `app/api/network/map/route.ts`) e nas 2 queries de `app/players/[player_id]/page.tsx` — aí sim "Execuções"/"Eventos inválidos" mostrariam dado real, não zero.
