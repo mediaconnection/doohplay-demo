@@ -20,7 +20,7 @@ type NetworkMapRow = {
   device_type: string | null
   platform: string | null
   player_code: string | null
-  heartbeat_status: string | null
+  last_ping: string | Date | null
   last_seen_at: string | Date | null
   executions: number | string | null
   invalid_events: number | string | null
@@ -78,13 +78,13 @@ function toSafeNumber(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null
 }
 
-function normalizeStatus(
-  heartbeatStatus: string | null,
-  lastSeenAt: string | Date | null
-): NetworkMapStatus {
-  const normalized = heartbeatStatus?.trim().toLowerCase()
-  if (normalized === "online") return "online"
-  if (normalized === "offline") return "offline"
+// 15/09/2026: player_heartbeats nunca é escrita por este front
+// (compartilhada com prova/blockchain, ver app/api/player/heartbeat/route.ts)
+// -- usar só ela deixava todo player real permanentemente "offline". Mesmo
+// padrão já usado em app/players/page.tsx e no dashboard do cliente:
+// players.last_ping é a fonte real, player_heartbeats fica só como
+// fallback (nunca populado hoje, mas inofensivo se um dia passar a ser).
+function normalizeStatus(lastSeenAt: string | Date | null): NetworkMapStatus {
   if (!lastSeenAt) return "offline"
   const time = new Date(lastSeenAt).getTime()
   if (Number.isNaN(time)) return "offline"
@@ -132,7 +132,7 @@ export async function GET() {
     const res = await pool.query(`
       WITH latest_heartbeat AS (
         SELECT DISTINCT ON (ph.player_id)
-          ph.player_id,
+          ph.player_id::text AS player_id,
           ph.status AS heartbeat_status,
           ph.last_seen_at
         FROM public.player_heartbeats ph
@@ -140,8 +140,16 @@ export async function GET() {
         ORDER BY ph.player_id, ph.last_seen_at DESC NULLS LAST
       ),
       player_metrics AS (
+        -- 15/09/2026: event_chain.device_id nunca existiu na tabela real
+        -- (mesma classe de bug já corrigida em sla-daily/sla-real-monthly,
+        -- ver STATUS_PROJETO.md) -- correlação real é via
+        -- source_table='display_events' + source_id = display_events.id,
+        -- depois display_events.player_id. Achado à parte, não corrigido
+        -- aqui: event_chain não recebe linha nova de display_events desde
+        -- 03/06/2026 -- este número honestamente fica 0 pra players atuais
+        -- até esse pipeline de prova ser investigado separadamente.
         SELECT
-          ec.device_id AS player_id,
+          de.player_id::text AS player_id,
           COUNT(*)::int AS executions,
           SUM(
             CASE
@@ -151,12 +159,13 @@ export async function GET() {
             END
           )::int AS invalid_events
         FROM public.event_chain ec
-        WHERE ec.device_id IS NOT NULL
-        GROUP BY ec.device_id
+        JOIN public.display_events de ON de.id = ec.source_id
+        WHERE ec.source_table = 'display_events' AND de.player_id IS NOT NULL
+        GROUP BY de.player_id
       ),
       graph_nodes AS (
         SELECT
-          tgn.ref_id AS player_id,
+          tgn.ref_id::text AS player_id,
           coalesce(tgn.score, 0)::float AS score,
           coalesce(tgn.risk, 'SAFE') AS risk
         FROM public.trust_graph_nodes tgn
@@ -176,6 +185,7 @@ export async function GET() {
           p.device_type,
           p.platform,
           p.player_code,
+          p.last_ping,
           sc.name AS client_name,
           sc.code AS client_code
         FROM public.players p
@@ -202,7 +212,7 @@ export async function GET() {
         pb.player_code,
         pb.client_name,
         pb.client_code,
-        lh.heartbeat_status,
+        pb.last_ping,
         lh.last_seen_at,
         coalesce(pm.executions, 0)::int AS executions,
         coalesce(pm.invalid_events, 0)::int AS invalid_events,
@@ -214,7 +224,7 @@ export async function GET() {
       LEFT JOIN player_metrics pm ON pm.player_id = ap.player_id
       LEFT JOIN graph_nodes gn ON gn.player_id = ap.player_id
       WHERE ap.player_id IS NOT NULL
-      ORDER BY lh.last_seen_at DESC NULLS LAST, ap.player_id ASC
+      ORDER BY coalesce(pb.last_ping, lh.last_seen_at) DESC NULLS LAST, ap.player_id ASC
       LIMIT 1000
     `)
 
@@ -224,17 +234,18 @@ export async function GET() {
       .filter(row => typeof row.player_id === "string" && row.player_id.trim().length > 0)
       .map((row): NetworkMapItem => {
         const playerId = String(row.player_id).trim()
+        const effectiveLastSeen = row.last_ping ?? row.last_seen_at
         return {
           id: playerId,
           name: row.player_name?.trim() || `Player ${playerId}`,
           latitude:  toSafeNumber(row.latitude),
           longitude: toSafeNumber(row.longitude),
-          status:    normalizeStatus(row.heartbeat_status, row.last_seen_at),
+          status:    normalizeStatus(effectiveLastSeen),
           score:     clampScore(row.score),
           risk:      normalizeRisk(row.risk),
           executions:   toSafeInteger(row.executions),
           invalidEvents: toSafeInteger(row.invalid_events),
-          lastSeenAt: toIsoString(row.last_seen_at),
+          lastSeenAt: toIsoString(effectiveLastSeen),
           metadata: {
             location:   row.location,
             deviceType: row.device_type,

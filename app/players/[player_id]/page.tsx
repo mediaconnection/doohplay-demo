@@ -152,6 +152,14 @@ export default async function PlayerDetailsPage({
       [player_id]
     ),
 
+    // 15/09/2026: event_chain.device_id nunca existiu na tabela real (mesma
+    // classe de bug já corrigida em sla-daily/sla-real-monthly, ver
+    // STATUS_PROJETO.md) -- correlação real é via
+    // source_table='display_events' + source_id = display_events.id, depois
+    // display_events.player_id. Achado à parte, não corrigido aqui:
+    // event_chain não recebe linha nova de display_events desde 03/06/2026
+    // -- estas duas queries honestamente ficam vazias/zeradas pra players
+    // atuais até esse pipeline de prova ser investigado separadamente.
     pool.query(
       `
       select
@@ -167,7 +175,8 @@ export default async function PlayerDetailsPage({
           0
         )::int as invalid_events
       from event_chain ec
-      where ec.device_id = $1
+      join display_events de on de.id = ec.source_id
+      where ec.source_table = 'display_events' and de.player_id = $1
       `,
       [player_id]
     ),
@@ -182,7 +191,8 @@ export default async function PlayerDetailsPage({
         ec.created_at,
         ec.payload
       from event_chain ec
-      where ec.device_id = $1
+      join display_events de on de.id = ec.source_id
+      where ec.source_table = 'display_events' and de.player_id = $1
       order by ec.occurred_at desc nulls last,
                ec.created_at desc nulls last
       limit 20
@@ -205,6 +215,16 @@ export default async function PlayerDetailsPage({
 
   const heartbeat = heartbeatRows[0] ?? null
   const graph = graphRows[0] ?? null
+
+  // 15/09/2026: player_heartbeats nunca é escrita por este front
+  // (compartilhada com prova/blockchain) -- players.last_ping é a fonte
+  // real, mesmo padrão já usado em app/players/page.tsx e no dashboard do
+  // cliente. Fallback pro heartbeat mantido por segurança, nunca populado
+  // hoje.
+  const effectiveLastSeen = player.last_ping ?? heartbeat?.last_seen_at ?? null
+  const online = effectiveLastSeen
+    ? Date.now() - new Date(effectiveLastSeen).getTime() < 3 * 60 * 1000
+    : false
 
   const stats = statsRows[0] ?? {
     executions: 0,
@@ -284,10 +304,10 @@ export default async function PlayerDetailsPage({
           <h2 className="text-lg font-semibold">Status operacional</h2>
 
           <div className="mt-4 space-y-3">
-            <Row label="Heartbeat" value={heartbeat?.status ?? "—"} />
+            <Row label="Heartbeat" value={online ? "Online" : "Offline"} />
             <Row
               label="Last seen"
-              value={formatDate(heartbeat?.last_seen_at ?? null)}
+              value={formatDate(effectiveLastSeen)}
             />
             <Row label="Risk" value={risk} />
             <Row label="Score" value={String(score)} />

@@ -21,7 +21,6 @@ type Player = {
   latitude: number | null
   longitude: number | null
   last_heartbeat: string | null
-  heartbeat_status: string | null
   plays_today: number | null
 }
 
@@ -67,17 +66,16 @@ async function getPlayers(): Promise<Player[]> {
           p.is_active, p.last_ping, p.paired, p.latitude, p.longitude,
           s.city, s.state,
           h.last_seen_at AS last_heartbeat,
-          h.status AS heartbeat_status,
           COUNT(e.id)::int AS plays_today
         FROM players p
         LEFT JOIN screens s ON s.player_id = p.id
         LEFT JOIN LATERAL (
-          SELECT status, last_seen_at FROM player_heartbeats
+          SELECT last_seen_at FROM player_heartbeats
           WHERE player_id = p.id ORDER BY created_at DESC LIMIT 1
         ) h ON true
         LEFT JOIN display_events e ON e.player_id = p.id
           AND e.played_at >= CURRENT_DATE
-        GROUP BY p.id, s.city, s.state, h.last_seen_at, h.status
+        GROUP BY p.id, s.city, s.state, h.last_seen_at
         ORDER BY p.is_active DESC, p.last_ping DESC NULLS LAST
         LIMIT 100
       `),
