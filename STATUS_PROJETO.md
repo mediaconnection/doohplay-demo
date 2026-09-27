@@ -1211,7 +1211,7 @@ Registrados pelo fundador, separados da fila acima porque não vêm da comparaç
 | # | Item | Motivação | Esforço | Prioridade proposta |
 |---|---|---|---|---|
 | 1 | Alerta proativo de tela offline via WhatsApp | Concorrente (SigX) já oferece; incidente real já vivido — `BARBE332`/`LEMEL186` ficaram offline sem ninguém notar a tempo (ver achado 2026-09-06 acima) | Baixo — heartbeat já existe, `sendWhatsApp` já corrigido; falta só a lógica de "avisar após N minutos sem ping" | **Alta — investigado e com proposta concreta em 2026-09-13, ver seção abaixo** |
-| 2 | Zoneamento de tela (multi-zona simultânea no player) | Diferencial real do concorrente, sem equivalente hoje no DOOHPLAY | Maior — mudança estrutural no player e no motor de sorteio de conteúdo | A definir |
+| 2 | Zoneamento de tela (multi-zona simultânea no player) | Diferencial real do concorrente, sem equivalente hoje no DOOHPLAY — **⚠️ corrigido em 27/09: impreciso.** O player já tem layout genérico de N zonas simultâneas desde a Fase 4, configurado só pelo admin. O gap real é o editor self-service para o cliente. Ver `docs/pesquisa-concorrentes/2026-09-27-verificacao-interna.md` | Maior — mudança estrutural no player e no motor de sorteio de conteúdo (**reavaliar:** o motor já existe; o esforço é o editor no dashboard) | A definir |
 
 Fila aguardando aprovação explícita do fundador antes de qualquer implementação — nada sai daqui sozinho.
 
