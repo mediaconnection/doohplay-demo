@@ -1577,7 +1577,11 @@ Feature motivada por análise de concorrente (só o conceito, nenhum código/des
 **Limites do teste**: (1) a TV física do BARBE332 está offline desde 17/09 (`players.last_ping`), então o teste foi no player de produção em modo preview, não na tela real; (2) a aba "Avisos" do dashboard não foi testada logada — login do cliente é por código via WhatsApp pro telefone real do dono (disparar mandaria mensagem real, regra do CLAUDE.md).
 
 **Achados do teste, não corrigidos**:
-- **Contraste da faixa com cor de marca muito escura**: `primary_color` do BARBE332 é `#030507` (quase preto) — a faixa do modelo "faixa" fica quase indistinguível do fundo `#0F172A`. Funciona, mas perde o destaque. Candidato a ajuste pequeno (clarear/usar cor de destaque quando a cor da marca for escura demais).
+- **Contraste da faixa com cor de marca muito escura** — ✅ corrigido em `bce8414` (27/09): `noticeBandColor()` em `lib/notices.ts` clareia a cor da marca (mantém o tom) até razão ≥ 2 com o fundo `#0F172A`. BARBE332 `#030507` → `#4f5051` (2,21, era ~1,1).
+
+## 🔵 Pendência de baixa prioridade — Avisos: cor de marca muito clara deixa o texto branco com contraste baixo (2026-09-27)
+
+Mesmo achado da faixa escura (corrigido em `bce8414`), na direção oposta, **não corrigido**. O texto dos avisos é sempre branco; com cor de marca clara, o contraste texto/fundo cai abaixo do recomendado (WCAG pede ≥ 3 pra texto grande): `#aabbcc` → 1,96; verde `#10B981` → 2,54. Afeta os dois modelos — o fundo do "cartão" e a faixa do "faixa" usam a cor da marca. Hoje sem cliente real afetado (BARBE332 é `#030507`, escuro). Correção provável, no mesmo espírito de `noticeBandColor()`: escurecer a cor ou trocar o texto pra escuro quando a cor da marca for clara demais — mantendo player (`buildNoticeHtml`) e prévia do dashboard (`NoticePreview`) usando a mesma regra.
 - **Carga inicial do player ≠ API da playlist no institucional**: na abertura, o player mostrou 2 vídeos de 180s (`c21f16e7`, `4df3f329`) que não existem em `/api/client/playlist/BARBE332` (8 itens). O SSR de `app/player/page.tsx` lê `institutional_media` direto sem os filtros de data/segmento que a API aplica via `placements_v2`; o primeiro polling troca pela lista da API. Pré-existente, sem relação com avisos.
 
 **Achado lateral, não corrigido**: o JSON das mídias (`mediasJson`) é injetado no `<script>` do player sem escapar `<` — um nome de mídia contendo `</script>` quebraria a página do player. Os avisos já saem escapados; as mídias ficam como pendência separada.
