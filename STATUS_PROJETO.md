@@ -1570,6 +1570,8 @@ Feature motivada por análise de concorrente (só o conceito, nenhum código/des
 
 **Validado localmente**: `tsc --noEmit` na base de sempre (59), `next build` compila (falha depois, na coleta de dados de página, por falta de env do Supabase na máquina local — rota `/api/documents/...`, não relacionada); script inline do player extraído e checado com `node --check`; lógica de intercalação testada isolada (padrão 4+1 em rodízio, sequência do Canal não cortada, sem aviso em tela vazia, HTML escapado); os 2 modelos renderizados em 1920×1080 via Puppeteer com o CSS real, inclusive o pior caso (60 + 200 caracteres) sem estourar. **Não testado ponta a ponta** com banco real nem numa TV real.
 
-**Pendente pra ir ao ar**: (1) rodar `sql/phase46_step1_client_notices.sql` no Supabase — sem isso player e playlist seguem normais sem avisos, mas a aba "Avisos" mostra erro ao carregar; (2) deploy; (3) teste numa tela real.
+**Migração aplicada em produção (2026-09-27)** via conector Supabase, com ok explícito do usuário: `client_notices` criada (11 colunas, 2 índices, 0 linhas), **RLS ligado sem policy** — mesmo padrão de `studio_clients`/`feature_flags`/`playlist_schedule` (conferido antes), linha acrescentada ao `.sql` na hora porque a primeira versão não tinha, e sem ela a chave anônima pública do Supabase permitiria criar aviso na TV de qualquer cliente. INSERT + consulta do dashboard validados dentro de transação com ROLLBACK (código fictício `TESTE000`, 0 linhas depois): fuso correto (18:00 Brasília → 21:00 UTC → volta `18:00`).
+
+**Pendente**: deploy (push feito em 27/09) e teste numa tela real.
 
 **Achado lateral, não corrigido**: o JSON das mídias (`mediasJson`) é injetado no `<script>` do player sem escapar `<` — um nome de mídia contendo `</script>` quebraria a página do player. Os avisos já saem escapados; as mídias ficam como pendência separada.

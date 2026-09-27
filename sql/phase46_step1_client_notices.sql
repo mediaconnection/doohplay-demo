@@ -27,3 +27,10 @@ CREATE TABLE IF NOT EXISTS client_notices (
 );
 
 CREATE INDEX IF NOT EXISTS idx_client_notices_client_code ON client_notices (client_code);
+
+-- Mesmo padrão das outras tabelas do app (studio_clients, feature_flags,
+-- playlist_schedule...): RLS ligado e nenhuma policy. Bloqueia leitura/
+-- escrita pela API REST do Supabase com a chave anônima (que é pública) —
+-- sem isso, qualquer um criaria aviso na TV de qualquer cliente. O
+-- pg.Pool do servidor conecta como dono da tabela e não é afetado.
+ALTER TABLE client_notices ENABLE ROW LEVEL SECURITY;
