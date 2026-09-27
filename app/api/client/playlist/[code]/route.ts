@@ -1,6 +1,7 @@
 // app/api/client/playlist/[code]/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { getActiveNotices } from "@/lib/notices"
 
 export const dynamic = "force-dynamic"
 
@@ -220,8 +221,14 @@ export async function GET(
       [upperCode]
     ).catch(() => ({ rows: [] as any[] }))
 
-    const [unified, network, realAds, dtvFlag] = await Promise.all([
-      unifiedQuery, networkQuery, realAdsQuery, dtvFlagQuery,
+    // Fase 46 (27/09/2026): avisos no ar agora — campo PRÓPRIO na resposta,
+    // fora de `items`, de propósito: o app Firestick baixa cada item de
+    // `items` pro cache esperando um asset_url, e aviso não tem arquivo.
+    // getActiveNotices nunca lança (cai em [] se a tabela não existir).
+    const noticesQuery = getActiveNotices(pool, upperCode)
+
+    const [unified, network, realAds, dtvFlag, notices] = await Promise.all([
+      unifiedQuery, networkQuery, realAdsQuery, dtvFlagQuery, noticesQuery,
     ])
     const dtvReady = dtvFlag.rows[0]?.enabled === true
 
@@ -247,6 +254,8 @@ export async function GET(
       // que possam esperar a lista sob nomes de campo diferentes.
       slides: items,
       playlist: items,
+      // Fase 46 — ver comentário em noticesQuery acima e docs/api-contract.md.
+      notices,
       generated_at: new Date().toISOString(),
     })
   } catch (err) {

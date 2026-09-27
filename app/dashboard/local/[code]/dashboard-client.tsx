@@ -10,6 +10,10 @@ import { Card } from "@/components/ui/card"
 import { SectionTitle } from "@/components/ui/SectionTitle"
 import { Button } from "@/components/ui/button"
 import { spacing } from "@/components/ui/tokens"
+import {
+  NOTICE_ICONS, NOTICE_ICON_PATHS, NOTICE_ICON_LABELS, NOTICE_TITLE_MAX, NOTICE_MESSAGE_MAX,
+  NOTICE_DURATION_SECONDS, NOTICE_EVERY_N_SLIDES, type NoticeIcon, type NoticeTemplate,
+} from "@/lib/notices"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 
 const NAV = [
@@ -22,6 +26,10 @@ const NAV = [
   { id: "ai-revenue",label: "Receita com IA",icon: "💡", desc: "Oportunidades e previsão de receita" },
   { id: "relatorios",label: "Relatórios",    icon: "📊", desc: "Números de exibição e desempenho" },
   { id: "playlist",  label: "Playlist",      icon: "▶️", desc: "Ordem e duração de cada conteúdo na tela" },
+  // Fase 46 (27/09/2026) — depois da Playlist de propósito: a barra
+  // inferior do celular mostra só NAV.slice(0, 5), e inserir antes
+  // tiraria "Anúncios" de lá.
+  { id: "avisos",    label: "Avisos",        icon: "💬", desc: "Recados rápidos em texto na sua tela" },
   { id: "clube",     label: "Clube de Telas",icon: "🤝", desc: "Troque conteúdo com outros estabelecimentos do bairro" },
   { id: "clientes",  label: "Meus Clientes", icon: "👥", desc: "Quem escaneou seu QR code" },
   { id: "config",    label: "Configurações", icon: "⚙",  desc: "Dados da sua conta e da tela" },
@@ -422,12 +430,12 @@ function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: ()
   )
 }
 
-function ModalConfirmDelete({ name, onConfirm, onCancel, loading, message }: { name: string; onConfirm: () => void; onCancel: () => void; loading: boolean; message?: string }) {
+function ModalConfirmDelete({ name, onConfirm, onCancel, loading, message, title }: { name: string; onConfirm: () => void; onCancel: () => void; loading: boolean; message?: string; title?: string }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", padding: "24px" }}>
         <div style={{ fontSize: 40, textAlign: "center", marginBottom: 12 }}>🗑️</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: C.text, textAlign: "center", marginBottom: 8 }}>Excluir esta mídia?</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.text, textAlign: "center", marginBottom: 8 }}>{title ?? "Excluir esta mídia?"}</div>
         <div style={{ fontSize: 13, color: C.text2, textAlign: "center", marginBottom: 20 }}>
           "<strong>{name}</strong>" {message ?? "será removida da sua TV permanentemente. Essa ação não pode ser desfeita."}
         </div>
@@ -2660,6 +2668,305 @@ function NetworkMediaSection({ code }: { code: string }) {
 }
 
 // ── Meus Clientes (leads capturados via QR) ──────────────────────────────────
+// ── Avisos (Fase 46, 27/09/2026) ───────────────────────────────────────────
+// Recados curtos em texto intercalados na playlist da tela. Regras em
+// lib/notices.ts; rotas em app/api/client/notices/.
+
+type Notice = {
+  id: string
+  title: string
+  message: string
+  template: NoticeTemplate
+  icon: NoticeIcon | null
+  active: boolean
+  starts_at: string | null
+  ends_at: string | null
+  status: "no_ar" | "agendado" | "pausado" | "encerrado"
+}
+
+type NoticeDraft = Pick<Notice, "title" | "message" | "template" | "icon" | "starts_at" | "ends_at">
+
+const EMPTY_NOTICE: NoticeDraft = { title: "", message: "", template: "cartao", icon: null, starts_at: null, ends_at: null }
+
+const NOTICE_STATUS: Record<Notice["status"], { label: string; bg: string; color: string }> = {
+  no_ar:     { label: "No ar",     bg: C.greenLt, color: C.green },
+  agendado:  { label: "Agendado",  bg: C.blueLt,  color: C.blue },
+  pausado:   { label: "Pausado",   bg: C.gray100, color: C.text2 },
+  encerrado: { label: "Encerrado", bg: C.amberLt, color: C.amber },
+}
+
+function NoticeIconSvg({ icon, size }: { icon: NoticeIcon; size: string | number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d={NOTICE_ICON_PATHS[icon]} />
+    </svg>
+  )
+}
+
+// Prévia 16:9 que imita buildNoticeHtml + CSS .notice-* de
+// app/player/page.tsx (unidades cqh ≈ vh da TV). Se mudar um, muda o outro.
+function NoticePreview({ draft, brandColor }: { draft: NoticeDraft; brandColor: string }) {
+  const title = draft.title || "Título do aviso"
+  const message = draft.message || "Sua mensagem aparece aqui."
+  const box: React.CSSProperties = { width: "100%", aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", containerType: "size", color: "#fff", border: `1px solid ${C.border}` }
+  const wrap: React.CSSProperties = { overflowWrap: "anywhere" }
+  if (draft.template === "faixa") {
+    return (
+      <div style={{ ...box, background: "#0F172A", display: "flex", flexDirection: "column" }}>
+        <div style={{ background: brandColor, display: "flex", alignItems: "center", gap: "2cqw", padding: "4cqh 6cqw", boxShadow: "0 4px 24px rgba(0,0,0,.35)" }}>
+          {draft.icon && <NoticeIconSvg icon={draft.icon} size="7cqh" />}
+          <span style={{ ...wrap, fontSize: "6cqh", fontWeight: 800, lineHeight: 1.15 }}>{title}</span>
+        </div>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "6cqh 10cqw", textAlign: "center" }}>
+          <div style={{ ...wrap, fontSize: "5cqh", lineHeight: 1.3 }}>{message}</div>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ ...box, background: brandColor, backgroundImage: "linear-gradient(160deg, rgba(255,255,255,.12), rgba(0,0,0,.25))", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "3cqh", padding: "8cqh 10cqw", textAlign: "center", boxSizing: "border-box" }}>
+      {draft.icon && <NoticeIconSvg icon={draft.icon} size="11cqh" />}
+      <div style={{ ...wrap, fontSize: "7cqh", fontWeight: 800, lineHeight: 1.15 }}>{title}</div>
+      <div style={{ ...wrap, fontSize: "4.2cqh", lineHeight: 1.3, opacity: 0.95, maxWidth: "70cqw" }}>{message}</div>
+    </div>
+  )
+}
+
+function fmtNoticeDate(v: string | null) {
+  if (!v) return ""
+  const [d, t] = v.split("T")
+  const [y, m, day] = d.split("-")
+  return `${day}/${m}/${y} ${t}`
+}
+
+function NoticeForm({ initial, brandColor, saving, error, onSave, onCancel }: {
+  initial: NoticeDraft; brandColor: string; saving: boolean; error: string | null
+  onSave: (d: NoticeDraft) => void; onCancel: () => void
+}) {
+  const [d, setD] = useState<NoticeDraft>(initial)
+  const set = <K extends keyof NoticeDraft>(k: K, v: NoticeDraft[K]) => setD(prev => ({ ...prev, [k]: v }))
+  const input: React.CSSProperties = { width: "100%", boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, color: C.text, background: C.white, outline: "none", fontFamily: "inherit" }
+  const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: C.text2, marginBottom: 6, display: "flex", justifyContent: "space-between" }
+  const chip = (on: boolean): React.CSSProperties => ({ padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, background: on ? C.blueLt : C.white, color: on ? C.blue : C.text2, border: `1px solid ${on ? C.blue : C.border}` })
+
+  return (
+    <Card theme={C} padding="comfortable" style={{ marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <div style={label}><span>Título</span><span style={{ fontWeight: 400, color: C.text3 }}>{d.title.length}/{NOTICE_TITLE_MAX}</span></div>
+            <input style={input} maxLength={NOTICE_TITLE_MAX} value={d.title} onChange={e => set("title", e.target.value)} placeholder="Ex: Fechado no feriado" />
+          </div>
+          <div>
+            <div style={label}><span>Mensagem</span><span style={{ fontWeight: 400, color: C.text3 }}>{d.message.length}/{NOTICE_MESSAGE_MAX}</span></div>
+            <textarea style={{ ...input, minHeight: 80, resize: "vertical" }} maxLength={NOTICE_MESSAGE_MAX} value={d.message} onChange={e => set("message", e.target.value)} placeholder="Ex: Na segunda-feira (12/10) não abriremos. Voltamos na terça às 9h." />
+          </div>
+          <div>
+            <div style={label}><span>Modelo</span></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" style={chip(d.template === "cartao")} onClick={() => set("template", "cartao")}>Cartão colorido</button>
+              <button type="button" style={chip(d.template === "faixa")} onClick={() => set("template", "faixa")}>Faixa no topo</button>
+            </div>
+          </div>
+          <div>
+            <div style={label}><span>Ícone (opcional)</span></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" style={chip(d.icon === null)} onClick={() => set("icon", null)}>Nenhum</button>
+              {NOTICE_ICONS.map(ic => (
+                <button key={ic} type="button" title={NOTICE_ICON_LABELS[ic]} style={chip(d.icon === ic)} onClick={() => set("icon", ic)}>
+                  <NoticeIconSvg icon={ic} size={16} />{NOTICE_ICON_LABELS[ic]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <div style={label}><span>Começa em (opcional)</span></div>
+              <input type="datetime-local" style={input} value={d.starts_at ?? ""} onChange={e => set("starts_at", e.target.value || null)} />
+            </div>
+            <div>
+              <div style={label}><span>Termina em (opcional)</span></div>
+              <input type="datetime-local" style={input} value={d.ends_at ?? ""} onChange={e => set("ends_at", e.target.value || null)} />
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: C.text3, marginTop: -8 }}>
+            Sem data, o aviso fica no ar até você pausar. Horário de Brasília.
+          </div>
+        </div>
+        <div>
+          <div style={label}><span>Prévia na TV</span></div>
+          <NoticePreview draft={d} brandColor={brandColor} />
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: C.redLt, color: C.red, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginTop: 16 }}>{error}</div>
+      )}
+
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+        <Button theme={C} onClick={onCancel} disabled={saving}>Cancelar</Button>
+        <Button theme={C} variant="primary" onClick={() => onSave(d)} disabled={saving || !d.title.trim() || !d.message.trim()}>
+          {saving ? "Salvando…" : "Salvar aviso"}
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+function TabAvisos({ code, brandColor }: { code: string; brandColor: string | null }) {
+  const [notices, setNotices] = useState<Notice[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Notice | "new" | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<Notice | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const color = brandColor && /^#[0-9a-fA-F]{3,8}$/.test(brandColor) ? brandColor : C.blue
+
+  useEffect(() => {
+    fetch(`/api/client/notices/${code}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) setLoadError("Não foi possível carregar seus avisos.")
+        else setNotices(d.notices ?? [])
+      })
+      .catch(() => setLoadError("Não foi possível carregar seus avisos."))
+      .finally(() => setLoading(false))
+  }, [code])
+
+  const replace = (n: Notice) => setNotices(prev => prev.map(x => x.id === n.id ? n : x))
+
+  const save = async (draft: NoticeDraft) => {
+    setSaving(true)
+    setFormError(null)
+    try {
+      const isNew = editing === "new"
+      const res = await fetch(isNew ? `/api/client/notices/${code}` : `/api/client/notices/${code}/${(editing as Notice).id}`, {
+        method: isNew ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      })
+      const d = await res.json()
+      if (!res.ok) { setFormError(d.error ?? "Não foi possível salvar."); return }
+      if (isNew) setNotices(prev => [d.notice, ...prev])
+      else replace(d.notice)
+      setEditing(null)
+    } catch {
+      setFormError("Não foi possível salvar. Verifique sua conexão.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleActive = async (n: Notice) => {
+    try {
+      const res = await fetch(`/api/client/notices/${code}/${n.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !n.active }),
+      })
+      const d = await res.json()
+      if (res.ok) replace(d.notice)
+    } catch {}
+  }
+
+  const confirmDelete = async () => {
+    if (!deleting) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch(`/api/client/notices/${code}/${deleting.id}`, { method: "DELETE" })
+      if (res.ok) setNotices(prev => prev.filter(x => x.id !== deleting.id))
+    } catch {}
+    setDeleteLoading(false)
+    setDeleting(null)
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.text3 }}>Carregando…</div>
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Avisos</div>
+          <div style={{ fontSize: 12, color: C.text3, maxWidth: 520 }}>
+            Recados rápidos em texto — sem precisar criar imagem ou vídeo. Aparecem em todas as suas telas,
+            1 aviso a cada {NOTICE_EVERY_N_SLIDES} conteúdos, por {NOTICE_DURATION_SECONDS} segundos cada.
+            A TV pega a mudança em até 2 minutos.
+          </div>
+        </div>
+        {editing === null && (
+          <Button theme={C} variant="primary" onClick={() => { setFormError(null); setEditing("new") }}>+ Novo aviso</Button>
+        )}
+      </div>
+
+      {loadError && (
+        <div style={{ background: C.redLt, color: C.red, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{loadError}</div>
+      )}
+
+      {editing !== null && (
+        <NoticeForm
+          key={editing === "new" ? "new" : editing.id}
+          initial={editing === "new" ? EMPTY_NOTICE : editing}
+          brandColor={color}
+          saving={saving}
+          error={formError}
+          onSave={save}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+
+      {notices.length === 0 && !loadError ? (
+        editing === null && (
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 32, textAlign: "center", color: C.text3, fontSize: 13 }}>
+            Nenhum aviso ainda. Use avisos pra horário especial, feriado, promoção do dia ou qualquer recado rápido pros seus clientes.
+          </div>
+        )
+      ) : (
+        <Card theme={C}>
+          {notices.map((n, i) => {
+            const st = NOTICE_STATUS[n.status] ?? NOTICE_STATUS.pausado
+            const period = n.starts_at || n.ends_at
+              ? [n.starts_at && `de ${fmtNoticeDate(n.starts_at)}`, n.ends_at && `até ${fmtNoticeDate(n.ends_at)}`].filter(Boolean).join(" ")
+              : "Sem data de fim"
+            return (
+              <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderBottom: i < notices.length - 1 ? `1px solid ${C.border2}` : "none", flexWrap: "wrap" }}>
+                <div style={{ width: 96, flexShrink: 0 }}>
+                  <NoticePreview draft={n} brandColor={color} />
+                </div>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{n.title}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: st.bg, color: st.color }}>{st.label}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.text2, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 420 }}>{n.message}</div>
+                  <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>{period}</div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button theme={C} size="sm" onClick={() => toggleActive(n)}>{n.active ? "Pausar" : "Retomar"}</Button>
+                  <Button theme={C} size="sm" onClick={() => { setFormError(null); setEditing(n) }}>Editar</Button>
+                  <Button theme={C} size="sm" variant="ghost" style={{ color: C.red }} onClick={() => setDeleting(n)}>Excluir</Button>
+                </div>
+              </div>
+            )
+          })}
+        </Card>
+      )}
+
+      {deleting && (
+        <ModalConfirmDelete
+          title="Excluir este aviso?"
+          name={deleting.title}
+          message="sai da sua TV em até 2 minutos. Essa ação não pode ser desfeita."
+          loading={deleteLoading}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
+    </div>
+  )
+}
+
 function TabMeusClientes({ code }: { code: string }) {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -2784,6 +3091,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     playlist:   <TabPlaylist code={client.code} />,
     clube:      <TabClubeDeTelas code={client.code} />,
     clientes:   <TabMeusClientes code={client.code} />,
+    avisos:     <TabAvisos code={client.code} brandColor={client.primary_color} />,
     config:     <TabConfiguracoes code={client.code} />,
   }
 

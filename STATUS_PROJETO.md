@@ -1552,3 +1552,24 @@ A aba Playlist do dashboard do cliente (`app/dashboard/local/[code]/dashboard-cl
 - Não foi encontrado job/cron que ligue/desligue `active` conforme a programação.
 
 **Efeito**: conteúdo do dono programado pra "só sábado" ou "só 18h–22h" aparece sempre. Não corrigido — registrado como pendência própria, separada da feature "Avisos" (que tem filtro de data próprio no servidor).
+
+## 🟡 Fase 46 — Avisos (recados em texto intercalados na tela) — implementado, aguardando migração + deploy (2026-09-27)
+
+Feature motivada por análise de concorrente (só o conceito, nenhum código/design copiado). Dono cria um recado curto (título + mensagem) numa aba nova "Avisos" do dashboard, sem passar pelo Studio; o player intercala com a playlist. Contrato documentado em `docs/api-contract.md` (seção "Avisos").
+
+**Escopo da v1**: 2 modelos (cartão colorido, faixa no topo), 4 ícones SVG opcionais, início/fim opcionais + pausar/retomar, prévia 16:9 no dashboard, limite de 20 avisos por cliente.
+
+**Decisões**:
+- **Intercalação fora do sorteio de pesos** (decisão do usuário, 27/09): 1 aviso a cada 4 conteúdos da rotação de tela cheia, 8s cada. O tempo sai proporcionalmente de todas as categorias (inclusive anunciante); `CATEGORY_WEIGHTS` e o contrato de pesos não mudaram.
+- **Campo `notices` separado de `items`** na playlist: o app Firestick cacheia cada item de `items` esperando `asset_url`.
+- **Aviso não gera proof-of-play nem evento de exibição** (`play-log`/`event`): não é mídia nem anúncio.
+- **Sem aviso por tela específica** — estava no escopo proposto, mas a implementação confirmou que o player web não sabe qual tela física está exibindo a página (`/player?screen=CODE` é por cliente; ver "limitação conhecida" em `app/player/page.tsx`). Todo aviso vale pra todas as telas do cliente. Mesma limitação provavelmente afeta a atribuição de mídia por tela já existente na Playlist (o polling do player não manda `player_id`), não investigado a fundo — hoje sem sintoma porque BARBE332/LEMEL186 têm 1 tela cada.
+- **Não aparece** em layout genérico (zonas), lateral, faixa inferior nem flutuante — só na rotação de tela cheia. Tela sem nenhum conteúdo não mostra aviso sozinho.
+
+**Arquivos**: `lib/notices.ts` (regras e consulta únicas), `sql/phase46_step1_client_notices.sql`, `app/api/client/notices/[code]/route.ts` e `[id]/route.ts` (sessão do cliente obrigatória, toda query filtra por `client_code`), `app/api/client/playlist/[code]/route.ts` (campo `notices`), `app/player/page.tsx` (`pickNextMain`, `buildNoticeHtml`, CSS `.notice-*`, JSON dos avisos com `<` escapado), `app/dashboard/local/[code]/dashboard-client.tsx` (`TabAvisos`, depois de "Playlist" pra não tirar "Anúncios" da barra inferior do celular).
+
+**Validado localmente**: `tsc --noEmit` na base de sempre (59), `next build` compila (falha depois, na coleta de dados de página, por falta de env do Supabase na máquina local — rota `/api/documents/...`, não relacionada); script inline do player extraído e checado com `node --check`; lógica de intercalação testada isolada (padrão 4+1 em rodízio, sequência do Canal não cortada, sem aviso em tela vazia, HTML escapado); os 2 modelos renderizados em 1920×1080 via Puppeteer com o CSS real, inclusive o pior caso (60 + 200 caracteres) sem estourar. **Não testado ponta a ponta** com banco real nem numa TV real.
+
+**Pendente pra ir ao ar**: (1) rodar `sql/phase46_step1_client_notices.sql` no Supabase — sem isso player e playlist seguem normais sem avisos, mas a aba "Avisos" mostra erro ao carregar; (2) deploy; (3) teste numa tela real.
+
+**Achado lateral, não corrigido**: o JSON das mídias (`mediasJson`) é injetado no `<script>` do player sem escapar `<` — um nome de mídia contendo `</script>` quebraria a página do player. Os avisos já saem escapados; as mídias ficam como pendência separada.

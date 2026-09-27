@@ -4,6 +4,10 @@ export const dynamic = "force-dynamic"
 
 import { getPool } from "@/lib/db"
 import { detectDtvReceiver } from "./dtv/detectReceiver"
+import {
+  getActiveNotices, NOTICE_ICON_PATHS, NOTICE_DURATION_SECONDS, NOTICE_EVERY_N_SLIDES,
+  type PublicNotice,
+} from "@/lib/notices"
 
 interface PlayerMediaRow {
   name: string;
@@ -198,6 +202,11 @@ async function getPlayerData(code: string) {
     // leitura de hardware real; sem ponte nativa Android disponível hoje,
     // isso sempre resolve a partir da flag configurada no admin.
     const dtvStatus = detectDtvReceiver({ dtvReadyFlag })
+
+    // Fase 46 (27/09/2026): avisos no ar agora — mesma consulta que a
+    // playlist (/api/client/playlist) usa no polling, via lib/notices.ts.
+    // Nunca lança: sem tabela/erro, a tela segue normal sem avisos.
+    const notices = await getActiveNotices(pool, upperCode)
 
     async function fetchWidgetsData(tpl: typeof template) {
       const lat = tpl?.location_lat ?? -23.5505
@@ -437,10 +446,11 @@ async function getPlayerData(code: string) {
       // dtvReady é sempre false por padrão; ausência da flag NUNCA muda
       // comportamento existente do player.
       dtvReady: dtvStatus.connected,
+      notices,
     }
   } catch (err) {
     console.error("[player/page getPlayerData] erro ao buscar dados, devolvendo tela vazia:", err)
-    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgetPosition: "lateral_right", widgets: null as any, layoutZones: null as any, poll: null as any, dtvReady: false }
+    return { name: "DOOHPLAY", business_type: "", primary_color: "#3B82F6", audio_enabled: false, medias: [] as PlayerMedia[], template: "fullscreen", transitionEffect: "fade", widgetLayoutMode: "fixed", widgetPosition: "lateral_right", widgets: null as any, layoutZones: null as any, poll: null as any, dtvReady: false, notices: [] as PublicNotice[] }
   }
 }
 
@@ -828,6 +838,9 @@ export default async function PlayerPage({
       : m
   )
   const mediasJson = JSON.stringify(mediasWithLayoutHtml)
+  // Fase 46: texto do aviso é digitado livre pelo dono — escapa "<" pra
+  // um "</script>" dentro da mensagem não fechar o <script> do player.
+  const noticesJson = JSON.stringify(data.notices ?? []).replace(/</g, "\\u003c")
   const buildVersion = process.env.RENDER_GIT_COMMIT || "dev"
 
   return (
@@ -1028,6 +1041,35 @@ export default async function PlayerPage({
             z-index: 6;
             pointer-events: none;
           }
+
+          /* ── Avisos (Fase 46, 27/09/2026) — ver buildNoticeHtml no script.
+             Tamanhos em vw/vh pra escalar igual em TV 720p/1080p/4K. ── */
+          .notice {
+            width: 100%; height: 100%; box-sizing: border-box;
+            color: #fff; font-family: inherit; overflow: hidden;
+          }
+          .notice-icon { width: 7vh; height: 7vh; flex-shrink: 0; }
+          .notice-title { font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+          .notice-msg { line-height: 1.3; overflow-wrap: anywhere; }
+          .notice-cartao {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 3vh; padding: 8vh 10vw; text-align: center;
+            background-image: linear-gradient(160deg, rgba(255,255,255,.12), rgba(0,0,0,.25));
+          }
+          .notice-cartao .notice-icon { width: 11vh; height: 11vh; }
+          .notice-cartao .notice-title { font-size: 7vh; }
+          .notice-cartao .notice-msg { font-size: 4.2vh; opacity: .95; max-width: 70vw; }
+          .notice-faixa { display: flex; flex-direction: column; background: #0F172A; }
+          .notice-faixa-bar {
+            display: flex; align-items: center; gap: 2vw;
+            padding: 4vh 6vw; box-shadow: 0 4px 24px rgba(0,0,0,.35);
+          }
+          .notice-faixa-bar .notice-title { font-size: 6vh; }
+          .notice-faixa-body {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 6vh 10vw; text-align: center;
+          }
+          .notice-faixa-body .notice-msg { font-size: 5vh; }
 
           /* ── Painel de widgets (Fase 3b: template magazine) ── */
           #widgets-panel {
@@ -1603,6 +1645,12 @@ export default async function PlayerPage({
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var medias   = ${mediasJson};
+            // Fase 46 (27/09/2026): avisos — fora do sorteio de categorias,
+            // entram 1 a cada NOTICE_EVERY conteúdos (ver pickNextMain).
+            var notices  = ${noticesJson};
+            var NOTICE_ICON_PATHS = ${JSON.stringify(NOTICE_ICON_PATHS)};
+            var NOTICE_DURATION = ${NOTICE_DURATION_SECONDS};
+            var NOTICE_EVERY = ${NOTICE_EVERY_N_SLIDES};
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
@@ -1948,6 +1996,81 @@ export default async function PlayerPage({
               return picked;
             }
 
+            // ── Avisos (Fase 46, 27/09/2026) ─────────────────────────────
+            // Só na rotação de tela cheia (showSlide). Não entra no sorteio
+            // por peso: a cada NOTICE_EVERY conteúdos mostrados, o próximo
+            // vira um aviso (em rodízio entre os avisos no ar). O tempo do
+            // aviso sai um pouco de todas as categorias por igual — decisão
+            // de produto, sem mexer em CATEGORY_WEIGHTS/contrato. Nunca corta
+            // uma sequência do Canal DOOHPLAY no meio.
+            var slidesSinceNotice = 0;
+            var noticeCursor = 0;
+            function pickNextMain() {
+              if (notices.length > 0 && sequenceQueue.length === 0 && slidesSinceNotice >= NOTICE_EVERY) {
+                var hasContent = false;
+                for (var cat in groups) { if (groups[cat] && groups[cat].length) { hasContent = true; break; } }
+                // Tela sem conteúdo nenhum continua em "Aguardando conteúdo" —
+                // aviso intercala a playlist, não substitui.
+                if (hasContent) {
+                  slidesSinceNotice = 0;
+                  var n = notices[noticeCursor % notices.length];
+                  noticeCursor = (noticeCursor + 1) % notices.length;
+                  return {
+                    id: 'aviso:' + n.id,
+                    name: n.title,
+                    type: 'aviso',
+                    duration: NOTICE_DURATION,
+                    category: 'aviso',
+                    notice: n,
+                  };
+                }
+              }
+              var next = pickNextMedia(true);
+              if (next) slidesSinceNotice++;
+              return next;
+            }
+
+            function escapeNoticeText(s) {
+              return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+            }
+
+            function noticeIconSvg(key) {
+              var d = NOTICE_ICON_PATHS[key];
+              if (!d) return '';
+              return '<svg class="notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + d + '"/></svg>';
+            }
+
+            // Cor da marca validada antes de ir pro style inline — vem do
+            // banco (studio_clients.primary_color), pode ter qualquer coisa.
+            var noticeColor = /^#[0-9a-fA-F]{3,8}$/.test(brandColorHex) ? brandColorHex : '#3B82F6';
+
+            // Dois modelos na v1: 'cartao' (texto centralizado sobre a cor
+            // da marca) e 'faixa' (faixa colorida no topo com o título,
+            // mensagem grande embaixo sobre fundo escuro). A prévia do
+            // dashboard (NoticePreview em dashboard-client.tsx) imita estes
+            // dois — se mudar um, muda o outro junto.
+            function buildNoticeHtml(m) {
+              var n = m.notice || {};
+              var icon = noticeIconSvg(n.icon);
+              var title = escapeNoticeText(n.title);
+              var msg = escapeNoticeText(n.message);
+              if (n.template === 'faixa') {
+                return '<div class="notice notice-faixa">' +
+                  '<div class="notice-faixa-bar" style="background:' + noticeColor + '">' + icon + '<span class="notice-title">' + title + '</span></div>' +
+                  '<div class="notice-faixa-body"><div class="notice-msg">' + msg + '</div></div>' +
+                '</div>';
+              }
+              return '<div class="notice notice-cartao" style="background:' + noticeColor + '">' +
+                icon +
+                '<div class="notice-title">' + title + '</div>' +
+                '<div class="notice-msg">' + msg + '</div>' +
+              '</div>';
+            }
+
             var split = splitByFormat(medias);
             mainMedias = split.main;
             lateralMedias = split.lateral;
@@ -2231,7 +2354,7 @@ export default async function PlayerPage({
             }
 
             function getSlotElement(slot, m) {
-              if (m.type === 'layout' || m.type === 'youtube') return slot.custom;
+              if (m.type === 'layout' || m.type === 'youtube' || m.type === 'aviso') return slot.custom;
               return (m.type === 'video') ? slot.video : slot.img;
             }
 
@@ -2244,6 +2367,7 @@ export default async function PlayerPage({
             // usado tanto pelo slot de tela cheia quanto por uma zona aninhada
             // dentro de um layout de página (Fase 9b).
             function buildCustomContentHtml(m) {
+              if (m.type === 'aviso') return buildNoticeHtml(m);
               if (m.type === 'youtube') {
                 var videoId = extractYouTubeId(m.url);
                 // Fase 20 (14/07/2026): segue a mesma preferência de áudio
@@ -2309,8 +2433,8 @@ export default async function PlayerPage({
               slot.el.setAttribute('data-transition', m.transitionEffect || screenDefaultTransition);
 
               // Slide-layout (N-zonas) ou YouTube (Fase 9) — usa o elemento
-              // "custom", não video/img.
-              if (m.type === 'layout' || m.type === 'youtube') {
+              // "custom", não video/img. Aviso (Fase 46) também.
+              if (m.type === 'layout' || m.type === 'youtube' || m.type === 'aviso') {
                 slot.video.style.display = 'none';
                 slot.img.style.display = 'none';
                 try { slot.video.pause(); } catch (e) {}
@@ -2448,6 +2572,14 @@ export default async function PlayerPage({
                   // áudio sem precisar recarregar a página inteira.
                   if (typeof data.audio_enabled === 'boolean') audioEnabled = data.audio_enabled;
 
+                  // Fase 46: avisos vêm em campo próprio (não em items). Lista
+                  // vazia também vale — aviso pausado/vencido tem que sumir.
+                  // Ausência do campo (API antiga) mantém o que já estava.
+                  if (Array.isArray(data.notices)) {
+                    notices = data.notices;
+                    if (notices.length === 0) noticeCursor = 0;
+                  }
+
                   var fresh = data.items
                     .filter(function(item) {
                       return item.asset_url && item.active !== false && item.status !== 'rejected';
@@ -2494,7 +2626,7 @@ export default async function PlayerPage({
                       contentArea.innerHTML = '<div id="slides"></div>';
                       slotA = null; slotB = null; activeSlot = null;
                       initSlots();
-                      showSlide(pickNextMedia(true));
+                      showSlide(pickNextMain());
                     }
                     showLateralSlide();
                     showBottomSlide();
@@ -2634,7 +2766,11 @@ export default async function PlayerPage({
 
             function showSlide(m) {
               if (!m) return;
-              logPlay(m);
+              // Fase 46: aviso não é mídia nem anúncio — não gera
+              // proof-of-play (play-log) nem evento de exibição (event_chain),
+              // pra não misturar recado do dono com prova de veiculação.
+              var isNotice = m.type === 'aviso';
+              if (!isNotice) logPlay(m);
 
               var targetSlot;
 
@@ -2769,16 +2905,17 @@ export default async function PlayerPage({
               }
 
               // Registra exibição
-              logDisplay(mediaId, code);
+              if (!isNotice) logDisplay(mediaId, code);
 
               // Sorteia (respeitando os pesos de categoria) e pré-carrega a
-              // próxima mídia no slot que ficou de fundo.
-              upcoming = pickNextMedia(true);
+              // próxima mídia no slot que ficou de fundo. pickNextMain
+              // (Fase 46) encaixa um aviso a cada NOTICE_EVERY conteúdos.
+              upcoming = pickNextMain();
               preloadNext(upcoming);
             }
 
             function nextSlide() {
-              if (!upcoming) upcoming = pickNextMedia(true);
+              if (!upcoming) upcoming = pickNextMain();
               var m = upcoming;
               upcoming = null;
               showSlide(m);
@@ -2848,7 +2985,7 @@ export default async function PlayerPage({
             }, RELOAD_INTERVAL_MS);
 
             // Inicia
-            if (!isGenericLayout) showSlide(pickNextMedia(true));
+            if (!isGenericLayout) showSlide(pickNextMain());
             setInterval(sendHeartbeat, 30000);
             setInterval(pollPlaylist, POLL_INTERVAL_MS);
           })();

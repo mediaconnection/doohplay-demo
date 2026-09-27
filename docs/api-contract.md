@@ -147,6 +147,48 @@ Tabela generica `feature_flags` (`client_code` + `flag_key` unico) — nao criar
 
 `dtv_ready` e sempre `false` por padrao. Ausencia da flag NUNCA muda comportamento existente do player — mesmo padrao "zero mudanca pra quem nao configurou" usado no resto do contrato. Quando `true`, o player web sinaliza preferencia por codec VVC (infraestrutura de intencao — o pipeline de midia ainda nao gera/seleciona variante por codec) e mostra o selo comercial "Preparando para TV 3.0" (renomeado de "TV 3.0 Ready" em 15/09/2026, ver docs/tv-3-0-ready-textos-comerciais.md); e uma flag de compatibilidade/declaracao do instalador, nao deteccao automatica de hardware (nao existe API de browser para consultar dispositivos HDMI-CEC a jusante) nem promessa de recepcao de transmissao aberta de TV 3.0.
 
+## Avisos (NOVO, Fase 46, 27/09/2026)
+
+Recados curtos em texto que o dono cria no dashboard (aba "Avisos") e que o player intercala com a playlist. Regras e limites em `lib/notices.ts`; tabela `client_notices` (`sql/phase46_step1_client_notices.sql`).
+
+### Campo novo em `GET /api/client/playlist/{code}` (aditivo)
+
+```json
+{
+  "...campos existentes inalterados...": "",
+  "notices": [
+    {
+      "id": "uuid",
+      "title": "Fechado no feriado",
+      "message": "Na segunda (12/10) nao abriremos. Voltamos na terca as 9h.",
+      "template": "cartao",
+      "icon": "aviso"
+    }
+  ]
+}
+```
+
+- Traz so avisos **no ar agora**: `active = true`, `starts_at` nulo ou ja passado, `ends_at` nulo ou ainda no futuro. Filtro feito no servidor; o player nao precisa checar data.
+- `template` e sempre `"cartao"` ou `"faixa"`. `icon` e `null` ou um de `"aviso"`, `"info"`, `"relogio"`, `"coracao"`.
+- `title` ate 60 caracteres, `message` ate 200. Texto livre digitado pelo dono: **quem renderiza precisa escapar HTML**.
+- Aviso **nao** vem dentro de `items`/`slides`/`playlist` de proposito: o app Firestick baixa cada item de `items` para cache esperando `asset_url`, e aviso nao tem arquivo. Cliente que nao conhece `notices` simplesmente ignora o campo — zero mudanca de comportamento.
+- Sem tabela (migracao nao aplicada) ou erro de leitura: `notices` vem `[]` e o resto da playlist segue normal.
+- Vale para todas as telas do cliente. Nao existe aviso por tela especifica: o player web hoje nao identifica qual tela fisica esta exibindo a pagina.
+
+### Regra de exibicao (player web)
+
+- **Fora do sorteio ponderado.** Os pesos de categoria acima nao mudam. A cada 4 conteudos mostrados na rotacao de tela cheia, o proximo vira um aviso (rodizio entre os avisos no ar), por 8 segundos. O tempo do aviso sai proporcionalmente de todas as categorias (decisao de produto de 27/09/2026).
+- Nunca corta uma sequencia (`sequence_group`) do Canal DOOHPLAY no meio. Tela sem nenhum conteudo nao mostra aviso sozinho.
+- So na rotacao de tela cheia: zonas de layout generico, lateral, faixa inferior e flutuante nao mostram aviso.
+- **Nao gera proof-of-play** (`/api/player/play-log`) **nem evento de exibicao** (`/api/player/event`) — aviso nao e midia nem anuncio e nao entra na prova de veiculacao.
+
+### Rotas do dashboard (sessao do cliente obrigatoria)
+
+- `GET /api/client/notices/{code}` → `{ notices: [...] }` com todos os avisos (inclusive pausados/agendados/encerrados), com `status` calculado (`no_ar` / `agendado` / `pausado` / `encerrado`).
+- `POST /api/client/notices/{code}` com `{ title, message, template, icon, starts_at, ends_at }` → cria. Datas em `"YYYY-MM-DDTHH:mm"`, horario de Brasilia, opcionais. Limite de 20 avisos por cliente.
+- `PATCH /api/client/notices/{code}/{id}` com `{ active }` (pausar/retomar) ou com o corpo completo (editar).
+- `DELETE /api/client/notices/{code}/{id}`.
+
 ## Governanca
 
 1. Qualquer mudanca de contrato precisa ser refletida aqui antes de qualquer codigo.
