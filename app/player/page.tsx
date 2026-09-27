@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic"
 import { getPool } from "@/lib/db"
 import { detectDtvReceiver } from "./dtv/detectReceiver"
 import {
-  getActiveNotices, NOTICE_ICON_PATHS, NOTICE_DURATION_SECONDS, NOTICE_EVERY_N_SLIDES,
+  getActiveNotices, noticeBandColor, NOTICE_ICON_PATHS, NOTICE_DURATION_SECONDS, NOTICE_EVERY_N_SLIDES,
   type PublicNotice,
 } from "@/lib/notices"
 
@@ -1059,6 +1059,7 @@ export default async function PlayerPage({
           .notice-cartao .notice-icon { width: 11vh; height: 11vh; }
           .notice-cartao .notice-title { font-size: 7vh; }
           .notice-cartao .notice-msg { font-size: 4.2vh; opacity: .95; max-width: 70vw; }
+          /* #0F172A = NOTICE_FAIXA_BODY em lib/notices.ts (base do cálculo de contraste da faixa) */
           .notice-faixa { display: flex; flex-direction: column; background: #0F172A; }
           .notice-faixa-bar {
             display: flex; align-items: center; gap: 2vw;
@@ -1651,6 +1652,9 @@ export default async function PlayerPage({
             var NOTICE_ICON_PATHS = ${JSON.stringify(NOTICE_ICON_PATHS)};
             var NOTICE_DURATION = ${NOTICE_DURATION_SECONDS};
             var NOTICE_EVERY = ${NOTICE_EVERY_N_SLIDES};
+            // Cor da faixa do modelo "faixa" — cor da marca clareada até ter
+            // contraste com o fundo escuro (noticeBandColor, lib/notices.ts).
+            var noticeBandHex = ${JSON.stringify(noticeBandColor(data.primary_color))};
             var code     = ${JSON.stringify(code)};
             var isPreview = ${JSON.stringify(isPreview)};
             var isMagazine = ${JSON.stringify(data.template === "magazine")};
@@ -2049,7 +2053,8 @@ export default async function PlayerPage({
             var noticeColor = /^#[0-9a-fA-F]{3,8}$/.test(brandColorHex) ? brandColorHex : '#3B82F6';
 
             // Dois modelos na v1: 'cartao' (texto centralizado sobre a cor
-            // da marca) e 'faixa' (faixa colorida no topo com o título,
+            // da marca) e 'faixa' (faixa colorida no topo com o título — cor
+            // em noticeBandHex, ajustada pra contraste —,
             // mensagem grande embaixo sobre fundo escuro). A prévia do
             // dashboard (NoticePreview em dashboard-client.tsx) imita estes
             // dois — se mudar um, muda o outro junto.
@@ -2060,7 +2065,7 @@ export default async function PlayerPage({
               var msg = escapeNoticeText(n.message);
               if (n.template === 'faixa') {
                 return '<div class="notice notice-faixa">' +
-                  '<div class="notice-faixa-bar" style="background:' + noticeColor + '">' + icon + '<span class="notice-title">' + title + '</span></div>' +
+                  '<div class="notice-faixa-bar" style="background:' + noticeBandHex + '">' + icon + '<span class="notice-title">' + title + '</span></div>' +
                   '<div class="notice-faixa-body"><div class="notice-msg">' + msg + '</div></div>' +
                 '</div>';
               }

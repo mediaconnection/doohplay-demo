@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button"
 import { spacing } from "@/components/ui/tokens"
 import {
   NOTICE_ICONS, NOTICE_ICON_PATHS, NOTICE_ICON_LABELS, NOTICE_TITLE_MAX, NOTICE_MESSAGE_MAX,
-  NOTICE_DURATION_SECONDS, NOTICE_EVERY_N_SLIDES, type NoticeIcon, type NoticeTemplate,
+  NOTICE_DURATION_SECONDS, NOTICE_EVERY_N_SLIDES, NOTICE_FAIXA_BODY, noticeBandColor,
+  type NoticeIcon, type NoticeTemplate,
 } from "@/lib/notices"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 
@@ -2712,8 +2713,8 @@ function NoticePreview({ draft, brandColor }: { draft: NoticeDraft; brandColor: 
   const wrap: React.CSSProperties = { overflowWrap: "anywhere" }
   if (draft.template === "faixa") {
     return (
-      <div style={{ ...box, background: "#0F172A", display: "flex", flexDirection: "column" }}>
-        <div style={{ background: brandColor, display: "flex", alignItems: "center", gap: "2cqw", padding: "4cqh 6cqw", boxShadow: "0 4px 24px rgba(0,0,0,.35)" }}>
+      <div style={{ ...box, background: NOTICE_FAIXA_BODY, display: "flex", flexDirection: "column" }}>
+        <div style={{ background: noticeBandColor(brandColor), display: "flex", alignItems: "center", gap: "2cqw", padding: "4cqh 6cqw", boxShadow: "0 4px 24px rgba(0,0,0,.35)" }}>
           {draft.icon && <NoticeIconSvg icon={draft.icon} size="7cqh" />}
           <span style={{ ...wrap, fontSize: "6cqh", fontWeight: 800, lineHeight: 1.15 }}>{title}</span>
         </div>
