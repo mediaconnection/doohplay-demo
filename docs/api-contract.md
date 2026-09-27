@@ -50,14 +50,15 @@ Motivo de existir: o incidente de 25/06/2026, com categorias erradas e vazamento
 ### Regras de negocio obrigatorias
 
 1. **Isolamento por tela:** a resposta nunca deve incluir conteudo de campanha de outro cliente. Toda query de origem de midia deve filtrar explicitamente pelo `code` da tela solicitante.
-2. **`slot_category`** e sempre um destes 4 valores: `"dono"`, `"anunciante"`, `"rede"`, `"institucional"`. Nunca hardcoded em um valor fixo. Vem de `CampaignMedia.content_source` (com `"exemplo"` mapeado para `"dono"`), `"rede"` fixo para midia do Clube de Telas, `"institucional"` fixo para midia institucional, `"anunciante"` para anuncio real de terceiro via `CampaignScreen`.
+2. **`slot_category`** e sempre um destes 5 valores: `"dono"`, `"anunciante"`, `"rede"`, `"institucional"`, `"canal"`. Nunca hardcoded em um valor fixo. Vem de `CampaignMedia.content_source` (com `"exemplo"` mapeado para `"dono"`), `"rede"` fixo para midia do Clube de Telas, `"anunciante"` para anuncio real de terceiro via `CampaignScreen`. Midia institucional vira `"canal"` quando tem segmento (`placements_v2.segment_id`) que bate com o `business_type` do cliente (Canal DOOHPLAY, 12/07/2026, commit `b560108`), e `"institucional"` quando nao tem segmento.
 3. Filtrar sempre: `active !== false` e `status !== "rejected"`.
 
 ### Sorteio ponderado
 
 Esta logica e do cliente, nao do servidor. Hoje esta duplicada no player web (`app/player/page.tsx`) e no app Android nativo (Kotlin).
 
-- Pesos fixos: `dono: 15`, `anunciante: 60`, `rede: 15`, `institucional: 10`.
+- Pesos fixos: `dono: 15`, `anunciante: 60`, `rede: 5`, `institucional: 5`, `canal: 15` (fonte: `CATEGORY_WEIGHTS` em `app/player/page.tsx`).
+- Historico: o contrato original (26/06/2026, commit `508968a`) registrava `rede: 15`, `institucional: 10`, que batia com o codigo daquela data. O codigo mudou de proposito em 12/07/2026 (`b560108`, Canal DOOHPLAY: `rede 0`, `institucional 5`, `canal 20`) e em 08/09/2026 (`2ada8ed`, Clube de Telas v2: `rede 5`, `canal 15`), ambas mudancas documentadas nos commits, mas este arquivo nao foi atualizado na epoca. Corrigido em 27/09/2026 para refletir o codigo, que e a fonte correta.
 - Sortear categoria proporcional ao peso, considerando so categorias com pelo menos 1 item disponivel. O peso das categorias vazias e redistribuido automaticamente.
 - Dentro da categoria sorteada, percorrer itens em round-robin, com um cursor por categoria.
 

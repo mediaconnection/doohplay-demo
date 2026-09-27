@@ -1534,3 +1534,21 @@ O comentário desse commit dizia que "Execuções"/"Eventos inválidos" no Netwo
 **Achado real**: `event_chain` recebe eventos novos continuamente até hoje (99% das linhas, `source_table IS NULL`, dado real de `player_id`/`screen_code`/`media_id`/`played_at` dentro do campo `payload` JSON, gravado por `POST /api/player/event` → `appendEventToLedger()`). O `source_table='display_events'` era uma correlação antiga, diferente, que caiu em desuso por volta de 03/06/2026 sem afetar a gravação real.
 
 **Vale correção própria no Network Center depois, sem urgência**: trocar o join de `source_table='display_events'` por filtro em `payload->>'player_id'` pra `player_metrics` (em `app/api/network/map/route.ts`) e nas 2 queries de `app/players/[player_id]/page.tsx` — aí sim "Execuções"/"Eventos inválidos" mostrariam dado real, não zero.
+
+## ✅ Correção de documentação — pesos de sorteio em `docs/api-contract.md` estavam desatualizados (2026-09-27)
+
+Achado durante a investigação da feature "Avisos". O contrato dizia `dono 15 / anunciante 60 / rede 15 / institucional 10`; o player (`CATEGORY_WEIGHTS` em `app/player/page.tsx`) usa `dono 15 / anunciante 60 / rede 5 / institucional 5 / canal 15`.
+
+**Qual dos dois está certo: o código.** Pelo histórico do git: o contrato foi escrito em 26/06/2026 (`508968a`) batendo com o código daquela data. Depois o código mudou de propósito, com a mudança descrita no próprio commit, duas vezes — 12/07/2026 (`b560108`, Canal DOOHPLAY cria a categoria `canal`: `rede 0`, `institucional 5`, `canal 20`) e 08/09/2026 (`2ada8ed`, Clube de Telas v2 reativa `rede` com 5, tirado de `canal`). O contrato nunca acompanhou. Nenhum peso mudou no código; só o documento foi corrigido, incluindo a regra de `slot_category` (a API já emite `"canal"`, e o contrato dizia "sempre um destes 4 valores").
+
+**Ponto em aberto, não corrigido**: o contrato diz que o sorteio ponderado está "duplicado no player web e no app Android nativo (Kotlin)". Nesta máquina não foi encontrada nenhuma implementação Kotlin de pesos — o `firestick-app/` é um WebView que abre `/player` (o sorteio roda no player web) e só usa `/api/client/playlist` para cache de mídia. Se existir um app nativo em outro lugar, os pesos dele precisam ser conferidos contra os números acima; se não existir, a frase do contrato deve ser corrigida. Confirmar com quem mantém a frente Android.
+
+## 🟡 Pendência — programação (dia/horário/data) do conteúdo do dono não é aplicada na tela (2026-09-27, prioridade a definir com o fundador)
+
+A aba Playlist do dashboard do cliente (`app/dashboard/local/[code]/dashboard-client.tsx`) deixa o dono configurar dias da semana, faixa de horário e período (`days_of_week`, `start_time`/`end_time`, `start_date`/`end_date`), e os valores são salvos em `playlist_schedule`/`placements_v2`. **Mas nada filtra por eles na hora de exibir**:
+
+- `GET /api/client/playlist/[code]`: o ramo `owner_type = 'dono'` da query unificada filtra só por dono + tela; o filtro de dia/horário/data existe apenas no ramo `institucional`.
+- `app/player/page.tsx`: nem a carga inicial (SSR, lê `CampaignMedia` + `playlist_schedule`) nem o polling filtram por esses campos.
+- Não foi encontrado job/cron que ligue/desligue `active` conforme a programação.
+
+**Efeito**: conteúdo do dono programado pra "só sábado" ou "só 18h–22h" aparece sempre. Não corrigido — registrado como pendência própria, separada da feature "Avisos" (que tem filtro de data próprio no servidor).
