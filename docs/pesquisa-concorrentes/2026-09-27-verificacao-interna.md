@@ -29,6 +29,8 @@ Complemento de [`2026-09-27-matriz-competitiva.md`](2026-09-27-matriz-competitiv
 | **Upstash "suspensa"** | Conta suspensa | O registro (13/09) fala em **"temporarily rate-limited"**, com ticket aberto no suporte da Upstash aguardando resposta. "Suspensa" pode ser informação nova (ex. resposta do suporte) que não chegou ao STATUS. Se for, precisa ser registrada lá, porque muda a decisão de custo pendente. |
 | **Alerta de tela offline "inativo"** | Mesma causa do Upstash | Correto no efeito: o job não conseguiu se agendar no boot do worker por causa do rate-limit (13/09). Mas é o mesmo ponto em aberto acima. |
 
+**Atualização 28/09:** o fundador confirmou a suspensão e a reativação da conta Upstash (Audit Log), o que agora sustenta "suspensa" no passado. Mas a reativação não normalizou o worker (timeouts contínuos no Redis) e a relação com a ancoragem segue hipótese. Detalhes em `STATUS_PROJETO.md`, seção do Upstash.
+
 Nenhum número do banco foi reconsultado para a ancoragem nesta verificação (tabelas do front de prova, fora do escopo desta sessão). Os 40 mil são da medição de 15/09.
 
 ## Efeito nas recomendações da seção 4 da matriz

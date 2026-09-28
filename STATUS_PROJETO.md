@@ -1401,6 +1401,38 @@ Continuação do achado "Agendamento do alerta de tela offline falhou no boot" (
 
 **Pendência ativa**: aguardando resposta do suporte da Upstash identificando a causa real do rate-limit. Decisão de custo (upgrade de plano ou qualquer outra ação) continua pausada até essa resposta — não decidir às cegas, mesma regra já aplicada à instrumentação de contagem de comandos.
 
+**Atualização (informada pelo fundador em 2026-09-27)**: o suporte da Upstash **respondeu e a conta foi reativada**. O Audit Log do painel da Upstash (print enviado pelo fundador; datas abaixo relativas à data do print, não conferidas por esta sessão) mostra:
+- **Suspend Database** — cerca de 2 meses antes do print;
+- **Unsuspend Database** — cerca de 1 dia antes do print;
+- **Unsuspend Account / QStash User**, com **cartão de crédito adicionado** na conta.
+
+**Motivo da suspensão: não confirmado** — o Audit Log mostra a ação, não a causa. A suspensão explica bem o erro `"...temporarily rate-limited ... contact support@upstash.com"` visto em 13/09 (mensagem que já não parecia limite comum de plano, ver acima), mas o registro não diz por que a conta foi suspensa. O cartão adicionado sugere relação com cobrança/limite de conta gratuita — **hipótese, não confirmada**.
+
+**Relação com a ancoragem/Merkle parada (hipótese, não confirmada)**: a suspensão teria começado ~2 meses antes do print, período que se sobrepõe ao atraso da ancoragem (último evento ancorado em 26/08, medição de 15/09). Se a agregação/ancoragem depende de fila no Redis, a suspensão explicaria a parada — mas nenhum log ou código desta sessão ligou as duas coisas ainda. Ver seção "Pendência real, prioridade alta mas não urgente — pipeline de ancoragem/Merkle" mais abaixo.
+
+**Decisão de custo**: o cartão foi adicionado pelo fundador no processo de reativação. Se isso implicou mudança de plano/cobrança, o valor não foi informado a esta sessão — registrar quando houver.
+
+### 🔴 Reconferência só leitura (2026-09-28) — reativação da Upstash NÃO resolveu; e as 2 telas reais estão offline há 11 dias
+
+Fundador confirma que o banco da Upstash aparece **ativo** no painel. Mesmo assim:
+
+**1. Worker continua sem falar com o Redis.** Logs do `doohplay-workers` (Render):
+- último `ERR ... temporarily rate-limited`: **16/09 18:03 UTC**;
+- a partir de **16/09 18:05 UTC** o erro vira **`Command timed out`** (ioredis), a cada ~5s, em `PROOF_WORKER` e `WORKER`;
+- **continua em 28/09 10:07 UTC**, inclusive na instância nova do reboot de 27/09 23:38 — nenhuma linha de conexão bem-sucedida com o Redis desde então.
+- Timeout (sem resposta) é diferente de rate-limit (recusa): o cliente não recebe resposta nenhuma. Causas possíveis, **nenhuma verificada**: endpoint/senha mudaram na reativação e a `REDIS_URL` do Render ficou com o valor antigo; banco reativado mas ainda sem aceitar conexão; bloqueio de rede. Esta sessão não consegue ler o valor da `REDIS_URL` (API do Render só escreve env var). **Próximo passo**: comparar o endpoint/porta/senha do painel Upstash com a `REDIS_URL` do serviço `doohplay-workers` (e do `doohplay-demo`) no painel do Render.
+
+**2. Ancoragem: backlog cresceu.** `event_chain` em 28/09: **49.658 eventos sem bloco** (eram 40.019 em 15/09), pendente mais antigo **07/04/2026**, último evento ancorado **26/08/2026 02:14 UTC** — nada ancorado desde a medição anterior. Relação com o Redis continua **hipótese** (o worker de prova é o que está dando timeout, o que é compatível, mas não prova causa).
+
+**3. Achado novo, mais urgente: nenhum evento novo desde 17/09 — porque as duas telas reais pararam de mandar sinal.**
+- Último evento em `event_chain`: **17/09 06:31:26 UTC**; 0 nas últimas 24h.
+- Último `players.last_ping`: **LeMelo Café & Confeitaria 17/09 06:31:20 UTC**, **Barbearia Zimermam 17/09 02:44:41 UTC**. Nenhum player com ping nas últimas 24h.
+- **Não é falha do servidor**: nos logs de requisição do `doohplay-demo`, o aparelho do LeMelo (Android V96) mandava heartbeat a cada 30s com resposta **200** até 06:31:20 — e depois **nenhuma requisição chegou**, nem com erro. A gravação de evento (`/api/player/event` → `appendEventToLedger`) grava direto no Postgres, não depende do Redis; parou porque não chega evento.
+- Ou seja: **as duas TVs dos dois únicos clientes estão desligadas/sem conexão há ~11 dias** (ou o app não está abrindo), e **ninguém foi avisado** — o alerta de tela offline depende do mesmo worker que está sem Redis.
+- As duas pararam com ~4h de diferença na madrugada de 17/09 (23:44 e 03:31 no horário de Brasília). Coincidência ou causa comum do lado dos aparelhos (atualização, queda de energia/rede, app fechado) — **não verificável daqui**; precisa de contato com os donos.
+
+**Nada foi alterado** nesta reconferência — só leitura de logs (Render) e contagens (Supabase).
+
 ## ✅ Confirmado — telefone do LEMEL186 correto e primeiro login WhatsApp real fechado (2026-09-14)
 
 Follow-up da pendência do Documento-Mestre (achado: telefone cadastrado seria o placeholder interno da DOOHPLAY, não o do cliente) e da seção acima ("Bug real corrigido — login por WhatsApp do LEMEL186 nunca chegava").
