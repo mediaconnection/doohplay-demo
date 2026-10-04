@@ -53,21 +53,35 @@ export async function POST(req: NextRequest) {
     const otpHash = hashPassword(otp)
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000)
 
-    await pool.query(
-      `INSERT INTO client_login_codes (client_code, otp_hash, expires_at) VALUES ($1, $2, $3)`,
+    const inserted = await pool.query(
+      `INSERT INTO client_login_codes (client_code, otp_hash, expires_at) VALUES ($1, $2, $3) RETURNING id`,
       [clientCode, otpHash, expiresAt]
     )
 
-    // Não esperamos o envio terminar pra responder — mesmo com o timeout
-    // de 8s no lib/whatsapp.ts, não faz sentido o usuário ficar preso na
-    // tela até essa chamada de rede terceira resolver. O código já está
-    // salvo no banco; o envio continua em segundo plano, e uma falha aqui
-    // só vai pro log (não impede o fluxo nem gera erro pro usuário).
-    sendWhatsApp(client.phone,
+    // Espera o envio (no máximo 8s, timeout de lib/whatsapp.ts). Antes era
+    // fire-and-forget: com a instância da Evolution desconectada (05/09 e
+    // 04/10/2026), a rota respondia sucesso e a tela pedia um código que
+    // nunca chegou. Agora a falha volta pro usuário, com o caminho do email.
+    const sent = await sendWhatsApp(client.phone,
       `🔐 *Código de acesso — DOOHPLAY*\n\n` +
       `Seu código: *${otp}*\n\n` +
       `Válido por ${OTP_TTL_MINUTES} minutos. Não compartilhe com ninguém.`
-    ).catch(err => console.error("[client/auth/request-otp] falha no envio de WhatsApp:", err))
+    )
+
+    if (!sent) {
+      // Descarta o código que não saiu, senão o cooldown de 60s bloquearia
+      // a próxima tentativa (e responderia "enviamos" sem enviar nada).
+      await pool.query(`DELETE FROM client_login_codes WHERE id = $1`, [inserted.rows[0]?.id])
+        .catch((err: unknown) => console.error("[client/auth/request-otp] falha ao descartar código não enviado:", err))
+      // Só chega aqui código com telefone cadastrado — diferente do
+      // genericOk(). Aceito: o código do cliente não é segredo (aparece na
+      // URL do player e no QR da TV), e a mensagem não confirma nada além
+      // de "o WhatsApp não funcionou agora".
+      return NextResponse.json({
+        error: "Não conseguimos enviar o código pelo WhatsApp agora. Tente de novo em alguns minutos ou entre pelo email.",
+        delivery: "failed",
+      }, { status: 503 })
+    }
 
     return genericOk()
   } catch (err) {

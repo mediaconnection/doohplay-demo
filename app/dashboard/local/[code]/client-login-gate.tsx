@@ -19,9 +19,12 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [sentMessage, setSentMessage] = useState("")
+  // WhatsApp não entregou (instância da Evolution fora do ar) — oferece o
+  // login por email, que usa outro serviço de envio (04/10/2026).
+  const [whatsappFailed, setWhatsappFailed] = useState(false)
 
   const requestCode = async () => {
-    setLoading(true); setError("")
+    setLoading(true); setError(""); setWhatsappFailed(false)
     try {
       const res = await fetch("/api/client/auth/request-otp", {
         method: "POST",
@@ -31,6 +34,7 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || "Erro ao pedir código. Tenta de novo.")
+        setWhatsappFailed(data.delivery === "failed")
         setLoading(false)
         return
       }
@@ -77,9 +81,18 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
         </div>
 
         {error && (
-          <div style={{ background: C.redLt, color: C.red, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+          <div role="alert" style={{ background: C.redLt, color: C.red, padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
             {error}
           </div>
+        )}
+
+        {whatsappFailed && (
+          <a
+            href={`/login?redirect=${encodeURIComponent(`/dashboard/local/${code}`)}`}
+            style={{ display: "block", textAlign: "center", width: "100%", padding: "12px 16px", borderRadius: 8, background: C.white, color: C.text, border: `1px solid ${C.border}`, fontSize: 14, fontWeight: 600, textDecoration: "none", marginBottom: 12, boxSizing: "border-box" }}
+          >
+            Entrar pelo email
+          </a>
         )}
 
         {step === "request" ? (
