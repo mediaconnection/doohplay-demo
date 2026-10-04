@@ -1674,6 +1674,26 @@ Achado durante a investigação da aba Conteúdo (ver seção seguinte). **Só l
   - **Risco ainda aberto**: a mesma rota continua no ar. Pendência: fazer a exclusão de anunciante não tocar `Campaign` de dono, ou separar de vez o conteúdo do dono da tabela `Campaign`.
   - 18 `creative_assets_v2` ainda vêm de `CampaignMedia` (8 são do LEMEL186); as outras 10 não foram examinadas.
 
+## 📡 Volta das TVs reais (registrado em 2026-10-04, ~22:05 UTC)
+
+Fonte: `players.last_ping` e `player_uptime_daily` (horários em UTC; Brasília = UTC−3).
+
+| Cliente | Player | Caiu | Voltou | Depois |
+|---|---|---|---|---|
+| **BARBE332** | `febebe7e…` (Amlogic T600) | 17/09 02:44 | 28/09 10:19 (breve; sinal até 29/09 01:31) | **Voltou de novo em 04/10 20:27** — enviando sinal contínuo (188 sinais até 22:03, último a segundos da consulta). |
+| **LEMEL186** | `d44c61dd…` (Amlogic V96) | 17/09 06:31 | **28/09 10:20** — estável até 01/10 12:27 | Voltou em 04/10 20:28, mas **só por 4 minutos** (até 20:32); sem sinal desde então. |
+
+Correção de registro: a anotação de 28/09 ("telas sem sinal há 11 dias") era verdadeira no momento da consulta (10:07 UTC); as duas voltaram ~13 min depois. Entre 29/09 e 04/10 o BARBE332 ficou de novo sem sinal, e o LEMEL186 entre 01/10 12:27 e 04/10 20:28.
+
+**O que cada TV recebe agora** (`GET /api/client/playlist/{code}`, 04/10 ~22:05 UTC):
+- **BARBE332**: 4 itens, todos **Canal DOOHPLAY** (institucional por segmento), todos com arquivo respondendo 200. Nenhum conteúdo do dono (as 4 mídias órfãs foram apagadas em 04/10), nenhum anúncio, nenhum aviso.
+- **LEMEL186**: 12 itens — 8 do dono, **todos com arquivo 404** (o player pula), e 4 do Canal DOOHPLAY com 200. Na prática a tela só mostra o Canal DOOHPLAY.
+
+**Achados laterais, não corrigidos:**
+- `studio_clients.player_id` do **BARBE332 está nulo** — o player real (`febebe7e…`) não está vinculado ao cadastro. Efeito: o alerta de tela offline (que junta por `sc.player_id`) **nunca monitorou o BARBE332**, e qualquer tela/rota que dependa desse vínculo não enxerga o player dele.
+- As duas TVs voltaram com 1 minuto de diferença (20:27 e 20:28) — sugere causa comum (ação no local, rede, ou atualização do app), não verificada.
+- `playlist_schedule` ainda tem 12 linhas do BARBE332 apontando para outras mídias antigas (não as 4 apagadas). Não examinadas; não tocadas.
+
 ## 📋 Investigação + preview — redesenho da aba Conteúdo (2026-10-04, aguardando aprovação)
 
 Pedido: `prompt_melhorar_aba_conteudo.md`. Só investigação e preview — **nada implementado em React**. Preview: `design-previews/aba-conteudo/2026-10-04-proposta.html` (estático, dados reais, estados: real BARBE332/LEMEL186, vazio, carregando, erro; computador/celular).
