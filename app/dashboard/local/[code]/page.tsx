@@ -49,6 +49,9 @@ export type PlaylistItem = {
   asset_url: string | null
   name?: string
   screen_id?: string | null
+  // placements_v2.active (04/10/2026) — antes a aba Conteúdo mostrava
+  // "Ativo" fixo em todo card, sem ler isso.
+  active?: boolean
 }
 
 export type Payment = {
@@ -197,6 +200,9 @@ export default async function DashboardPage({
   // de bug já corrigida hoje em outros 6+ lugares — dois caminhos paralelos
   // pra mesma informação, divergindo silenciosamente.
   let playlist: PlaylistItem[] = []
+  // Erro de banco aqui antes virava lista vazia — a aba dizia "nenhum
+  // conteúdo" pro dono quando na verdade só a leitura falhou (04/10/2026).
+  let playlistError = false
   try {
     const plRes = await pool.query(
       `SELECT
@@ -207,7 +213,8 @@ export default async function DashboardPage({
            ROW_NUMBER() OVER (ORDER BY ca.created_at ASC)::int) AS position,
          ca.url            AS asset_url,
          ca.name,
-         p.screen_id::text AS screen_id
+         p.screen_id::text AS screen_id,
+         p.active
        FROM placements_v2 p
        JOIN creative_assets_v2 ca ON ca.id = p.creative_asset_id
        JOIN campaigns_v2 cv ON cv.id = ca.campaign_id
@@ -217,7 +224,10 @@ export default async function DashboardPage({
       [code]
     )
     playlist = plRes.rows
-  } catch {}
+  } catch (err) {
+    console.error("[dashboard/local page] falha ao ler conteúdo do dono:", err)
+    playlistError = true
+  }
 
   // 5. Payments -- client_payments nunca existiu em produção (achado
   // 2026-09-13, investigação da aba Ganhos). client_payouts é o
@@ -259,6 +269,7 @@ export default async function DashboardPage({
       player={player}
       stats={stats}
       playlist={playlist}
+      playlistError={playlistError}
       payments={payments}
       dtvReady={dtvReady}
     />

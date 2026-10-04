@@ -186,26 +186,13 @@ function StatusBadge({ online, checking = false }: { online: boolean; checking?:
   )
 }
 
-function PlaylistThumb({ item, name }: { item: PlaylistItem; name: string }) {
-  const [err, setErr] = useState(false)
-  const isVideo = item.type === "video"
-  if (item.asset_url && !err) {
-    if (isVideo) return (
-      <div style={{ height: 140, background: C.gray900, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-        <video src={item.asset_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" onError={() => setErr(true)} />
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 28, opacity: 0.8 }}>▶</span></div>
-      </div>
-    )
-    return <div style={{ height: 140, background: C.gray100, position: "relative" }}><img src={item.asset_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setErr(true)} /></div>
-  }
-  return <div style={{ height: 140, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 40 }}>{isVideo ? "🎬" : "🖼"}</span></div>
-}
+type ModalMode = "upload" | "ia"
 
-function ModalPromocao({ code, onClose, onRefresh }: { code: string; onClose: () => void; onRefresh?: () => void }) {
+function ModalPromocao({ code, onClose, onRefresh, initialMode = "upload" }: { code: string; onClose: () => void; onRefresh?: () => void; initialMode?: ModalMode }) {
   // Limites espelhando exatamente SIZE_LIMITS em app/api/studio/upload/route.ts
   const MAX_SIZE_MB_IMAGE = 10
   const MAX_SIZE_MB_VIDEO = 100
-  const [mode, setMode]       = useState<"upload" | "ia">("upload")
+  const [mode, setMode]       = useState<ModalMode>(initialMode)
   // ── Modo IA ──
   const [product, setProduct] = useState("")
   const [price, setPrice]     = useState("")
@@ -992,7 +979,48 @@ function TabTV({ client, player, playlist, online, checking }: any) {
   )
 }
 
-function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
+// Miniatura 16:9 (formato da TV). Arquivo que não carrega avisa o pai via
+// onMissing — achado de 04/10/2026: os arquivos dos clientes reais davam
+// 404 no storage e a aba mostrava só um emoji genérico, sem dizer que a
+// TV estava pulando aquela mídia.
+function ContentThumb({ item, missing, onMissing }: { item: PlaylistItem; missing: boolean; onMissing: () => void }) {
+  const isVideo = item.type === "video"
+  const kind = `${isVideo ? "Vídeo" : "Imagem"} · ${item.duration || 15}s`
+  return (
+    <div style={{ position: "relative", aspectRatio: "16 / 9", maxWidth: "100%", background: C.gray100 }}>
+      {item.asset_url && !missing && (isVideo
+        ? <video src={item.asset_url} muted preload="metadata" onError={onMissing} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        : <img src={item.asset_url} alt="" onError={onMissing} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />)}
+      {isVideo && !missing && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <span style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(17,24,39,0.6)", color: C.white, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>▶</span>
+        </div>
+      )}
+      {missing && (
+        // Texto em C.text, não âmbar: âmbar sobre âmbar claro dá ~3,1:1.
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, background: C.amberLt, borderBottom: `3px solid ${C.amber}`, color: C.text, fontSize: 12, fontWeight: 600, textAlign: "center", padding: "8px 8px 28px" }}>
+          ⚠ Arquivo não encontrado
+          <span style={{ color: C.text2, fontWeight: 400 }}>A TV pula esta mídia. Envie de novo.</span>
+        </div>
+      )}
+      <span style={{ position: "absolute", left: 6, bottom: 6, background: "rgba(17,24,39,0.72)", color: C.white, fontSize: 11, padding: "2px 7px", borderRadius: 4 }}>{kind}</span>
+    </div>
+  )
+}
+
+function SummaryChip({ children, warn = false }: { children: React.ReactNode; warn?: boolean }) {
+  return (
+    <span style={{ fontSize: 12, color: warn ? C.text : C.text2, background: warn ? C.amberLt : C.white, border: `1px solid ${warn ? C.amber : C.border}`, borderRadius: 999, padding: "3px 10px", fontVariantNumeric: "tabular-nums" }}>
+      {children}
+    </span>
+  )
+}
+
+// Redesenho aprovado em 04/10/2026 (preview em design-previews/aba-conteudo/).
+// Pausar não está aqui de propósito: a única rota que pausa
+// (PATCH /api/client/playlist/[code]) regrava duração/agendamento do item
+// inteiro, então pausar continua na aba Playlist até existir rota própria.
+function TabConteudo({ client, playlist, playlistError, onOpenModal, onNav, onRefresh }: any) {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState("")
@@ -1012,18 +1040,14 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
   }, [client.code])
   const hasCustomScreens = screens.length > 1 && screens.some((s: any) => !s.same_content)
 
-  // Fase 32 (20/07/2026): indicador de uso de mídia — feedback de cliente
-  // pedindo mais espaço pra vídeo na playlist revelou que ninguém via
-  // quanto do limite do plano já tinha sido usado ANTES de tentar subir
-  // um arquivo e trombar com o erro. Mesmo endpoint que já alimenta o
-  // indicador de telas (plan-usage), campo `media` novo nele.
-  const [mediaUsage, setMediaUsage] = useState<{ used: number; limit: number; unlimited: boolean } | null>(null)
-  useEffect(() => {
-    fetch(`/api/client/plan-usage/${client.code}`)
-      .then(r => r.json())
-      .then(d => { if (d.media) setMediaUsage(d.media) })
-      .catch(() => {})
-  }, [client.code])
+  // Indicador "Você usa X de Y mídias" (Fase 32) retirado em 04/10/2026:
+  // plan-usage conta arquivos no bucket e mostrava 0 pros dois clientes
+  // reais (que têm 4 e 8 mídias). Volta quando o número estiver certo.
+
+  const [missingIds, setMissingIds] = useState<Set<string>>(new Set())
+  const markMissing = useCallback((id: string) => {
+    setMissingIds(prev => prev.has(id) ? prev : new Set(prev).add(id))
+  }, [])
 
   // Galeria de Exemplos — biblioteca de mídia pronta por segmento, pro
   // cliente que não sabe criar conteúdo próprio ter algo profissional no
@@ -1104,6 +1128,39 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
     setDeleting(false)
   }
 
+  // Resumo a partir do dado real: "no ar" = ativo e com arquivo que carrega.
+  const isPaused = (item: PlaylistItem) => item.active === false
+  const imageCount = realItems.filter(i => i.type !== "video").length
+  const videoCount = realItems.length - imageCount
+  const missingCount = realItems.filter(i => missingIds.has(i.id)).length
+  const pausedCount = realItems.filter(i => isPaused(i) && !missingIds.has(i.id)).length
+  const onAirCount = realItems.length - missingCount - pausedCount
+
+  const header = (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
+      <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>Conteúdo</div>
+        <div style={{ fontSize: 13, color: C.text2, maxWidth: 460, lineHeight: 1.45 }}>
+          As fotos e vídeos da sua empresa que passam na sua TV. Anúncios de outras empresas e o Canal DOOHPLAY ficam em outras abas.
+        </div>
+        {realItems.length > 0 && (
+          <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <SummaryChip><strong style={{ color: C.text }}>{realItems.length}</strong> {realItems.length === 1 ? "mídia" : "mídias"}</SummaryChip>
+            {imageCount > 0 && <SummaryChip>{imageCount} {imageCount === 1 ? "imagem" : "imagens"}</SummaryChip>}
+            {videoCount > 0 && <SummaryChip>{videoCount} {videoCount === 1 ? "vídeo" : "vídeos"}</SummaryChip>}
+            <SummaryChip><strong style={{ color: C.text }}>{onAirCount}</strong> no ar</SummaryChip>
+            {pausedCount > 0 && <SummaryChip>{pausedCount} {pausedCount === 1 ? "pausada" : "pausadas"}</SummaryChip>}
+            {missingCount > 0 && <SummaryChip warn>⚠ <strong>{missingCount}</strong> com arquivo faltando</SummaryChip>}
+          </div>
+        )}
+      </div>
+      <div className="db-content-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Button theme={C} variant="primary" onClick={() => onOpenModal("ia")}>✨ Criar com IA</Button>
+        <Button theme={C} onClick={() => onOpenModal("upload")}>Enviar arquivo</Button>
+      </div>
+    </div>
+  )
+
   return (
     <div>
       {deleteTarget && (
@@ -1121,45 +1178,106 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button onClick={onAddPromo} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Enviar mídia</button>
-      </div>
+      {header}
 
-      {mediaUsage && !mediaUsage.unlimited && (
-        <div style={{
-          background: mediaUsage.used >= mediaUsage.limit ? C.amberLt : C.white,
-          border: `1px solid ${mediaUsage.used >= mediaUsage.limit ? C.amber : C.border}`,
-          borderRadius: 12, padding: "12px 16px", marginBottom: 16,
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>
-              Você usa {mediaUsage.used} de {mediaUsage.limit} mídias do seu plano
-            </div>
-            <div style={{ height: 5, borderRadius: 3, background: C.gray100, marginTop: 6, overflow: "hidden" }}>
-              <div style={{
-                height: "100%", borderRadius: 3,
-                width: `${Math.min(100, Math.round((mediaUsage.used / mediaUsage.limit) * 100))}%`,
-                background: mediaUsage.used >= mediaUsage.limit ? C.amber : C.blue,
-              }} />
-            </div>
+      {playlistError ? (
+        <div style={{ background: C.redLt, border: `1px solid ${C.redBd}`, borderRadius: 12, padding: 20, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 13 }}>
+            <div style={{ fontWeight: 600, color: C.text, marginBottom: 2 }}>Não conseguimos carregar seu conteúdo agora.</div>
+            <div style={{ color: C.text2 }}>Nada foi apagado e sua TV continua passando normalmente. Tente de novo em instantes.</div>
           </div>
-          {mediaUsage.used >= mediaUsage.limit && (
-            <a
-              href={`https://wa.me/5511962050987?text=${encodeURIComponent(`Oi! Sou o cliente ${client.code} e quero mais espaço pra mídia (mudar de plano)`)}`}
-              target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, fontWeight: 600, padding: "7px 12px", borderRadius: 8, background: C.blue, color: "#fff", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
-            >
-              Mudar de plano
-            </a>
-          )}
+          <Button theme={C} onClick={onRefresh}>Tentar de novo</Button>
         </div>
+      ) : realItems.length === 0 ? (
+        <Card theme={C} padding="comfortable" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>Sua TV ainda não tem conteúdo da sua empresa</div>
+          <div style={{ fontSize: 13, color: C.text2, margin: "0 auto 18px", maxWidth: 420, lineHeight: 1.5 }}>
+            Enquanto isso ela mostra o Canal DOOHPLAY. Escolha um jeito de começar.
+          </div>
+          <div className="db-content-paths" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, maxWidth: 620, margin: "0 auto", textAlign: "left" }}>
+            {([
+              { label: "✨ Criar com IA", desc: "Diga o produto e o preço; a gente monta a arte.", onClick: () => onOpenModal("ia") },
+              { label: "📁 Enviar arquivo", desc: "Foto ou vídeo que você já tem (até 10 MB imagem, 100 MB vídeo).", onClick: () => onOpenModal("upload") },
+              { label: "💬 Escrever um aviso", desc: "Recado em texto, sem imagem. Vai para a aba Avisos.", onClick: () => onNav("avisos") },
+            ]).map(p => (
+              <button key={p.label} onClick={p.onClick} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, background: C.gray50, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3 }}>{p.label}</div>
+                <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.4 }}>{p.desc}</div>
+              </button>
+            ))}
+          </div>
+        </Card>
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: C.text2 }}>
+            <span>Só precisa de um recado rápido em texto (horário, feriado, promoção do dia)?</span>
+            <button onClick={() => onNav("avisos")} style={{ background: "none", border: "none", padding: 0, color: C.blue, fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>Escrever um aviso →</button>
+          </div>
+
+          <div className="db-content-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
+            {realItems.map((item, i) => {
+              const name = nameFor(item, i)
+              const missing = missingIds.has(item.id)
+              const status = missing
+                ? { dot: C.amber, label: "Não está passando" }
+                : isPaused(item)
+                ? { dot: C.gray300, label: "Pausada" }
+                : { dot: C.green, label: "No ar" }
+              return (
+                <div key={item.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <ContentThumb item={item} missing={missing} onMissing={() => markMissing(item.id)} />
+                  <div style={{ padding: "10px 12px 4px", flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34, overflowWrap: "anywhere" }}>{name}</div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.text2, marginTop: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: status.dot }} />
+                      {status.label}
+                    </div>
+                  </div>
+                  {hasCustomScreens && (
+                    <div style={{ padding: "4px 12px 0" }}>
+                      <select
+                        value={(item as any).screen_id ?? ""}
+                        onChange={e => assignScreen(item.id, e.target.value || null)}
+                        disabled={savingMedia === item.id}
+                        aria-label={`Tela onde "${name}" aparece`}
+                        style={{ width: "100%", fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", color: C.text2, background: C.gray50 }}
+                      >
+                        <option value="">Todas as telas</option>
+                        {screens.map((s: any) => (
+                          <option key={s.id} value={s.id}>{s.label || s.device_type}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "flex-end", padding: "2px 6px 6px", borderTop: `1px solid ${C.border2}`, marginTop: 8 }}>
+                    <button
+                      onClick={() => setDeleteTarget({ id: item.id, name })}
+                      style={{ background: "none", border: "none", color: C.red, fontSize: 12, fontWeight: 500, padding: "6px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+            <button onClick={() => onOpenModal("upload")} style={{ border: `2px dashed ${C.gray300}`, borderRadius: 12, background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, minHeight: 150, color: C.text2, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              <span style={{ fontSize: 24, color: C.blue, lineHeight: 1 }}>+</span>
+              <span style={{ fontWeight: 600, color: C.text }}>Adicionar</span>
+              Criar com IA ou enviar arquivo
+            </button>
+          </div>
+
+          <div style={{ marginTop: 16, fontSize: 12, color: C.text2 }}>
+            Para pausar, mudar a ordem ou o tempo de cada mídia na tela, use a aba{" "}
+            <button onClick={() => onNav("playlist")} style={{ background: "none", border: "none", padding: 0, color: C.blue, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Playlist →</button>
+          </div>
+        </>
       )}
 
       {!loadingExamples && examples.length > 0 && (
-        <div style={{ background: realItems.length === 0 ? C.blueLt : C.white, border: `1px solid ${realItems.length === 0 ? C.blueBd : C.border}`, borderRadius: 12, padding: "16px", marginBottom: 16 }}>
+        <div style={{ background: realItems.length === 0 ? C.blueLt : C.white, border: `1px solid ${realItems.length === 0 ? C.blueBd : C.border}`, borderRadius: 12, padding: "16px", marginTop: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>📚 Galeria de Exemplos</div>
-          <div style={{ fontSize: 12, color: C.text3, marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: C.text2, marginBottom: 12 }}>
             {realItems.length === 0
               ? "Ainda não tem nada na sua tela? Use um destes modelos prontos pra começar agora mesmo — depois é só trocar pelo seu conteúdo quando quiser."
               : "Modelos prontos pro seu segmento, prontos pra usar direto na sua tela."}
@@ -1187,57 +1305,6 @@ function TabConteudo({ client, playlist, onAddPromo, onRefresh }: any) {
           </div>
         </div>
       )}
-
-      <div className="db-content-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16, marginBottom: 16 }}>
-        {realItems.length > 0 ? realItems.map((item, i) => {
-          const name = nameFor(item, i)
-          return (
-            <div key={item.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-              <div style={{ position: "relative" }}>
-                <PlaylistThumb item={item} name={name} />
-                <div style={{ position: "absolute", bottom: 8, left: 8, background: "rgba(0,0,0,0.6)", color: C.white, fontSize: 10, padding: "2px 7px", borderRadius: 4 }}>{item.type === "video" ? "Video" : "Imagem"}</div>
-                <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: C.white, fontSize: 10, padding: "2px 7px", borderRadius: 4 }}>{item.duration || 15}s</div>
-                <button
-                  onClick={() => setDeleteTarget({ id: item.id, name })}
-                  title="Excluir mídia"
-                  style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 8, background: "rgba(0,0,0,0.55)", border: "none", color: C.white, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  🗑️
-                </button>
-              </div>
-              <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-                  <div style={{ fontSize: 11, color: C.text3 }}>⏱ {item.duration || 15}s</div>
-                </div>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: C.greenLt, color: C.green, flexShrink: 0 }}>Ativo</span>
-              </div>
-              {hasCustomScreens && (
-                <div style={{ padding: "0 14px 12px" }}>
-                  <select
-                    value={(item as any).screen_id ?? ""}
-                    onChange={e => assignScreen(item.id, e.target.value || null)}
-                    disabled={savingMedia === item.id}
-                    style={{ width: "100%", fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 8px", color: C.text2, background: C.gray50 }}
-                  >
-                    <option value="">Todas as telas</option>
-                    {screens.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.label || s.device_type}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          )
-        }) : (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: C.text3, background: C.white, borderRadius: 12, border: `1px solid ${C.border}` }}>Nenhum conteúdo na playlist ainda.</div>
-        )}
-        <div onClick={onAddPromo} style={{ background: C.white, border: `2px dashed ${C.gray300}`, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 8, cursor: "pointer" }}>
-          <div style={{ fontSize: 28, color: C.blue }}>+</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Adicionar nova mídia</div>
-          <div style={{ fontSize: 12, color: C.text3 }}>Upload de imagem ou vídeo</div>
-        </div>
-      </div>
     </div>
   )
 }
@@ -3042,13 +3109,14 @@ function TabMeusClientes({ code }: { code: string }) {
   )
 }
 
-interface Props { client: ClientData; player: PlayerData | null; stats: StatsData; playlist: PlaylistItem[]; payments: Payment[]; dtvReady?: boolean }
+interface Props { client: ClientData; player: PlayerData | null; stats: StatsData; playlist: PlaylistItem[]; playlistError?: boolean; payments: Payment[]; dtvReady?: boolean }
 
-export default function DashboardClient({ client, player, stats, playlist, payments, dtvReady = false }: Props) {
+export default function DashboardClient({ client, player, stats, playlist, playlistError = false, payments, dtvReady = false }: Props) {
   const [tab,       setTab]       = useState("dashboard")
   const [sideOpen,  setSideOpen]  = useState(true)
   const [drawerOpen,setDrawerOpen]= useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [modalMode, setModalMode] = useState<ModalMode>("upload")
   const [isMobile,  setIsMobile]  = useState(false)
   const [loggingOut,setLoggingOut]= useState(false)
 
@@ -3067,7 +3135,8 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     if (t === "ai-revenue") { router.push(`/dashboard/local/${client.code}/ai-revenue`); return }
     setTab(t); setDrawerOpen(false)
   }, [router, client.code])
-  const onAddPromo = useCallback(() => setShowModal(true), [])
+  const openModal = useCallback((mode: ModalMode) => { setModalMode(mode); setShowModal(true) }, [])
+  const onAddPromo = useCallback(() => openModal("upload"), [openModal])
   const onRefresh = useCallback(() => { window.location.reload() }, [])
   const onLogout = useCallback(async () => {
     setLoggingOut(true)
@@ -3085,7 +3154,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
     dashboard:  <TabDashboard client={client} player={player} stats={stats} playlist={playlist} payments={payments} onNav={onNav} onAddPromo={onAddPromo} online={online} lastSeen={lastSeen} checking={checking} dtvReady={dtvReady} />,
     assistente: <AIAssistantPanel code={client.code} onNavigate={onNav} />,
     tv:         <TabTV client={client} player={player} playlist={playlist} online={online} checking={checking} />,
-    conteudo:   <TabConteudo client={client} playlist={playlist} onAddPromo={onAddPromo} onRefresh={onRefresh} />,
+    conteudo:   <TabConteudo client={client} playlist={playlist} playlistError={playlistError} onOpenModal={openModal} onNav={onNav} onRefresh={onRefresh} />,
     anuncios:   <TabAnuncios stats={stats} payments={payments} code={client.code} onAddPromo={onAddPromo} />,
     ganhos:     <TabGanhos stats={stats} payments={payments} code={client.code} />,
     relatorios: <TabRelatorios stats={stats} payments={payments} code={client.code} />,
@@ -3099,7 +3168,7 @@ export default function DashboardClient({ client, player, stats, playlist, payme
   const tabLabel: Record<string, string> = {
     dashboard: "Dashboard", assistente: "Assistente IA", tv: "Minha TV", conteudo: "Conteúdo",
     anuncios: "Anúncios", ganhos: "Ganhos", relatorios: "Relatórios",
-    playlist: "Playlist", clube: "Clube de Telas", clientes: "Meus Clientes", config: "Configurações",
+    playlist: "Playlist", avisos: "Avisos", clube: "Clube de Telas", clientes: "Meus Clientes", config: "Configurações",
   }
 
   return (
@@ -3116,12 +3185,15 @@ export default function DashboardClient({ client, player, stats, playlist, payme
           .db-kpis { display: grid !important; grid-template-columns: 1fr 1fr !important; }
           .db-tv-grid { grid-template-columns: 1fr !important; }
           .db-futuros { grid-template-columns: 1fr 1fr 1fr !important; }
-          .db-content-grid { grid-template-columns: 1fr !important; }
+          .db-content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+          .db-content-actions { width: 100%; }
+          .db-content-actions > button { flex: 1; }
+          .db-content-paths { grid-template-columns: 1fr !important; }
           .db-main { padding: 16px 12px 80px !important; }
         }
       `}</style>
 
-      {showModal && <ModalPromocao code={client.code} onClose={() => setShowModal(false)} onRefresh={onRefresh} />}
+      {showModal && <ModalPromocao code={client.code} initialMode={modalMode} onClose={() => setShowModal(false)} onRefresh={onRefresh} />}
 
       {drawerOpen && (
         <div onClick={() => setDrawerOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200 }}>

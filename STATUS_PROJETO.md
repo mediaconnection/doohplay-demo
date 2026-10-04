@@ -1647,3 +1647,13 @@ Pedido: `prompt_melhorar_aba_conteudo.md`. Só investigação e preview — **na
 **Achados de backend fora da aba (não corrigidos):** `PATCH /api/client/playlist/[code]` e `PATCH /api/client/media/[id]/screen` **não checam sessão** (qualquer um que saiba o código altera a playlist de outro cliente); `/api/client/plan-usage/[code]` é público (expõe status de assinatura). Contraste: o azul primário `#3B82F6` com branco dá **3,68:1** (abaixo de AA 4,5 pra texto normal) em botões e links do dashboard todo — mudança de token, decisão do fundador.
 
 **Dado real (04/10)**: BARBE332 4 mídias (3 imagens, 1 vídeo), LEMEL186 8 imagens; todas ativas, nenhuma com tela específica nem programação; 1 tela cada (BARBE332 sem linha em `client_screens`).
+
+**✅ Front-end implementado (2026-10-04), aprovado pelo fundador a partir do preview** (artifact `claude.ai/artifact/7vyVuhBL3XVaimnt7Q3G3G`):
+- Cabeçalho com resumo real (mídias, imagens, vídeos, no ar, pausadas, com arquivo faltando) e duas ações visíveis: "Criar com IA" (abre o modal já no modo IA — `ModalPromocao` ganhou `initialMode`) e "Enviar arquivo".
+- Cards 16:9 com status real: "No ar", "Pausada" (lê `placements_v2.active`) ou "Não está passando" quando o arquivo não carrega (detectado no `onError` da miniatura). Excluir saiu de cima da miniatura para o rodapé do card. 2 colunas no celular (antes 1), 3 no computador.
+- Estados: vazio com três caminhos (IA, arquivo, aviso), erro de leitura ("Nada foi apagado…", com "Tentar de novo"), atalho para Avisos e nota apontando a aba Playlist para pausar/ordem/tempo.
+- Retirados: contador "X de Y mídias" (número errado), selo "Ativo" fixo, botão "+ Enviar mídia" duplicado, `PlaylistThumb` (sem uso).
+- Duas leituras mínimas no SSR (`page.tsx`), necessárias pra não mostrar dado falso: coluna `p.active` na consulta e flag `playlistError` em vez de `catch {}` silencioso.
+- Corrigido junto: o cabeçalho mostrava "Dashboard" na aba Avisos (faltava `avisos` em `tabLabel`, esquecido na Fase 46).
+- **Não feito (backend, aguardando)**: rota de exclusão ainda procura em `CampaignMedia` (excluir falha para as 12 mídias reais, com mensagem de erro honesta), rota própria de pausar, contador de plano, `LIMIT 20`.
+- Validado: `tsc --noEmit` (59, base) e ESLint (76 erros / 18 avisos, idêntico ao antes). **Não validado visualmente no app real** — o dashboard exige login do cliente por WhatsApp; a conferência visual foi no preview aprovado.
