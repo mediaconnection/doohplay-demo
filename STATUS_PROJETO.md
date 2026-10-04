@@ -1451,6 +1451,21 @@ Fundador confirma que o banco da Upstash aparece **ativo** no painel. Mesmo assi
 
 **Nada foi alterado** nesta reconferência — só leitura de logs (Render) e contagens (Supabase).
 
+### 🔄 Correção do diagnóstico (2026-10-04) — o Redis responde; "Command timed out" é timeout do próprio cliente
+
+Leitura de código + logs do boot do worker de 04/10 19:21 UTC (deploy `31f3cac`). **O item 1 acima ("worker continua sem falar com o Redis") estava errado.**
+
+- **Configuração** (`lib/redis.ts` só reexporta `packages/shared-infra/redis.ts`, singleton `getRedis()`): `REDIS_URL` (fallback `redis://localhost:6379`; TLS só se a URL for `rediss://` — sem opção `tls` explícita; valor da env não legível pela API do Render), `connectTimeout: 10_000`, **`commandTimeout: 5_000`** (adicionado em `e4d65c2`, 12/09), `keepAlive: 30_000`, `maxRetriesPerRequest: null`, `enableReadyCheck: false`, `retryStrategy` = `min(tentativas × 100ms, 2s)` sem limite de tentativas (reconecta pra sempre).
+- **Causa do erro**: cada `Worker` do BullMQ (5.76.8) cria uma conexão de bloqueio via `connection.duplicate()`, que **herda o `commandTimeout` de 5s**. Com a fila vazia, o worker fica em `BZPOPMIN` bloqueando `drainDelay` = 5s — o timer do ioredis estoura nos mesmos 5s e lança `Command timed out`. Por isso o erro aparece a cada ~5,1s, com o servidor saudável. Antes de 16/09 18:03 não aparecia porque o Upstash respondia `ERR ... rate-limited` na hora (sem bloquear).
+- **Prova de que o servidor responde**: no boot de 19:21:45 os dois agendamentos (`aggregatorJob`, `offlineAlertJob`) foram confirmados em <0,5s, e os dois jobs **executaram** (19:21:45 e 19:21:52).
+- **Conexões simultâneas do processo de workers**: **7** — 1 compartilhada (singleton, usada por `Queue`s e comandos normais) + 1 de bloqueio por `Worker` × 6 (event, proof, aggregator, risk, alert, offlineAlert). Contagem derivada do código do BullMQ, não medida no Upstash.
+- **Correção sugerida, não aplicada**: não usar `commandTimeout` na conexão dos `Worker`s (passar uma conexão sem ele, ou desligar só no duplicado de bloqueio); manter nos usos de cache/comandos curtos.
+
+**Dois achados novos do mesmo boot, mais importantes que o timeout:**
+1. **Ancoragem: o job de agregação roda e falha no banco** — `aggregatorWorker failed: duplicate key value violates unique constraint "unique_merkle_root"` (19:21:52). Causa provável do backlog (49.658 eventos sem bloco): o agregador tenta gravar uma raiz Merkle que já existe e aborta. **Não investigado a fundo** — tabela do front de prova; precisa de sessão própria.
+2. **Alerta de tela offline nunca teve canal de WhatsApp no worker**: o job rodou (marcou `LEMEL186` como offline) e tentou avisar fundador e dono, mas o serviço `doohplay-workers` **não tem as env vars `EVOLUTION_*`** — a URL saiu `undefined/message/sendText/undefined`. **Nenhuma mensagem foi enviada a ninguém.** Efeitos colaterais: o job registrou `LEMEL186` em `alerted` com `errors: []`, então o anti-repetição vai considerar o alerta como dado sem ninguém ter recebido. Pra ativar o alerta é preciso configurar `EVOLUTION_API_URL`/`EVOLUTION_API_KEY`/`EVOLUTION_INSTANCE` no `doohplay-workers` — **o que vai disparar alerta real pro dono do LeMelo** (tela offline desde 17/09). Decisão do fundador.
+3. Bug pequeno meu (31f3cac): URL inválida (erro antes de sair qualquer requisição) é classificada como `"unknown"` por `sendWhatsAppDetailed`; deveria ser `"failed"`. Sem efeito hoje (o site tem as env vars; o worker usa o booleano), mas corrigir junto do próximo ajuste.
+
 ## ✅ Confirmado — telefone do LEMEL186 correto e primeiro login WhatsApp real fechado (2026-09-14)
 
 Follow-up da pendência do Documento-Mestre (achado: telefone cadastrado seria o placeholder interno da DOOHPLAY, não o do cliente) e da seção acima ("Bug real corrigido — login por WhatsApp do LEMEL186 nunca chegava").
