@@ -8,11 +8,22 @@ vi.mock("@/lib/db", () => ({
 }))
 
 vi.mock("@/lib/whatsapp", () => ({
-  sendWhatsApp: vi.fn().mockResolvedValue(true),
+  sendWhatsAppDetailed: vi.fn().mockResolvedValue("sent"),
 }))
 
 import { POST } from "./route"
-import { sendWhatsApp } from "@/lib/whatsapp"
+import { sendWhatsAppDetailed } from "@/lib/whatsapp"
+
+const deleteCalls = () => queryMock.mock.calls.filter(c => String(c[0]).includes("DELETE FROM client_login_codes"))
+
+// Cliente com telefone, sem envio recente, INSERT devolvendo o id do código.
+function mockFreshRequest(otpId: string) {
+  queryMock
+    .mockResolvedValueOnce({ rows: [{ code: "BARBE332", phone: "11944450000" }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: otpId }] })
+    .mockResolvedValueOnce({ rows: [] }) // DELETE, se houver
+}
 
 function makeRequest(body: unknown) {
   return new NextRequest("http://localhost/api/client/auth/request-otp", {
@@ -77,33 +88,43 @@ describe("POST /api/client/auth/request-otp", () => {
   // 04/10/2026: o envio era fire-and-forget — com a Evolution desconectada,
   // a rota respondia sucesso e a tela pedia um código que nunca chegou.
   it("responde sucesso quando o WhatsApp confirma o envio, sem descartar o código", async () => {
-    vi.mocked(sendWhatsApp).mockResolvedValueOnce(true)
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ code: "BARBE332", phone: "11944450000" }] }) // cliente
-      .mockResolvedValueOnce({ rows: [] })                                          // sem envio recente
-      .mockResolvedValueOnce({ rows: [{ id: "otp-1" }] })                           // INSERT ... RETURNING id
+    vi.mocked(sendWhatsAppDetailed).mockResolvedValueOnce("sent")
+    mockFreshRequest("otp-1")
 
     const res = await POST(makeRequest({ code: "BARBE332" }))
     expect(res.status).toBe(200)
-    expect((await res.json()).ok).toBe(true)
-    expect(queryMock.mock.calls.some(c => String(c[0]).includes("DELETE FROM client_login_codes"))).toBe(false)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+    expect(body.delivery).toBeUndefined()
+    expect(deleteCalls()).toHaveLength(0)
   })
 
-  it("devolve 503 com delivery=failed e descarta o código quando o WhatsApp falha", async () => {
-    vi.mocked(sendWhatsApp).mockResolvedValueOnce(false)
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ code: "BARBE332", phone: "11944450000" }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: "otp-2" }] })
-      .mockResolvedValueOnce({ rows: [] }) // DELETE
+  it("falha CONFIRMADA: devolve 503 com delivery=failed e descarta o código", async () => {
+    vi.mocked(sendWhatsAppDetailed).mockResolvedValueOnce("failed")
+    mockFreshRequest("otp-2")
 
     const res = await POST(makeRequest({ code: "BARBE332" }))
     expect(res.status).toBe(503)
     const body = await res.json()
     expect(body.delivery).toBe("failed")
     expect(body.error).toMatch(/email/i)
-    const del = queryMock.mock.calls.find(c => String(c[0]).includes("DELETE FROM client_login_codes"))
-    expect(del?.[1]).toEqual(["otp-2"])
+    expect(deleteCalls()).toHaveLength(1)
+    expect(deleteCalls()[0][1]).toEqual(["otp-2"])
+  })
+
+  it("sem resposta (timeout): mantém o código válido e avisa que pode demorar", async () => {
+    vi.mocked(sendWhatsAppDetailed).mockResolvedValueOnce("unknown")
+    mockFreshRequest("otp-3")
+
+    const res = await POST(makeRequest({ code: "BARBE332" }))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+    expect(body.delivery).toBe("pending")
+    expect(body.message).toMatch(/demor/i)
+    expect(body.message).toMatch(/email/i)
+    // Código NÃO descartado: uma mensagem que chegue atrasada continua valendo.
+    expect(deleteCalls()).toHaveLength(0)
   })
 
   it("devolve 500 quando o banco falha, sem quebrar o processo", async () => {

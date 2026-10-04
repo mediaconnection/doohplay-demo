@@ -22,9 +22,13 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
   // WhatsApp não entregou (instância da Evolution fora do ar) — oferece o
   // login por email, que usa outro serviço de envio (04/10/2026).
   const [whatsappFailed, setWhatsappFailed] = useState(false)
+  // WhatsApp não confirmou a tempo: o código continua válido e pode chegar
+  // atrasado — segue pro passo do código, com o email como saída.
+  const [deliveryPending, setDeliveryPending] = useState(false)
+  const emailLoginHref = `/login?redirect=${encodeURIComponent(`/dashboard/local/${code}`)}`
 
   const requestCode = async () => {
-    setLoading(true); setError(""); setWhatsappFailed(false)
+    setLoading(true); setError(""); setWhatsappFailed(false); setDeliveryPending(false)
     try {
       const res = await fetch("/api/client/auth/request-otp", {
         method: "POST",
@@ -39,6 +43,7 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
         return
       }
       setSentMessage(data.message || "Se o código existir e tiver WhatsApp cadastrado, enviamos um código de acesso.")
+      setDeliveryPending(data.delivery === "pending")
       setStep("verify")
     } catch {
       setError("Erro de conexão. Tenta de novo.")
@@ -88,7 +93,7 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
 
         {whatsappFailed && (
           <a
-            href={`/login?redirect=${encodeURIComponent(`/dashboard/local/${code}`)}`}
+            href={emailLoginHref}
             style={{ display: "block", textAlign: "center", width: "100%", padding: "12px 16px", borderRadius: 8, background: C.white, color: C.text, border: `1px solid ${C.border}`, fontSize: 14, fontWeight: 600, textDecoration: "none", marginBottom: 12, boxSizing: "border-box" }}
           >
             Entrar pelo email
@@ -129,8 +134,16 @@ export default function ClientLoginGate({ code, clientName }: { code: string; cl
             >
               {loading ? "Confirmando…" : "Entrar"}
             </button>
+            {deliveryPending && (
+              <a
+                href={emailLoginHref}
+                style={{ display: "block", textAlign: "center", width: "100%", padding: "10px 16px", borderRadius: 8, background: C.white, color: C.text, border: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, textDecoration: "none", marginBottom: 10, boxSizing: "border-box" }}
+              >
+                Entrar pelo email
+              </a>
+            )}
             <button
-              onClick={() => { setStep("request"); setOtp(""); setError("") }}
+              onClick={() => { setStep("request"); setOtp(""); setError(""); setDeliveryPending(false) }}
               style={{ width: "100%", padding: "8px 16px", borderRadius: 8, background: "transparent", color: C.text3, border: "none", fontSize: 12, cursor: "pointer" }}
             >
               Pedir outro código

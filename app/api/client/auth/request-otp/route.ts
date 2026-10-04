@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { randomInt } from "crypto"
 import { getPool } from "@/lib/db"
 import { hashPassword } from "@/lib/password"
-import { sendWhatsApp } from "@/lib/whatsapp"
+import { sendWhatsAppDetailed } from "@/lib/whatsapp"
 
 export const dynamic = "force-dynamic"
 
@@ -62,15 +62,28 @@ export async function POST(req: NextRequest) {
     // fire-and-forget: com a instância da Evolution desconectada (05/09 e
     // 04/10/2026), a rota respondia sucesso e a tela pedia um código que
     // nunca chegou. Agora a falha volta pro usuário, com o caminho do email.
-    const sent = await sendWhatsApp(client.phone,
+    const result = await sendWhatsAppDetailed(client.phone,
       `🔐 *Código de acesso — DOOHPLAY*\n\n` +
       `Seu código: *${otp}*\n\n` +
       `Válido por ${OTP_TTL_MINUTES} minutos. Não compartilhe com ninguém.`
     )
 
-    if (!sent) {
-      // Descarta o código que não saiu, senão o cooldown de 60s bloquearia
-      // a próxima tentativa (e responderia "enviamos" sem enviar nada).
+    // Sem resposta (timeout/conexão caída): a mensagem pode ter saído e
+    // chegar atrasada, então o código CONTINUA válido — descartar aqui
+    // faria uma mensagem atrasada trazer um código inválido. A tela avança
+    // pro passo do código e avisa que pode demorar, com o email de saída.
+    if (result === "unknown") {
+      return NextResponse.json({
+        ok: true,
+        delivery: "pending",
+        message: "O WhatsApp está demorando para confirmar o envio. O código pode levar alguns minutos para chegar; se não chegar, entre pelo email.",
+      })
+    }
+
+    if (result === "failed") {
+      // Falha CONFIRMADA pela Evolution: a mensagem não saiu. Descarta o
+      // código, senão o cooldown de 60s bloquearia a próxima tentativa (e
+      // responderia "enviamos" sem enviar nada).
       await pool.query(`DELETE FROM client_login_codes WHERE id = $1`, [inserted.rows[0]?.id])
         .catch((err: unknown) => console.error("[client/auth/request-otp] falha ao descartar código não enviado:", err))
       // Só chega aqui código com telefone cadastrado — diferente do

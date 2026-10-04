@@ -16,7 +16,17 @@ const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE!
 // e de forma controlada, em vez de deixar o chamador travado.
 const SEND_TIMEOUT_MS = 8000
 
-export async function sendWhatsApp(phone: string, message: string) {
+// Resultado do envio, separando falha confirmada de falta de resposta
+// (04/10/2026). Quem precisa reagir diferente aos dois casos — o login por
+// código, que só descarta o código quando a falha é confirmada — usa esta.
+//   "sent"    — a Evolution API aceitou a mensagem (HTTP 2xx)
+//   "failed"  — a Evolution API respondeu com erro (ex.: instância
+//               desconectada, "Connection Closed"): a mensagem não saiu
+//   "unknown" — sem resposta: estourou o timeout ou a conexão caiu no meio.
+//               A mensagem pode ter saído e chegar atrasada.
+export type WhatsAppSendResult = "sent" | "failed" | "unknown"
+
+export async function sendWhatsAppDetailed(phone: string, message: string): Promise<WhatsAppSendResult> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS)
   try {
@@ -43,14 +53,23 @@ export async function sendWhatsApp(phone: string, message: string) {
     if (!res.ok) {
       const body = await res.text().catch(() => "")
       console.error("[whatsapp] Evolution API respondeu erro:", res.status, body.slice(0, 500))
-      return false
+      return "failed"
     }
 
-    return true
+    return "sent"
   } catch (err) {
-    console.error("[whatsapp] erro ao enviar:", err)
-    return false
+    const timedOut = controller.signal.aborted
+    console.error(timedOut
+      ? `[whatsapp] sem resposta da Evolution API em ${SEND_TIMEOUT_MS}ms (envio não confirmado):`
+      : "[whatsapp] erro de rede ao enviar (envio não confirmado):", err)
+    return "unknown"
   } finally {
     clearTimeout(timeout)
   }
+}
+
+// Versão booleana de sempre, usada pelos demais chamadores (alertas,
+// relatórios, cadastro…): true só quando o envio foi confirmado.
+export async function sendWhatsApp(phone: string, message: string): Promise<boolean> {
+  return (await sendWhatsAppDetailed(phone, message)) === "sent"
 }
