@@ -639,6 +639,14 @@ A frase acima ("continua sem explicação definitiva") ficou desatualizada algum
 
 **Ação necessária, fora do alcance deste agente**: reconectar a instância Evolution API via QR code no painel da VPS (Hostinger) — requer acesso de gestão à instância que este agente não tem, só leitura de status via API. Isso continua bloqueando a *entrega* real do código por WhatsApp mesmo depois do fix de "Erro de conexão" abaixo — são dois problemas independentes, os dois precisam estar resolvidos pro login funcionar de ponta a ponta.
 
+### 🔴→🟡 Nova queda em 2026-10-04 — mesma falha de 05/09, reconectada pelo fundador
+
+- **Queda**: em 04/10, duas tentativas de login do fundador no dashboard do BARBE332 (`POST /api/client/auth/request-otp` às 14:31 e 14:33 UTC) responderam `200`, mas os logs do `doohplay-demo` mostram `[whatsapp] Evolution API respondeu erro: 500 ... "Connection Closed"` nas duas — nenhum código saiu. Mesma falha de 05/09: sessão da instância `doohplay` caída. Desde quando estava caída: **não determinado** (os logs do Render só guardam ~14 dias e não houve outro envio no período pra marcar o início).
+- **Contorno usado**: login por email em `/login` (envio pela Resend, independente do WhatsApp) — funcionou.
+- **Reconexão**: o fundador reconectou a instância `doohplay` pelo QR code em 04/10. **Status pós-reconexão ainda não confirmado por esta sessão**: a rota de leitura `GET /api/admin/whatsapp-status` exige login de admin ou `ADMIN_SECRET`, que esta sessão não tem; as credenciais da Evolution só existem nas env vars do Render (não legíveis pela API). Confirmar abrindo essa rota logado no `/admin` (deve responder `"state": "open"`), e com uma mensagem de teste para o número do fundador.
+- **Alerta de tela offline também ficou sem canal durante a queda**: o alerta manda WhatsApp pela mesma instância. Além disso, o job que dispara o alerta segue sem rodar por outro motivo (worker sem Redis desde 16/09, ver seção do Upstash). Ou seja: mesmo com o WhatsApp de volta, o alerta continua parado até o Redis voltar.
+- **Problema de produto exposto de novo, não corrigido**: a rota de OTP responde sucesso mesmo quando o envio falha (envio em segundo plano), e a tela pede o código como se tivesse enviado. Correção proposta: aguardar o resultado do envio e mostrar "não conseguimos enviar o código por WhatsApp agora; tente pelo email".
+
 ## ✅ Resolvido de verdade — "Erro de conexão" no login de cliente (`request-otp`), causa raiz real encontrada (2026-09-05)
 
 Continuação direta da investigação acima. Reproduzido de forma determinística via Puppeteer, clicando de verdade em "Enviar código pro WhatsApp" em `https://doohplay.com.br/dashboard/local/LEMEL186` — não só chamada crua via curl/backend, conforme pedido explícito do usuário depois de descartar rede local/navegador/cache (testado em aba anônima antes).
