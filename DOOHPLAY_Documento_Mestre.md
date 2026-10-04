@@ -2138,3 +2138,125 @@ sequência numérica — nenhum dos dois foi replicado aqui.
 versão do repositório, confirmado consistente com os commits reais
 desta sessão) — mesmo princípio já usado em 12.45/12.49 (sincronizar
 com a versão mais completa, nunca por cópia cega).
+
+> **Nota de sincronização (04/10/2026)**: as seções 12.57 a 12.60 abaixo vieram da cópia
+> `DOOHPLAY_Documento_Mestre_v5_FINAL.md` (Downloads, sessão claude.ai), onde estavam numeradas
+> 12.56 a 12.59. Foram renumeradas porque a 12.56 deste arquivo já existia (reconciliação de 15/09).
+> Texto copiado sem reescrita. Correções e atualizações estão na 12.61.
+
+### 12.57 — 3 candidatos ao bug de `player_heartbeats`: mapeados e corrigidos onde tinha uso real
+Investigação completa dos 3 candidatos (commit `9043e6b`):
+
+- **`app/players/page.tsx`**: usa `player_heartbeats`, mas já protegido
+  por fallback (`p.last_ping || p.last_heartbeat`) — nunca foi bug
+  visível. Órfã (único link vive num componente nunca importado).
+  Nenhuma correção necessária, campo morto removido do SQL/tipo
+- **`app/players/[player_id]/page.tsx`**: mesmo bug real, mas órfã
+  transitiva (só alcançável a partir da lista órfã acima). Corrigida
+  mesmo assim (mesmo padrão `last_ping`, baixo custo por já estar
+  mexendo na área)
+- **`app/api/network/map/route.ts`**: **o mais grave dos 3, com uso
+  real confirmado** — linkado direto da home pública (`/noc`, "Network
+  Center"), visível a qualquer visitante sem login. **O endpoint
+  inteiro estava fora do ar** (erro `column ec.device_id does not
+  exist`, confirmado via curl antes da correção) — não só mostrava
+  "offline" errado, estava genuinamente quebrado. Corrigido: `last_ping`
+  + janela de 3min (mesmo padrão), mais 2 bugs adicionais no caminho
+  (`event_chain.device_id` inexistente — mesma classe já corrigida em
+  outras rotas —, e incompatibilidade de tipo `uuid`/`text` no `UNION`)
+
+**Confirmado ao vivo**: antes da correção, erro real via curl; depois,
+`BARBE332`/`LEMEL186` aparecem com `last_ping` real, execuções/eventos
+inválidos zerados **honestamente** (não fabricado).
+
+### 12.58 — Alarme sobre `event_chain` parado: refutado com investigação completa; achado real diferente revelado no processo
+A nota do commit `9043e6b` ("`event_chain` não recebe linha nova desde
+03/06") **generalizou incorretamente** uma observação válida só pra
+uma fatia específica da tabela (`source_table = 'display_events'`,
+1.206 linhas, 12/03-03/06) como se fosse o estado da tabela inteira —
+sem confirmar a extensão total antes de soar o alarme. **Investigação
+completa corrigiu isso**: `event_chain` está ativa agora mesmo (última
+linha no exato momento da investigação), 117.782 linhas desde 03/06,
+99% delas (`source_table = NULL`) crescendo continuamente — é aí que a
+prova real vive, via caminho canônico confirmado
+(`POST /api/player/event` → `appendToProofChain()` →
+`appendEventToLedger()`, payload JSON com `player_id`/`media_id`/
+`played_at`). **O que de fato aconteceu**: um mecanismo antigo de
+correlação por colunas dedicadas (`source_table`/`source_id`, estilo
+`event_chain_old`) caiu em desuso silenciosamente por volta de 03/06,
+enquanto o caminho real (baseado em payload) seguiu rodando o tempo
+todo sem interrupção — mais uma instância do Padrão de Erro #1, só que
+sem dano real desta vez (a implementação que "morreu" não era a que
+importava).
+
+**Lição registrada, sobre o próprio processo desta sessão**: um achado
+foi generalizado e escalado como emergência crítica antes de confirmar
+a extensão real do problema — a mesma disciplina que a sessão inteira
+ensina (verificar antes de afirmar) se aplica também a alarmes, não só
+a alegações de sucesso. Nem toda descoberta preocupante justifica
+pânico imediato sem antes checar o quadro completo.
+
+**Achado real e válido, revelado no processo, registrado como
+pendência própria**: a **gravação** de prova está saudável, mas a
+**ancoragem/agregação** (Merkle → Polygon) está genuinamente atrasada
+— **40.019 eventos pendentes** (`block_id IS NULL`), o mais antigo
+desde **07/04/2026**, última ancoragem real confirmada em **26/08/2026**
+(~3 semanas antes desta investigação). Isso é **depois** das correções
+já registradas (circuit-breaker do Upstash em 03/09, processamento de
+backlog em 27/08) — sugere que o problema voltou a se manifestar, ou
+nunca foi completamente resolvido. **Dado seguro** (Postgres, sem risco
+de perda, mesmo padrão de segurança já confirmado antes — Redis é só
+"despertador"). **Prioridade alta, mas não investigada a fundo hoje**
+— fica para sessão própria, dedicada.
+
+**Correção de nota adicional**: o comentário do commit `9043e6b`
+sobre "Execuções sempre 0, honestamente" no Network Center está
+impreciso — existe dado real de execução disponível via
+`payload->>'player_id'`, só não é capturado pelo `JOIN` usado hoje.
+Correção própria pendente, sem urgência.
+
+### 12.59 — Upstash: causa raiz real encontrada (suspensão de conta), reativação ainda não propagou
+Investigação da ancoragem atrasada (seção 12.58) levou à causa raiz
+real, finalmente: **Audit Log do Upstash confirma que a conta/database
+esteve suspensa há ~2 meses** (`Suspend Database`), não era questão de
+volume/burst como hipotetizado antes — provavelmente ligado a
+pagamento (rastro de `Added Card`/`Change Card Billing Address`/
+`Default Card` logo antes dos eventos de `Unsuspend`).
+
+**Cronologia confirmada**: suspensão ~2 meses atrás → 1ª tentativa de
+`Unsuspend Database` 1 dia atrás (não resolveu) → cartão atualizado +
+`Unsuspend Account`/`Unsuspend QStash User` (2x) há poucos minutos.
+
+**Reconfirmado ao vivo, 3 vezes, mesmo depois da reativação recente**:
+todos os 6 workers continuam recebendo `"temporarily rate-limited"`,
+contadores de tentativa subindo sem interrupção, eventos pendentes
+subindo (40.439 na última checagem, era 40.019 no início da
+investigação). **Hipótese não confirmada**: pode ser delay de
+propagação, ou a conta foi desbloqueada mas a **instância específica**
+do Redis (ID visto no Audit Log) precisa de reset/confirmação própria,
+separada do desbloqueio de conta.
+
+**Pausado por decisão do fundador** — sem risco real (dado seguro no
+Postgres, ~69 mil eventos aguardando, mesma garantia de segurança já
+confirmada antes). Próximo passo: confirmar no painel do Upstash,
+aba Databases (não Personal Settings), o status específico da
+instância — não só da conta.
+
+### 12.60 — ATENÇÃO: este documento está desatualizado a partir de 04/10/2026
+As seções acima vão até 12.59. Tudo o que aconteceu depois (Avisos, aba Conteúdo, queda do WhatsApp e reconexão, correção do login, custos reais da Upstash e Prod Pack, TVs de volta com o app desligando sozinho, arquivos de mídia que dão 404, análises de concorrentes, matriz competitiva e plano de 10 passos) está em `DOOHPLAY_Handoff_Nova_Conversa_2026-10-04.md`, que **prevalece sobre este arquivo** onde houver conflito. A fonte operacional continua sendo o `STATUS_PROJETO.md` e o `DOOHPLAY_Documento_Mestre.md` do repositório.
+
+### 12.61 — Reconciliação com a v5 FINAL de 04/10/2026 (aplicada pelo Código Agent)
+Cópia `DOOHPLAY_Documento_Mestre_v5_FINAL.md` (Downloads, salva em 04/10 19:31) comparada linha a linha com este arquivo antes de aplicar.
+
+**Mantido deste arquivo (a cópia recebida estava menos precisa):**
+- **12.50**: aqui cita os dois commits reais (`78ebe22` fix, `9c416a8` confirmação); a cópia citava só `9c416a8`. O conteúdo (`trustScore` `null` fixo, `sla_30d` removido) é o mesmo nas duas.
+- **12.55**: o commit `4ca3416` é de **15/09/2026** (conferido no git); a cópia dizia 09/09.
+
+**Acrescentado**: as seções novas da cópia (12.57 a 12.60, renumeradas). Texto sem reescrita.
+
+**O que essas seções afirmam e que já mudou ou não se sustenta (verificado em 28/09 e 04/10; detalhes em `STATUS_PROJETO.md`, seções "Reconfirmação só leitura", "Correção do diagnóstico" e "Reconciliação com o handoff"):**
+- **12.58/12.59 — "causa raiz real da ancoragem atrasada = suspensão do Upstash"**: não se sustenta. A suspensão explica o `rate-limited` até 16/09 18:03; depois disso o Upstash responde normalmente. A ancoragem **roda e falha antes da Polygon** (`duplicate key … "unique_merkle_root"`: o lote dos 500 eventos mais antigos gera sempre a mesma raiz, que já existe), a ancoragem na Polygon já falhava desde 27/08 (10 blocos sem transação) e a assinatura RSA dá `DECODER routines::unsupported`.
+- **12.59 — "reativação ainda não propagou"**: superado. A partir de 16/09 18:05 o erro virou `Command timed out`, que é o `commandTimeout` de 5 s do próprio cliente (conexão de bloqueio do BullMQ), não o Upstash. Os jobs se agendam e rodam (boot de 04/10 19:21 UTC). Correção pronta, aguardando aprovação.
+- **12.59 — números**: o texto diz "40.439 eventos pendentes" e, no parágrafo seguinte, "~69 mil eventos aguardando" — inconsistentes entre si. Medição real: **40.019** (15/09) → **49.658** (28/09).
+- **12.58 — "gravação de prova saudável"**: vale para o LEMEL186; o **BARBE332 não grava eventos em `event_chain` desde 17/09**, mesmo com o app enviando `/api/player/event` com 200 (não investigado).
+- **12.60** aponta o handoff de 04/10 como fonte mais recente. Esse handoff também foi conferido em 04/10: cerca de 10 itens estavam desatualizados ou já respondidos (destaques: as TVs rodam o **app nativo APK 0.7.4**, não o player web, então **Avisos não aparecem nas TVs**; o dono do BARBE332 é o fundador; os arquivos ficavam no Cloudflare R2; a rota de envio não exige login).
