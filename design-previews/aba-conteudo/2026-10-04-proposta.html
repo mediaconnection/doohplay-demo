@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aba Conteúdo — proposta</title>
+<!--
+  Preview estático da proposta de layout da aba "Conteúdo" do dashboard do
+  cliente (app/dashboard/local/[code]/dashboard-client.tsx → TabConteudo).
+  NÃO é código de produção. Cores = lightDefault de lib/theme.ts.
+  Dados = reais do banco em 04/10/2026 (BARBE332: 4 mídias; LEMEL186: 8).
+-->
+<style>
+  :root {
+    --bg:#F8FAFC; --white:#FFFFFF; --border:#E5E7EB; --border2:#F3F4F6;
+    --blue:#3B82F6; --blueLt:#EFF6FF; --blueBd:#BFDBFE;
+    --green:#10B981; --greenLt:#DCFCE7; --amber:#D97706; --amberLt:#FFFBEB;
+    --red:#DC2626; --redLt:#FEF2F2; --redBd:#FECACA;
+    --purple:#7C3AED; --purpleLt:#F5F3FF; --purpleBd:#DDD6FE;
+    --gray50:#F9FAFB; --gray100:#F3F4F6; --gray200:#E5E7EB; --gray300:#D1D5DB; --gray900:#111827;
+    --text:#111827; --text2:#6B7280; --text3:#9CA3AF;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#E2E8F0; font-family: Inter, system-ui, sans-serif; color:var(--text); }
+
+  /* ── barra de controle do preview (não faz parte da proposta) ── */
+  .pv-bar { position:sticky; top:0; z-index:10; background:#0F172A; color:#E2E8F0; padding:10px 16px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; font-size:13px; }
+  .pv-bar b { color:#fff; }
+  .pv-group { display:flex; gap:4px; flex-wrap:wrap; }
+  .pv-bar button { background:#1E293B; color:#CBD5E1; border:1px solid #334155; border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; }
+  .pv-bar button.on { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .pv-wrap { display:flex; justify-content:center; padding:24px 16px 64px; }
+  .pv-frame { width:100%; max-width:980px; background:var(--bg); border-radius:14px; box-shadow:0 10px 40px rgba(15,23,42,.18); overflow:hidden; transition:max-width .2s; }
+  .pv-frame.mobile { max-width:390px; }
+
+  /* ── proposta ── */
+  .tab { padding:24px; }
+  .mobile .tab { padding:16px 12px 24px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+  .head h1 { font-size:18px; margin:0 0 4px; }
+  .head p { margin:0; font-size:13px; color:var(--text2); max-width:460px; line-height:1.45; }
+  .summary { margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { font-size:12px; color:var(--text2); background:var(--white); border:1px solid var(--border); border-radius:999px; padding:3px 10px; }
+  .chip strong { color:var(--text); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .mobile .actions { width:100%; }
+  .mobile .actions .btn { flex:1; justify-content:center; }
+  .btn { display:inline-flex; align-items:center; gap:6px; border-radius:8px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .btn-primary { background:var(--blue); color:#fff; border:none; }
+  .btn-secondary { background:var(--white); color:var(--text); border:1px solid var(--border); }
+  .btn-ghost { background:none; border:none; color:var(--text2); font-weight:500; padding:6px 8px; font-size:12px; }
+  .btn-ghost.danger { color:var(--red); }
+  .btn-ghost:hover { background:var(--gray100); }
+
+  .hint { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:var(--white); border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:13px; color:var(--text2); }
+  .hint a { color:var(--blue); font-weight:600; text-decoration:none; white-space:nowrap; }
+
+  .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+  .mobile .grid { grid-template-columns:repeat(2, 1fr); gap:10px; }
+  .card { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  .thumb { position:relative; aspect-ratio:16/9; background:var(--gray100); }
+  .thumb img, .thumb video { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .kind { position:absolute; left:6px; bottom:6px; background:rgba(17,24,39,.72); color:#fff; font-size:11px; padding:2px 7px; border-radius:4px; }
+  .thumb .play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .thumb .play span { width:36px; height:36px; border-radius:50%; background:rgba(17,24,39,.6); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .body { padding:10px 12px 4px; flex:1; }
+  .name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:34px; }
+  .status { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text2); margin-top:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--green); }
+  .dot.paused { background:var(--gray300); }
+  .foot { display:flex; justify-content:space-between; padding:2px 6px 6px; border-top:1px solid var(--border2); margin-top:8px; }
+  .mobile .foot { padding:2px 2px 4px; }
+  .mobile .btn-ghost { padding:6px 6px; }
+  /* texto em --text (não --amber): âmbar sobre âmbar claro dá ~3,1:1, abaixo de AA */
+  .missing { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--amberLt); border-bottom:3px solid var(--amber); color:var(--text); font-size:12px; font-weight:600; text-align:center; padding:8px; }
+  .missing small { color:var(--text2); font-weight:400; }
+  .dot.missing-dot { background:var(--amber); }
+  .tag-dep { font-size:10px; font-weight:700; color:var(--purple); background:var(--purpleLt); border:1px solid var(--purpleBd); border-radius:4px; padding:0 4px; margin-left:2px; }
+  .add-tile { border:2px dashed var(--gray300); border-radius:12px; background:transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:150px; color:var(--text2); font-size:13px; cursor:pointer; font-family:inherit; }
+  .add-tile b { color:var(--text); }
+  .add-tile .plus { font-size:24px; color:var(--blue); line-height:1; }
+
+  /* --text2, não --text3: text3 sobre o fundo dá ~2,5:1 */
+  .foot-note { margin-top:16px; font-size:12px; color:var(--text2); }
+  .foot-note a { color:var(--blue); text-decoration:none; font-weight:600; }
+
+  /* estados */
+  .empty { background:var(--white); border:1px solid var(--border); border-radius:12px; padding:32px 24px; text-align:center; }
+  .empty h2 { font-size:16px; margin:0 0 6px; }
+  .empty p { font-size:13px; color:var(--text2); margin:0 auto 18px; max-width:420px; line-height:1.5; }
+  .paths { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; max-width:620px; margin:0 auto; text-align:left; }
+  .mobile .paths { grid-template-columns:1fr; }
+  .path { border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--gray50); }
+  .path b { display:block; font-size:13px; margin-bottom:3px; }
+  .path span { font-size:12px; color:var(--text2); line-height:1.4; }
+  .skel { background:linear-gradient(90deg, var(--gray100) 25%, var(--gray200) 37%, var(--gray100) 63%); background-size:400% 100%; animation:sh 1.4s ease infinite; border-radius:6px; }
+  @keyframes sh { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  .error { background:var(--redLt); border:1px solid var(--redBd); border-radius:12px; padding:20px; color:var(--red); font-size:13px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .error b { display:block; color:var(--text); margin-bottom:2px; }
+  .error span { color:var(--text2); }
+
+  /* notas de handoff (fora da proposta) */
+  .notes { max-width:980px; margin:0 auto 48px; padding:0 16px; font-size:13px; color:#1E293B; }
+  .notes h3 { font-size:14px; margin:0 0 8px; }
+  .notes ul { margin:0 0 16px; padding-left:18px; line-height:1.55; }
+  .pv-frame.mobile + .notes { max-width:980px; }
+</style>
+</head>
+<body>
+
+<div class="pv-bar">
+  <b>Preview — aba Conteúdo</b>
+  <div class="pv-group" id="pv-state">
+    <button data-s="BARBE332" class="on">BARBE332 (real, 4)</button>
+    <button data-s="LEMEL186">LEMEL186 (real, 8)</button>
+    <button data-s="empty">Vazio</button>
+    <button data-s="loading">Carregando</button>
+    <button data-s="error">Erro</button>
+  </div>
+  <div class="pv-group" id="pv-size">
+    <button data-w="desktop" class="on">Computador</button>
+    <button data-w="mobile">Celular</button>
+  </div>
+</div>
+
+<div class="pv-wrap"><div class="pv-frame" id="frame"><div class="tab" id="tab"></div></div></div>
+
+<div class="notes">
+  <h3>Legenda</h3>
+  <ul>
+    <li><span class="tag-dep">backend</span> = ação que precisa de mudança pequena no backend antes de funcionar (detalhes no handoff). Nada nesta tela é dado inventado: miniaturas, nomes, tipos e durações são os reais de 04/10/2026.</li>
+    <li>O contador "X de Y mídias do plano" foi <b>retirado</b> desta proposta: hoje ele mostra 0 para os dois clientes (que têm 4 e 8). Volta quando o número estiver certo.</li>
+    <li>Sem filtros nem busca: com 4–8 mídias, o dono vê tudo de uma vez. Reavaliar acima de ~20.</li>
+    <li><b>Estado "Arquivo não encontrado"</b>: o preview carrega os arquivos reais dos clientes. Em 04/10/2026 os 12 respondem 404 no storage — por isso os cards aparecem nesse estado. Não é simulação: é o estado real hoje (ver STATUS_PROJETO.md).</li>
+  </ul>
+</div>
+
+<script>
+  var DATA = {
+    BARBE332: { avisoLink: true, items: [
+      { n:"Guia Sao Rafael", t:"image", d:10, u:"https://media.doohplay.com.br/studio/BARBE332/image_1783628620209.jpg" },
+      { n:"Canja da semana", t:"image", d:30, u:"https://media.doohplay.com.br/studio/BARBE332/image_1783628849847.jpg" },
+      { n:"VISAGISMO COMPLETO (gerado por IA)", t:"image", d:15, u:"https://media.doohplay.com.br/studio/BARBE332/generated_1783862672603.png" },
+      { n:"Promoção", t:"video", d:15, u:"https://media.doohplay.com.br/studio/BARBE332/video_1783866099640.mp4" }
+    ]},
+    LEMEL186: { items: [
+      { n:"Venha tomar café", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784337841150.png" },
+      { n:"Torta doce", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784337861181.png" },
+      { n:"Bolo de cenoura", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784337880767.png" },
+      { n:"Que delícia!", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784337915034.png" },
+      { n:"Sucos naturais", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784337953694.png" },
+      { n:"Venha provar", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784337988760.png" },
+      { n:"Encomendas", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784338007650.png" },
+      { n:"Pudim", t:"image", d:10, u:"https://media.doohplay.com.br/studio/LEMEL186/image_1784340171213.png" }
+    ]}
+  };
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  function header(items) {
+    var imgs = items.filter(function(i){return i.t==="image"}).length, vids = items.length - imgs;
+    var summary = items.length
+      ? '<div class="summary"><span class="chip"><strong>' + items.length + '</strong> ' + (items.length===1?"mídia":"mídias") + '</span>'
+        + (imgs ? '<span class="chip">' + imgs + ' ' + (imgs===1?"imagem":"imagens") + '</span>' : '')
+        + (vids ? '<span class="chip">' + vids + ' ' + (vids===1?"vídeo":"vídeos") + '</span>' : '')
+        + '<span class="chip"><strong id="onair">' + items.length + '</strong> no ar</span>'
+        + '<span class="chip" id="missing-chip" style="display:none;border-color:var(--amber);background:var(--amberLt)">⚠ <strong id="missing-n">0</strong> com arquivo faltando</span></div>'
+      : '';
+    return '<div class="head"><div><h1>Conteúdo</h1>'
+      + '<p>As fotos e vídeos da sua empresa que passam na sua TV. Anúncios de outras empresas e o Canal DOOHPLAY ficam em outras abas.</p>'
+      + summary + '</div>'
+      + '<div class="actions"><button class="btn btn-primary">✨ Criar com IA</button><button class="btn btn-secondary">Enviar arquivo</button></div></div>';
+  }
+
+  var hint = '<div class="hint"><span>Só precisa de um recado rápido em texto (horário, feriado, promoção do dia)?</span><a href="#">Escrever um aviso →</a></div>';
+
+  // Arquivo que não carrega (404) vira estado explícito, em vez de miniatura
+  // quebrada ou emoji genérico. Só front-end: usa o próprio erro de carga
+  // da imagem/vídeo. Em 04/10/2026 os 12 arquivos reais dão 404.
+  function markMissing(el) {
+    var card = el.closest(".card"); if (!card || card.classList.contains("is-missing")) return;
+    card.classList.add("is-missing");
+    el.closest(".thumb").insertAdjacentHTML("beforeend",
+      '<div class="missing">⚠ Arquivo não encontrado<small>A TV pula esta mídia. Envie de novo.</small></div>');
+    var st = card.querySelector(".status");
+    st.innerHTML = '<span class="dot missing-dot"></span>Não está passando';
+    var on = document.getElementById("onair"), mc = document.getElementById("missing-chip"), mn = document.getElementById("missing-n");
+    if (on) on.textContent = Math.max(0, Number(on.textContent) - 1);
+    if (mc) { mc.style.display = ""; mn.textContent = Number(mn.textContent) + 1; }
+  }
+  window.markMissing = markMissing;
+
+  function card(it) {
+    var media = it.t === "video"
+      ? '<video src="' + esc(it.u) + '" muted preload="metadata" onerror="markMissing(this)"></video><div class="play"><span>▶</span></div>'
+      : '<img src="' + esc(it.u) + '" alt="" loading="lazy" onerror="markMissing(this)">';
+    return '<div class="card"><div class="thumb">' + media
+      + '<span class="kind">' + (it.t === "video" ? "Vídeo" : "Imagem") + ' · ' + it.d + 's</span></div>'
+      + '<div class="body"><div class="name">' + esc(it.n) + '</div>'
+      + '<div class="status"><span class="dot"></span>No ar</div></div>'
+      + '<div class="foot"><button class="btn-ghost">Pausar <span class="tag-dep">backend</span></button>'
+      + '<button class="btn-ghost danger">Excluir <span class="tag-dep">backend</span></button></div></div>';
+  }
+
+  var addTile = '<button class="add-tile"><span class="plus">+</span><b>Adicionar</b>Criar com IA ou enviar arquivo</button>';
+  var footNote = '<div class="foot-note">A ordem e o tempo de cada mídia na tela ficam na aba <a href="#">Playlist →</a></div>';
+
+  function render(state) {
+    var tab = document.getElementById("tab");
+    if (state === "loading") {
+      var sk = ''; for (var i=0;i<6;i++) sk += '<div class="card"><div class="thumb skel" style="border-radius:0"></div><div class="body"><div class="skel" style="height:12px;width:80%"></div><div class="skel" style="height:10px;width:40%;margin-top:10px"></div></div><div style="height:34px"></div></div>';
+      tab.innerHTML = header([]) + '<div class="grid" aria-busy="true">' + sk + '</div>';
+      return;
+    }
+    if (state === "error") {
+      tab.innerHTML = header([]) + '<div class="error"><div><b>Não conseguimos carregar seu conteúdo agora.</b><span>Nada foi apagado e sua TV continua passando normalmente. Tente de novo em instantes.</span></div><button class="btn btn-secondary">Tentar de novo</button></div>';
+      return;
+    }
+    if (state === "empty") {
+      tab.innerHTML = header([]) + '<div class="empty"><h2>Sua TV ainda não tem conteúdo da sua empresa</h2>'
+        + '<p>Enquanto isso ela mostra o Canal DOOHPLAY. Escolha um jeito de começar — leva poucos minutos.</p>'
+        + '<div class="paths"><div class="path"><b>✨ Criar com IA</b><span>Diga o produto e o preço; a gente monta a arte.</span></div>'
+        + '<div class="path"><b>📁 Enviar arquivo</b><span>Foto ou vídeo que você já tem (até 10 MB imagem, 100 MB vídeo).</span></div>'
+        + '<div class="path"><b>💬 Escrever um aviso</b><span>Recado em texto, sem imagem. Vai para a aba Avisos.</span></div></div></div>';
+      return;
+    }
+    var items = DATA[state].items;
+    tab.innerHTML = header(items) + hint + '<div class="grid">' + items.map(card).join("") + addTile + '</div>' + footNote;
+  }
+
+  function wire(groupId, attr, fn) {
+    var g = document.getElementById(groupId);
+    g.addEventListener("click", function(e){
+      var b = e.target.closest("button"); if (!b) return;
+      [].forEach.call(g.querySelectorAll("button"), function(x){ x.classList.toggle("on", x===b); });
+      fn(b.getAttribute(attr));
+    });
+  }
+  wire("pv-state", "data-s", render);
+  wire("pv-size", "data-w", function(w){ document.getElementById("frame").classList.toggle("mobile", w==="mobile"); });
+  render("BARBE332");
+</script>
+</body>
+</html>

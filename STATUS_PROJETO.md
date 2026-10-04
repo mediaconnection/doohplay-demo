@@ -1617,3 +1617,33 @@ Mesmo achado da faixa escura (corrigido em `bce8414`), na direção oposta, **n�
 - **Carga inicial do player ≠ API da playlist no institucional**: na abertura, o player mostrou 2 vídeos de 180s (`c21f16e7`, `4df3f329`) que não existem em `/api/client/playlist/BARBE332` (8 itens). O SSR de `app/player/page.tsx` lê `institutional_media` direto sem os filtros de data/segmento que a API aplica via `placements_v2`; o primeiro polling troca pela lista da API. Pré-existente, sem relação com avisos.
 
 **Achado lateral, não corrigido**: o JSON das mídias (`mediasJson`) é injetado no `<script>` do player sem escapar `<` — um nome de mídia contendo `</script>` quebraria a página do player. Os avisos já saem escapados; as mídias ficam como pendência separada.
+
+## 🔴 Incidente — os arquivos de mídia dos 2 clientes reais não existem mais no storage (achado em 2026-10-04, não corrigido)
+
+Achado durante a investigação da aba Conteúdo (ver seção seguinte). **Só leitura; nada alterado.**
+
+- As **12 mídias do dono** (BARBE332: 4; LEMEL186: 8) existem só em `creative_assets_v2`/`placements_v2`. As URLs (`https://media.doohplay.com.br/studio/<CODE>/...`) respondem **404** — todas as 12. O domínio funciona: arquivos do institucional (`/institucional/...`) respondem 200.
+- Os registros originais em `"CampaignMedia"` também **não existem mais** (nem por id, nem por URL).
+- Coerente com o contador de plano (`/api/client/plan-usage`), que conta arquivos no bucket: mostra **0 mídias** pros dois.
+- **Efeito**: mesmo com a TV ligada, o conteúdo próprio do cliente **não passa** — o player pula mídia que dá erro de carga. E o botão de excluir da aba Conteúdo responde 404 pra todas as 12 (a rota procura em `CampaignMedia`).
+- **Quando/como: não determinado.** Logs de requisição do Render só vão até 20/09 e não mostram exclusão. Existe a rota `/api/admin/r2-cleanup/[code]` (desde 22/06) que **apaga todos os arquivos de `studio/<CODE>/` numa chamada**, protegida só por `?secret=` na URL — não há registro de chamada desde 20/09, mas não dá pra descartar uso anterior. Sem credencial do R2 nesta sessão pra listar o bucket.
+- **Próximos passos (decisão do fundador)**: (1) conferir no painel do Cloudflare R2 se o prefixo `studio/BARBE332/` e `studio/LEMEL186/` está vazio e se há versionamento/lixeira; (2) se os arquivos estão perdidos, os clientes precisam reenviar (comunicação com eles); (3) limpar as 12 referências órfãs; (4) decidir o destino da rota `r2-cleanup` (secret em query string fica em log de acesso).
+
+## 📋 Investigação + preview — redesenho da aba Conteúdo (2026-10-04, aguardando aprovação)
+
+Pedido: `prompt_melhorar_aba_conteudo.md`. Só investigação e preview — **nada implementado em React**. Preview: `design-previews/aba-conteudo/2026-10-04-proposta.html` (estático, dados reais, estados: real BARBE332/LEMEL186, vazio, carregando, erro; computador/celular).
+
+**Problemas da aba atual (código), por impacto pro dono:**
+1. Conteúdo não passa e a aba não avisa: arquivos com 404 aparecem só com um emoji genérico (ver incidente acima).
+2. Excluir não funciona pra nenhum cliente real (rota procura em `CampaignMedia`).
+3. Selo "Ativo" fixo em todo card — a consulta (`page.tsx`) nem lê `placements_v2.active`; item pausado aparece "Ativo".
+4. Contador "Você usa X de Y mídias" errado (0 pros dois).
+5. Consulta da aba corta em `LIMIT 20`, mas o plano Pro permite 50 — o excedente some da aba.
+6. Erro de banco vira lista vazia ("Nenhum conteúdo na playlist ainda") — `catch {}` em `page.tsx`.
+7. Ações espalhadas: pausar/duração/ordem só na aba Playlist; excluir/tela só aqui. "Gerar com IA" escondido dentro do modal de envio (abre em "upload").
+8. Galeria de Exemplos retorna 0 exemplos pra todo nicho em produção — a seção nunca aparece.
+9. Lixeira sobreposta na miniatura (fácil de tocar sem querer no celular); botão "+ Enviar mídia" e card "+ Adicionar" duplicados.
+
+**Achados de backend fora da aba (não corrigidos):** `PATCH /api/client/playlist/[code]` e `PATCH /api/client/media/[id]/screen` **não checam sessão** (qualquer um que saiba o código altera a playlist de outro cliente); `/api/client/plan-usage/[code]` é público (expõe status de assinatura). Contraste: o azul primário `#3B82F6` com branco dá **3,68:1** (abaixo de AA 4,5 pra texto normal) em botões e links do dashboard todo — mudança de token, decisão do fundador.
+
+**Dado real (04/10)**: BARBE332 4 mídias (3 imagens, 1 vídeo), LEMEL186 8 imagens; todas ativas, nenhuma com tela específica nem programação; 1 tela cada (BARBE332 sem linha em `client_screens`).
