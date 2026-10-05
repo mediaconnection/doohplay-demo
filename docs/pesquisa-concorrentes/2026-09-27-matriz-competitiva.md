@@ -34,19 +34,19 @@
 
 | Área | DOOHPLAY | SigX | Yodeck | ScreenCloud | Veredito |
 |---|---|---|---|---|---|
-| **Prova de exibição** | Registro por evento em cadeia de hash, certificado PDF assinado, página pública de verificação. **Ressalva:** a ancoragem em blockchain está parada (≈40 mil eventos pendentes, causa: conta Upstash suspensa) | Não vi nada nos prints | Relatórios de reprodução no plano Premium | "Proof of play" é add-on premium (logs) | 🟢 lidera **em tese**; 🟡 enquanto a ancoragem estiver parada |
+| **Prova de exibição** | Registro por evento em cadeia de hash, certificado PDF assinado, página pública de verificação. **Ressalva:** a ancoragem em blockchain está parada (≈40 mil eventos pendentes; o mais antigo é de abril, a última ancoragem confirmada é de 26/08). Nos logs de 15/09 todos os workers, incluindo o agregador, estavam bloqueados pelo mesmo rate-limit do Upstash, mas isso não prova que o Upstash explica todo o atraso desde abril. O Audit Log do Upstash mostra suspensão da conta/database e reativação; o motivo não foi confirmado, e a data da suspensão (cerca de 2 meses antes do print) não bate de forma óbvia com o pipeline ter funcionado em agosto | Não vi nada nos prints | Relatórios de reprodução no plano Premium | "Proof of play" é add-on premium (logs) | 🟢 lidera **em tese**; 🟡 enquanto a ancoragem estiver parada |
 | **Auditoria independente** | Prova verificável por terceiro sem confiar no operador | Não vi | Não vi | Log do próprio fornecedor | 🟢 |
-| **Multi-zona / layouts** | Não tem | Sim, editor de zonas com linha do tempo | Não verifiquei | Multi-zona listado no plano Core | 🔴 |
-| **Alerta de tela offline** | Implementado, **inativo** (mesma causa do Upstash) | Sim (widget de telas offline) | ❓ | Monitoramento incluso | 🔴 hoje |
+| **Multi-zona / layouts** | O player já exibe várias zonas ao mesmo tempo desde a Fase 4 (layouts com zonas, painel de widgets lateral/inferior, formatos de anúncio lateral, faixa inferior e flutuante). **Só o admin configura**; falta um editor no dashboard do cliente | Sim, editor de zonas com linha do tempo | Não verifiquei | Multi-zona listado no plano Core | 🟡 (corrigido em 27/09: antes estava 🔴 "não tem") |
+| **Alerta de tela offline** | Implementado, **inativo**: em 13/09 o job não conseguiu se agendar porque o Upstash respondeu "temporarily rate-limited" (confirmado nos logs). Se a ancoragem parada tem a mesma origem, ainda não está estabelecido | Sim (widget de telas offline) | ❓ | Monitoramento incluso | 🔴 hoje |
 | **Comandos remotos** (reiniciar, capturar tela) | Não tem | Sim | ❓ | "Remote device management" incluso | 🔴 |
 | **Detecção de auto-início / saúde do app** | Não tem | Sim (aviso na ficha da tela) | ❓ | ❓ | 🔴 |
 | **Agendamento por dia/hora** | O dono configura, **mas a tela ignora** (bug registrado) | Funciona | Sim | Sim | 🔴 |
-| **Avisos rápidos em texto** | Sim (novo, no ar) | Sim | ❓ | ❓ | 🟡 |
+| **Avisos rápidos em texto** | Existe, mas **só no player web; não aparece nas TVs** (que rodam o app nativo) | Sim | ❓ | ❓ | 🔴 hoje (corrigido em 04/10) |
 | **Criação de conteúdo** | Studio com IA + templates guiados (6) | Envio de arquivo, RSS, HTML, URL | 500+ templates, 80+ integrações | Templates + Quick Post + editor | 🟡 (diferencial IA a validar; amplitude menor) |
-| **Widgets prontos** (clima, hora, loteria…) | Alguns; não comparei em detalhe | Muitos (clima com 7 layouts, 10 loterias, câmbio…) | Grande catálogo de apps | 80+ apps | 🔴 em amplitude |
+| **Widgets prontos** (clima, hora, loteria…) | 11 tipos: relógio, clima, ações, notícias, notícias de economia, câmbio, indicadores econômicos, qualidade do ar, loteria, enquete ao vivo por QR, mais faixa de notícias | Muitos (clima com 7 layouts, 10 loterias, câmbio…) | Grande catálogo de apps | 80+ apps | 🟡 (corrigido em 27/09; amplitude ainda menor que Yodeck e ScreenCloud) |
 | **Biblioteca curada** | Canal DOOHPLAY (institucional segmentado) | Playlists prontas atualizadas | Templates | Templates | 🟡 |
 | **Relatórios** | Certificados/relatórios PDF; sem mapa de calor nem marca do cliente | Relatório de campanha em PDF com marca do cliente e mapa de calor | Playback reports (Premium) | Proof of play (Pro+) | 🔴 em apresentação |
-| **Segmentação por ramo** | Lista de tipos de negócio unificada | Segmentação por ramo com "onde não exibir" | ❓ | ❓ | 🟡 |
+| **Segmentação / "onde não exibir"** | Lista de tipos de negócio unificada; o dono pode desligar categorias sensíveis de anúncio e canais do Canal DOOHPLAY; anúncio de concorrente direto é sempre bloqueado | Segmentação por ramo com "onde não exibir" | ❓ | ❓ | 🟡 (corrigido em 27/09: a exclusão já existe; empate com o SigX) |
 | **Painel do cliente / white-label** | Dashboard do cliente com login por WhatsApp; sem marca própria de revenda | Painel com marca do revendedor e link com token | Workspaces (Enterprise) | Marca própria (Pro) | 🔴 para revenda |
 | **Rede entre estabelecimentos** | **Clube de Telas** (troca de divulgação por proximidade) | Não vi | Não vi | Não vi | 🟢 (único que encontrei) |
 | **Repasse ao dono da tela** | 40% da receita de anúncio | Não se aplica (assinatura) | Não se aplica | Não se aplica | 🟢 no modelo; 🔴 na prática (0 anunciantes) |
@@ -73,7 +73,7 @@
 3. **Simplicidade para o pequeno comércio.** Studio guiado + Avisos + onboarding rápido. O concorrente barato (SigX) ganha em preço e amplitude; a chance é ganhar em "primeira mídia no ar em minutos, sem saber design".
 4. **Renda para o dono da tela** (repasse + Clube de Telas). Só vira diferencial se o primeiro anunciante real entrar; até lá é promessa.
 
-**Paridade mínima (não competir, só não ficar para trás):** aplicar de verdade dia/horário do conteúdo do dono; relatório com marca do cliente; multi-zona (depois das frentes acima).
+**Paridade mínima (não competir, só não ficar para trás):** aplicar de verdade dia/horário do conteúdo do dono; relatório com marca do cliente; **editor de zonas no dashboard do cliente** (o motor de zonas já existe no player; hoje só o admin configura).
 
 **Onde eu não competiria agora:** amplitude de widgets, Grafana/Power BI, SSO/SAML, gestão de equipes, preço.
 
@@ -94,3 +94,12 @@
 - Proof-of-play em DOOH — broadsign.com/blog/arbitron-portable-people-meter, jcdecaux.co.uk (auditoria PwC), displaydaily.com
 - Brasil — ensun.io (lista de empresas), b2bstack.com.br (4yousee)
 - SigX — site institucional e prints enviados pelo fundador
+
+
+---
+
+## Atualização de 04/10 (noite), a partir da verificação do Código Agent
+- **Prova de exibição:** a ancoragem falha **no banco** (`unique_merkle_root`) antes de chegar à Polygon. Não é o Redis, ao contrário do que a ressalva acima sugere.
+- **Avisos:** só funcionam no player web, não no app nativo das TVs.
+- **Segurança:** a rota de envio de conteúdo não exige login e o conteúdo vai ao ar antes da aprovação; isso pesa contra a linha "Segurança/permissões" até ser corrigido.
+- **App nativo:** o código dele não está neste repositório, o que limita itens como comandos remotos e detecção de auto-início.

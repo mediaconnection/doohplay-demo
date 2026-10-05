@@ -1,6 +1,12 @@
 # Verificação interna da matriz competitiva de 27/09/2026
 
-Complemento de [`2026-09-27-matriz-competitiva.md`](2026-09-27-matriz-competitiva.md) (pesquisa de mesa do fundador, mantida sem alteração).
+Complemento de [`2026-09-27-matriz-competitiva.md`](2026-09-27-matriz-competitiva.md) (pesquisa de mesa do fundador, mantida como o fundador entregou).
+
+> **04/10/2026 — matriz revisada pelo fundador.** A versão guardada agora é a revisada (a de 27/09 fica no histórico do git). Ela **já incorpora** as correções abaixo (multi-zona 🟡, widgets, "onde não exibir" como empate) e acrescenta Avisos 🔴 nas TVs e um bloco "Atualização de 04/10". Duas linhas da versão revisada ainda estão desatualizadas:
+> - **Alerta de tela offline** ("o job não conseguiu se agendar por causa do Upstash"): desde o boot de 04/10 19:21 UTC o job **se agenda e roda**. Não envia nada porque o serviço `doohplay-workers` não tem as variáveis `EVOLUTION_*`, e o BARBE332 nunca foi monitorado (`studio_clients.player_id` nulo).
+> - **Biblioteca curada** 🟡: o Canal DOOHPLAY tem 17 itens ativos, **todos de 18 a 20/07/2026** — sem conteúdo novo há ~2,5 meses, o que pesa contra "playlists prontas atualizadas" do SigX.
+>
+> E uma nuance no bloco "Atualização de 04/10": a falha **atual** da ancoragem não é o Redis (é `unique_merkle_root` no banco); o bloqueio do Upstash até 16/09 pode ter contribuído para o atraso anterior.
 
 **O que foi verificado:** só as afirmações sobre o **DOOHPLAY**, contra o código (`dashboard-web-prod`, `master` em `3ad9535`), o banco de produção e o `STATUS_PROJETO.md`. Os dados dos concorrentes (preços, funcionalidades) são pesquisa externa e **não foram reconferidos** aqui.
 

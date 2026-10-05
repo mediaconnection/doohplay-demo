@@ -5,7 +5,7 @@
 | Data | Documento | Tipo | Verificação |
 |---|---|---|---|
 | 04/10/2026 (arquivo) | [Análise consolidada do SigX](analise-sigx-consolidada.md) — o que aproveitar do SigX, por área (operação de telas, conteúdo, zonas, relatórios, painel, revenda) | Prints do SigX enviados pelo fundador | [Verificação interna](analise-sigx-consolidada-verificacao.md): 14 status revistos; avisos não chegam às TVs (app nativo), aprovação não protege, Canal sem conteúdo novo desde julho |
-| 27/09/2026 | [Matriz competitiva](2026-09-27-matriz-competitiva.md) — SigX, Over TV, Yodeck, ScreenCloud, Broadsign, Xibo, OptiSigns, Rise Vision, Play Digital Signage, 4yousee e outros BR | Pesquisa de mesa (sites, reviews, prints do SigX) | [Verificação interna](2026-09-27-verificacao-interna.md): 3 correções a favor do DOOHPLAY, 3 afirmações sem sustentação no registro |
+| 27/09/2026 (revisada em 04/10) | [Matriz competitiva](2026-09-27-matriz-competitiva.md) — SigX, Over TV, Yodeck, ScreenCloud, Broadsign, Xibo, OptiSigns, Rise Vision, Play Digital Signage, 4yousee e outros BR | Pesquisa de mesa (sites, reviews, prints do SigX) | [Verificação interna](2026-09-27-verificacao-interna.md): 3 correções a favor do DOOHPLAY, 3 afirmações sem sustentação no registro |
 
 ## Registros anteriores fora desta pasta
 
