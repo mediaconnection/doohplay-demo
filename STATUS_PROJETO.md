@@ -1751,3 +1751,10 @@ O handoff (escrito na sessão do claude.ai, "tem prioridade sobre o v5") foi con
 - `PATCH /api/client/playlist/[code]` e `PATCH /api/client/media/[id]/screen` sem checagem de sessão.
 - Vincular `player_id` do BARBE332; env vars `EVOLUTION_*` no worker só depois de o alerta estar restrito ao fundador (correção sem commit).
 - App nativo: código-fonte e responsável (frente Android) para qualquer mudança no aparelho (relatar versão/permissões, Avisos, duração de vídeo).
+
+**Atualização (04/10, mais tarde)**: o fundador reenviou o handoff (205 linhas). A nova versão **incorpora esta reconciliação** como seção 11 ("prevalece sobre as seções 3 e 4") e marca a 3.6 (Avisos) como "só no player web". Conferido: as 10 correções da seção 11 batem com o registrado aqui. Três ressalvas:
+- **Prefixo de dado de teste**: a seção 11 manda "manter o que estiver no `CLAUDE.md`", mas o `CLAUDE.md` **não define prefixo** (só exige valor falso nos campos que geram efeito externo). O conflito `TESTE_` (Documento-Mestre) × `ZZTMP` (handoff) continua aberto — decisão do fundador.
+- **"Login nas rotas de playlist e de atribuição de tela (com o cuidado da resposta)"**: o cuidado concreto é que o `GET /api/client/playlist/[code]` precisa continuar **público** — é por ele que o app nativo das TVs busca a playlist. Só os `PATCH` (playlist e `media/[id]/screen`) devem passar a exigir sessão.
+- **Ancoragem "não é o Redis (refutada)"**: mais preciso dizer que a falha **atual** não é o Redis. O bloqueio por limite de requisições (até 16/09) pode ter atrasado a ancoragem antes; a falha que impede hoje é `unique_merkle_root`.
+
+Achados desta sessão que o handoff ainda não tem: o **BARBE332 não grava eventos em `event_chain` desde 17/09**; o **Canal DOOHPLAY não recebe conteúdo novo desde 20/07**; o **LEMEL186 não tem assinatura cadastrada** (receita externa confirmada no banco = R$ 0); e o levantamento financeiro (P2-13 do handoff) foi feito: `docs/financeiro/2026-10-04-custos-e-projecao-3-meses.md`.
