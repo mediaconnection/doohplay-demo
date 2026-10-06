@@ -52,6 +52,8 @@ Motivo de existir: o incidente de 25/06/2026, com categorias erradas e vazamento
 1. **Isolamento por tela:** a resposta nunca deve incluir conteudo de campanha de outro cliente. Toda query de origem de midia deve filtrar explicitamente pelo `code` da tela solicitante.
 2. **`slot_category`** e sempre um destes 5 valores: `"dono"`, `"anunciante"`, `"rede"`, `"institucional"`, `"canal"`. Nunca hardcoded em um valor fixo. Vem de `CampaignMedia.content_source` (com `"exemplo"` mapeado para `"dono"`), `"rede"` fixo para midia do Clube de Telas, `"anunciante"` para anuncio real de terceiro via `CampaignScreen`. Midia institucional vira `"canal"` quando tem segmento (`placements_v2.segment_id`) que bate com o `business_type` do cliente (Canal DOOHPLAY, 12/07/2026, commit `b560108`), e `"institucional"` quando nao tem segmento.
 3. Filtrar sempre: `active !== false` e `status !== "rejected"`.
+4. **Anuncio de terceiro (`slot_category: "anunciante"`) so sai com `status: "approved"`** (decisao do fundador, 04/10/2026). O filtro e do servidor, nesta rota e no SSR de `/player`; antes, midia pendente de anunciante ia ao ar assim que enviada. Conteudo do proprio dono nao passa por aprovacao: o envio do dono logado ja grava `approved`.
+5. **Autenticacao:** este `GET` continua **publico** (as TVs leem sem sessao, com ou sem `?player_id=`). Ja o `PATCH /api/client/playlist/{code}` (ordem, agendamento, ativar/desativar itens) exige a sessao do dono do `code` (cookie `doohplay_client_session`): sem sessao valida responde `401`, com sessao de outro codigo responde `403`. O player web nao chama o `PATCH` (conferido no codigo); o app Android nao foi conferido (codigo-fonte fora deste repositorio), mas o papel dele e so ler a playlist.
 
 ### Sorteio ponderado
 

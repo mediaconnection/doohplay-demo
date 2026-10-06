@@ -107,7 +107,9 @@ async function getPlayerData(code: string) {
         AND c.status = 'active'
         AND c."startDate" <= NOW()
         AND c."endDate" >= NOW()
-        AND cm.status != 'rejected'
+        -- Só anúncio aprovado no admin (mesma regra de
+        -- /api/client/playlist/[code], decisão do fundador de 04/10/2026).
+        AND cm.status = 'approved'
     `, [upperCode])
 
     const [clientRes, networkRes, institutionalRes, realAdsRes] = await Promise.all([

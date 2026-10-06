@@ -4,6 +4,7 @@ import { getPool } from "@/lib/db"
 import { PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PlanKey } from "@/lib/asaas"
 import { generateBackgroundImagesBatch } from "@/lib/imageGeneration"
 import { setJobStatus, type AiCreativeConcept } from "@/lib/aiCreativeJobs"
+import { requireClientOwner } from "@/lib/auth/requireSession"
 import crypto from "crypto"
 
 export const dynamic = "force-dynamic"
@@ -140,6 +141,11 @@ export async function POST(request: NextRequest) {
     if (!prompt?.trim()) {
       return NextResponse.json({ error: "Prompt obrigatório" }, { status: 400 })
     }
+
+    // Exige o dono logado (04/10/2026). Antes, sem `code` a rota pulava a
+    // cota inteira e gerava texto + imagens pagas para qualquer pessoa.
+    const denied = requireClientOwner(request, String(code ?? ""), "studio/ai-generate POST")
+    if (denied) return denied
 
     // Fase 17 (13/07/2026): cota de geração por IA, por plano. Antes disso
     // não tinha limite nenhum — era a única feature com custo variável

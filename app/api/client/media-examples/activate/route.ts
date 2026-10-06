@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
+import { requireClientOwner } from "@/lib/auth/requireSession"
 
 export const dynamic = "force-dynamic"
 
@@ -46,6 +47,11 @@ export async function POST(req: NextRequest) {
   const exampleIds = Array.isArray(body.exampleIds) ? body.exampleIds : []
 
   if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
+
+  // Só o dono logado ativa exemplos na própria tela (04/10/2026).
+  const denied = requireClientOwner(req, code, "media-examples/activate POST")
+  if (denied) return denied
+
   if (exampleIds.length === 0) {
     return NextResponse.json({ error: "exampleIds obrigatório (array não vazio)" }, { status: 400 })
   }

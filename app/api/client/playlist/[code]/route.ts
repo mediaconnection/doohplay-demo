@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { getActiveNotices } from "@/lib/notices"
+import { requireClientOwner } from "@/lib/auth/requireSession"
 
 export const dynamic = "force-dynamic"
 
@@ -200,7 +201,10 @@ export async function GET(
         AND c.status = 'active'
         AND c."startDate" <= NOW()
         AND c."endDate" >= NOW()
-        AND cm.status != 'rejected'
+        -- Anúncio de terceiro só vai ao ar depois de aprovado no admin
+        -- (decisão do fundador, 04/10/2026). Antes era "!= 'rejected'",
+        -- o que deixava mídia pendente tocar na TV assim que era enviada.
+        AND cm.status = 'approved'
         AND (cm.content_tags IS NULL OR NOT (cm.content_tags && $3::text[]))
         AND (adv.segment IS NULL OR $2::text IS NULL OR adv.segment IS DISTINCT FROM $2::text)
     `, [upperCode, businessType, excludedAdTags])
@@ -269,6 +273,11 @@ export async function PATCH(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params
+  // O GET acima continua público (as TVs leem sem sessão). O PATCH muda
+  // ordem, agendamento e ativa/desativa itens na tela — exige o dono
+  // logado (04/10/2026).
+  const denied = requireClientOwner(req, code, "playlist PATCH")
+  if (denied) return denied
   const pool = getPool()
   try {
     const { items } = await req.json()

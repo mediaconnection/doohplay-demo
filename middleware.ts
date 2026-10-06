@@ -11,23 +11,15 @@
 // e impediu cadastro de novos anunciantes sem que ninguém notasse por um tempo.
 import { withAuth } from "next-auth/middleware"
 import { NextRequest, NextResponse } from "next/server"
+import { verifyAdvertiserSessionToken, ADVERTISER_SESSION_COOKIE } from "@/lib/advertiser-session"
 
-const SESSION_COOKIE = "doohplay_session"
-
-function sessionMiddleware(req: NextRequest) {
+// 04/10/2026: antes este middleware lia "doohplay_session", um JSON puro
+// sem assinatura — qualquer um escrevia {"role":"advertiser","code":"X"}
+// no navegador e entrava no portal de outro anunciante. Agora só vale o
+// cookie assinado (lib/advertiser-session.ts, Web Crypto, compatível com
+// o Edge Runtime). O cookie antigo é ignorado.
+async function sessionMiddleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const session = req.cookies.get(SESSION_COOKIE)
-
-  let role: string | null = null
-  let code: string | null = null
-
-  if (session) {
-    try {
-      const data = JSON.parse(session.value)
-      role = data.role
-      code = data.code
-    } catch {}
-  }
 
   // /dashboard/local/[code] NÃO é protegido aqui de propósito — usa um
   // sistema de sessão separado (CLIENT_SESSION_COOKIE, HMAC-SHA256 via
@@ -46,11 +38,13 @@ function sessionMiddleware(req: NextRequest) {
   // Bug anterior: o matcher tratava "novo" como se fosse um código de
   // anunciante, nunca batia, e sempre redirecionava pra login.
   if (pathname.startsWith("/anunciante/") && pathname !== "/anunciante/novo") {
-    const routeCode = pathname.split("/")[2]
-    if (!session || role !== "advertiser" || code !== routeCode) {
+    const routeCode = (pathname.split("/")[2] || "").toUpperCase()
+    const token = req.cookies.get(ADVERTISER_SESSION_COOKIE)?.value
+    const code = await verifyAdvertiserSessionToken(token)
+    if (!code || code !== routeCode) {
       const url = new URL("/login", req.url)
       url.searchParams.set("redirect", pathname)
-      if (session) url.searchParams.set("error", "unauthorized")
+      if (code) url.searchParams.set("error", "unauthorized")
       return NextResponse.redirect(url)
     }
   }

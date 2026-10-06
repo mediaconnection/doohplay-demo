@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { getPool } from "@/lib/db"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { probeMp4 } from "@/lib/mp4-probe"
+import { requireAdvertiserOwner } from "@/lib/auth/requireSession"
 
 export const dynamic = "force-dynamic"
 
@@ -19,6 +20,11 @@ export async function POST(req: NextRequest) {
   const parts = req.nextUrl.pathname.split("/")
   const idx = parts.indexOf("advertiser")
   const code = idx >= 0 ? parts[idx + 1].toUpperCase() : ""
+  // Exige sessão assinada do próprio anunciante (04/10/2026). Mídia de
+  // anunciante continua entrando como 'pending' e só vai ao ar depois de
+  // aprovada no admin (filtro na playlist das TVs e no /player).
+  const denied = await requireAdvertiserOwner(req, code, "advertiser/media POST")
+  if (denied) return denied
   const formData = await req.formData()
   const campaignId = formData.get("campaignId") as string
   const files = formData.getAll("files") as File[]

@@ -5,6 +5,7 @@ import { getPool } from "@/lib/db"
 import { probeMp4 } from "@/lib/mp4-probe"
 import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
 import { PLAN_MEDIA_LIMITS, DEFAULT_MEDIA_LIMIT, PlanKey } from "@/lib/asaas"
+import { requireClientOwner } from "@/lib/auth/requireSession"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -102,6 +103,10 @@ export async function POST(request: NextRequest) {
     if (!file || !code) {
       return NextResponse.json({ error: "file e code obrigatórios" }, { status: 400 })
     }
+
+    // Só o dono logado envia para a própria tela (04/10/2026).
+    const denied = requireClientOwner(request, code, "studio/upload POST")
+    if (denied) return denied
 
     // ── Valida cliente ────────────────────────────────────────────────────────
     const pool = getPool()
@@ -212,12 +217,15 @@ export async function POST(request: NextRequest) {
     const publicUrl = `${PUBLIC_URL}/${fileName}`
 
     // ── Salva no banco ────────────────────────────────────────────────────────
+    // Conteúdo do próprio dono entra aprovado (decisão do fundador,
+    // 04/10/2026). Erro de banco aqui antes era engolido e a tela mostrava
+    // "enviado" sem a mídia existir na playlist — agora vira 500.
     try {
       const campaignId = await ensureCampaign(pool, code, clientName, clientPhone, clientEmail)
 
       const inserted = await pool.query(
         `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
-         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending', NOW())
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'approved', NOW())
          RETURNING id`,
         [campaignId, name, category, publicUrl]
       )
@@ -230,11 +238,12 @@ export async function POST(request: NextRequest) {
         name,
         url: publicUrl,
         type: category,
-        status: "pending",
+        status: "approved",
         durationSeconds: duration,
       })
     } catch (dbErr) {
-      console.error("[upload] db error:", dbErr)
+      console.error("[upload] db error (arquivo já no R2):", publicUrl, dbErr)
+      return NextResponse.json({ error: "Não foi possível salvar a mídia. Tente de novo." }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -260,6 +269,9 @@ export async function GET(request: NextRequest) {
   try {
     const code = new URL(request.url).searchParams.get("code")?.toUpperCase()
     if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
+
+    const denied = requireClientOwner(request, code, "studio/upload GET")
+    if (denied) return denied
 
     const pool = getPool()
     const { limit: mediaLimit, plan } = await getMediaLimit(pool, code)

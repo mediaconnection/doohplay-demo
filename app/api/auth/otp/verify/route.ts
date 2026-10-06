@@ -2,11 +2,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { createClientSessionToken, CLIENT_SESSION_COOKIE, CLIENT_SESSION_MAX_AGE_SECONDS } from "@/lib/client-session"
+import { createAdvertiserSessionToken, ADVERTISER_SESSION_COOKIE, ADVERTISER_SESSION_MAX_AGE_SECONDS } from "@/lib/advertiser-session"
 
 export const dynamic = "force-dynamic"
 
-const SESSION_COOKIE  = "doohplay_session"
-const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 dias
+const LEGACY_SESSION_COOKIE = "doohplay_session"
 
 function stripPhone(phone: string): string {
   return (phone ?? "").replace(/\D/g, "")
@@ -85,19 +85,26 @@ export async function POST(req: NextRequest) {
       ? `/agencia/${userCode}`
       : `/anunciante/${userCode}`
 
-    // Seta cookie de sessão
-    const sessionData = JSON.stringify({ role, code: userCode, ts: Date.now() })
     const response = NextResponse.json({ ok: true, redirect, userCode, role })
-    response.cookies.set(SESSION_COOKIE, sessionData, {
-      httpOnly: true,
-      secure:   process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge:   SESSION_MAX_AGE,
-      path:     "/",
-    })
 
-    // Achado em produção (17/07/2026): /dashboard/local/[code] não confia
-    // no doohplay_session acima — ele confere um cookie separado
+    // 04/10/2026: o cookie "doohplay_session" (JSON puro, sem assinatura,
+    // falsificável no navegador) deixou de ser emitido e passa a ser
+    // apagado em todo login. O portal do anunciante agora confere só o
+    // cookie assinado abaixo (lib/advertiser-session.ts, middleware.ts).
+    response.cookies.set(LEGACY_SESSION_COOKIE, "", { path: "/", maxAge: 0 })
+
+    if (role === "advertiser") {
+      response.cookies.set(ADVERTISER_SESSION_COOKIE, await createAdvertiserSessionToken(userCode), {
+        httpOnly: true,
+        secure:   process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge:   ADVERTISER_SESSION_MAX_AGE_SECONDS,
+        path:     "/",
+      })
+    }
+
+    // Achado em produção (17/07/2026): /dashboard/local/[code] não confiava
+    // no doohplay_session (hoje removido) — ele confere um cookie separado
     // (doohplay_client_session, HMAC), por design, pra isolar sessão de
     // cliente da de admin/operador (ver lib/client-session.ts). Como este
     // endpoint nunca emitia esse segundo cookie, todo "dono de tela" que

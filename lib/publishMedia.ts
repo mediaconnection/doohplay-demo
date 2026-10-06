@@ -277,11 +277,13 @@ export async function publishToRealPlaylist(pool: Pool, params: {
 
   const mediaRes = await pool.query(
     `INSERT INTO "CampaignMedia" (id, "campaignId", name, type, url, status, "createdAt")
-     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'pending', NOW())
+     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'approved', NOW())
      RETURNING id`,
     [campaignId, name, type, url]
   )
   const mediaId = mediaRes.rows[0].id
+  // Conteúdo do próprio dono entra aprovado (decisão do fundador,
+  // 04/10/2026). A posse do código é checada na rota que chama isto.
 
   await pool.query(
     `INSERT INTO playlist_schedule (client_code, media_id, duration, active)
@@ -292,7 +294,7 @@ export async function publishToRealPlaylist(pool: Pool, params: {
 
   await syncDonoMediaToUnified(pool, {
     campaignId, ownerCode: upperCode, mediaId, name, url, type,
-    status: "pending", durationSeconds: duration,
+    status: "approved", durationSeconds: duration,
   })
 
   return { mediaId }

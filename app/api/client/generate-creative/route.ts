@@ -9,6 +9,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getPool } from "@/lib/db"
 import { syncDonoMediaToUnified } from "@/lib/unifiedSync"
 import { PLAN_AI_GENERATION_LIMITS, DEFAULT_AI_GENERATION_LIMIT, PlanKey } from "@/lib/asaas"
+import { requireClientOwner } from "@/lib/auth/requireSession"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -220,6 +221,10 @@ export async function POST(req: NextRequest) {
       duration    = Number(form.get("duration") || 15)
       orientation = String(form.get("orientation") || "landscape")
 
+      // Sessão checada antes de subir a foto pro R2 (04/10/2026).
+      const denied = requireClientOwner(req, code, "generate-creative POST")
+      if (denied) return denied
+
       // Upload da foto pro R2, pra Puppeteer poder carregar via URL pública
       const photoFile = form.get("photo") as File | null
       if (photoFile && photoFile.size > 0) {
@@ -239,6 +244,9 @@ export async function POST(req: NextRequest) {
       detail      = body.detail || ""
       duration    = body.duration ?? 15
       orientation = body.orientation ?? "landscape"
+
+      const denied = requireClientOwner(req, String(code), "generate-creative POST")
+      if (denied) return denied
     }
 
     if (!code || !product) {
@@ -389,7 +397,7 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
     const mediaRes = await pool.query(
       `INSERT INTO "CampaignMedia"
          (id, "campaignId", name, type, url, status, "createdAt")
-       VALUES (gen_random_uuid()::text, $1, $2, 'image', $3, 'pending', NOW())
+       VALUES (gen_random_uuid()::text, $1, $2, 'image', $3, 'approved', NOW())
        RETURNING id`,
       [campaignId, `${copy.title} (gerado por IA)`, url]
     )
@@ -411,7 +419,8 @@ Use linguagem direta, brasileira e impactante. O título deve prender atenção 
       name: `${copy.title} (gerado por IA)`,
       url,
       type: "image",
-      status: "pending",
+      // Conteúdo do próprio dono entra aprovado (decisão do fundador, 04/10/2026).
+      status: "approved",
       durationSeconds: duration,
     })
 

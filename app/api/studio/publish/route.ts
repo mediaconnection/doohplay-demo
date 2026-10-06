@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { buildHtml, renderImageAndUpload, publishToRealPlaylist } from "@/lib/publishMedia"
 import { findStudioTemplate } from "@/lib/studioTemplates"
+import { requireClientOwner } from "@/lib/auth/requireSession"
 
 export const dynamic     = "force-dynamic"
 export const maxDuration = 60
@@ -28,6 +29,10 @@ export async function POST(req: NextRequest) {
     }
     const upperCode = String(code).toUpperCase()
     const dur = Number(duration) || 15
+
+    // Só o dono logado publica na própria tela (04/10/2026).
+    const denied = requireClientOwner(req, upperCode, "studio/publish POST")
+    if (denied) return denied
 
     const clientRes = await pool.query(
       `SELECT name, business_type, screen_orientation FROM studio_clients WHERE code = $1 AND active = true LIMIT 1`,
