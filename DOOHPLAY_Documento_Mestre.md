@@ -110,10 +110,11 @@ ponto de equilíbrio.
 ### Status comercial real — CORRIGIDO nesta versão
 - **`BARBE332`** (Barbearia Zimermam, Gilson Pimentel) — piloto real,
   telas V96 + T600
-- **`LANCH525`** (LeMelo Café & Confeitaria) — **segundo cliente real,
-  confirmado em produção a partir de 17/07**, tela `DHP-B07BDB` em
-  processo de pareamento (resultado não confirmado no último documento
-  disponível)
+- **`LEMEL186`** (LeMelo Café & Confeitaria) — **segundo cliente real e
+  único cliente externo**, tela Amlogic V96. *(Corrigido em 05/10/2026:
+  esta linha dizia `LANCH525`. `LANCH525` foi o **primeiro código da
+  LeMelo, abandonado na mesma noite de 17/07**, sem cadastro em
+  `studio_clients` e sem tela real; ver 12.8 e 12.62.)*
 - `AGENC787` — registro de teste de agência, sem cliente pagante externo
 - 3 clientes prospectados adicionais (feedback coletado em visitas
   comerciais de 20/07), condicionados à resolução de pendências de
@@ -496,6 +497,18 @@ com "Lanchonete" é coincidência de nome de teste.
 arquivológico, mas não-nulo; órfão inofensivo, dashboard já ignora via
 INNER JOIN). Código `DHP-B07BDB` livre pra reuso se necessário no
 futuro, sem urgência técnica pra isso agora.
+
+**Complemento (05/10/2026) — a conclusão acima vale para o aparelho, não
+para a mídia.** O aparelho `DHP-B07BDB` ("Google Google") é mesmo um teste.
+Mas o código `LANCH525` tem uma campanha de dono com **10 imagens da
+LeMelo** (tortas, pudim, bolos, capuccino, café, sucos) enviadas em 17/07
+entre 21:54 e 21:58 (BRT). Entre 22:24 e 23:02 da mesma noite, quase o
+mesmo conjunto foi reenviado como `LEMEL186`. Prova: o arquivo
+`studio/LEMEL186/image_1784338041310.png` é **byte a byte idêntico**
+(SHA-256 e tamanho) ao `studio/LANCH525/image_1784336126356.png`.
+Conclusão: `LANCH525` = primeiro código da LeMelo, abandonado em ~26 min.
+As 10 imagens dele continuam no R2 e no banco (não apagar — foram a
+fonte da restauração de 12.62).
 
 ### 12.9 — Correção estrutural da regressão de tela (12.3): pendência real descoberta
 A "correção" registrada na seção 12.3 nunca tinha sido de fato
@@ -2260,3 +2273,30 @@ Cópia `DOOHPLAY_Documento_Mestre_v5_FINAL.md` (Downloads, salva em 04/10 19:31)
 - **12.59 — números**: o texto diz "40.439 eventos pendentes" e, no parágrafo seguinte, "~69 mil eventos aguardando" — inconsistentes entre si. Medição real: **40.019** (15/09) → **49.658** (28/09).
 - **12.58 — "gravação de prova saudável"**: vale para o LEMEL186; o **BARBE332 não grava eventos em `event_chain` desde 17/09**, mesmo com o app enviando `/api/player/event` com 200 (não investigado).
 - **12.60** aponta o handoff de 04/10 como fonte mais recente. Esse handoff também foi conferido em 04/10: cerca de 10 itens estavam desatualizados ou já respondidos (destaques: as TVs rodam o **app nativo APK 0.7.4**, não o player web, então **Avisos não aparecem nas TVs**; o dono do BARBE332 é o fundador; os arquivos ficavam no Cloudflare R2; a rota de envio não exige login).
+
+### 12.62 — LEMEL186: 8 mídias restauradas (05/10/2026) e achados sobre a causa do 404
+
+**Confirmado:**
+- **Antes:** a TV do LEMEL186 estava ligada e puxava a playlist pública normalmente (`GET /api/client/playlist/LEMEL186`, 200, sem sessão). Eram 12 itens: 8 do dono, todos com **404** no R2, e 4 do Canal DOOHPLAY (200). O app registrava as 8 como exibidas (10 s cada), ou seja, ~80 s de cada volta de ~2min20s com arquivo inexistente. O que aparecia na tela nesse tempo não é visível pelo servidor.
+- **A única referência viva** às 8 mídias era `creative_assets_v2.url`. `CampaignMedia`, `creatives`, `media_assets`, `media_files` e `playlist_items` tinham 0 linhas do LEMEL186. As 89.342 linhas de `display_events` são histórico e não foram tocadas.
+- **Origem da restauração:** as imagens do `LANCH525` (ver complemento em 12.8). Uma sobrevivente do LEMEL186 é byte a byte idêntica a uma do LANCH525, o que prova que o conjunto foi reenviado das mesmas imagens.
+- **Pares por nome:** 6 de confiança alta (Venha tomar café, Bolo de cenoura, Pudim, Torta doce ← "Tortas Doces", Sucos naturais ← "Sucos deliciosos", Encomendas ← "Bolos por encomenda"). 2 por **palpite aceito pelo fundador** (opção A): "Que delícia!" ← "Delicias doces" e "Venha provar" ← "Experimente".
+- **Execução:**
+  - O fundador subiu os 8 arquivos pelo painel da Cloudflare em `dooh-media/restaurado/LEMEL186/2026-10-05/`, fora de `studio/`, sem mexer nos originais do LANCH525.
+  - Conferido: os 8 respondem 200 e são idênticos (SHA-256) aos arquivos preparados.
+  - Backup das 8 linhas anteriores: `Desktop\restaurar_LEMEL186\backup_creative_assets_v2_LEMEL186_antes_2026-10-05.json` (fora do repo).
+  - `UPDATE creative_assets_v2 SET url` com trava de exatamente 8 linhas: 8 linhas. Nome, status, duração e posição não mudaram.
+- **Depois:** a playlist pública entrega os 12 itens, todos 200. A TV passou a exibir os endereços novos às **23:03:53 (BRT, 05/10)**. Última exibição de endereço antigo: 23:02:24.
+- **Pasta `studio/LEMEL186/` no R2:** contém 8 arquivos que **não** são as mídias perdidas. Não apagar.
+  - 6 `ai_bg_*` (Studio IA, 03/09).
+  - 1 `published_1788462091336.png` (arte "15% OFF AGORA" do teste de publicação de 03/09; **nunca foi ao ar**, sem registro no banco nem exibição).
+  - 1 `image_1784338041310.png` (17/07, exibida 9 vezes entre 22:30 e 22:40 e depois retirada da playlist; o arquivo ficou).
+- **A LeMelo não foi avisada.** Decisão do fundador.
+
+**Sobre a causa do 404 — evidência vs. hipótese:**
+- **Quase descartado:** `DELETE /api/admin/r2-cleanup/[code]` (apaga **tudo** sob `studio/<code>/`). Se tivesse rodado depois de 17/07 22:27, teria levado também os arquivos de 17/07 e 03/09, que continuam lá.
+- **Descartado:** o botão de excluir do dashboard (`DELETE /api/client/media/[id]`). Ele extrai a chave do R2 com `url.split("dooh-media/")`, que não casa com o domínio `media.doohplay.com.br`, então o `DeleteObject` recebe a URL inteira como chave e não apaga nada.
+- **Padrão observado:** sumiram exatamente os arquivos que tinham linha em `CampaignMedia` (hoje vazia). Ficaram os que nunca tiveram ou cuja linha saiu antes.
+- **Hipótese, não confirmada:** uma rota que apaga mídia por mídia a partir de `CampaignMedia`, como a de excluir anunciante (item 2 da tarefa de segurança).
+- **Logs do Render não ajudam:** os de requisição não estão sendo guardados. O filtro por caminho também não acha as chamadas de playlist que a TV faz o tempo todo. A retenção é de 30 dias.
+- **Risco que continua:** `r2-cleanup` segue apagando em massa sem checar referência e é protegido só por `ADMIN_SECRET` na query string. Entra na correção do item 2.
