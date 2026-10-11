@@ -39,7 +39,7 @@ npx prisma db push            # Push schema changes to database
 npx prisma studio             # Open Prisma Studio
 ```
 
-Automated tests: `npm test` (Vitest, `*.test.ts` next to the code; 184 tests as of 2026-10-11). Unit tests use mocks and touch no environment. There is no staging: checks against the real site are read-only, or create and delete `TESTE_`-prefixed records inside the same test run.
+Automated tests: `npm test` (Vitest, `*.test.ts` next to the code; 181 tests as of 2026-10-11). Unit tests use mocks and touch no environment. There is no staging: checks against the real site are read-only, or create and delete `TESTE_`-prefixed records inside the same test run.
 
 ## Agent governance
 

@@ -2391,9 +2391,16 @@ Passo 3 do plano de governança v3; fecha a primeira pendência de 12.63. Feito 
 
 **Conferência antes de remover `body.secret`:** logs de requisição do Render de 27/09 a 11/10 (é o que existe; não chegam a 30 dias). `admin/players/link` teve 3 `GET`, todos do Edge; `admin/screens/[id]`, `admin/media/[id]`, `admin/network-media/[id]` e `clients/[code]/pricing` tiveram zero chamadas. Nenhuma chamada do app nativo (`Dalvik`) a `/api/admin/*`.
 
-**Testes:** `app/api/admin/_lib/adminSecretHeader.test.ts` (38 casos): `?secret=`/`body.secret` → 401, cabeçalho certo passa só onde deve, cadastro e onboarding mandam o cabeçalho, e uma varredura do código que falha se `ADMIN_SECRET` voltar a ser lido de URL ou corpo. Vitest 184/184; `tsc` com a mesma contagem de antes (58).
+**Testes:** `app/api/admin/_lib/adminSecretHeader.test.ts` (38 casos): `?secret=`/`body.secret` → 401, cabeçalho certo passa só onde deve, cadastro e onboarding mandam o cabeçalho, e uma varredura do código que falha se `ADMIN_SECRET` voltar a ser lido de URL ou corpo. Vitest 181 testes no estado do commit (a execução local deu 184/184 porque a árvore tinha 3 testes ainda não commitados, de `lib/whatsapp.test.ts` e `lib/screens/offlineAlertCheck.test.ts`); `tsc` com a mesma contagem de antes (58).
+
+**`admin/healthcheck` e monitor externo:** o cabeçalho do arquivo diz que a rota foi feita para cron externo. Nos logs do Render de 27/09 a 11/10 há uma única chamada, manual, do Edge, em 04/10, com `?secret=` na URL. Nenhum monitor externo chamou a rota no período; ela fica só com sessão.
 
 **Pendências:**
 - Trocar `ADMIN_SECRET` e `CRON_SECRET` no Render depois do deploy (fundador). O valor antigo do `CRON_SECRET` continua no histórico do git e no comando do cron `doohplay-monthly-report`.
 - Rotas que ainda aceitam o `CRON_SECRET` por `?secret=`: `reports/whatsapp` (GET), `cron/monthly-report` (GET e POST) e `finance/setup` (GET e POST). Os crons do Render já mandam por cabeçalho.
 - Onboarding não foi testado em produção, por decisão do fundador (cria assinatura real no Asaas); a cobertura é o teste automático.
+- **Verificação pendente (decisão do fundador, 11/10):** depois do deploy, só os testes de 401 são feitos (o `ADMIN_SECRET` não é passado ao agente). No primeiro cadastro ou onboarding real, conferir nos logs de requisição do Render que a chamada interna respondeu 200: `POST /api/admin/network-partnerships/suggest` (cadastro) e `POST /api/finance/asaas` (onboarding, mais a linha em `financial_subscriptions`). Um 401 nessas chamadas não derruba o fluxo nem gera erro visível.
+- O valor real do `ADMIN_SECRET` está gravado nos logs de requisição do Render (chamada de 04/10 a `admin/healthcheck`), além do histórico de navegador. A troca no Render resolve.
+- O `CRON_SECRET` de produção é o valor que está no código e no histórico do git: o cron `doohplay-monthly-report` manda esse valor literal no comando (não usa variável) e recebeu 200 em 01/10. Trocar o segredo no Render exige trocar também o comando desse cron, senão o relatório mensal passa a dar 401.
+- **Erros do `tsc` subiram de 47 para 58.** Registros anteriores deste documento trazem 47; em 12.63 já aparecia 58. Este commit não mudou a contagem. Quando e por que subiu não foi investigado.
+- CLAUDE.md e 12.63 citam "146 testes"; essa base também foi medida com a árvore local suja (143 no commit).
