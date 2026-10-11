@@ -2404,3 +2404,23 @@ Passo 3 do plano de governança v3; fecha a primeira pendência de 12.63. Feito 
 - O `CRON_SECRET` de produção é o valor que está no código e no histórico do git: o cron `doohplay-monthly-report` manda esse valor literal no comando (não usa variável) e recebeu 200 em 01/10. Trocar o segredo no Render exige trocar também o comando desse cron, senão o relatório mensal passa a dar 401.
 - **Erros do `tsc` subiram de 47 para 58.** Registros anteriores deste documento trazem 47; em 12.63 já aparecia 58. Este commit não mudou a contagem. Quando e por que subiu não foi investigado.
 - CLAUDE.md e 12.63 citam "146 testes"; essa base também foi medida com a árvore local suja (143 no commit).
+
+### 12.66 — `CRON_SECRET` sem valor padrão no código e pendência do onboarding (11/10/2026)
+
+Commits separados do 12.65, na mesma leva. Feito localmente; validação em produção depende do push.
+
+**`app/api/reports/whatsapp/route.ts`:** o valor padrão do `CRON_SECRET` saiu do código. Se a variável não existir no ambiente, `GET` e `POST` respondem 500 e registram no log; com a variável, valor errado continua 401. Teste em `app/api/reports/whatsapp/route.test.ts` (7 casos, banco e envio simulados).
+
+**Estado no Render, conferido em 11/10 sem ler valores:**
+- As ferramentas disponíveis ao agente não listam variáveis de ambiente, nem por nome. A existência de `CRON_SECRET` no serviço web foi inferida pelo comportamento: os crons `doohplay-network-*` comparam o cabeçalho com a variável, sem valor padrão, e recebem 200 todo dia.
+- O cron `doohplay-monthly-report` não usa a variável: manda o valor literal no comando. **Ação do fundador:** trocar o valor no Render e mudar o comando desse cron para usar `$CRON_SECRET`. Sem a segunda parte, o relatório mensal passa a dar 401.
+
+**Teste acrescentado a pedido do fundador:** `POST /api/finance/asaas` com cabeçalho certo (200, assinatura simulada gravada) e errado, vazio, `?secret=` e `body.secret` (401, sem banco e sem Asaas). Nenhuma chamada real.
+
+**Suíte em árvore limpa:** rodada num `git worktree` temporário a partir do HEAD, sem os arquivos locais não commitados: 194 testes.
+
+**Pendência de prioridade ALTA — onboarding sem cobrança e sem aviso (relacionada a 12.26):**
+- Se a chamada interna do onboarding a `POST /api/finance/asaas` falhar (401 por segredo divergente, erro do Asaas, rede), o onboarding responde 200, o cliente é criado e fica **sem assinatura**, com uma única linha `[onboarding] asaas error` no log. Ninguém é avisado.
+- O WhatsApp interno do onboarding até diz "⚠️ Sem CPF — ativar manualmente", mas usa esse mesmo texto para qualquer falha, inclusive quando o CPF foi informado.
+- É o mesmo desfecho do caso `LEMEL186` de 12.26 (cliente real usando a plataforma sem cobrança), agora com mais uma causa possível depois da troca para cabeçalho.
+- **O que falta:** o onboarding avisar o fundador de forma explícita quando a assinatura falhar, com o motivo. Não implementado.
