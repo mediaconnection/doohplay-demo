@@ -77,10 +77,21 @@ PROCEDIMENTO). Resumo do que **não** é bloqueio:
 
 ## Não verificado
 
-- **HIPÓTESE:** os padrões de shell (`git push *`, `git * push *`,
-  `Remove-Item *` e os demais) seguem a sintaxe documentada, mas nenhum foi
-  exercitado. O primeiro push depois desta aplicação deve abrir a confirmação;
-  se não abrir, a regra está errada e precisa de correção antes de confiar.
+- **FATO (testado em 11/10/2026):** `git push --dry-run` abriu a caixa de
+  confirmação nas duas ferramentas, PowerShell e Bash (confirmado pelo
+  fundador). O teste rodou numa sessão aberta em `C:\DOOHPLAY\dashboard-web`,
+  ou seja, exercitou a cópia idêntica do arquivo; falta repetir numa sessão
+  aberta em `dashboard-web-prod`.
+- **FATO:** brecha encontrada e corrigida no mesmo dia: `git * push *` não
+  pegava `git -C <pasta> push` sem argumentos. Acrescentado `git * push`.
+  Esta forma não foi exercitada.
+- **HIPÓTESE:** os demais padrões de shell (`Remove-Item *`, `git reset *`,
+  `prisma db push *` etc.) seguem a sintaxe documentada, mas não foram
+  exercitados.
+- **Não testado, de propósito:** o deny do Render. Se a regra falhasse, o
+  teste dispararia um deploy real. A conferência é pela lista do
+  `/permissions`; como evidência indireta, as ferramentas negadas deixaram de
+  aparecer na sessão.
 - **HIPÓTESE:** a regra `mcp__claude-in-chrome` em "perguntar" cobre todas as
   ferramentas do navegador. Não testada.
 - **DÚVIDA:** plano atual do Supabase (pago ou Free). Registrada no
