@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { requireSuperAdmin } from "@/lib/require-super-admin"
+import { hasAdminSecretHeader } from "@/lib/auth/adminSecretHeader"
 import { verifyClientSessionToken, CLIENT_SESSION_COOKIE } from "@/lib/client-session"
 import { PLANS, PlanKey, createSubscription, getOrCreateAsaasCustomer } from "@/lib/asaas"
 
@@ -24,13 +25,20 @@ async function asaas(path: string, method = "GET", body?: object) {
   return res.json()
 }
 
+// POST e GET: sessão de super_admin, ou chamada de máquina com o ADMIN_SECRET
+// no cabeçalho x-admin-secret (app/api/onboarding). É a única rota em que o
+// cabeçalho vale como super_admin — requireSuperAdmin sozinho não o aceita.
+async function isAuthorized(req: NextRequest): Promise<boolean> {
+  return hasAdminSecretHeader(req) || (await requireSuperAdmin(req))
+}
+
 function cleanDocument(doc: string) {
   return doc.replace(/\D/g, "")
 }
 
 // ── POST /api/finance/asaas — ativa cobrança para um cliente ─────────────────
 export async function POST(req: NextRequest) {
-  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!(await isAuthorized(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   try {
     const { code, plan, cpf_cnpj } = await req.json()
 
@@ -141,7 +149,7 @@ export async function POST(req: NextRequest) {
 
 // ── GET /api/finance/asaas?code=ZIMERM — status financeiro ───────────────────
 export async function GET(req: NextRequest) {
-  if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!(await isAuthorized(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   try {
     const code = new URL(req.url).searchParams.get("code")
     if (!code) return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
