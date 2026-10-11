@@ -2457,3 +2457,21 @@ Commits separados do 12.65, na mesma leva. Feito localmente; validação em prod
    - `POST /api/finance/setup?secret=…`: roda DDL no banco (`ALTER TABLE … ADD COLUMN IF NOT EXISTS` em `studio_clients` e `leads`; `CREATE TABLE/INDEX IF NOT EXISTS` das tabelas `financial_*`). Não apaga nem altera dados; hoje é sem efeito porque tudo já existe.
    - `GET /api/finance/setup?secret=…`: só leitura de nomes de tabelas e colunas.
    - `network-media-expire`, `network-partnerships-timeout` e `trial-warning` só aceitam o cabeçalho.
+
+### 12.68 — Cabeçalho só em `finance/asaas` e teste de isolamento de sessão (11/10/2026)
+
+Decisões do fundador de 11/10 sobre os achados 1 e 2 da revisão externa (12.67). Feito localmente; validação em produção depende do push.
+
+**Achado 2 — implementado:**
+- `lib/require-super-admin.ts` volta a aceitar **só** sessão NextAuth com papel `super_admin`. O `ADMIN_SECRET` não vale mais em `admin/users`, `admin/subscription` e `finance/close-month`, por nenhum meio.
+- `app/api/finance/asaas/route.ts` (POST e GET) checa o cabeçalho `x-admin-secret` por conta própria, além da sessão de `super_admin`. É a única rota em que o cabeçalho equivale a `super_admin`; o onboarding continua funcionando do mesmo jeito.
+- Rotas que aceitam o cabeçalho depois deste commit: `finance/asaas` (POST/GET), `admin/network-partnerships/suggest`, `admin/institutional-media` (GET/POST), `admin/verify-migration`, `admin/institutional-recover`.
+
+**Achado 1 — teste escrito** (`app/api/admin/_lib/adminSessionIsolation.test.ts`, 28 casos):
+- Cookies válidos de cliente e de anunciante, inclusive copiados para os nomes de cookie do NextAuth, em uma rota de cada tipo de checagem → 401, sem tocar no banco.
+- O decodificador real do NextAuth rejeita os tokens de cliente e de anunciante, mesmo com o mesmo segredo.
+- Cabeçalho certo e sessão de `operador` nas rotas de `requireSuperAdmin` → 401, sem banco e sem Asaas.
+- Varredura do código que falha se `lib/auth-options.ts` ganhar outro provedor ou outra tabela de usuários, se outro arquivo montar o NextAuth, se alguém importar `next-auth/jwt`, se `signIn` aparecer fora de `app/admin/login`, ou se as rotas de `app/api/auth/otp` passarem a importar `next-auth`.
+- Limite do teste: `getServerSession` é simulado; o que prova que um cookie de cliente não vira sessão é o teste do decodificador e a varredura, não uma chamada real ao NextAuth.
+
+**Pendência (registrada, sem correção):** as rotas de painel que usam `getServerSession()` sem `authOptions` (32 arquivos) checam só "existe sessão" e **não distinguem `operador` de `super_admin`**. Um operador alcança tudo o que essas rotas fazem. O caminho é trocar a checagem por `requireAdminSession` (que lê o papel) e decidir, rota a rota, o que é só de `super_admin`.
