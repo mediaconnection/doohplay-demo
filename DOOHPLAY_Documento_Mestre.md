@@ -2300,3 +2300,58 @@ Cópia `DOOHPLAY_Documento_Mestre_v5_FINAL.md` (Downloads, salva em 04/10 19:31)
 - **Hipótese, não confirmada:** uma rota que apaga mídia por mídia a partir de `CampaignMedia`, como a de excluir anunciante (item 2 da tarefa de segurança).
 - **Logs do Render não ajudam:** os de requisição não estão sendo guardados. O filtro por caminho também não acha as chamadas de playlist que a TV faz o tempo todo. A retenção é de 30 dias.
 - **Risco que continua:** `r2-cleanup` segue apagando em massa sem checar referência e é protegido só por `ADMIN_SECRET` na query string. Entra na correção do item 2.
+
+### 12.63 — Segurança: envio de mídia, exclusões do admin e sumiço do Canal (04–11/10/2026)
+
+Tarefa de segurança pedida pelo fundador em 04/10. Três commits de código: `ad85612` (item 1, no ar desde 05/10 23:34), `b84b4b7` e `11a222d` (item 2, 11/10). A restauração do LEMEL186 está em 12.62.
+
+**Decisões do fundador:**
+- Conteúdo do próprio dono **não** precisa de aprovação. Anunciante **sempre** precisa.
+- Exclusões do admin passam a ser **lógicas**: nada é apagado do banco nem do R2.
+- Excluir cliente não mexe na assinatura local nem no Asaas. O cancelamento da cobrança continua manual.
+- O `ADMIN_SECRET` será trocado no Render pelo fundador. Tirar o `?secret=` das demais rotas fica para um terceiro commit.
+
+**Item 1 — envio de mídia (`ad85612`). Confirmado em produção:**
+- 6 rotas de envio/publicação, a listagem do upload e o `PATCH` da playlist exigem o dono logado: 401 sem sessão, 403 com sessão de outro código, recusa registrada no log sem token (`lib/auth/requireSession.ts`). O `GET` da playlist segue público para as TVs.
+- Envio do dono grava `approved`. Anúncio de terceiro só é servido com `status = 'approved'`, na API das TVs e no SSR de `/player` (antes era `!= 'rejected'`).
+- `studio/upload`: erro de banco depois do R2 vira 500 (antes a tela dizia "enviado").
+- Sessão de anunciante assinada (`lib/advertiser-session.ts`). O cookie `doohplay_session` (JSON sem assinatura) não é mais emitido nem aceito. Havia 0 anunciantes no banco.
+- `/studio/[code]` exige login no servidor.
+- Testes em produção com clientes `TESTE_A`/`TESTE_B`, criados e apagados (3 linhas, conferido): sem sessão → 401 em todas; sessão de `TESTE_A` contra `TESTE_B` → 403; cookie antigo falsificado → 401 e redirecionamento do portal; leitura pública → 200. As duas TVs continuaram pingando depois do deploy.
+
+**Item 2 — exclusões do admin (`b84b4b7`, `11a222d`). Feito localmente; validação em produção depende do push:**
+- Migração aplicada em 11/10 e conferida no `information_schema`: coluna `deleted_at timestamptz` em `"Advertiser"`, `studio_clients`, `institutional_media` e `media_examples` (`sql/soft_delete_deleted_at.sql`). Nenhuma linha existente foi alterada.
+- Excluir anunciante: marca `deleted_at` e põe as campanhas em `status = 'deleted'`. Código de dono de tela é recusado com 409.
+- `r2-cleanup`: `DELETE` removido (apagava tudo de `studio/<code>/` sem checar uso). O `GET` diz, por arquivo, se está referenciado ou órfão.
+- Excluir cliente: marca `deleted_at` + `active = false`. A playlist pública de cliente excluído responde vazia (`docs/api-contract.md`, regra 6).
+- Excluir item do Canal/institucional: marca `deleted_at`, desliga em `placements_v2`, mantém arquivo.
+- Excluir exemplo: marca `deleted_at` + `active = false`, mantém arquivo.
+- As cinco rotas só aceitam admin logado (NextAuth com `authOptions`; `app/api/admin/_lib/requireAdmin.ts`). `?secret=` não vale mais nelas.
+- Vitest 146/146; `tsc` com a mesma contagem de antes (58); `next build` ok.
+
+**Causa dos 404 do LEMEL186 — o que é evidência e o que é hipótese:**
+- **Evidência:** a rota antiga de excluir anunciante (criada em 17/07, `3ceac10`) apagava `Campaign`, `CampaignMedia` e cada arquivo no R2, sem tocar em `creative_assets_v2`/`placements_v2`. É exatamente o estado encontrado. Todo dono ganha um `"Advertiser"` com o próprio código ao enviar mídia e aparecia na aba Anunciantes com botão de excluir.
+- **Evidência:** só sumiram do R2 os arquivos que tinham linha em `CampaignMedia`. Isso descarta a `r2-cleanup`. O botão de excluir do dashboard não consegue apagar no R2 (monta a chave errada para `media.doohplay.com.br`).
+- **Data corrigida:** o `STATUS_PROJETO.md` dizia "depois de 03/09". Foi **entre 18/07 e 03/09**: em 03/09 16:01 a publicação de teste do LEMEL186 falhou porque a `Campaign` dele já não existia (o arquivo `published_…` ficou no R2 sem registro; correção `9c21cd5` às 16:06). O BARBE332 teve a `Campaign` recriada em 01/07, 03/09 e 06/10.
+- **LANCH525** foi outro mecanismo: banco apagado, arquivos intactos, cliente inexistente — bate com a rota antiga de excluir cliente, que não tocava no R2.
+- **Hipótese, sem prova em log:** que a chamada tenha sido de fato essa rota. Os logs de requisição do Render só voltam até 27/09; de lá até 11/10 não há chamada a `/api/admin/advertisers`, `/api/admin/r2-cleanup` nem `DELETE /api/admin/clients`. Não dá para descartar SQL direto mais apagamento manual no R2.
+- **Correção do que foi dito em 05/10:** os logs de requisição do Render **existem** (com método, caminho, status, IP e navegador). O filtro por caminho usado naquele dia é que não funcionou.
+
+**Sumiço do Canal DOOHPLAY (05/10) — confirmado por log:**
+- Em 05/10, das 23:22:22 às 23:23:31, 20 `DELETE` com sucesso: 1 em `/api/admin/media-examples/…` e 19 em `/api/admin/institutional-media/…`, do navegador Edge do fundador, com sessão de admin logada.
+- **Exclusão feita pelo próprio admin** (confirmado pelo fundador em 11/10). Não foi acesso indevido, não foi o deploy do item 1 (23:34) nem o filtro de aprovação.
+- Efeito: `institutional_media` e `media_examples` ficaram vazias, os arquivos em `institucional/` dão 404 e as duas telas passaram a exibir só o conteúdo do dono. Sem cópia no sistema; recadastrar exige os originais.
+
+**Arquivos perdidos (levantamento):**
+- LEMEL186: 8, já restaurados (12.62).
+- BARBE332: 4 de antes de 04/10 (referências já removidas) e um número desconhecido de mídias anteriores. Sem cópia.
+- Canal DOOHPLAY: 19 itens e 1 exemplo. Sem cópia.
+- Sem backup do banco (Supabase Free). Versionamento do bucket R2 não foi conferido.
+
+**Pendências:**
+- Terceiro commit: tirar `?secret=` das ~40 rotas de admin restantes (2 chamadas internas e 1 script passam a mandar o segredo por cabeçalho). Duas rotas aceitam **só** o segredo: `verify-migration` e `institutional-recover`.
+- `POST /api/advertiser/[code]/campaigns` cria campanha e cobrança no Asaas **sem login** (achado, não corrigido).
+- Excluir mídia pelo dashboard do dono continua apagando a linha; o arquivo no R2 fica por causa da chave errada.
+- Não existe tela para desfazer uma exclusão lógica; hoje é por SQL (`deleted_at = NULL`).
+- A página `/player` (web) não trata cliente excluído; as TVs usam a API.
+- Restos de teste antigos mantidos por decisão do fundador: `TESTE719` (1 linha em `otp_tokens`) e `TESTEIA01` (5 em `ai_generation_log`).
