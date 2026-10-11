@@ -1310,7 +1310,8 @@ function TabClientes({ data, onRefresh, isSuperAdmin }: { data: any; onRefresh: 
   }
 
   const handleDelete = async (code: string, name: string) => {
-    const typed = prompt(`Isso exclui "${name}" (${code}) e todos os dados relacionados (mídia, playlist, parcerias) pra sempre. Digite o código "${code}" pra confirmar:`)
+    // 11/10/2026: exclusão lógica — nada é apagado no servidor.
+    const typed = prompt(`Isso desativa "${name}" (${code}): ele some desta lista, perde o acesso ao painel e a tela dele para de exibir conteúdo. Nenhum dado ou arquivo é apagado. A cobrança no Asaas NÃO é cancelada — cancele lá manualmente. Digite o código "${code}" pra confirmar:`)
     if (typed !== code) {
       if (typed !== null) alert("Código não corresponde. Nada foi excluído.")
       return
@@ -1801,12 +1802,17 @@ function TabExemplos() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const deleteExample = async (id: string, name: string) => {
-    if (!confirm(`Excluir "${name}" definitivamente? Isso apaga o arquivo do R2 também — não tem como desfazer.`)) return
+    // 11/10/2026: exclusão lógica — o arquivo fica no R2 (clientes que já
+    // ativaram o exemplo usam a mesma URL).
+    if (!confirm(`Excluir "${name}"? Ele some da galeria de exemplos e desta lista. O arquivo não é apagado.`)) return
     setDeletingId(id)
     try {
-      await fetch(`/api/admin/media-examples/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/admin/media-examples/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`)
       load()
-    } catch {}
+    } catch (err: any) {
+      alert("Não foi possível excluir: " + err.message)
+    }
     setDeletingId(null)
   }
 
@@ -3090,12 +3096,16 @@ function TabInstitucional() {
   }
 
   const remove = async (id: string, itemName: string) => {
-    if (!confirm(`Remover "${itemName}" definitivamente? Para de aparecer em TODAS as telas da rede.`)) return
+    // 11/10/2026: exclusão lógica — sai do ar e desta lista; arquivo mantido.
+    if (!confirm(`Remover "${itemName}"? Para de aparecer em TODAS as telas da rede e some desta lista. O arquivo não é apagado.`)) return
     setDeletingId(id)
     try {
-      await fetch(`/api/admin/institutional-media/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/admin/institutional-media/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`)
       load()
-    } catch {}
+    } catch (err: any) {
+      alert("Não foi possível remover: " + err.message)
+    }
     setDeletingId(null)
   }
 

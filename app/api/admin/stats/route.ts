@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
                END AS player_status
         FROM studio_clients sc
         LEFT JOIN players p ON p.id = sc.player_id
+        WHERE sc.deleted_at IS NULL -- exclusão lógica (11/10/2026)
         ORDER BY sc.created_at DESC
       `),
       pool.query(`

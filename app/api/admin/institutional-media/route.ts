@@ -75,7 +75,9 @@ export async function GET(req: NextRequest) {
     `SELECT id, name, type, url, duration, position, active, created_at, display_format,
             start_date, end_date, start_time, end_time, days_of_week,
             layout_template_id, sequence_group, zone_content, segment_id
-     FROM institutional_media ORDER BY position ASC, created_at DESC`
+     FROM institutional_media
+     WHERE deleted_at IS NULL -- exclusão lógica (11/10/2026)
+     ORDER BY position ASC, created_at DESC`
   )
   // Canal DOOHPLAY (12/07/2026): lista de segmentos disponíveis pro
   // dropdown do admin, junto com o mesmo GET pra não precisar de rota nova.

@@ -54,6 +54,7 @@ Motivo de existir: o incidente de 25/06/2026, com categorias erradas e vazamento
 3. Filtrar sempre: `active !== false` e `status !== "rejected"`.
 4. **Anuncio de terceiro (`slot_category: "anunciante"`) so sai com `status: "approved"`** (decisao do fundador, 04/10/2026). O filtro e do servidor, nesta rota e no SSR de `/player`; antes, midia pendente de anunciante ia ao ar assim que enviada. Conteudo do proprio dono nao passa por aprovacao: o envio do dono logado ja grava `approved`.
 5. **Autenticacao:** este `GET` continua **publico** (as TVs leem sem sessao, com ou sem `?player_id=`). Ja o `PATCH /api/client/playlist/{code}` (ordem, agendamento, ativar/desativar itens) exige a sessao do dono do `code` (cookie `doohplay_client_session`): sem sessao valida responde `401`, com sessao de outro codigo responde `403`. O player web nao chama o `PATCH` (conferido no codigo); o app Android nao foi conferido (codigo-fonte fora deste repositorio), mas o papel dele e so ler a playlist.
+6. **Cliente excluido pelo admin** (exclusao logica, `studio_clients.deleted_at`, 11/10/2026): este `GET` responde `200` no formato de sempre, com `items`, `slides`, `playlist` e `notices` **vazios**. Nada e apagado; a tela so para de receber conteudo. Codigo que nunca existiu continua com o comportamento anterior.
 
 ### Sorteio ponderado
 

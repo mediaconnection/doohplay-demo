@@ -2,21 +2,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
-import { removeInstitutionalFromUnified } from "@/lib/unifiedSync"
 import { probeMp4 } from "@/lib/mp4-probe"
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import { requireAdminSession } from "../../_lib/requireAdmin"
 
 export const dynamic = "force-dynamic"
-
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: process.env.R2_ENDPOINT!,
-  credentials: {
-    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-})
-const BUCKET = "dooh-media"
 
 const MAX_VIDEO_DIMENSION    = 1920 // 1080p
 const MAX_VIDEO_BITRATE_MBPS = 15
@@ -86,7 +75,7 @@ export async function PATCH(
       }
 
       const { rows } = await pool.query(
-        `UPDATE institutional_media SET active = $1 WHERE id = $2 RETURNING id, active`,
+        `UPDATE institutional_media SET active = $1 WHERE id = $2 AND deleted_at IS NULL RETURNING id, active`,
         [!!body.active, id]
       )
       if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
@@ -115,7 +104,7 @@ export async function PATCH(
       `UPDATE institutional_media
        SET active = $1, start_date = $2, end_date = $3,
            start_time = $4, end_time = $5, days_of_week = $6, display_format = $7
-       WHERE id = $8
+       WHERE id = $8 AND deleted_at IS NULL
        RETURNING id, active, start_date, end_date, start_time, end_time, days_of_week, display_format`,
       [active ?? true, start_date, end_date, start_time || null, end_time || null,
        days_of_week && days_of_week.length ? days_of_week : null, displayFormat, id]
@@ -147,36 +136,39 @@ export async function PATCH(
   }
 }
 
+// DELETE — EXCLUSÃO LÓGICA desde 11/10/2026. Antes apagava a linha, a
+// entrada da playlist e o arquivo no R2 com um clique, sem volta: em
+// 05/10/2026 os 19 itens do Canal DOOHPLAY foram apagados assim em 70
+// segundos (Documento-Mestre 12.63). Agora marca deleted_at, tira do ar
+// (active = false aqui e em placements_v2) e mantém linhas e arquivo.
+// Só admin logado — ?secret= não vale pra excluir.
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkAuth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  const auth = await requireAdminSession("admin/institutional-media DELETE")
+  if (auth.denied) return auth.denied
   const { id } = await params
   const pool = getPool()
   try {
     const { rows } = await pool.query(
-      `DELETE FROM institutional_media WHERE id = $1 RETURNING id, url`,
+      `UPDATE institutional_media SET deleted_at = NOW(), active = false
+       WHERE id = $1 AND deleted_at IS NULL RETURNING id, name`,
       [id]
     )
     if (!rows[0]) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 })
 
-    // Sincroniza com a fundação unificada (Fase 1) — best-effort
-    await removeInstitutionalFromUnified(pool, id)
+    // A playlist das TVs lê placements_v2 e exige active = true pro
+    // institucional. Aqui o erro não pode ser engolido: se falhar, o item
+    // "excluído" continuaria no ar.
+    await pool.query(
+      `UPDATE placements_v2 SET active = false
+       WHERE source_table = 'institutional_media' AND source_id = $1`,
+      [id]
+    )
 
-    // Remove o arquivo real do R2 — mesma correção aplicada em
-    // client/media/[id] (Fase 8): sem isso, o arquivo ficava órfão pra sempre.
-    try {
-      const url: string = rows[0].url
-      const key = url.split("/institucional/").pop()
-      if (key) {
-        await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: `institucional/${key}` }))
-      }
-    } catch (r2Err) {
-      console.error("[admin/institutional-media/[id] DELETE] falha ao remover do R2:", r2Err)
-    }
-
-    return NextResponse.json({ ok: true })
+    console.log(`[admin/institutional-media DELETE] "${rows[0].name}" (${id}) marcado como excluído por ${auth.email}; arquivo mantido`)
+    return NextResponse.json({ ok: true, soft: true })
   } catch (err: any) {
     console.error("[admin/institutional-media/[id] DELETE]", err)
     return NextResponse.json({ error: err.message }, { status: 500 })

@@ -23,6 +23,10 @@ vi.mock("@aws-sdk/client-s3", () => ({
 
 import * as advertisersRoute from "@/app/api/admin/advertisers/[code]/route"
 import * as r2CleanupRoute from "@/app/api/admin/r2-cleanup/[code]/route"
+import * as clientsRoute from "@/app/api/admin/clients/[code]/route"
+import * as institutionalRoute from "@/app/api/admin/institutional-media/[id]/route"
+import * as examplesRoute from "@/app/api/admin/media-examples/[id]/route"
+import { GET as playlistGET } from "@/app/api/client/playlist/[code]/route"
 
 const admin = { user: { email: "admin@teste", role: "super_admin" } }
 const ctx = (code: string) => ({ params: Promise.resolve({ code }) })
@@ -116,5 +120,91 @@ describe("/api/admin/r2-cleanup/[code]", () => {
     expect(body.referenced).toBe(1)
     expect(body.orphans).toBe(1)
     expect(body.files.find((f: any) => f.key.endsWith("orfao.png")).referenced).toBe(false)
+  })
+})
+
+// ── Segundo commit: excluir cliente, Canal (institucional) e exemplo ────────
+const softCases = [
+  {
+    name: "DELETE /api/admin/clients/[code]",
+    url: "http://x/api/admin/clients/TESTE_A",
+    call: (req: NextRequest) => clientsRoute.DELETE(req, { params: Promise.resolve({ code: "TESTE_A" }) }),
+    expected: "UPDATE studio_clients SET deleted_at",
+  },
+  {
+    name: "DELETE /api/admin/institutional-media/[id]",
+    url: "http://x/api/admin/institutional-media/abc",
+    call: (req: NextRequest) => institutionalRoute.DELETE(req, { params: Promise.resolve({ id: "abc" }) }),
+    expected: "UPDATE institutional_media SET deleted_at",
+  },
+  {
+    name: "DELETE /api/admin/media-examples/[id]",
+    url: "http://x/api/admin/media-examples/abc",
+    call: (req: NextRequest) => examplesRoute.DELETE(req, { params: Promise.resolve({ id: "abc" }) }),
+    expected: "UPDATE media_examples SET deleted_at",
+  },
+]
+
+describe("rotas vizinhas: exclusão lógica, só admin logado", () => {
+  for (const tc of softCases) {
+    it(`${tc.name}: 401 sem sessão, mesmo com ?secret=`, async () => {
+      process.env.ADMIN_SECRET = "segredo-de-teste"
+      sessionMock.mockResolvedValue(null)
+      const res = await tc.call(del(tc.url + "?secret=segredo-de-teste"))
+      expect(res.status).toBe(401)
+      expect(queryMock).not.toHaveBeenCalled()
+    })
+
+    it(`${tc.name}: 403 com sessão sem papel de admin`, async () => {
+      sessionMock.mockResolvedValue({ user: { email: "x@teste" } })
+      const res = await tc.call(del(tc.url))
+      expect(res.status).toBe(403)
+      expect(queryMock).not.toHaveBeenCalled()
+    })
+
+    it(`${tc.name}: só UPDATE — nenhum DELETE FROM e nada no R2`, async () => {
+      sessionMock.mockResolvedValue(admin)
+      queryMock.mockResolvedValue({ rows: [{ id: "abc", code: "TESTE_A", name: "Teste" }], rowCount: 1 })
+      const res = await tc.call(del(tc.url))
+      expect(res.status).toBe(200)
+      expect((await res.json()).soft).toBe(true)
+      const sqls = queryMock.mock.calls.map(c => String(c[0]))
+      expect(sqls.some(s => s.includes(tc.expected))).toBe(true)
+      expect(sqls.some(s => /DELETE\s+FROM/i.test(s))).toBe(false)
+      expect(clientQueryMock).not.toHaveBeenCalled()
+      expect(s3SendMock).not.toHaveBeenCalled()
+    })
+
+    it(`${tc.name}: 404 quando não existe ou já foi excluído`, async () => {
+      sessionMock.mockResolvedValue(admin)
+      queryMock.mockResolvedValue({ rows: [], rowCount: 0 })
+      const res = await tc.call(del(tc.url))
+      expect(res.status).toBe(404)
+    })
+  }
+
+  it("excluir institucional também desliga a veiculação em placements_v2", async () => {
+    sessionMock.mockResolvedValue(admin)
+    queryMock.mockResolvedValue({ rows: [{ id: "abc", name: "Teste" }], rowCount: 1 })
+    await institutionalRoute.DELETE(del("http://x/api/admin/institutional-media/abc"), { params: Promise.resolve({ id: "abc" }) })
+    const sqls = queryMock.mock.calls.map(c => String(c[0]))
+    expect(sqls.some(s => s.includes("UPDATE placements_v2 SET active = false"))).toBe(true)
+  })
+})
+
+describe("GET /api/client/playlist/[code] — cliente excluído", () => {
+  it("responde 200 com lista vazia, sem sessão, e não consulta mídia", async () => {
+    queryMock.mockImplementation(async (sql: string) => {
+      if (String(sql).includes("deleted_at IS NOT NULL")) return { rows: [{ name: "TESTE_ excluído" }] }
+      return { rows: [{ name: "TESTE_ excluído", business_type: "Outro" }] }
+    })
+    const res = await playlistGET(new NextRequest("http://x/api/client/playlist/TESTE_A"), { params: Promise.resolve({ code: "TESTE_A" }) })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.ok).toBe(true)
+    expect(body.items).toEqual([])
+    expect(body.playlist).toEqual([])
+    const sqls = queryMock.mock.calls.map(c => String(c[0]))
+    expect(sqls.some(s => s.includes("placements_v2"))).toBe(false)
   })
 })

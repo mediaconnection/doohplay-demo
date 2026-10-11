@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
   const pool = getPool()
   const { rows } = await pool.query(
     `SELECT id, niche, name, type, url, duration, active, created_at
-     FROM media_examples ORDER BY niche, created_at DESC`
+     FROM media_examples
+     WHERE deleted_at IS NULL -- exclusão lógica (11/10/2026)
+     ORDER BY niche, created_at DESC`
   )
   return NextResponse.json({ count: rows.length, examples: rows })
 }

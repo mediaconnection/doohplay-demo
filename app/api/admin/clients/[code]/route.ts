@@ -1,15 +1,11 @@
 // app/api/admin/clients/[code]/route.ts
 //
-// Exclusão de cliente (studio_clients) pelo admin. Remove em cascata só as
-// tabelas que já confirmamos com certeza nesta sessão (mídia, playlist,
-// Clube de Telas, leads, alertas, assinaturas). NÃO toca no módulo de
-// trust score (`players` e suas 8 tabelas dependentes) — só desvincula o
-// player_id, deixando o registro órfão lá, porque não temos certeza total
-// do esquema completo dessas tabelas e prefiro não arriscar mais uma perda
-// de dados sem explicação (já tivemos uma nesta sessão).
+// Edição (PATCH) e exclusão lógica (DELETE) de cliente (studio_clients)
+// pelo admin. Ver o comentário do DELETE abaixo.
 import { NextRequest } from "next/server"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
+import { requireAdminSession } from "../../_lib/requireAdmin"
 
 export const dynamic = "force-dynamic"
 
@@ -61,79 +57,44 @@ export async function PATCH(req: NextRequest, context: any) {
   }
 }
 
-export async function DELETE(req: NextRequest, context: any) {
-  const session = await getServerSession()
-  const { searchParams } = req.nextUrl
-  const secret = searchParams.get("secret")
-
-  const isNextAuth = !!session?.user
-  const isLegacy   = secret && secret === process.env.ADMIN_SECRET
-
-  if (!isNextAuth && !isLegacy) {
-    return Response.json({ error: "unauthorized" }, { status: 401 })
-  }
+// DELETE — EXCLUSÃO LÓGICA desde 11/10/2026 (Documento-Mestre 12.63).
+//
+// A versão anterior apagava mídia, campanha, playlist, Clube de Telas,
+// leads, alertas e assinatura do cliente, e dava COMMIT antes de checar se
+// o cliente existia. Não tocava na fundação unificada (creative_assets_v2/
+// placements_v2), então a playlist pública do código continuava servindo
+// conteúdo de um cliente que não existia mais (foi o que sobrou do LANCH525).
+//
+// Agora só marca studio_clients.deleted_at + active = false:
+//  - login e dashboard já exigem active = true;
+//  - a playlist pública responde vazia pra cliente com deleted_at
+//    (app/api/client/playlist/[code]/route.ts);
+//  - nada é apagado: mídia, campanha, playlist, leads, vínculo com o player
+//    e arquivos ficam como estão;
+//  - assinatura: não mexe na linha local nem no Asaas. O cancelamento da
+//    cobrança continua MANUAL (decisão do fundador, 11/10/2026).
+// Só admin logado — ?secret= não vale pra excluir.
+export async function DELETE(_req: NextRequest, context: any) {
+  const auth = await requireAdminSession("admin/clients DELETE")
+  if (auth.denied) return auth.denied
 
   const { code } = await context.params
   const upperCode = String(code).toUpperCase()
   const pool = getPool()
-  const client = await pool.connect()
 
   try {
-    await client.query("BEGIN")
-
-    // Campanhas/mídia do dono (campanha sombra "Promoções da Loja")
-    await client.query(
-      `DELETE FROM "CampaignMedia" WHERE "campaignId" IN (SELECT id FROM "Campaign" WHERE "advertiserCode" = $1)`,
+    const result = await pool.query(
+      `UPDATE studio_clients SET deleted_at = NOW(), active = false
+       WHERE code = $1 AND deleted_at IS NULL RETURNING code, name`,
       [upperCode]
     )
-    await client.query(`DELETE FROM "Campaign" WHERE "advertiserCode" = $1`, [upperCode])
-
-    // Vínculos de anúncio de terceiro NESTA tela (não apaga a campanha do
-    // anunciante, só o vínculo com essa tela que está sendo excluída)
-    await client.query(`DELETE FROM "CampaignScreen" WHERE "screenId" = $1`, [upperCode])
-
-    // Playlist e programação
-    await client.query(`DELETE FROM playlist_schedule WHERE client_code = $1`, [upperCode])
-
-    // Clube de Telas
-    await client.query(
-      `DELETE FROM network_media_distribution WHERE displayed_on_code = $1
-         OR network_media_id IN (SELECT id FROM network_media WHERE owner_code = $1)`,
-      [upperCode]
-    )
-    await client.query(`DELETE FROM network_media WHERE owner_code = $1`, [upperCode])
-    await client.query(
-      `DELETE FROM network_partnerships WHERE requester_code = $1 OR partner_code = $1`,
-      [upperCode]
-    )
-    await client.query(`DELETE FROM client_locations WHERE client_code = $1`, [upperCode]).catch(() => {})
-
-    // Leads capturados via QR
-    await client.query(`DELETE FROM client_leads WHERE client_code = $1`, [upperCode]).catch(() => {})
-
-    // Alertas de cadastro duplicado envolvendo este código
-    await client.query(`DELETE FROM duplicate_signup_alerts WHERE studio_client_code = $1`, [upperCode]).catch(() => {})
-
-    // Assinatura/financeiro
-    await client.query(`DELETE FROM financial_subscriptions WHERE code = $1`, [upperCode]).catch(() => {})
-
-    // Desvincula o player (não deleta — módulo de trust score fica intacto)
-    await client.query(`UPDATE studio_clients SET player_id = NULL WHERE code = $1`, [upperCode])
-
-    // Por fim, o cliente
-    const result = await client.query(`DELETE FROM studio_clients WHERE code = $1 RETURNING code`, [upperCode])
-
-    await client.query("COMMIT")
-
     if (!result.rows[0]) {
       return Response.json({ error: "Cliente não encontrado" }, { status: 404 })
     }
-    return Response.json({ ok: true })
+    console.log(`[admin/clients DELETE] ${upperCode} ("${result.rows[0].name}") marcado como excluído por ${auth.email}; nada apagado; assinatura não alterada`)
+    return Response.json({ ok: true, soft: true })
   } catch (err) {
-    await client.query("ROLLBACK")
     console.error("[admin clients DELETE]", err)
     return Response.json({ error: String(err) }, { status: 500 })
-  } finally {
-    client.release()
   }
 }

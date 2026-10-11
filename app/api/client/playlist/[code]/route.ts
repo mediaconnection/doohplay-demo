@@ -42,6 +42,28 @@ export async function GET(
        FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
       [upperCode]
     ).catch(() => ({ rows: [] as any[] }))
+    // Cliente excluído pelo admin (exclusão lógica, 11/10/2026): a playlist
+    // responde vazia, no mesmo formato de sempre. Consulta separada, de
+    // propósito — a de cima alimenta o Canal DOOHPLAY de todas as telas e
+    // não deve depender desta coluna. Se esta falhar, loga e segue servindo.
+    const deletedRes = await pool.query(
+      `SELECT name FROM studio_clients WHERE UPPER(code) = $1 AND deleted_at IS NOT NULL LIMIT 1`,
+      [upperCode]
+    ).catch((err: unknown) => {
+      console.error("[playlist GET] falha ao checar cliente excluído (seguindo):", err)
+      return { rows: [] as any[] }
+    })
+    if (deletedRes.rows[0]) {
+      return NextResponse.json({
+        ok: true,
+        name: deletedRes.rows[0].name ?? upperCode,
+        audio_enabled: false,
+        dtv_ready: false,
+        items: [], slides: [], playlist: [], notices: [],
+        generated_at: new Date().toISOString(),
+      })
+    }
+
     const businessType = clientInfo.rows[0]?.business_type ?? null
     // Canal DOOHPLAY (passo 5): canais gerais (Turismo/Diversão) que o
     // dono desligou explicitamente — NULL/vazio (padrão) = recebe todos.
