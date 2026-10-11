@@ -1,53 +1,34 @@
 // app/api/admin/advertisers/[code]/route.ts
 //
-// Achado em produção (16/07/2026): não existia NENHUMA forma de excluir um
-// anunciante — nem botão na tela, nem rota de API. A aba Anunciantes só
-// tinha visualização, sem onRefresh sequer passado como prop. Criado do
-// zero, seguindo o mesmo cuidado já usado em /api/admin/media-examples/[id]
-// (Fase 26/16-07): apaga em cascata (mídia de campanha → campanha →
-// anunciante) e tenta limpar os arquivos reais no R2, melhor esforço —
-// nunca deixa lixo travando a exclusão se o R2 falhar.
+// Exclusão de anunciante pelo admin — EXCLUSÃO LÓGICA desde 11/10/2026.
+//
+// Histórico: a versão de 17/07/2026 apagava em cascata Campaign →
+// CampaignMedia → Advertiser e também cada arquivo no R2. Como todo dono de
+// tela ganha um "Advertiser" com o próprio código ao enviar mídia
+// (ensureCampaign), excluir esse "anunciante" pela aba Anunciantes apagava
+// o conteúdo do dono e os arquivos dele, deixando a playlist
+// (creative_assets_v2/placements_v2) apontando pra arquivos inexistentes.
+// É a causa mais provável dos 404 do LEMEL186 (Documento-Mestre 12.62/12.63).
+//
+// Agora:
+//  - só admin logado (sessão NextAuth assinada; sem ?secret=);
+//  - código que pertence a um dono de tela (studio_clients) é recusado (409);
+//  - marca "Advertiser".deleted_at e encerra as campanhas (status
+//    'deleted', que a playlist não serve — ela exige status = 'active');
+//  - NÃO apaga linha de mídia/campanha e NÃO toca no R2.
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import { requireAdminSession } from "../../_lib/requireAdmin"
 
 export const dynamic = "force-dynamic"
 
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: process.env.R2_ENDPOINT!,
-  credentials: {
-    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-})
-const BUCKET     = "dooh-media"
-const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
-
-async function checkAuth(req: NextRequest) {
-  const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
-}
-
-async function deleteFromR2(url: string) {
-  if (!PUBLIC_URL || !url?.startsWith(PUBLIC_URL)) return
-  const key = url.slice(PUBLIC_URL.length).replace(/^\//, "")
-  try {
-    await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
-  } catch (err) {
-    console.error("[admin/advertisers DELETE] falha ao apagar do R2 (seguindo mesmo assim):", key, err)
-  }
-}
-
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
-  if (!(await checkAuth(req))) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  }
+  const auth = await requireAdminSession("admin/advertisers DELETE")
+  if (auth.denied) return auth.denied
+
   const { code: rawCode } = await params
   const code = rawCode?.toUpperCase()
   if (!code) return NextResponse.json({ error: "Código inválido" }, { status: 400 })
@@ -55,46 +36,49 @@ export async function DELETE(
   const pool = getPool()
   try {
     const adv = await pool.query(
-      `SELECT id, code, name FROM "Advertiser" WHERE UPPER(code) = $1 LIMIT 1`,
+      `SELECT id, code, name FROM "Advertiser" WHERE UPPER(code) = $1 AND deleted_at IS NULL LIMIT 1`,
       [code]
     )
     if (!adv.rows[0]) return NextResponse.json({ error: "Anunciante não encontrado" }, { status: 404 })
 
-    // Campanhas desse anunciante (pra cascatear mídia/telas antes de apagar)
-    const campaigns = await pool.query(
-      `SELECT id FROM "Campaign" WHERE UPPER("advertiserCode") = $1`,
+    // O conteúdo do dono vive numa Campaign com advertiserCode = código do
+    // dono. Excluir esse "anunciante" tiraria o conteúdo dele do ar.
+    const owner = await pool.query(
+      `SELECT 1 FROM studio_clients WHERE UPPER(code) = $1 LIMIT 1`,
       [code]
     )
-    const campaignIds = campaigns.rows.map((r: any) => r.id)
-
-    if (campaignIds.length > 0) {
-      // Coleta URLs de mídia pra limpar no R2 antes de apagar as linhas
-      const medias = await pool.query(
-        `SELECT url FROM "CampaignMedia" WHERE "campaignId" = ANY($1::text[]) AND url IS NOT NULL`,
-        [campaignIds]
+    if (owner.rows[0]) {
+      console.warn(`[admin/advertisers DELETE] 409 ${code} é dono de tela (pedido por ${auth.email})`)
+      return NextResponse.json(
+        { error: `${code} é o código de um dono de tela. Este registro guarda o conteúdo próprio dele e não pode ser excluído por aqui.` },
+        { status: 409 }
       )
-      await Promise.all(medias.rows.map((m: any) => deleteFromR2(m.url)))
-
-      await pool.query(`DELETE FROM "CampaignScreen" WHERE "campaignId" = ANY($1::text[])`, [campaignIds])
-      await pool.query(`DELETE FROM "CampaignMedia" WHERE "campaignId" = ANY($1::text[])`, [campaignIds])
-      await pool.query(`DELETE FROM "Campaign" WHERE id = ANY($1::text[])`, [campaignIds])
     }
 
-    // Alertas de duplicidade (telefone cadastrado como dono E anunciante)
-    // que referenciam esse anunciante — senão fica um alerta órfão apontando
-    // pra um anunciante que não existe mais.
-    await pool.query(
-      `DELETE FROM duplicate_signup_alerts WHERE UPPER(advertiser_code) = $1`,
-      [code]
-    ).catch(() => {}) // tolera tabela ainda não migrada, mesmo padrão usado em admin/stats
+    const client = await pool.connect()
+    let campaigns = 0
+    try {
+      await client.query("BEGIN")
+      await client.query(
+        `UPDATE "Advertiser" SET deleted_at = NOW() WHERE UPPER(code) = $1 AND deleted_at IS NULL`,
+        [code]
+      )
+      const res = await client.query(
+        `UPDATE "Campaign" SET status = 'deleted', "updatedAt" = NOW()
+         WHERE UPPER("advertiserCode") = $1 AND status <> 'deleted'`,
+        [code]
+      )
+      campaigns = res.rowCount ?? 0
+      await client.query("COMMIT")
+    } catch (err) {
+      await client.query("ROLLBACK")
+      throw err
+    } finally {
+      client.release()
+    }
 
-    await pool.query(`DELETE FROM "Advertiser" WHERE UPPER(code) = $1`, [code])
-
-    return NextResponse.json({
-      ok: true,
-      deleted: code,
-      campaigns_removed: campaignIds.length,
-    })
+    console.log(`[admin/advertisers DELETE] ${code} marcado como excluído por ${auth.email}; ${campaigns} campanha(s) encerrada(s); nenhum arquivo apagado`)
+    return NextResponse.json({ ok: true, deleted: code, campaigns_closed: campaigns, soft: true })
   } catch (err: any) {
     console.error("[admin/advertisers/[code] DELETE]", err)
     return NextResponse.json({ error: err.message }, { status: 500 })

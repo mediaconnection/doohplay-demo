@@ -46,7 +46,9 @@ export async function GET(req: NextRequest) {
       `),
       pool.query(`
         SELECT id::text, code, name, email, phone, "createdAt"
-        FROM "Advertiser" ORDER BY "createdAt" DESC
+        FROM "Advertiser"
+        WHERE deleted_at IS NULL -- exclusão lógica (11/10/2026)
+        ORDER BY "createdAt" DESC
       `),
       pool.query(`
         SELECT c.id::text, c."advertiserCode", c.name, c.status,
@@ -56,6 +58,7 @@ export async function GET(req: NextRequest) {
         FROM "Campaign" c
         LEFT JOIN "CampaignScreen" cs ON cs."campaignId" = c.id
         LEFT JOIN "CampaignMedia" cm ON cm."campaignId" = c.id
+        WHERE c.status <> 'deleted'
         GROUP BY c.id
         ORDER BY c."createdAt" DESC
         LIMIT 20

@@ -1486,7 +1486,9 @@ function TabAnunciantes({ data, isSuperAdmin, onRefresh }: { data: any; isSuperA
   const [deletingCode, setDeletingCode] = useState<string | null>(null)
 
   const handleDelete = async (code: string, name: string) => {
-    const typed = prompt(`Isso exclui o anunciante "${name}" (${code}) e todas as campanhas/mídias dele pra sempre. Isso NÃO afeta a conta de dono de tela, caso exista uma com o mesmo código. Digite o código "${code}" pra confirmar:`)
+    // 11/10/2026: exclusão lógica — o servidor desativa o anunciante e encerra
+    // as campanhas, sem apagar mídia nem arquivo, e recusa código de dono de tela.
+    const typed = prompt(`Isso desativa o anunciante "${name}" (${code}) e encerra as campanhas dele (saem do ar). Nenhuma mídia ou arquivo é apagado. Se ${code} for o código de um dono de tela, a exclusão é recusada. Digite o código "${code}" pra confirmar:`)
     if (typed !== code) {
       if (typed !== null) alert("Código não corresponde. Nada foi excluído.")
       return

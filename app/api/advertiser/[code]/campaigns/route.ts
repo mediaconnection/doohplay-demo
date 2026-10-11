@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "budget deve ser maior que zero para gerar cobranca" }, { status: 400 })
   }
   const adv = await pool.query(
-    `SELECT id, name, email, phone, "cpfCnpj" FROM "Advertiser" WHERE code = $1 LIMIT 1`,
+    `SELECT id, name, email, phone, "cpfCnpj" FROM "Advertiser" WHERE code = $1 AND deleted_at IS NULL LIMIT 1`,
     [code]
   )
   if (!adv.rows[0]) return Response.json({ error: "Anunciante nao encontrado" }, { status: 404 })

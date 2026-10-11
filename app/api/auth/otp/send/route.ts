@@ -111,12 +111,15 @@ export async function POST(req: NextRequest) {
                  : role === "agency"     ? "agencies"
                  : '"Advertiser"'
 
+    // Anunciante excluído (exclusão lógica, 11/10/2026) não faz login.
+    const notDeleted = role === "advertiser" ? " AND deleted_at IS NULL" : ""
+
     let userRow: any = null
 
     if (method === "whatsapp") {
       const searchDigits = stripPhone(contact)
       const { rows } = await pool.query(
-        `SELECT code, name, phone, email FROM ${table} WHERE phone IS NOT NULL`
+        `SELECT code, name, phone, email FROM ${table} WHERE phone IS NOT NULL${notDeleted}`
       )
       userRow = rows.find(r =>
         stripPhone(r.phone ?? "") === searchDigits ||
@@ -126,7 +129,7 @@ export async function POST(req: NextRequest) {
     } else {
       const searchEmail = contact.trim().toLowerCase()
       const { rows } = await pool.query(
-        `SELECT code, name, phone, email FROM ${table} WHERE LOWER(email) = $1 LIMIT 1`,
+        `SELECT code, name, phone, email FROM ${table} WHERE LOWER(email) = $1${notDeleted} LIMIT 1`,
         [searchEmail]
       )
       userRow = rows[0] ?? null
