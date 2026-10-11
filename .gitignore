@@ -82,3 +82,5 @@ next-env.d.ts
 # Prisma
 # =====================================
 /generated/prisma
+# Permissoes locais do Claude Code (por maquina; a configuracao auditavel e .claude/settings.json)
+.claude/settings.local.json

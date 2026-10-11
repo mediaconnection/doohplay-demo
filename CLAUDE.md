@@ -39,7 +39,11 @@ npx prisma db push            # Push schema changes to database
 npx prisma studio             # Open Prisma Studio
 ```
 
-There are no automated tests in this codebase.
+Automated tests: `npm test` (Vitest, `*.test.ts` next to the code; 146 tests as of 2026-10-11). Unit tests use mocks and touch no environment. There is no staging: checks against the real site are read-only, or create and delete `TESTE_`-prefixed records inside the same test run.
+
+## Agent governance
+
+Rules for agents, permissions and irreversible actions live in `docs/governanca/DOOHPLAY_Governanca_Agentes_Plano_v3.md` (current version). Technical restrictions are in `.claude/settings.json` (versioned); `.claude/settings.local.json` is per-machine and git-ignored. `git push`, SQL and migrations always ask for confirmation; Render deploys and environment-variable changes are denied to agents. Never choose "don't ask again" for a write, deploy, migration, SQL or push prompt.
 
 ## Architecture
 
