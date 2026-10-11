@@ -2475,6 +2475,12 @@ Decisões do fundador de 11/10 sobre os achados 1 e 2 da revisão externa (12.67
 - Limite do teste: `getServerSession` é simulado; o que prova que um cookie de cliente não vira sessão é o teste do decodificador e a varredura, não uma chamada real ao NextAuth. Os casos de cookie rodam numa **amostra de 6 rotas** e só pegam uma dessas rotas passando a ler o cookie por conta própria.
 - Reforço depois da revisão (recomendação CORRIGIR, só no teste): varredura que falha se qualquer arquivo de `app/api/admin`, `app/admin`, `app/api/finance` ou `app/api/clients` ler sessão de cliente/anunciante ou cookie cru (única exceção: o PATCH de `finance/asaas`); a lista `providers` tem de ter exatamente um elemento, sem `jwt:`, `cookies:`, `adapter:`, carregamento dinâmico nem `CLIENT_SESSION_SECRET`; `POST finance/asaas` com sessão de `operador` (401) e de `super_admin` (passa); rede travada no arquivo inteiro.
 
+- **Limite da varredura de cookie (decisão do fundador, 11/10):** ela cobre só `app/api/admin`, `app/admin`, `app/api/finance` e `app/api/clients`. Ficam de fora rotas com sessão de admin em `app/api/dashboard` (7), `app/api/players` (5), `app/api/events` (2) e `app/api/reports/dashboard`. A extensão será feita junto com a separação `operador` × `super_admin`, que mexe nas mesmas rotas.
+- Reverificação do revisor-agent no intervalo `c4a8323..215aaca`: recomendação APROVAR, com resíduos baixos (a leitura da lista de provedores depende do recuo do arquivo; um helper novo em `lib/` que lesse o cookie por dentro, ou um `authOptions.providers.push(...)` em outro arquivo, não seriam pegos — hoje não existem).
+- Revisão externa do `ffbc4fd` pedida pelo fundador em 11/10; o push aguarda o resultado.
+
+**Próxima investigação (só leitura, depois do push):** `lib/crm-session.ts` tem um PIN padrão escrito no código e usa `CLIENT_SESSION_SECRET` como reserva (apontado pelo revisor-agent, não investigado). Pergunta do fundador: dá para entrar no CRM com o PIN padrão hoje?
+
 **Apontado pelo revisor e ainda em aberto:**
 - Confirmar com o fundador que nenhuma ferramenta fora do repositório usa o segredo em `admin/users`, `admin/subscription` ou `finance/close-month` (passam a responder 401).
 - `finance/asaas` e `requireSuperAdmin` não registram log quando devolvem 401.
