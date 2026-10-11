@@ -2355,3 +2355,23 @@ Tarefa de segurança pedida pelo fundador em 04/10. Três commits de código: `a
 - Não existe tela para desfazer uma exclusão lógica; hoje é por SQL (`deleted_at = NULL`).
 - A página `/player` (web) não trata cliente excluído; as TVs usam a API.
 - Restos de teste antigos mantidos por decisão do fundador: `TESTE719` (1 linha em `otp_tokens`) e `TESTEIA01` (5 em `ai_generation_log`).
+
+### 12.64 — Playlists: comparação antigo × `placements_v2` direto no banco (11/10/2026)
+
+Levantamento só de leitura, feito em 11/10 pelo Postgres do Supabase (mesmas consultas de `app/api/admin/verify-migration/[code]/route.ts`, sem passar pela Cloudflare) e pelos logs de requisição do Render. **Nada foi corrigido.** Cobre dono e institucional; rede e anunciante ficaram de fora, como na rota original.
+
+**Resultado da comparação:**
+- BARBE332: 1 item nos dois lados ("Visagismo"). Única diferença é a posição (1 no antigo, 0 no novo), porque o item não tem linha em `playlist_schedule` e o lado antigo cai na numeração automática.
+- LEMEL186: 0 itens no antigo, 8 no novo. Os 8 têm `source_table = 'CampaignMedia'`, mas nenhum desses ids existe mais em `"CampaignMedia"` (ver 12.62 e 12.63 para a causa).
+- Institucional: zero linhas nos dois lados.
+
+**Quem lê o quê:**
+- `GET /api/client/playlist/[code]` lê só a fundação nova para dono e institucional.
+- A carga inicial de `/player` (web) ainda lê as tabelas antigas (`app/player/page.tsx:53`); só o polling de 2 minutos usa a API.
+- As duas TVs usam o app nativo Android, não o player web: user-agent `Dalvik/2.1.0` (aparelhos `T600` no BARBE332 e `V96` no LEMEL186), playlist com `player_id`, heartbeat a cada 30 s. O padrão do player web (navegador, `/api/player/version` + playlist a cada 2 min) apareceu só de um Edge no Windows. Janela lida: 11/10, ~16:00–17:45 UTC.
+
+**Pendências (registradas, sem correção):**
+- **(a) Tabelas antigas sem paridade com `placements_v2`.** `"CampaignMedia"`/`playlist_schedule` e a fundação nova divergem nos dois clientes reais. Consequência no código: quem abre `/player?screen=LEMEL186` num navegador começa sem conteúdo do dono e só recebe os 8 itens no primeiro polling, 2 minutos depois, a cada recarga. Não atinge as TVs hoje (app nativo).
+- **(b) LEMEL186 sem transição por item.** `transition_effect` vem de `"CampaignMedia"` por `LEFT JOIN`; como as linhas não existem, o campo chega vazio para os 8 itens.
+- **(c) Ordem dos itens do LEMEL186 só por data de envio.** Os 8 estão com `position = 0`; a API desempata por `created_at` (18/07), então a ordem é fixa, mas não foi escolhida pelo dono. O player web toca na ordem recebida, em rodízio por categoria. Como o app nativo ordena não foi verificado (o código não está neste repositório).
+- **(d) Canal DOOHPLAY com zero itens desde 05/10.** `institutional_media` com 0 linhas e, na fundação nova, só a campanha institucional vazia (1 linha em `campaigns_v2`, sem peça nem placement). Aguardando as artes para recadastrar. A data vem dos logs de 12.63; o banco não guarda registro dela.
