@@ -40,6 +40,7 @@ import * as asaasRoute from "@/app/api/finance/asaas/route"
 import * as onboardingRoute from "@/app/api/onboarding/route"
 import * as cadastroRoute from "@/app/api/cadastro/route"
 import { hasAdminSecretHeader } from "@/lib/auth/adminSecretHeader"
+import * as asaasLib from "@/lib/asaas"
 
 const SECRET = "segredo-de-teste"
 const withHeader = (v: string) => ({ "x-admin-secret": v })
@@ -136,6 +137,54 @@ describe("rotas com chamador de máquina: cabeçalho passa, ?secret= não", () =
       expect((await tc.call(tc.url, withHeader(SECRET))).status).not.toBe(401)
     })
   }
+})
+
+// O caminho real do onboarding: POST com o cabeçalho. Asaas simulado
+// (vi.mock de @/lib/asaas) e fetch travado — nenhuma chamada real sai.
+describe("POST /api/finance/asaas — cabeçalho certo e errado, Asaas simulado", () => {
+  const URL_ASAAS = "http://x/api/finance/asaas"
+  const payload = { code: "TESTE_A", plan: "starter", cpf_cnpj: "00000000000" }
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.mocked(asaasLib.getOrCreateAsaasCustomer).mockClear()
+    vi.mocked(asaasLib.createSubscription).mockClear()
+    fetchMock = vi.fn(async () => { throw new Error("fetch real não pode ser chamado no teste") })
+    vi.stubGlobal("fetch", fetchMock)
+  })
+
+  const rejected: { name: string; req: () => NextRequest }[] = [
+    { name: "sem cabeçalho", req: () => send("POST", URL_ASAAS, payload) },
+    { name: "cabeçalho errado", req: () => send("POST", URL_ASAAS, payload, withHeader("errado")) },
+    { name: "cabeçalho vazio", req: () => send("POST", URL_ASAAS, payload, withHeader("")) },
+    { name: "?secret= certo na URL", req: () => send("POST", `${URL_ASAAS}?secret=${SECRET}`, payload) },
+    { name: "segredo certo no corpo", req: () => send("POST", URL_ASAAS, { ...payload, secret: SECRET }) },
+  ]
+  for (const tc of rejected) {
+    it(`${tc.name} → 401, sem banco e sem Asaas`, async () => {
+      const res = await asaasRoute.POST(tc.req())
+      expect(res.status).toBe(401)
+      expect(queryMock).not.toHaveBeenCalled()
+      expect(asaasLib.getOrCreateAsaasCustomer).not.toHaveBeenCalled()
+      expect(asaasLib.createSubscription).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  }
+
+  it("cabeçalho certo → 200, cria a assinatura (simulada) e grava a referência", async () => {
+    queryMock.mockResolvedValue({
+      rows: [{ code: "TESTE_A", name: "TESTE_ Loja", phone: "0000000000", active: false,
+               email: "teste@exemplo.invalid", contact_name: "Teste", plan: "starter", cpf_cnpj: "00000000000" }],
+      rowCount: 1,
+    })
+    const res = await asaasRoute.POST(send("POST", URL_ASAAS, payload, withHeader(SECRET)))
+    expect(res.status).toBe(200)
+    expect((await res.json()).subscription_id).toBe("sub_teste")
+    expect(asaasLib.createSubscription).toHaveBeenCalledTimes(1)
+    const sqls = queryMock.mock.calls.map(c => String(c[0]))
+    expect(sqls.some(s => s.includes("INSERT INTO financial_subscriptions"))).toBe(true)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
 
 describe("chamadores internos mandam o segredo por cabeçalho", () => {
