@@ -32,8 +32,7 @@ export const dynamic = "force-dynamic"
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 async function findOrphans(pool: any, ids?: string[]) {

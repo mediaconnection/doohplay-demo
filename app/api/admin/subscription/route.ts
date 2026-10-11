@@ -17,8 +17,8 @@ export const dynamic = "force-dynamic"
 // NENHUMA autenticação — nem sessão, nem secret. Qualquer um que soubesse o
 // endpoint podia criar/cancelar assinatura real no Asaas pra qualquer
 // cliente. Dado financeiro, mesma régua de finance/asaas e admin/users:
-// só super_admin (ou secret legacy, já tratado como equivalente dentro de
-// requireSuperAdmin).
+// só super_admin (ou ADMIN_SECRET no cabeçalho x-admin-secret, já tratado
+// como equivalente dentro de requireSuperAdmin).
 export async function POST(req: NextRequest) {
   if (!(await requireSuperAdmin(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   const pool = getPool()

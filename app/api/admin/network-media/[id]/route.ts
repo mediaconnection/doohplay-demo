@@ -9,10 +9,7 @@ export async function PATCH(req: NextRequest, context: any) {
   const session = await getServerSession()
   const body = await req.json()
 
-  const isNextAuth = !!session?.user
-  const isLegacy   = body.secret && body.secret === process.env.ADMIN_SECRET
-
-  if (!isNextAuth && !isLegacy) {
+  if (!session?.user) {
     return Response.json({ error: "unauthorized" }, { status: 401 })
   }
 

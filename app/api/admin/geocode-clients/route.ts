@@ -33,14 +33,12 @@ interface GeocodeOutcome {
 }
 
 export async function POST(req: NextRequest) {
-  // Mesmo padrão de auth usado em /api/admin/stats: sessão NextAuth ou secret legacy
+  // Mesmo padrão de auth usado em /api/admin/stats: só sessão NextAuth
   const session = await getServerSession();
-  const secret = req.nextUrl.searchParams.get("secret");
 
   const isNextAuth = !!session?.user;
-  const isLegacy = secret && secret === process.env.ADMIN_SECRET;
 
-  if (!isNextAuth && !isLegacy) {
+  if (!isNextAuth) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

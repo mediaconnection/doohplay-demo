@@ -18,8 +18,7 @@ const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 // GET — audita os 4 prefixos conhecidos do bucket (studio/, network/,

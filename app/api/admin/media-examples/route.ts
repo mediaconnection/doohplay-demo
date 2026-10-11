@@ -1,7 +1,7 @@
 // app/api/admin/media-examples/route.ts
 // Upload de admin para a biblioteca de Exemplos de Mídia: sobe o arquivo pro
 // R2 (pasta examples/<niche>/) e já cadastra em media_examples num único
-// request. Protegida por ADMIN_SECRET (igual a /api/admin/r2-cleanup).
+// request. Só admin logado.
 import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getServerSession } from "next-auth"
@@ -24,8 +24,7 @@ const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 // GET — lista todos os exemplos cadastrados (qualquer nicho, inclusive inativos)

@@ -13,10 +13,7 @@ export const dynamic = "force-dynamic"
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   const { searchParams } = req.nextUrl
-  const secret = searchParams.get("secret")
-  const isNextAuth = !!session?.user
-  const isLegacy = secret && secret === process.env.ADMIN_SECRET
-  if (!isNextAuth && !isLegacy) {
+  if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
@@ -24,8 +21,7 @@ export async function GET(req: NextRequest) {
   // budget/payment pra qualquer admin logado, furando a mesma barreira que
   // a Fase 13 construiu pra Assinaturas/Anunciantes (lá o campo é removido
   // de verdade do servidor pra quem não é super_admin, aqui não era).
-  // Secret legacy trata como super_admin, mesma lógica de admin/stats.
-  const isSuperAdmin = isLegacy || (session?.user as any)?.role === "super_admin"
+  const isSuperAdmin = (session?.user as any)?.role === "super_admin"
 
   const code = (searchParams.get("code") || "").trim().toUpperCase()
   if (!code) {

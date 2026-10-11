@@ -85,7 +85,6 @@ function buildMessage(name: string, stats: any, month: string): string {
 }
 
 // ── GET — envia para um cliente específico (teste) ────────────────────────────
-// GET /api/reports/whatsapp?code=ZIMERM&secret=doohplay-cron-2026
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code   = searchParams.get("code")
@@ -130,7 +129,7 @@ export async function GET(req: NextRequest) {
 
 // ── POST — envia para todos os clientes ativos (cron mensal) ──────────────────
 // POST /api/reports/whatsapp
-// Header: x-cron-secret: doohplay-cron-2026
+// Header: x-cron-secret: <CRON_SECRET>
 export async function POST(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret")
 

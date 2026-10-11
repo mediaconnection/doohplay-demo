@@ -6,8 +6,7 @@ export const dynamic = "force-dynamic"
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 // POST — aplica um layout_template_id a todas as telas de um grupo, de uma

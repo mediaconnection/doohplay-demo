@@ -31,12 +31,10 @@ interface PartnershipRow {
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession();
-  const secret = req.nextUrl.searchParams.get("secret");
 
   const isNextAuth = !!session?.user;
-  const isLegacy = secret && secret === process.env.ADMIN_SECRET;
 
-  if (!isNextAuth && !isLegacy) {
+  if (!isNextAuth) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getServerSession } from "next-auth"
 import { getPool } from "@/lib/db"
+import { hasAdminSecretHeader } from "@/lib/auth/adminSecretHeader"
 import { syncInstitutionalToUnified } from "@/lib/unifiedSync"
 import { probeMp4 } from "@/lib/mp4-probe"
 
@@ -25,10 +26,11 @@ const r2 = new S3Client({
 const BUCKET     = "dooh-media"
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
+// Sessão de admin, ou chamada de máquina (scripts/gerar-canal-doohplay) com
+// o ADMIN_SECRET no cabeçalho x-admin-secret. ?secret= na URL não vale mais.
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user || hasAdminSecretHeader(req)
 }
 
 // Upload de um arquivo (imagem/vídeo) pro R2, com a mesma validação de

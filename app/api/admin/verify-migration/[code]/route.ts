@@ -9,12 +9,13 @@
 // ambos com 0 registros em produção hoje, fora do escopo da Fase 1.
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
+import { hasAdminSecretHeader } from "@/lib/auth/adminSecretHeader"
 
 export const dynamic = "force-dynamic"
 
+// Só o ADMIN_SECRET no cabeçalho x-admin-secret — ?secret= na URL não vale mais.
 function checkAuth(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret")
-  return secret && secret === process.env.ADMIN_SECRET
+  return hasAdminSecretHeader(req)
 }
 
 export async function GET(

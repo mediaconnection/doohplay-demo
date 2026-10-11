@@ -7,21 +7,16 @@ import { authOptions } from "@/lib/auth-options"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  // Aceita tanto sessão NextAuth quanto secret legacy (retrocompatibilidade)
+  // Só sessão NextAuth — o atalho ?secret= foi removido (Documento-Mestre 12.65).
   const session = await getServerSession(authOptions)
-  const secret  = req.nextUrl.searchParams.get("secret")
 
-  const isNextAuth = !!session?.user
-  const isLegacy   = secret && secret === process.env.ADMIN_SECRET
-
-  if (!isNextAuth && !isLegacy) {
+  if (!session?.user) {
     return Response.json({ error: "unauthorized" }, { status: 401 })
   }
 
   // Fase 13 — Assinaturas/financeiro é dado sensível, só super_admin recebe
-  // de verdade. Secret legacy (cron/automação) sempre trata como super_admin,
-  // já que hoje esse secret já dá acesso total a tudo mesmo.
-  const isSuperAdmin = isLegacy || (session?.user as any)?.role === "super_admin"
+  // de verdade.
+  const isSuperAdmin = (session?.user as any)?.role === "super_admin"
 
   const pool = getPool()
   try {

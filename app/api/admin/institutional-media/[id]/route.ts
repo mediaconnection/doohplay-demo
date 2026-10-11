@@ -53,8 +53,7 @@ async function rejectIfVideoTooHeavy(id: string): Promise<NextResponse | null> {
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 export async function PATCH(

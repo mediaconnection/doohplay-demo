@@ -10,8 +10,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  if (!session?.user && !(secret && secret === process.env.ADMIN_SECRET)) {
+  if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

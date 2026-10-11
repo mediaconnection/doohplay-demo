@@ -89,10 +89,8 @@ async function checkClient(pool: any, code: string) {
 export async function GET(req: NextRequest) {
   const session = await getServerSession()
   const { searchParams } = req.nextUrl
-  const secret = searchParams.get("secret")
   const isNextAuth = !!session?.user
-  const isLegacy = secret && secret === process.env.ADMIN_SECRET
-  if (!isNextAuth && !isLegacy) {
+  if (!isNextAuth) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

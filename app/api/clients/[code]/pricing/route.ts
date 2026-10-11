@@ -10,7 +10,7 @@ const VALID_SIZES = ["pequena", "media", "grande"]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const session = await getServerSession()
   const body = await req.json()
-  if (!session?.user && !(body.secret && body.secret === process.env.ADMIN_SECRET)) {
+  if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

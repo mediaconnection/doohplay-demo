@@ -2375,3 +2375,25 @@ Levantamento só de leitura, feito em 11/10 pelo Postgres do Supabase (mesmas co
 - **(b) LEMEL186 sem transição por item.** `transition_effect` vem de `"CampaignMedia"` por `LEFT JOIN`; como as linhas não existem, o campo chega vazio para os 8 itens.
 - **(c) Ordem dos itens do LEMEL186 só por data de envio.** Os 8 estão com `position = 0`; a API desempata por `created_at` (18/07), então a ordem é fixa, mas não foi escolhida pelo dono. O player web toca na ordem recebida, em rodízio por categoria. Como o app nativo ordena não foi verificado (o código não está neste repositório).
 - **(d) Canal DOOHPLAY com zero itens desde 05/10.** `institutional_media` com 0 linhas e, na fundação nova, só a campanha institucional vazia (1 linha em `campaigns_v2`, sem peça nem placement). Aguardando as artes para recadastrar. A data vem dos logs de 12.63; o banco não guarda registro dela.
+
+### 12.65 — Remoção do `?secret=` das rotas de admin (11/10/2026)
+
+Passo 3 do plano de governança v3; fecha a primeira pendência de 12.63. Feito localmente; validação em produção depende do push.
+
+**O que mudou:**
+- O `ADMIN_SECRET` só vale no cabeçalho `x-admin-secret` (`lib/auth/adminSecretHeader.ts`). Query string (`?secret=`) e corpo (`body.secret`) não autenticam mais em nenhuma rota.
+- Rotas de painel (29 arquivos em `app/api/admin/`, mais `app/admin/duplicate-alerts/[id]` e `app/api/clients/[code]/pricing`): só sessão de admin. Nem o cabeçalho vale nelas.
+- Rotas com chamador de máquina aceitam sessão **ou** cabeçalho: `admin/network-partnerships/suggest` (chamada pelo cadastro), `admin/institutional-media` GET/POST (script do Canal) e as que usam `requireSuperAdmin` — `finance/asaas` POST/GET (chamada pelo onboarding), `finance/close-month`, `admin/users`, `admin/subscription`.
+- `admin/verify-migration` e `admin/institutional-recover` aceitam só o cabeçalho.
+- Chamadores trocados no mesmo commit: `app/api/cadastro`, `app/api/onboarding` e `scripts/gerar-canal-doohplay/subir-para-admin.js`.
+- `admin/stats` e `admin/diagnostico`: o segredo era tratado como `super_admin`; agora o papel vem só da sessão.
+- Apagado o comentário em `app/api/reports/whatsapp/route.ts` que trazia o valor do `CRON_SECRET`.
+
+**Conferência antes de remover `body.secret`:** logs de requisição do Render de 27/09 a 11/10 (é o que existe; não chegam a 30 dias). `admin/players/link` teve 3 `GET`, todos do Edge; `admin/screens/[id]`, `admin/media/[id]`, `admin/network-media/[id]` e `clients/[code]/pricing` tiveram zero chamadas. Nenhuma chamada do app nativo (`Dalvik`) a `/api/admin/*`.
+
+**Testes:** `app/api/admin/_lib/adminSecretHeader.test.ts` (38 casos): `?secret=`/`body.secret` → 401, cabeçalho certo passa só onde deve, cadastro e onboarding mandam o cabeçalho, e uma varredura do código que falha se `ADMIN_SECRET` voltar a ser lido de URL ou corpo. Vitest 184/184; `tsc` com a mesma contagem de antes (58).
+
+**Pendências:**
+- Trocar `ADMIN_SECRET` e `CRON_SECRET` no Render depois do deploy (fundador). O valor antigo do `CRON_SECRET` continua no histórico do git e no comando do cron `doohplay-monthly-report`.
+- Rotas que ainda aceitam o `CRON_SECRET` por `?secret=`: `reports/whatsapp` (GET), `cron/monthly-report` (GET e POST) e `finance/setup` (GET e POST). Os crons do Render já mandam por cabeçalho.
+- Onboarding não foi testado em produção, por decisão do fundador (cria assinatura real no Asaas); a cobertura é o teste automático.

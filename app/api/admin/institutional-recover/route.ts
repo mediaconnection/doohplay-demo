@@ -9,6 +9,7 @@
 // admin. É preciso abrir a `url` de cada item e reconhecer visualmente.
 import { NextRequest, NextResponse } from "next/server"
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3"
+import { hasAdminSecretHeader } from "@/lib/auth/adminSecretHeader"
 
 export const dynamic = "force-dynamic"
 
@@ -24,9 +25,9 @@ const r2 = new S3Client({
 const BUCKET     = "dooh-media"
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ""
 
+// Só o ADMIN_SECRET no cabeçalho x-admin-secret — ?secret= na URL não vale mais.
 function checkAuth(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret")
-  return secret && secret === process.env.ADMIN_SECRET
+  return hasAdminSecretHeader(req)
 }
 
 export async function GET(req: NextRequest) {

@@ -9,8 +9,7 @@ const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE!
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 // GET — checa se a instância do WhatsApp (Evolution API) está conectada.

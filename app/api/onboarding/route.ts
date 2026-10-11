@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { PLANS, PlanKey } from "@/lib/asaas"
+import { ADMIN_SECRET_HEADER } from "@/lib/auth/adminSecretHeader"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -42,9 +43,9 @@ function trialEndDate(): string {
 
 async function createAsaasSubscription(code: string, plan: string, cpf_cnpj: string) {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL || "https://doohplay.com.br"}/api/finance/asaas?secret=${encodeURIComponent(process.env.ADMIN_SECRET || "")}`, {
+    const res = await fetch(`${process.env.NEXTAUTH_URL || "https://doohplay.com.br"}/api/finance/asaas`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [ADMIN_SECRET_HEADER]: process.env.ADMIN_SECRET || "" },
       body: JSON.stringify({ code, plan, cpf_cnpj }),
     })
     const data = await res.json()

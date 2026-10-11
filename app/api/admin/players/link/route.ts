@@ -9,8 +9,7 @@ export const dynamic = "force-dynamic"
 // admin escolher qual vincular a qual cliente, sem precisar de SQL manual.
 export async function GET(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  if (!session?.user && !(secret && secret === process.env.ADMIN_SECRET)) {
+  if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
@@ -51,8 +50,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
   const body = await req.json()
-  const secret = body.secret
-  if (!session?.user && !(secret && secret === process.env.ADMIN_SECRET)) {
+  if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
@@ -127,8 +125,7 @@ export async function POST(req: NextRequest) {
 // nunca remover sem querer uma tela que já está em uso de verdade.
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  if (!session?.user && !(secret && secret === process.env.ADMIN_SECRET)) {
+  if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

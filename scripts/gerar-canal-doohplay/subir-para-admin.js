@@ -81,8 +81,8 @@ function normalizar(s) {
 }
 
 async function buscarSegmentos() {
-  const url = `${BASE_URL}/api/admin/institutional-media?secret=${encodeURIComponent(ADMIN_SECRET)}`;
-  const res = await fetch(url);
+  const url = `${BASE_URL}/api/admin/institutional-media`;
+  const res = await fetch(url, { headers: { 'x-admin-secret': ADMIN_SECRET } });
   if (!res.ok) {
     throw new Error(`GET institutional-media falhou: ${res.status} ${await res.text()}`);
   }
@@ -117,8 +117,8 @@ async function subirPeca(peca, segmentId) {
   form.append('display_format', 'fullscreen');
   if (segmentId) form.append('segment_id', segmentId);
 
-  const url = `${BASE_URL}/api/admin/institutional-media?secret=${encodeURIComponent(ADMIN_SECRET)}`;
-  const res = await fetch(url, { method: 'POST', body: form });
+  const url = `${BASE_URL}/api/admin/institutional-media`;
+  const res = await fetch(url, { method: 'POST', headers: { 'x-admin-secret': ADMIN_SECRET }, body: form });
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {

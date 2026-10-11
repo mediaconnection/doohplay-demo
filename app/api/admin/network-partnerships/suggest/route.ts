@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getPool } from "@/lib/db";
+import { hasAdminSecretHeader } from "@/lib/auth/adminSecretHeader";
 import { calculateDistanceKm } from "@/lib/geocoding";
 import { countActivePartners } from "@/lib/network/countActivePartners";
 
@@ -36,14 +37,11 @@ interface ClientLocationRow {
 }
 
 export async function POST(req: NextRequest) {
-  // Mesmo padrão de auth usado nas demais rotas admin
+  // Sessão de admin, ou chamada de máquina (app/api/cadastro) com o
+  // ADMIN_SECRET no cabeçalho x-admin-secret. ?secret= na URL não vale mais.
   const session = await getServerSession();
-  const secret = req.nextUrl.searchParams.get("secret");
 
-  const isNextAuth = !!session?.user;
-  const isLegacy = secret && secret === process.env.ADMIN_SECRET;
-
-  if (!isNextAuth && !isLegacy) {
+  if (!session?.user && !hasAdminSecretHeader(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

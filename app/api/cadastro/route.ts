@@ -3,6 +3,7 @@ import { marketingDark } from "@/lib/theme"
 import { NextRequest, NextResponse } from "next/server"
 import { getPool } from "@/lib/db"
 import { getOrCreateAsaasCustomer, createSubscription, PLANS, PlanKey } from "@/lib/asaas"
+import { ADMIN_SECRET_HEADER } from "@/lib/auth/adminSecretHeader"
 
 export const dynamic = "force-dynamic"
 
@@ -208,9 +209,9 @@ export async function POST(req: NextRequest) {
     // agora. "Fire and forget": não bloqueia a resposta do cadastro nem
     // falha o cadastro se isso der erro (a geocodificação do endereço pode
     // ainda não ter rodado nesse instante, por exemplo).
-    fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? "https://doohplay.com.br"}/api/admin/network-partnerships/suggest?secret=${process.env.ADMIN_SECRET}`, {
+    fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? "https://doohplay.com.br"}/api/admin/network-partnerships/suggest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [ADMIN_SECRET_HEADER]: process.env.ADMIN_SECRET ?? "" },
       body: JSON.stringify({ client_code: code }),
     }).catch((err) => console.error("[cadastro] falha ao gerar sugestões de parceria (não bloqueante):", err.message))
 

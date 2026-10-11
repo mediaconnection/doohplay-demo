@@ -17,8 +17,7 @@ type FlagKey = (typeof KNOWN_FLAG_KEYS)[number]
 
 async function checkAuth(req: NextRequest) {
   const session = await getServerSession()
-  const secret = req.nextUrl.searchParams.get("secret")
-  return !!session?.user || (secret && secret === process.env.ADMIN_SECRET)
+  return !!session?.user
 }
 
 // GET — lista flags. Sem query param: todas. Com ?client_code=X: só as

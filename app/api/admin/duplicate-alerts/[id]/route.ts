@@ -8,12 +8,10 @@ export const dynamic = "force-dynamic"
 export async function PATCH(req: NextRequest, context: any) {
   const session = await getServerSession()
   const { searchParams } = req.nextUrl
-  const secret = searchParams.get("secret")
 
   const isNextAuth = !!session?.user
-  const isLegacy   = secret && secret === process.env.ADMIN_SECRET
 
-  if (!isNextAuth && !isLegacy) {
+  if (!isNextAuth) {
     return Response.json({ error: "unauthorized" }, { status: 401 })
   }
 
