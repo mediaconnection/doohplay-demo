@@ -2,7 +2,7 @@
 // anunciante (cookies HMAC próprios) — revisão externa do 7ac2064, 11/10/2026.
 // Várias rotas de painel checam só "existe sessão NextAuth", sem papel: isso
 // só é seguro enquanto cliente e anunciante não conseguirem sessão NextAuth.
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { NextRequest } from "next/server"
 import { decode } from "next-auth/jwt"
 import fs from "fs"
@@ -43,7 +43,14 @@ const SHARED = "segredo-de-sessao-de-teste"
 const NEXTAUTH_COOKIES = ["next-auth.session-token", "__Secure-next-auth.session-token"]
 const code = (v: string) => ({ params: Promise.resolve({ code: v }) })
 
+// Rede travada no arquivo inteiro: nenhum caso pode chegar a uma chamada externa.
+let fetchMock: ReturnType<typeof vi.fn>
+
+afterEach(() => { vi.unstubAllGlobals() })
+
 beforeEach(() => {
+  fetchMock = vi.fn(async () => { throw new Error("fetch real não pode ser chamado no teste") })
+  vi.stubGlobal("fetch", fetchMock)
   process.env.ADMIN_SECRET = ADMIN_SECRET
   process.env.CLIENT_SESSION_SECRET = SHARED
   queryMock.mockReset(); sessionMock.mockReset()
@@ -89,14 +96,54 @@ const adminRoutes: Case[] = [
     call: h => verifyMigrationRoute.GET(get("http://x/api/admin/verify-migration/TESTE_A", h), code("TESTE_A")) },
 ]
 
-describe("cookies de cliente e de anunciante não abrem rota de admin", () => {
+// Limite destes casos: getServerSession é simulado (devolve null), então eles
+// só pegam uma rota DESTA amostra que passe a ler o cookie de cliente ou de
+// anunciante por conta própria. As demais rotas de admin são cobertas pela
+// varredura logo abaixo, e o "cookie de cliente não vira sessão NextAuth"
+// pelo teste do decodificador.
+describe("cookies de cliente e de anunciante não abrem rota de admin (amostra de 6 rotas)", () => {
   for (const tc of adminRoutes) {
     it(`${tc.name} → 401, sem tocar no banco`, async () => {
       const res = await tc.call({ cookie: await nonAdminCookieHeader() })
       expect(res.status).toBe(401)
       expect(queryMock).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
     })
   }
+})
+
+describe("varredura: nenhuma rota de admin lê cookie de cliente ou de anunciante", () => {
+  const root = process.cwd()
+  const SKIP = new Set(["node_modules", ".next", "dist", ".git"])
+  function walk(dir: string, out: string[] = []): string[] {
+    if (!fs.existsSync(dir)) return out
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP.has(e.name)) continue
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) walk(p, out)
+      else if (/\.(ts|tsx|js)$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) out.push(p)
+    }
+    return out
+  }
+  const rel = (p: string) => path.relative(root, p).replace(/\\/g, "/")
+  const adminFiles = ["app/api/admin", "app/admin", "app/api/finance", "app/api/clients"]
+    .flatMap(d => walk(path.join(root, d)))
+  // Qualquer forma de chegar à sessão de cliente/anunciante ou a um cookie cru.
+  const NON_ADMIN_SESSION = /client-session|advertiser-session|auth\/requireSession|CLIENT_SESSION|ADVERTISER_SESSION|doohplay_(client|advertiser)?_?session|\.cookies\b|\bcookies\s*\(|headers\.get\(\s*["']cookie["']/
+
+  it("só o PATCH de finance/asaas (ação do próprio cliente) usa sessão de cliente", () => {
+    expect(adminFiles.length).toBeGreaterThan(50)
+    const offenders = adminFiles.filter(p => NON_ADMIN_SESSION.test(fs.readFileSync(p, "utf8"))).map(rel).sort()
+    expect(offenders).toEqual(["app/api/finance/asaas/route.ts"])
+  })
+
+  it("em finance/asaas a sessão de cliente só aparece dentro do PATCH", () => {
+    const src = fs.readFileSync(path.join(root, "app/api/finance/asaas/route.ts"), "utf8")
+    const patchStart = src.indexOf("export async function PATCH")
+    expect(patchStart).toBeGreaterThan(0)
+    const beforePatch = src.slice(0, patchStart).replace(/^import .*$/gm, "").replace(/^\s*\/\/.*$/gm, "")
+    expect(NON_ADMIN_SESSION.test(beforePatch)).toBe(false)
+  })
 })
 
 describe("token de cliente ou anunciante não é um JWT do NextAuth", () => {
@@ -154,6 +201,38 @@ describe("requireSuperAdmin: só sessão de super_admin — o ADMIN_SECRET não 
     sessionMock.mockResolvedValue({ user: { email: "admin@teste", role: "super_admin" } })
     expect((await asaasRoute.GET(get("http://x/api/finance/asaas", {}))).status).toBe(400)
   })
+
+  it("GET finance/asaas com cabeçalho vazio ou errado → 401", async () => {
+    expect((await asaasRoute.GET(get("http://x/api/finance/asaas", { "x-admin-secret": "" }))).status).toBe(401)
+    expect((await asaasRoute.GET(get("http://x/api/finance/asaas", { "x-admin-secret": "errado" }))).status).toBe(401)
+    expect(queryMock).not.toHaveBeenCalled()
+  })
+
+  describe("POST finance/asaas por sessão", () => {
+    const body = { code: "TESTE_A", plan: "starter" }
+    const post = () => asaasRoute.POST(send("POST", "http://x/api/finance/asaas", body, {}))
+
+    it("sem sessão → 401, sem banco e sem Asaas", async () => {
+      expect((await post()).status).toBe(401)
+      expect(queryMock).not.toHaveBeenCalled()
+      expect(asaasLib.createSubscription).not.toHaveBeenCalled()
+    })
+
+    it("sessão de operador → 401, sem banco e sem Asaas", async () => {
+      sessionMock.mockResolvedValue({ user: { email: "op@teste", role: "operador" } })
+      expect((await post()).status).toBe(401)
+      expect(queryMock).not.toHaveBeenCalled()
+      expect(asaasLib.createSubscription).not.toHaveBeenCalled()
+    })
+
+    it("sessão de super_admin passa da autenticação (cliente inexistente → 404)", async () => {
+      sessionMock.mockResolvedValue({ user: { email: "admin@teste", role: "super_admin" } })
+      expect((await post()).status).toBe(404)
+      expect(queryMock).toHaveBeenCalled()
+      expect(asaasLib.createSubscription).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe("varredura do código: só o login de admin cria sessão NextAuth", () => {
@@ -171,7 +250,8 @@ describe("varredura do código: só o login de admin cria sessão NextAuth", () 
     return out
   }
   const rel = (p: string) => path.relative(root, p).replace(/\\/g, "/")
-  const sources = ["app", "lib", "src", "components", "packages"].flatMap(d => walk(path.join(root, d)))
+  const sources = ["app", "lib", "src", "components", "packages", "services", "scripts", "core", "domain"]
+    .flatMap(d => walk(path.join(root, d)))
   const withoutComments = (s: string) => s.replace(/^\s*(\/\/|\*|\/\*).*$/gm, "")
 
   it("lib/auth-options.ts tem um único provedor: credenciais (email e senha de admin)", () => {
@@ -180,7 +260,22 @@ describe("varredura do código: só o login de admin cria sessão NextAuth", () 
     expect(providerImports).toEqual(["credentials"])
     expect([...src.matchAll(/\b\w*Provider\s*\(/g)].map(m => m[0].replace(/\s*\($/, ""))).toEqual(["CredentialsProvider"])
     // O authorize só devolve usuário vindo do admin mestre (env) ou de admin_users.
-    expect([...src.matchAll(/\bFROM\s+(\w+)/gi)].map(m => m[1])).toEqual(["admin_users"])
+    expect([...src.matchAll(/\b(?:FROM|JOIN)\s+(\w+)/gi)].map(m => m[1])).toEqual(["admin_users"])
+  })
+
+  it("a lista providers tem exatamente um elemento, e nada troca cookie, JWT ou segredo", () => {
+    const src = withoutComments(read("lib/auth-options.ts"))
+    const block = src.match(/providers:\s*\[\r?\n([\s\S]*?)\r?\n {2}\],/)
+    expect(block).not.toBeNull()
+    // Elementos de primeiro nível: linhas com 4 espaços de recuo que abrem algo.
+    const topLevel = block![1].split(/\r?\n/).filter(l => /^ {4}\S/.test(l) && !/^ {4}[}\])]/.test(l))
+    expect(topLevel.map(l => l.trim())).toEqual(["CredentialsProvider({"])
+    // Nada de provedor em objeto literal, carregamento dinâmico, decodificador
+    // ou cookie próprios, nem o segredo das sessões de cliente/anunciante.
+    for (const forbidden of [/\bjwt\s*:/, /\bcookies\s*:/, /\brequire\s*\(/, /\bimport\s*\(/, /CLIENT_SESSION/, /\badapter\s*:/, /\btype\s*:\s*["'](credentials|oauth)["']/]) {
+      expect(src).not.toMatch(forbidden)
+    }
+    expect([...src.matchAll(/\bsecret\s*:\s*([^,\n]+)/g)].map(m => m[1].trim())).toEqual(["process.env.NEXTAUTH_SECRET"])
   })
 
   it("nenhum outro arquivo declara provedores do NextAuth nem monta o handler", () => {

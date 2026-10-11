@@ -2467,11 +2467,18 @@ Decisões do fundador de 11/10 sobre os achados 1 e 2 da revisão externa (12.67
 - `app/api/finance/asaas/route.ts` (POST e GET) checa o cabeçalho `x-admin-secret` por conta própria, além da sessão de `super_admin`. É a única rota em que o cabeçalho equivale a `super_admin`; o onboarding continua funcionando do mesmo jeito.
 - Rotas que aceitam o cabeçalho depois deste commit: `finance/asaas` (POST/GET), `admin/network-partnerships/suggest`, `admin/institutional-media` (GET/POST), `admin/verify-migration`, `admin/institutional-recover`.
 
-**Achado 1 — teste escrito** (`app/api/admin/_lib/adminSessionIsolation.test.ts`, 28 casos):
+**Achado 1 — teste escrito** (`app/api/admin/_lib/adminSessionIsolation.test.ts`, 35 casos depois do reforço pedido pelo revisor-agent):
 - Cookies válidos de cliente e de anunciante, inclusive copiados para os nomes de cookie do NextAuth, em uma rota de cada tipo de checagem → 401, sem tocar no banco.
 - O decodificador real do NextAuth rejeita os tokens de cliente e de anunciante, mesmo com o mesmo segredo.
 - Cabeçalho certo e sessão de `operador` nas rotas de `requireSuperAdmin` → 401, sem banco e sem Asaas.
 - Varredura do código que falha se `lib/auth-options.ts` ganhar outro provedor ou outra tabela de usuários, se outro arquivo montar o NextAuth, se alguém importar `next-auth/jwt`, se `signIn` aparecer fora de `app/admin/login`, ou se as rotas de `app/api/auth/otp` passarem a importar `next-auth`.
-- Limite do teste: `getServerSession` é simulado; o que prova que um cookie de cliente não vira sessão é o teste do decodificador e a varredura, não uma chamada real ao NextAuth.
+- Limite do teste: `getServerSession` é simulado; o que prova que um cookie de cliente não vira sessão é o teste do decodificador e a varredura, não uma chamada real ao NextAuth. Os casos de cookie rodam numa **amostra de 6 rotas** e só pegam uma dessas rotas passando a ler o cookie por conta própria.
+- Reforço depois da revisão (recomendação CORRIGIR, só no teste): varredura que falha se qualquer arquivo de `app/api/admin`, `app/admin`, `app/api/finance` ou `app/api/clients` ler sessão de cliente/anunciante ou cookie cru (única exceção: o PATCH de `finance/asaas`); a lista `providers` tem de ter exatamente um elemento, sem `jwt:`, `cookies:`, `adapter:`, carregamento dinâmico nem `CLIENT_SESSION_SECRET`; `POST finance/asaas` com sessão de `operador` (401) e de `super_admin` (passa); rede travada no arquivo inteiro.
+
+**Apontado pelo revisor e ainda em aberto:**
+- Confirmar com o fundador que nenhuma ferramenta fora do repositório usa o segredo em `admin/users`, `admin/subscription` ou `finance/close-month` (passam a responder 401).
+- `finance/asaas` e `requireSuperAdmin` não registram log quando devolvem 401.
+- Checagem pós-deploy sem efeito colateral, para quem tem o segredo: `GET /api/finance/asaas` com o cabeçalho verdadeiro e sem `code` devolve 400 antes de tocar banco ou Asaas; 401 indica cabeçalho recusado.
+- O revisor classifica a mudança como risco alto (autorização de admin e rota de pagamento) e mantém a exigência de revisão externa antes do push.
 
 **Pendência (registrada, sem correção):** as rotas de painel que usam `getServerSession()` sem `authOptions` (32 arquivos) checam só "existe sessão" e **não distinguem `operador` de `super_admin`**. Um operador alcança tudo o que essas rotas fazem. O caminho é trocar a checagem por `requireAdminSession` (que lê o papel) e decidir, rota a rota, o que é só de `super_admin`.
