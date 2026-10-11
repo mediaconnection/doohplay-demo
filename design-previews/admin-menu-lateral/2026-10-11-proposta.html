@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Preview estático da proposta de menu lateral do /admin (app/admin/page.tsx).
+  NÃO é código de produção. Cores = slateDark de lib/theme.ts.
+  Contadores ilustrativos.
+-->
+</head>
+<body style="margin:0">
+<title>Menu lateral do Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  /* Layout: barra de controle do preview no topo; abaixo, a moldura com o admin
+     (cabeçalho + coluna de menu à esquerda em 4 blocos + área da aba).
+     Cores = slateDark de lib/theme.ts (paleta oficial do admin, só tema escuro).
+     Tema único de propósito: o preview reproduz uma tela que só existe no escuro. */
+  :root {
+    color-scheme: dark;
+    --page:#05080F; --bar:#0F172A; --bar-btn:#1E293B; --bar-bd:#334155; --bar-text:#CBD5E1; --bar-strong:#FFFFFF;
+    --bg:#0B1020; --surface:#111827; --border:#1F2937; --text:#F9FAFB; --text2:#9CA3AF; --muted:#4B5563;
+    --blue:#3B82F6; --blue-soft:rgba(59,130,246,.14); --amber:#F59E0B; --amber-soft:rgba(245,158,11,.2); --red:#EF4444;
+    --note:#CBD5E1;
+    --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --side-w: 232px;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--page); color:var(--text); font-family:var(--font); }
+  button { font-family:inherit; }
+  :focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+
+  /* barra de controle do preview (não faz parte da proposta) */
+  .pv-bar { position:sticky; top:env(safe-area-inset-top, 0px); z-index:20; background:var(--bar); color:var(--bar-text); border-bottom:1px solid var(--bar-bd); padding:10px 16px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; font-size:13px; }
+  .pv-bar b { color:var(--bar-strong); }
+  .pv-group { display:flex; gap:4px; flex-wrap:wrap; }
+  .pv-bar button { background:var(--bar-btn); color:var(--bar-text); border:1px solid var(--bar-bd); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; }
+  .pv-bar button[aria-pressed="true"] { background:var(--blue); color:var(--bar-strong); border-color:var(--blue); }
+  .pv-wrap { display:flex; justify-content:center; padding-block:24px 32px; padding-inline:16px; }
+  .pv-frame { width:100%; max-width:1180px; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:max-width .2s; }
+  .pv-frame.mobile { max-width:390px; }
+
+  /* ── proposta ── */
+  .top { background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+  .logo { width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg, #3B82F6, #6366F1); flex:none; display:flex; align-items:center; justify-content:center; }
+  .wordmark { font-size:15px; font-weight:800; letter-spacing:-.02em; }
+  .wordmark span { color:var(--blue); }
+  .tag { font-size:11px; color:var(--text2); background:var(--border); padding:2px 8px; border-radius:10px; }
+  .who { display:flex; align-items:center; gap:12px; font-size:12px; color:var(--text2); min-width:0; }
+  .who .mail { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .out { color:var(--red); background:transparent; border:1px solid rgba(239,68,68,.27); border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; flex:none; }
+
+  .shell { display:flex; align-items:stretch; min-height:620px; }
+  .side { width:var(--side-w); flex:none; background:var(--surface); border-right:1px solid var(--border); padding:16px 10px 20px; display:flex; flex-direction:column; gap:18px; }
+  .group h2 { margin:0 0 6px; padding:0 10px; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text2); }
+  .group ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+  .item { width:100%; display:flex; align-items:center; gap:10px; background:transparent; border:none; border-radius:8px; padding:8px 10px; font-size:13px; color:var(--text2); text-align:left; cursor:pointer; }
+  .item:hover { background:rgba(255,255,255,.04); color:var(--text); }
+  .item[aria-current="page"] { background:var(--blue-soft); color:var(--text); font-weight:600; box-shadow:inset 2px 0 0 var(--blue); }
+  .item .ico { width:18px; text-align:center; flex:none; }
+  .item .lbl { flex:1; min-width:0; }
+  .count { font-size:11px; padding:1px 7px; border-radius:10px; background:var(--border); color:var(--text2); font-variant-numeric:tabular-nums; }
+  .count.alert { background:var(--amber-soft); color:var(--amber); font-weight:700; }
+  .only { font-size:10px; color:var(--text2); border:1px solid var(--border); border-radius:4px; padding:0 4px; }
+
+  .main { flex:1; min-width:0; padding:28px 24px 32px; }
+  .main h1 { font-size:18px; margin:0 0 4px; text-wrap:balance; }
+  .main p.sub { margin:0 0 20px; font-size:13px; color:var(--text2); max-width:60ch; line-height:1.5; }
+  .ph { border:1px dashed var(--border); border-radius:12px; padding:18px; display:grid; gap:12px; }
+  .ph-row { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+  .ph-box { background:var(--surface); border:1px solid var(--border); border-radius:10px; height:72px; }
+  .ph-table { background:var(--surface); border:1px solid var(--border); border-radius:10px; height:220px; }
+  .ph-cap { font-size:12px; color:var(--text2); }
+
+  /* celular: a coluna vira um botão "Menu" que abre a mesma lista por cima */
+  .menu-btn { display:none; }
+  .mobile .top { padding:0 12px; }
+  .mobile .who .mail, .mobile .tag { display:none; }
+  .mobile .shell { flex-direction:column; position:relative; }
+  .mobile .menu-btn { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:var(--surface); color:var(--text); border:none; border-bottom:1px solid var(--border); padding:12px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+  .mobile .menu-btn small { color:var(--text2); font-weight:400; }
+  .mobile .side { display:none; width:100%; border-right:none; border-bottom:1px solid var(--border); }
+  .mobile .side.open { display:flex; }
+  .mobile .main { padding:20px 12px 24px; }
+  .mobile .ph-row { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  @media (prefers-reduced-motion: reduce) { .pv-frame { transition:none; } }
+
+  .notes { max-width:1180px; margin:0 auto; padding-block:0 48px; padding-inline:16px; font-size:13px; color:var(--note); line-height:1.55; }
+  .notes h2 { font-size:14px; margin:0 0 8px; color:var(--text); }
+  .notes ul { margin:0; padding-left:18px; display:grid; gap:4px; max-width:75ch; }
+  .notes code { font-size:12px; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0 4px; }
+</style>
+
+<div class="pv-bar" role="toolbar" aria-label="Controles do preview">
+  <b>Preview</b>
+  <div class="pv-group" id="pv-role">
+    <button id="r-super" data-r="super" aria-pressed="true">super_admin (16 itens)</button>
+    <button id="r-op" data-r="operador" aria-pressed="false">operador (14 itens)</button>
+  </div>
+  <div class="pv-group" id="pv-pend">
+    <button id="p-none" data-p="none" aria-pressed="true">Sem pendências</button>
+    <button id="p-some" data-p="some" aria-pressed="false">Com pendências</button>
+  </div>
+  <div class="pv-group" id="pv-size">
+    <button id="w-desk" data-w="desktop" aria-pressed="true">Computador</button>
+    <button id="w-mob" data-w="mobile" aria-pressed="false">Celular</button>
+  </div>
+</div>
+
+<div class="pv-wrap"><div class="pv-frame" id="frame">
+  <div class="top">
+    <div class="brand">
+      <div class="logo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+      <div class="wordmark">DOOH<span>PLAY</span></div>
+      <span class="tag">Admin</span>
+    </div>
+    <div class="who"><span class="mail">e-mail do admin</span><span>← Site</span><button class="out" id="btn-out">Sair</button></div>
+  </div>
+  <div class="shell">
+    <button class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="side"><span id="menu-cur">📊 Dashboard</span><small>Menu ▾</small></button>
+    <nav class="side" id="side" aria-label="Seções do admin"></nav>
+    <div class="main" id="main"></div>
+  </div>
+</div></div>
+
+<div class="notes">
+  <h2>Como ler este preview</h2>
+  <ul>
+    <li>Proposta de posição do menu do <code>/admin</code>: sai a faixa horizontal de abas, entra uma coluna à esquerda em quatro blocos. Nada implementado em produção.</li>
+    <li>Os itens, ícones e nomes são os mesmos de hoje, sem renomear nada. Só a ordem muda, para caber nos blocos.</li>
+    <li><b>Operação</b>: Dashboard, Diagnóstico, Clientes, Assinaturas, Anunciantes. <b>Conteúdo</b>: Mídias, Exemplos, Institucional, Templates, Enquetes. <b>Rede</b>: Rede, Frota, Central de Controle. <b>Sistema</b>: Alertas, Eventos, Usuários.</li>
+    <li>Assinaturas e Usuários continuam aparecendo só para <code>super_admin</code>; troque o papel na barra de cima para ver.</li>
+    <li>O contador âmbar marca pendência, como hoje, em Mídias, Rede e Alertas. Os números deste preview são ilustrativos.</li>
+    <li>No celular a coluna recolhe num botão "Menu" que mostra a seção atual. Hoje a faixa horizontal não quebra nem rola, e as últimas abas ficam fora da tela.</li>
+    <li>A área à direita está só esboçada: o conteúdo de cada aba não muda nesta proposta.</li>
+  </ul>
+</div>
+
+<script>
+  var GROUPS = [
+    { title: "Operação", items: [
+      { id:"dashboard", label:"Dashboard", icon:"📊" },
+      { id:"diagnostico", label:"Diagnóstico", icon:"🔍" },
+      { id:"clientes", label:"Clientes", icon:"👥", count:2 },
+      { id:"assinaturas", label:"Assinaturas", icon:"💳", count:1, superOnly:true },
+      { id:"anunciantes", label:"Anunciantes", icon:"📢", count:0 }
+    ]},
+    { title: "Conteúdo", items: [
+      { id:"midias", label:"Mídias", icon:"🎬", count:0, pending:3 },
+      { id:"exemplos", label:"Exemplos", icon:"📚" },
+      { id:"institucional", label:"Institucional", icon:"🏢" },
+      { id:"templates", label:"Templates", icon:"🖼️" },
+      { id:"enquetes", label:"Enquetes", icon:"🗳️" }
+    ]},
+    { title: "Rede", items: [
+      { id:"rede", label:"Rede", icon:"🤝", count:0, pending:1 },
+      { id:"frota", label:"Frota", icon:"🖥️" },
+      { id:"central", label:"Central de Controle", icon:"📡" }
+    ]},
+    { title: "Sistema", items: [
+      { id:"alertas", label:"Alertas", icon:"🚨", count:0, pending:2 },
+      { id:"eventos", label:"Eventos", icon:"⚡" },
+      { id:"usuarios", label:"Usuários", icon:"🔐", superOnly:true }
+    ]}
+  ];
+  var state = { role:"super", pend:"none", tab:"dashboard" };
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function visible(it){ return !it.superOnly || state.role === "super"; }
+  function find(id){ for (var g = 0; g < GROUPS.length; g++) for (var i = 0; i < GROUPS[g].items.length; i++) if (GROUPS[g].items[i].id === id) return { item: GROUPS[g].items[i], group: GROUPS[g].title }; return null; }
+
+  function render() {
+    var cur = find(state.tab);
+    if (!cur || !visible(cur.item)) { state.tab = "dashboard"; cur = find("dashboard"); }
+    var html = "";
+    GROUPS.forEach(function(g) {
+      var items = g.items.filter(visible);
+      if (!items.length) return;
+      html += '<div class="group"><h2>' + esc(g.title) + '</h2><ul>';
+      items.forEach(function(it) {
+        var n = (state.pend === "some" && it.pending) ? it.pending : it.count;
+        var alert = state.pend === "some" && !!it.pending;
+        html += '<li><button class="item" id="nav-' + it.id + '" data-id="' + it.id + '"' + (it.id === state.tab ? ' aria-current="page"' : '') + '>'
+          + '<span class="ico" aria-hidden="true">' + it.icon + '</span><span class="lbl">' + esc(it.label) + '</span>'
+          + (n !== undefined ? '<span class="count' + (alert ? ' alert' : '') + '">' + n + '</span>' : '')
+          + '</button></li>';
+      });
+      html += '</ul></div>';
+    });
+    document.getElementById("side").innerHTML = html;
+    document.getElementById("menu-cur").textContent = cur.item.icon + " " + cur.item.label;
+    document.getElementById("main").innerHTML =
+      '<h1>' + esc(cur.item.label) + '</h1>'
+      + '<p class="sub">Bloco ' + esc(cur.group) + '. O conteúdo desta aba continua igual ao de hoje; aqui ele aparece só esboçado.</p>'
+      + '<div class="ph"><div class="ph-row"><div class="ph-box"></div><div class="ph-box"></div><div class="ph-box"></div></div>'
+      + '<div class="ph-table"></div><div class="ph-cap">Área da aba: ocupa toda a largura à direita do menu.</div></div>';
+  }
+
+  function wire(groupId, attr, fn) {
+    var g = document.getElementById(groupId);
+    g.addEventListener("click", function(e) {
+      var b = e.target.closest("button"); if (!b) return;
+      [].forEach.call(g.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      fn(b.getAttribute(attr));
+    });
+  }
+  function setMenu(open) {
+    document.getElementById("side").classList.toggle("open", open);
+    document.getElementById("menu-btn").setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  wire("pv-role", "data-r", function(r){ state.role = r; render(); });
+  wire("pv-pend", "data-p", function(p){ state.pend = p; render(); });
+  wire("pv-size", "data-w", function(w){ document.getElementById("frame").classList.toggle("mobile", w === "mobile"); setMenu(false); });
+  document.getElementById("side").addEventListener("click", function(e) {
+    var b = e.target.closest("button.item"); if (!b) return;
+    state.tab = b.getAttribute("data-id"); render(); setMenu(false);
+  });
+  document.getElementById("menu-btn").addEventListener("click", function() {
+    setMenu(!document.getElementById("side").classList.contains("open"));
+  });
+  render();
+</script>
+
+</body>
+</html>

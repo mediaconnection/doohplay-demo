@@ -2458,6 +2458,15 @@ Commits separados do 12.65, na mesma leva. Feito localmente; validação em prod
    - `GET /api/finance/setup?secret=…`: só leitura de nomes de tabelas e colunas.
    - `network-media-expire`, `network-partnerships-timeout` e `trial-warning` só aceitam o cabeçalho.
 
+### 12.69 — Menu do `/admin` na lateral esquerda, em blocos (11/10/2026)
+
+Pedido do fundador. Preview aprovado em 11/10 (`design-previews/admin-menu-lateral/2026-10-11-proposta.html`, artifact `claude.ai/artifact/5vksdyXR4eZDMTaQGYcJ3m`).
+
+- `app/admin/page.tsx`: a faixa horizontal de abas virou uma coluna fixa à esquerda (232 px), em quatro blocos. **Operação:** Dashboard, Diagnóstico, Clientes, Assinaturas, Anunciantes. **Conteúdo:** Mídias, Exemplos, Institucional, Templates, Enquetes. **Rede:** Rede, Frota, Central de Controle. **Sistema:** Alertas, Eventos, Usuários.
+- Mesmos itens, ícones, ids e contadores de antes; Assinaturas e Usuários seguem só para `super_admin`. O conteúdo de cada aba não foi tocado. Nenhuma rota, consulta ou permissão mudou.
+- Abaixo de 900 px a coluna recolhe num botão "Menu" que mostra a seção atual. Antes, a faixa horizontal não quebrava nem rolava, e as últimas abas ficavam fora da tela.
+- Validado: `tsc --noEmit` (58, igual) e ESLint do arquivo (190 contra 193 antes). **Não validado visualmente no app real** — sem `.env` nesta máquina e a página exige login; a conferência foi no preview.
+
 ### 12.68 — Cabeçalho só em `finance/asaas` e teste de isolamento de sessão (11/10/2026)
 
 Decisões do fundador de 11/10 sobre os achados 1 e 2 da revisão externa (12.67). Feito localmente; validação em produção depende do push.

@@ -3598,6 +3598,8 @@ export default function AdminPage() {
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [tab, setTab]         = useState("dashboard")
+  // Menu lateral (11/10/2026): no celular a coluna recolhe num botão "Menu".
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/admin/login")
@@ -3625,28 +3627,55 @@ export default function AdminPage() {
 
   const isSuperAdmin = (session?.user as any)?.role === "super_admin"
 
-  const TABS = [
-    { id: "dashboard",   label: "Dashboard",   icon: "📊" },
-    { id: "diagnostico", label: "Diagnóstico", icon: "🔍" },
-    { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
-    ...(isSuperAdmin ? [{ id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length }] : []),
-    { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
-    { id: "midias",      label: "Mídias",      icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
-    { id: "rede",        label: "Rede",        icon: "🤝", count: pendingNetworkMedia, alert: pendingNetworkMedia > 0 },
-    { id: "exemplos",    label: "Exemplos",    icon: "📚" },
-    { id: "institucional", label: "Institucional", icon: "🏢" },
-    { id: "templates",   label: "Templates",   icon: "🖼️" },
-    { id: "frota",       label: "Frota",       icon: "🖥️" },
-    { id: "central",     label: "Central de Controle", icon: "📡" },
-    { id: "enquetes",    label: "Enquetes",    icon: "🗳️" },
-    { id: "alertas",     label: "Alertas",     icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
-    { id: "eventos",     label: "Eventos",     icon: "⚡" },
-    ...(isSuperAdmin ? [{ id: "usuarios", label: "Usuários", icon: "🔐" }] : []),
+  // Menu lateral em blocos (11/10/2026, preview em
+  // design-previews/admin-menu-lateral/). Mesmos itens, ícones e ids de
+  // antes — só a posição (coluna à esquerda) e o agrupamento mudaram.
+  type NavItem = { id: string; label: string; icon: string; count?: number; alert?: boolean }
+  const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+    { title: "Operação", items: [
+      { id: "dashboard",   label: "Dashboard",   icon: "📊" },
+      { id: "diagnostico", label: "Diagnóstico", icon: "🔍" },
+      { id: "clientes",    label: "Clientes",    icon: "👥", count: data.clients?.length },
+      ...(isSuperAdmin ? [{ id: "assinaturas", label: "Assinaturas", icon: "💳", count: data.subscriptions?.length }] : []),
+      { id: "anunciantes", label: "Anunciantes", icon: "📢", count: data.advertisers?.length },
+    ] },
+    { title: "Conteúdo", items: [
+      { id: "midias",        label: "Mídias",        icon: "🎬", count: pendingMedias, alert: pendingMedias > 0 },
+      { id: "exemplos",      label: "Exemplos",      icon: "📚" },
+      { id: "institucional", label: "Institucional", icon: "🏢" },
+      { id: "templates",     label: "Templates",     icon: "🖼️" },
+      { id: "enquetes",      label: "Enquetes",      icon: "🗳️" },
+    ] },
+    { title: "Rede", items: [
+      { id: "rede",    label: "Rede",                icon: "🤝", count: pendingNetworkMedia, alert: pendingNetworkMedia > 0 },
+      { id: "frota",   label: "Frota",               icon: "🖥️" },
+      { id: "central", label: "Central de Controle", icon: "📡" },
+    ] },
+    { title: "Sistema", items: [
+      { id: "alertas", label: "Alertas", icon: "🚨", count: pendingAlerts, alert: pendingAlerts > 0 },
+      { id: "eventos", label: "Eventos", icon: "⚡" },
+      ...(isSuperAdmin ? [{ id: "usuarios", label: "Usuários", icon: "🔐" }] : []),
+    ] },
   ]
+  const currentItem = NAV_GROUPS.flatMap(g => g.items).find(i => i.id === tab)
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder { color: #4B5563; }`}</style>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; } input::placeholder { color: #4B5563; }
+        .adm-shell { display: flex; align-items: flex-start; }
+        .adm-side { width: 232px; flex: none; position: sticky; top: 0; align-self: flex-start; max-height: 100vh; min-height: calc(100vh - 56px); overflow-y: auto; background: ${C.surface}; border-right: 1px solid ${C.border}; padding: 16px 10px 20px; display: flex; flex-direction: column; gap: 18px; }
+        .adm-main { flex: 1; min-width: 0; }
+        .adm-menu-btn { display: none; }
+        .adm-nav-item:hover { background: rgba(255,255,255,.04); }
+        .adm-nav-item:focus-visible, .adm-menu-btn:focus-visible { outline: 2px solid ${C.blue}; outline-offset: -2px; }
+        @media (max-width: 900px) {
+          .adm-shell { flex-direction: column; align-items: stretch; }
+          .adm-menu-btn { display: flex; }
+          .adm-side { display: none; width: 100%; position: static; max-height: none; min-height: 0; border-right: none; border-bottom: 1px solid ${C.border}; }
+          .adm-side.open { display: flex; }
+        }
+      `}</style>
 
       <div style={{ background: C.surface, borderBottom: "1px solid " + C.border, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3667,17 +3696,35 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div style={{ background: C.surface, borderBottom: "1px solid " + C.border, padding: "0 24px", display: "flex", gap: 4 }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "14px 18px", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.blue : C.text2, borderBottom: "2px solid " + (tab === t.id ? C.blue : "transparent"), display: "flex", alignItems: "center", gap: 6 }}>
-            {t.icon} {t.label}
-            {t.count !== undefined && (
-              <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 10, background: (t as any).alert ? C.amber + "33" : C.border, color: (t as any).alert ? C.amber : C.text2, fontWeight: (t as any).alert ? 700 : 400 }}>{t.count}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      <div className="adm-shell">
+        <button className="adm-menu-btn" onClick={() => setMenuOpen(o => !o)} aria-expanded={menuOpen} aria-controls="adm-side" style={{ alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", background: C.surface, color: C.text, border: "none", borderBottom: "1px solid " + C.border, padding: "12px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <span>{currentItem?.icon} {currentItem?.label}</span>
+          <span style={{ color: C.text2, fontWeight: 400 }}>Menu {menuOpen ? "▴" : "▾"}</span>
+        </button>
 
+        <nav id="adm-side" className={"adm-side" + (menuOpen ? " open" : "")} aria-label="Seções do admin">
+          {NAV_GROUPS.map(g => (
+            <div key={g.title}>
+              <div style={{ margin: "0 0 6px", padding: "0 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: C.text2 }}>{g.title}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {g.items.map(t => {
+                  const active = tab === t.id
+                  return (
+                    <button key={t.id} className="adm-nav-item" onClick={() => { setTab(t.id); setMenuOpen(false) }} aria-current={active ? "page" : undefined} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: active ? C.blue + "24" : undefined, border: "none", borderRadius: 8, cursor: "pointer", padding: "8px 10px", fontSize: 13, textAlign: "left", fontWeight: active ? 600 : 400, color: active ? C.text : C.text2, boxShadow: active ? "inset 2px 0 0 " + C.blue : "none" }}>
+                      <span aria-hidden="true" style={{ width: 18, textAlign: "center", flex: "none" }}>{t.icon}</span>
+                      <span style={{ flex: 1, minWidth: 0 }}>{t.label}</span>
+                      {t.count !== undefined && (
+                        <span style={{ fontSize: 11, padding: "1px 7px", borderRadius: 10, background: t.alert ? C.amber + "33" : C.border, color: t.alert ? C.amber : C.text2, fontWeight: t.alert ? 700 : 400 }}>{t.count}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        <div className="adm-main">
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
         {tab === "dashboard"   && <TabDashboard   data={data} />}
         {tab === "diagnostico" && <TabDiagnostico />}
@@ -3695,6 +3742,8 @@ export default function AdminPage() {
         {tab === "alertas"     && <TabAlertas     data={data} onRefresh={load} />}
         {tab === "eventos"     && <TabEventos     data={data} />}
         {tab === "usuarios" && isSuperAdmin && <TabUsuarios />}
+      </div>
+        </div>
       </div>
     </div>
   )
