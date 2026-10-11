@@ -2424,3 +2424,14 @@ Commits separados do 12.65, na mesma leva. Feito localmente; validação em prod
 - O WhatsApp interno do onboarding até diz "⚠️ Sem CPF — ativar manualmente", mas usa esse mesmo texto para qualquer falha, inclusive quando o CPF foi informado.
 - É o mesmo desfecho do caso `LEMEL186` de 12.26 (cliente real usando a plataforma sem cobrança), agora com mais uma causa possível depois da troca para cabeçalho.
 - **O que falta:** o onboarding avisar o fundador de forma explícita quando a assinatura falhar, com o motivo. Não implementado.
+
+**Achados da segunda revisão (revisor-agent, recomendação APROVAR), registrados sem correção:**
+- **ALTO — `app/api/cron/monthly-report/route.ts` fica aberta se `CRON_SECRET` faltar.** As linhas 45 e 160 só comparam o segredo quando a variável existe; sem ela, `GET` e `POST` passam sem segredo, e a rota envia WhatsApp real. É a mesma condição fechada em `reports/whatsapp` com 500. Não é explorável enquanto a variável estiver configurada.
+- O 401 do `GET cron/monthly-report` devolve o valor recebido no corpo (`received: secret`).
+- **Troca do `CRON_SECRET`:** além de mudar o comando do cron mensal para `$CRON_SECRET`, a variável precisa existir no próprio serviço de cron (o ambiente é por serviço). O `curl` do cron não usa `--fail`, então um 401 ou 500 aparece como execução bem-sucedida; conferir o log de 01/11, 09:00 UTC.
+- **`render.yaml` não descreve a produção.** No Render existem `doohplay-monthly-report` (curl para `reports/whatsapp`), `doohplay-network-media-expire` e `doohplay-network-partnerships-timeout`. Os crons `monthly-report` e `trial-warning` do `render.yaml` não existem lá, e de 27/09 a 11/10 não houve chamada a `/api/cron/monthly-report` nem a `trial-warning`. A rota de `trial-warning` está em `app/cron/`, fora de `/api/`.
+- `lib/crypto/timestamp.ts` tem `TSA_SECRET` com valor padrão no código (frente de prova, fora desta leva).
+- `finance/asaas` grava em `financial_subscriptions` com `code` sem `toUpperCase()`, dentro de um `catch` vazio.
+- Correção de contagem: `adminSecretHeader.test.ts` tem 44 casos depois de 12.66 (12.65 dizia 38).
+
+**Healthcheck:** o fundador confirmou em 11/10 que não existe monitor externo; `admin/healthcheck` fica só com sessão.
