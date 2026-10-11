@@ -2435,3 +2435,25 @@ Commits separados do 12.65, na mesma leva. Feito localmente; validação em prod
 - Correção de contagem: `adminSecretHeader.test.ts` tem 44 casos depois de 12.66 (12.65 dizia 38).
 
 **Healthcheck:** o fundador confirmou em 11/10 que não existe monitor externo; `admin/healthcheck` fica só com sessão.
+
+### 12.67 — Revisão externa do `7ac2064` e estado pós-deploy (11/10/2026)
+
+**Publicação:** push dos commits `ba8b34c` a `c4a8323` em 11/10; deploy `c4a8323` no ar às 18:13 UTC. Checagens de leitura: 17 chamadas com `?secret=`, `body.secret` ou cabeçalho **falsos** → 401 em todas (painel, `finance/asaas`, `verify-migration`, `institutional-media`, `suggest`, `reports/whatsapp`); playlists de BARBE332 (1 item) e LEMEL186 (8 itens) com 200; as duas TVs seguiram pingando. Não foi feito teste com o segredo verdadeiro.
+
+**Revisão externa do `7ac2064`** (exigida pelo plano de governança para risco alto; feita fora desta sessão, resultado trazido pelo fundador): **sem regressão**. Quatro achados, todos anteriores ao commit:
+
+1. **(ALTO, verificado) Rotas de painel checam só "existe sessão", sem papel.** Verificação de 11/10, por leitura do código:
+   - O único jeito de criar sessão NextAuth é o provedor de credenciais de `lib/auth-options.ts`: `ADMIN_EMAIL`/`ADMIN_PASSWORD` do ambiente ou linha ativa em `admin_users` (papéis `super_admin` e `operador`). Só `app/admin/login` chama `signIn`.
+   - `POST /api/auth/otp/verify` **não** cria sessão NextAuth. Para `role: "client"` grava o cookie `doohplay_client_session`; para `advertiser`, `doohplay_advertiser_session`; para `agency`, nenhum. São HMAC com `CLIENT_SESSION_SECRET`, outro nome de cookie, outro segredo e outro formato.
+   - `admin_users` só recebe linha por `POST /api/admin/users` (super_admin) ou SQL direto.
+   - `getServerSession()` sem argumentos (32 arquivos) decifra o cookie do NextAuth com `NEXTAUTH_SECRET` (next-auth 4.24.15) e não traz o papel.
+   - **Conclusão:** cliente e anunciante não conseguem sessão NextAuth; não há acesso deles ao admin por esse caminho. O que resta é a falta de distinção entre `operador` e `super_admin` nessas rotas, e a falta de um teste que trave isso.
+2. **(MÉDIO) `requireSuperAdmin` aceita o cabeçalho `x-admin-secret` em `admin/users`, `admin/subscription` e `finance/close-month`**, que não têm chamador de máquina. Com o segredo dá para criar um `super_admin` (`POST admin/users`) e cancelar assinatura no Asaas (`DELETE admin/subscription`). Proposta: cabeçalho só em `finance/asaas`.
+3. **(MÉDIO) Cadastro e onboarding chamam a própria API pelo domínio público**, passando pela Cloudflare. **Pendência para o arquiteto-agent:** extrair a lógica de `network-partnerships/suggest` e de `finance/asaas` (POST) para funções chamadas direto, sem HTTP. Isso elimina o `ADMIN_SECRET` nesses dois fluxos, a dependência da Cloudflare e a falha silenciosa da pendência alta de 12.66.
+4. **(URGENTE) O que o `CRON_SECRET` na URL permite hoje** (levantado antes da troca):
+   - `GET /api/reports/whatsapp?code=X&secret=…`: envia **um WhatsApp real** com o relatório do mês ao telefone do cliente `X` (precisa estar ativo e ter telefone) e devolve nome, telefone e contagens dele.
+   - `POST /api/reports/whatsapp` (cabeçalho): envia o relatório a **todos** os clientes ativos com telefone.
+   - `GET` ou `POST /api/cron/monthly-report?secret=…`: envia outro relatório mensal por WhatsApp a todos os clientes ativos com telefone e `notif_whatsapp = true`, e grava em `report_logs`.
+   - `POST /api/finance/setup?secret=…`: roda DDL no banco (`ALTER TABLE … ADD COLUMN IF NOT EXISTS` em `studio_clients` e `leads`; `CREATE TABLE/INDEX IF NOT EXISTS` das tabelas `financial_*`). Não apaga nem altera dados; hoje é sem efeito porque tudo já existe.
+   - `GET /api/finance/setup?secret=…`: só leitura de nomes de tabelas e colunas.
+   - `network-media-expire`, `network-partnerships-timeout` e `trial-warning` só aceitam o cabeçalho.
