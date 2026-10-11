@@ -7,7 +7,21 @@ export const dynamic = "force-dynamic"
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || "http://2.25.180.53:32768"
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY ?? ""
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || "doohplay"
-const CRON_SECRET = process.env.CRON_SECRET || "doohplay-cron-2026"
+
+// Sem valor padrão no código (11/10/2026): se CRON_SECRET não estiver
+// configurada no ambiente, a rota recusa com 500 e registra no log, em vez
+// de aceitar um segredo conhecido. Retorna null quando pode seguir.
+function checkCronSecret(got: string | null): NextResponse | null {
+  const expected = process.env.CRON_SECRET
+  if (!expected) {
+    console.error("[reports/whatsapp] CRON_SECRET não configurada no ambiente — requisição recusada")
+    return NextResponse.json({ error: "CRON_SECRET não configurada no servidor" }, { status: 500 })
+  }
+  if (got !== expected) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+  }
+  return null
+}
 
 // ── Envia mensagem via Evolution API ──────────────────────────────────────────
 async function sendWhatsApp(phone: string, message: string): Promise<boolean> {
@@ -88,11 +102,8 @@ function buildMessage(name: string, stats: any, month: string): string {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code   = searchParams.get("code")
-  const secret = searchParams.get("secret")
-
-  if (secret !== CRON_SECRET) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-  }
+  const denied = checkCronSecret(searchParams.get("secret"))
+  if (denied) return denied
 
   if (!code) {
     return NextResponse.json({ error: "code obrigatório" }, { status: 400 })
@@ -131,11 +142,8 @@ export async function GET(req: NextRequest) {
 // POST /api/reports/whatsapp
 // Header: x-cron-secret: <CRON_SECRET>
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret")
-
-  if (secret !== CRON_SECRET) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-  }
+  const denied = checkCronSecret(req.headers.get("x-cron-secret"))
+  if (denied) return denied
 
   const pool = getPool()
   const { rows: clients } = await pool.query(
