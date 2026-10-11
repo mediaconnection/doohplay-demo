@@ -2477,12 +2477,12 @@ Decisões do fundador de 11/10 sobre os achados 1 e 2 da revisão externa (12.67
 
 - **Limite da varredura de cookie (decisão do fundador, 11/10):** ela cobre só `app/api/admin`, `app/admin`, `app/api/finance` e `app/api/clients`. Ficam de fora rotas com sessão de admin em `app/api/dashboard` (7), `app/api/players` (5), `app/api/events` (2) e `app/api/reports/dashboard`. A extensão será feita junto com a separação `operador` × `super_admin`, que mexe nas mesmas rotas.
 - Reverificação do revisor-agent no intervalo `c4a8323..215aaca`: recomendação APROVAR, com resíduos baixos (a leitura da lista de provedores depende do recuo do arquivo; um helper novo em `lib/` que lesse o cookie por dentro, ou um `authOptions.providers.push(...)` em outro arquivo, não seriam pegos — hoje não existem).
-- Revisão externa do `ffbc4fd` pedida pelo fundador em 11/10; o push aguarda o resultado.
+- **Revisão externa do `ffbc4fd` e do `215aaca`** (feita fora desta sessão, resultado trazido pelo fundador em 11/10): **APROVAR**. Código conferido: `requireSuperAdmin` só com sessão de `super_admin`; cabeçalho só em `finance/asaas` (POST e GET); PATCH de cliente intacto. Pendências baixas: (a) o cabeçalho também abre o `GET` de `finance/asaas`, e o onboarding só precisa do `POST`; (b) o teste da lista de provedores depende da formatação de `lib/auth-options.ts` (falha do lado seguro).
+- O fundador confirmou em 11/10 que não existe ferramenta fora do repositório usando o `ADMIN_SECRET` em `admin/users`, `admin/subscription` ou `finance/close-month`.
 
 **Próxima investigação (só leitura, depois do push):** `lib/crm-session.ts` tem um PIN padrão escrito no código e usa `CLIENT_SESSION_SECRET` como reserva (apontado pelo revisor-agent, não investigado). Pergunta do fundador: dá para entrar no CRM com o PIN padrão hoje?
 
 **Apontado pelo revisor e ainda em aberto:**
-- Confirmar com o fundador que nenhuma ferramenta fora do repositório usa o segredo em `admin/users`, `admin/subscription` ou `finance/close-month` (passam a responder 401).
 - `finance/asaas` e `requireSuperAdmin` não registram log quando devolvem 401.
 - Checagem pós-deploy sem efeito colateral, para quem tem o segredo: `GET /api/finance/asaas` com o cabeçalho verdadeiro e sem `code` devolve 400 antes de tocar banco ou Asaas; 401 indica cabeçalho recusado.
 - O revisor classifica a mudança como risco alto (autorização de admin e rota de pagamento) e mantém a exigência de revisão externa antes do push.
